@@ -970,7 +970,7 @@ test('git:unsubmitted-work sees the parked ticket work a clean status hides (#23
 	assert.equal(narrow.dirty, false);
 
 	const wide = await main.invoke('git:unsubmitted-work', dir);
-	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'] });
+	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'], entries: [{ path: 'wp-login.php', added: false }], editedSinceChange: [] });
 });
 
 // Fresh edits and parked ones are one body of work as far as the ticket is
@@ -1001,7 +1001,7 @@ test('git:unsubmitted-work matches git:worktree-dirty on trunk (#239)', async (t
 
 	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // login\n// edited\n');
 	const wide = await main.invoke('git:unsubmitted-work', dir);
-	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'] });
+	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'], entries: [{ path: 'wp-login.php', added: false }], editedSinceChange: [] });
 });
 
 // The count is the patch's count. A binary edit is named above the diff rather
@@ -1015,6 +1015,62 @@ test('git:unsubmitted-work counts what the patch would speak about (#239, #85)',
 	const wide = await main.invoke('git:unsubmitted-work', dir);
 	assert.equal(wide.changedCount, 2);
 	assert.ok(wide.files.includes('logo.png'), 'a binary change still counts — the patch names it');
+});
+
+// --- git:unsubmitted-work — "Changed files" (#669) --------------------------
+
+const { fingerprint } = require('../../src/change-fingerprint.cjs');
+
+// Each file says whether it is new, for the "new" mark under "Your changes".
+test('git:unsubmitted-work says which changed files are new (#669)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'new-helper.php'), '<?php // mine\n');
+	const main = parkedTicketMain(dir, baseOid);
+
+	const wide = await main.invoke('git:unsubmitted-work', dir);
+	assert.deepEqual(
+		[...wide.entries].sort((a, b) => a.path.localeCompare(b.path)),
+		[{ path: 'new-helper.php', added: true }, { path: 'wp-login.php', added: false }]
+	);
+});
+
+// A patch's files against what it wrote: the one changed since is edited, the
+// one left alone is not, whatever both look like to the unsubmitted list.
+test('git:unsubmitted-work names the applied patch\'s files changed since it was applied (#669)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'a.php'), '<?php // the patch wrote this\n');
+	fs.writeFileSync(path.join(dir, 'b.php'), '<?php // and this\n');
+	const fingerprints = {
+		'a.php': fingerprint(Buffer.from('<?php // the patch wrote this\n')),
+		'b.php': fingerprint(Buffer.from('<?php // and this\n'))
+	};
+	fs.writeFileSync(path.join(dir, 'b.php'), '<?php // and this, then mine\n');
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid, appliedPatch: { label: 'x.patch', files: ['a.php', 'b.php'], fingerprints } } } } }
+	}).stubs } });
+
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, ['b.php']);
+});
+
+// A pull request is the branch's base, so its files among the changes are the
+// contributor's edits.
+test('git:unsubmitted-work names the checked-out pull request\'s files edited since (#669)', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-wiring-pr-edited-');
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
+	fs.writeFileSync(path.join(dir, 'other.php'), '<?php // trunk\n');
+	commitFiles(dir, ['wp-login.php', 'other.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'pr/7', 'trunk'], dir);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // pull request 7\n');
+	fs.writeFileSync(path.join(dir, 'other.php'), '<?php // pull request 7\n');
+	const headOid = commitFiles(dir, ['wp-login.php', 'other.php'], 'PR #7');
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // pull request 7, then mine\n');
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { currentBranch: 'pr/7', branches: { 'pr/7': { pullRequest: 7, headOid, baseOid: headOid, files: ['wp-login.php', 'other.php'] } } } }
+	}).stubs } });
+
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, ['wp-login.php']);
 });
 
 // What a discard leaves behind rides on its reply: on a ticket branch the
@@ -1316,8 +1372,12 @@ async function patchRepo(t, files) {
 	return dir;
 }
 
+// With an empty store of its own: `git:unsubmitted-work` reads the branch's
+// record since #669, to compare with the applied change, and the real store
+// would load the real electron package. Nothing here is registered, which is
+// what these tests have always run with.
 function patchMain() {
-	return loadMain({ stubs: { ...silentLogging() } });
+	return loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore().stubs } });
 }
 
 // The patch is what a contributor hands over, so a change it does not mention
@@ -3495,6 +3555,27 @@ test('git:apply-patch delegates a forward apply to patch-apply and records it', 
 	assert.deepEqual(stored.files, ['src/a.php']);
 });
 
+// What the patch wrote, fingerprinted with the record (#669), so a later edit
+// to one of its files can be told from the patch itself. A file the patch
+// removed has no content, and no fingerprint.
+test('git:apply-patch records a fingerprint of each file the patch wrote (#669)', async (t) => {
+	const dir = tempDir(t, 'ipc-wiring-fingerprint-');
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // patched\n');
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php', 'src/gone.php'], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: [dir] });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, dir, { patchText: 'PATCH', label: 'x.patch' });
+	assert.equal((await applyDone(event, applyId)).ok, true);
+
+	assert.deepEqual(settings.values.siteMeta[dir].appliedPatch.fingerprints, {
+		'src/a.php': fingerprint(Buffer.from('<?php // patched\n')),
+		'src/gone.php': null
+	});
+});
+
 test('git:apply-patch refuses a second patch while one is already applied', async () => {
 	const applyPatchToDir = spy(async () => ({ ok: true, applied: [], skipped: [] }));
 	const settings = fakeSettingsStore({
@@ -5315,6 +5396,29 @@ test('branches:rebase moves the active ticket onto trunk, records the new base a
 	// And the notice's own question answers "current" now.
 	const status = await main.invoke('site:status', '/sites/wp');
 	assert.equal(status.ticketBehindTrunk, false);
+});
+
+// The fingerprints go with the text (#669): the merge brings trunk's changes
+// into files the patch wrote, and a file trunk changed is not one the
+// contributor edited. Without them the record is one from before they were
+// kept, which marks nothing. A record whose text an earlier move already
+// dropped still has its fingerprints dropped.
+test('branches:rebase drops the applied patch\'s fingerprints with its text (#669)', async () => {
+	for (const text of ['x', null]) {
+		const settings = rebaseFixture();
+		settings.values.siteMeta['/sites/wp'].branches['ticket/61002'].appliedPatch = { label: 'A.diff', text, files: ['f'], fingerprints: { f: 'aaa' } };
+		const main = loadMain({
+			stubs: {
+				...silentLogging(),
+				...settings.stubs,
+				'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+				'./ticket-branches': { rebaseOntoTrunk: async () => ({ rebased: true, from: 'old', to: 'new', parked: true, oid: 'wip2' }), currentBranchName: async () => 'ticket/61002' }
+			}
+		});
+
+		assert.equal((await main.invokeWith('branches:rebase', createIpcEvent(), '/sites/wp')).ok, true);
+		assert.deepEqual(settings.values.siteMeta['/sites/wp'].branches['ticket/61002'].appliedPatch, { label: 'A.diff', text: null, files: ['f'] }, `text ${text}`);
+	}
 });
 
 // The ref moves before the checkout. When only the checkout fails, the base

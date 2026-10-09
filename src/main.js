@@ -97,6 +97,7 @@ const { SETTINGS, readSettings, acceptSetting } = require('./settings.cjs');
 const { resolveTheme, nativeThemeSource, THEME_KEYS } = require('./theme.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
+const { fingerprint, editedSinceChange } = require('./change-fingerprint.cjs');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, existingSiteFile, REFUSAL_REASONS } = require('./editor-launch');
 const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
 const { mainWindowSize } = require('./window-size.cjs');
@@ -1975,11 +1976,48 @@ async function baseProvenance(dir, baseOid, meta) {
  * @param {string} sitePath
  * @return {Promise<Array<string>>} Paths, gitignored ones excluded.
  */
-async function collectUnsubmittedFiles(sitePath) {
+// Each changed file with whether it is new (#669): on the base's side or not,
+// which is the status codes' answer, as `classifyChangedFile` reads them.
+async function collectUnsubmittedEntries(sitePath) {
     const { files } = await collectChangedFiles(sitePath, await patchBaseOid(sitePath));
     return files
         .filter((file) => classifyChangedFile(file).kind !== 'unchanged')
-        .map((file) => file.path);
+        .map((file) => ({ path: file.path, added: !file.inHead && file.inWorkdir }));
+}
+
+async function collectUnsubmittedFiles(sitePath) {
+    return (await collectUnsubmittedEntries(sitePath)).map((entry) => entry.path);
+}
+
+// Each of these files' fingerprint now, or null for one that is not there.
+async function fingerprintsNow(sitePath, files) {
+    const now = {};
+    for (const file of files) {
+        now[file] = fingerprint(await fs.promises.readFile(path.join(sitePath, file)).catch(() => null));
+    }
+    return now;
+}
+
+// The applied patch's or checked-out pull request's files the contributor
+// has changed since (#669), for "also edited". `unsubmitted` is the branch's
+// changed paths, which is the whole answer for a pull request (its head is
+// the base); a patch is compared with what it wrote. Nothing to say, or a
+// branch that cannot be read, is none.
+async function editedSinceAppliedChange(sitePath, unsubmitted) {
+    try {
+        const active = await activeBranch(sitePath);
+        const work = active.ref === TRUNK || !active.meta ? active.site : active.meta;
+        const fingerprints = work.appliedPatch?.fingerprints;
+        if (fingerprints) {
+            return editedSinceChange({ fingerprints, now: await fingerprintsNow(sitePath, Object.keys(fingerprints)) });
+        }
+        if (prNumberFromRef(active.ref) !== null) {
+            return editedSinceChange({ prFiles: work.files, unsubmitted });
+        }
+    } catch (e) {
+        logError('git:unsubmitted-work', `could not compare with the applied change: ${String(e && e.message || e)}`);
+    }
+    return [];
 }
 
 // Two questions, deliberately two channels (#239). This one asks "are there
@@ -2003,10 +2041,16 @@ ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
 // ticket's work lives in its parked WIP commit, so the HEAD-relative reading
 // above is correctly "clean" for every change that has survived a ticket
 // switch — which is exactly the work the note exists to speak about.
+//
+// `entries` and `editedSinceChange` are for "Changed files" (#669): which of
+// the files are new, and which of the applied change's own the contributor
+// has changed since.
 ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
     try {
-        const files = await collectUnsubmittedFiles(sitePath);
-        return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
+        const entries = await collectUnsubmittedEntries(sitePath);
+        const files = entries.map((entry) => entry.path);
+        const editedSince = await editedSinceAppliedChange(sitePath, files);
+        return { ok: true, dirty: files.length > 0, changedCount: files.length, files, entries, editedSinceChange: editedSince };
     } catch (e) {
         return { ok: false, error: String(e) };
     }
@@ -2673,12 +2717,17 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                 if (!revertable) {
                     sendLog(`${__('This patch is too large to keep for an undo, so Revert will not be offered.')}\n`);
                 }
+                // What the patch wrote, for telling a later edit to one of its
+                // files from the patch itself (#669). Read before the record is
+                // written, so nothing yields between the store's read and write.
+                const fingerprints = await fingerprintsNow(sitePath, result.applied);
                 try {
                     await writeWorkMeta(sitePath, {
                         appliedPatch: {
                             label,
                             appliedAt: new Date().toISOString(),
                             files: result.applied,
+                            fingerprints,
                             text: revertable ? patchText : null
                         }
                     });
@@ -3421,9 +3470,16 @@ ipcMain.handle('branches:rebase', async (event, sitePath) => withRegisteredSite(
 		// resolving the scope is a Git spawn, and an apply or a discard landing
 		// in that window used to be replaced by this record, leaving a revert
 		// banner for a patch that is not there (#172).
-		await changeWorkMetaOn(sitePath, ref, (work) => (work.appliedPatch && work.appliedPatch.text
-			? { appliedPatch: { ...work.appliedPatch, text: null } }
-			: null));
+		//
+		// Its fingerprints go too (#669): the merge brings trunk's changes into
+		// files the patch wrote, and a file trunk changed is not one the
+		// contributor edited. Without them the record marks nothing, like one
+		// from before they were kept.
+		await changeWorkMetaOn(sitePath, ref, (work) => {
+			if (!work.appliedPatch || !(work.appliedPatch.text || work.appliedPatch.fingerprints)) return null;
+			const { fingerprints: _dropped, ...kept } = work.appliedPatch;
+			return { appliedPatch: { ...kept, text: null } };
+		});
 	}
 	return { ok: true, ticket: ticketIdFromRef(ref), from: result.from, to: result.to, rebased: result.rebased, parked: result.parked };
 }));

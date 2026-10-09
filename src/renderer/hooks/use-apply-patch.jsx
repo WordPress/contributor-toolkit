@@ -36,7 +36,11 @@ import { watchOccupiesBuild } from '../watch-waiters.cjs';
 //
 // `tracTicket`, `appliedPatch` and `pullRequest` are what the site's status
 // says is linked, applied and checked out. `loadStatus` and `refreshDirty`
-// re-read the site once the tree has changed. `confirm` announces an outcome.
+// re-read the site once the tree has changed. `forgetChangedFiles` also drops
+// the file list from before a change that wrote (#669). A failed exit keeps
+// the list until the walk answers: a refusal wrote nothing, and a switch
+// that failed part-way is rare enough to be put right by that walk alone.
+// `confirm` announces an outcome.
 // `showTracCards` and `isActive` say whether this project has Trac's
 // attachments and whether this site is the one in front, which is when its
 // ticket's pull requests are fetched. `project` and `workItem` name the
@@ -55,7 +59,7 @@ import { watchOccupiesBuild } from '../watch-waiters.cjs';
 // for a failure that is only printed there.
 //
 // None of the chain's functions is memoised, as none was.
-export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
+export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, forgetChangedFiles, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
   // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
   const [ticketPatches, setTicketPatches] = useState(null);
   const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
@@ -124,6 +128,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
   };
 
   const runApplyInstallAndBuild = (needsInstall, verb, { buildBy = null, noun = 'patch' } = {}) => {
+    forgetChangedFiles();
     const lines = applyLines(verb, noun);
     const finishTryIt = () => finishApply(`\n${lines.tryIt}\n`, `\n${lines.settled}\n`);
     const runBuildStep = () => {
