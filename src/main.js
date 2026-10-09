@@ -2312,7 +2312,16 @@ ipcMain.handle('git:preview-pr', async (_event, sitePath, value) => withRegister
     const recorded = (active.site.branches || {})[prBranchRef(number)] || {};
     const description = await describePullRequestHead(sitePath, headOid);
     const state = await pullRequestBranchState(sitePath, number, { headOid, recordedHeadOid: recorded.headOid });
-    return { ok: true, number, headOid, ...description, ...state, returnTo: recorded.returnTo || active.ref };
+    // What the checkout takes out of the files (#672): a work item's edits,
+    // measured from its branch point as its card counts them, are parked on
+    // its branch by the switch and are back only once that branch is. The
+    // count only feeds a sentence, so a branch it cannot be taken on (no
+    // recorded branch point) previews without it rather than not at all.
+    let setAside = null;
+    if (ticketIdFromRef(active.ref) !== null) {
+        try { setAside = { ref: active.ref, files: (await collectUnsubmittedFiles(sitePath)).length }; } catch {}
+    }
+    return { ok: true, number, headOid, ...description, ...state, returnTo: recorded.returnTo || active.ref, setAside };
 }));
 
 // The same invoke/log/done contract as update-trunk. All refusals, including an

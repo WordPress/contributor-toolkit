@@ -78,7 +78,41 @@ function prCheckoutRefusal({ code, number, error }) {
 	}
 }
 
-function describePrPreview({ number, files = [], needsInstall = false, exists = false, moved = false, hasEdits = false, state = null }) {
+/**
+ * Where a work item's edits go while a pull request is checked out (#672), or
+ * '' when it has none. They leave the files, and without a word that reads as
+ * the app destroying them. Revert returns to the branch the pull request was
+ * first tried from, which is not this one when it was another work item's, so
+ * only then does the sentence promise that reverting brings them back.
+ *
+ * @param {?{ref: string, files: number}} setAside What main counted on the current branch.
+ * @param {string}                        returnTo Where reverting this pull request goes.
+ * @param {string}                        noun     What the site calls a work item.
+ * @return {string}
+ */
+function setAsideSentence(setAside, returnTo, noun) {
+	const id = /^(?:ticket|issue)\/(\d+)$/.exec(setAside?.ref || '');
+	if (!id || !(setAside.files > 0)) return '';
+	const count = setAside.files;
+	const number = Number(id[1]);
+	const onRevert = returnTo === setAside.ref;
+	if (noun === 'issue' && onRevert) {
+		// translators: 1: how many files the contributor has edited. 2: a GitHub issue number.
+		return sprintf(_n('Your edits to %1$d file stay with issue #%2$d and come back when you revert this PR.', 'Your edits to %1$d files stay with issue #%2$d and come back when you revert this PR.', count), count, number);
+	}
+	if (noun === 'issue') {
+		// translators: 1: how many files the contributor has edited. 2: a GitHub issue number.
+		return sprintf(_n('Your edits to %1$d file stay with issue #%2$d and come back when you return to it.', 'Your edits to %1$d files stay with issue #%2$d and come back when you return to it.', count), count, number);
+	}
+	if (onRevert) {
+		// translators: 1: how many files the contributor has edited. 2: a Trac ticket number.
+		return sprintf(_n('Your edits to %1$d file stay with ticket #%2$d and come back when you revert this PR.', 'Your edits to %1$d files stay with ticket #%2$d and come back when you revert this PR.', count), count, number);
+	}
+	// translators: 1: how many files the contributor has edited. 2: a Trac ticket number.
+	return sprintf(_n('Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.', 'Your edits to %1$d files stay with ticket #%2$d and come back when you return to it.', count), count, number);
+}
+
+function describePrPreview({ number, files = [], needsInstall = false, exists = false, moved = false, hasEdits = false, state = null, setAside = null, returnTo = '', noun = 'ticket' }) {
 	const count = files.length;
 	// translators: 1: a pull request number. 2: how many files it changes.
 	let headline = sprintf(_n('PR #%1$d changes %2$d file.', 'PR #%1$d changes %2$d files.', count), number, count);
@@ -96,6 +130,7 @@ function describePrPreview({ number, files = [], needsInstall = false, exists = 
 		headline,
 		actionLabel: exists && moved && hasEdits ? __('Return to saved copy') : __('Apply and rebuild'),
 		closedNote: state === 'closed' ? __('This pull request is closed. You can still check out its last head to investigate it.') : '',
+		setAsideNote: setAsideSentence(setAside, returnTo, noun),
 		installNote: needsInstall ? __('It changes package-lock.json, so dependencies will be installed before the rebuild.') : ''
 	};
 }

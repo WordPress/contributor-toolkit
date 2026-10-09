@@ -83,6 +83,30 @@ test('PR preview distinguishes a saved copy, a moved head and edits on the old h
 	assert.equal(edited.actionLabel, 'Return to saved copy');
 });
 
+// The checkout takes a ticket's edits out of the files (#672). Unsaid, that
+// reads as the app destroying them, so the preview says where they go.
+test('PR preview says where the ticket edits go, and that reverting brings them back', () => {
+	const ticket = { setAside: { ref: 'ticket/62010', files: 3 }, returnTo: 'ticket/62010' };
+	assert.equal(describePrPreview({ number: 7, ...ticket }).setAsideNote, 'Your edits to 3 files stay with ticket #62010 and come back when you revert this PR.');
+	assert.equal(describePrPreview({ number: 7, setAside: { ref: 'ticket/62010', files: 1 }, returnTo: 'ticket/62010' }).setAsideNote, 'Your edits to 1 file stay with ticket #62010 and come back when you revert this PR.');
+	assert.equal(describePrPreview({ number: 7, setAside: { ref: 'issue/71234', files: 2 }, returnTo: 'issue/71234', noun: 'issue' }).setAsideNote, 'Your edits to 2 files stay with issue #71234 and come back when you revert this PR.');
+});
+
+// Revert goes back to the branch the PR was first tried from. When that was
+// another ticket, reverting does not bring this one's edits back, and the
+// sentence must not promise it.
+test('PR preview does not promise revert brings the edits back when revert goes elsewhere', () => {
+	const result = describePrPreview({ number: 7, setAside: { ref: 'ticket/62010', files: 2 }, returnTo: 'ticket/59234' });
+	assert.equal(result.setAsideNote, 'Your edits to 2 files stay with ticket #62010 and come back when you return to it.');
+	assert.equal(describePrPreview({ number: 7, setAside: { ref: 'issue/71234', files: 1 }, returnTo: 'trunk', noun: 'issue' }).setAsideNote, 'Your edits to 1 file stay with issue #71234 and come back when you return to it.');
+});
+
+test('PR preview says nothing of edits when there are none to set aside', () => {
+	assert.equal(describePrPreview({ number: 7 }).setAsideNote, '');
+	assert.equal(describePrPreview({ number: 7, setAside: null, returnTo: 'trunk' }).setAsideNote, '');
+	assert.equal(describePrPreview({ number: 7, setAside: { ref: 'ticket/62010', files: 0 }, returnTo: 'ticket/62010' }).setAsideNote, '');
+});
+
 test('a closed PR is still available for investigation', () => {
 	assert.match(describePrPreview({ number: 7, state: 'closed' }).closedNote, /closed.*still check out/);
 	assert.equal(describePrPreview({ number: 7, state: 'open' }).closedNote, '');

@@ -7632,7 +7632,7 @@ function prWiring({ head = 'ticket/59234', meta = {}, reads = {}, pr = {}, ticke
 	const state = { exists: true, moved: false, hasEdits: false };
 	const main = loadMain({ stubs: {
 		...silentLogging(), ...settings.stubs,
-		'./git-read.cjs': { isLegacySite: async () => false, mergeInProgress: async () => null, remoteUrl: async () => 'file:///origin', blobOid: async () => oid, resolveRef: async () => oid, listBranches: async () => ['trunk', 'ticket/59234', 'pr/7'], ...reads },
+		'./git-read.cjs': { isLegacySite: async () => false, mergeInProgress: async () => null, remoteUrl: async () => 'file:///origin', blobOid: async () => oid, resolveRef: async () => oid, listBranches: async () => ['trunk', 'ticket/59234', 'pr/7'], changesAgainst: async () => [], ...reads },
 		'./ticket-branches': { currentBranchName: async () => head, listTicketBranches: async () => ['ticket/59234', 'pr/7'], countChangesAgainst: async () => 3, resumeSwitch, ...tickets },
 		'./pr-checkout': { fetchPullRequestHead, checkoutPullRequest, leavePullRequest, describePullRequestHead: async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }], needsInstall: false, base: oid }), pullRequestBranchState: async () => state, ...pr }
 	} });
@@ -7656,10 +7656,39 @@ test('git:preview-pr fetches by number and describes the fetched head without re
 	assert.equal(result.headOid, f.oid);
 	assert.equal(result.files[0].path, 'src/wp-login.php');
 	assert.equal(result.returnTo, 'ticket/59234');
+	assert.deepEqual(result.setAside, { ref: 'ticket/59234', files: 0 });
 	assert.equal(f.fetchPullRequestHead.calls[0][1], 7);
 	assert.equal(typeof f.fetchPullRequestHead.calls[0][2].onChild, 'function');
 	assert.deepEqual(f.settings.values, before);
 	assert.equal(f.checkoutPullRequest.calls.length, 0);
+});
+
+// The checkout takes a ticket's edits out of the files (#672), so the preview
+// counts them the way the ticket's card does: against its branch point,
+// parked WIP included. On trunk there is no ticket to set work aside on.
+test('git:preview-pr counts the ticket edits the checkout will set aside, measured from the branch point (#672)', async () => {
+	const asked = [];
+	const f = prWiring({ reads: { changesAgainst: async (_dir, base) => { asked.push(base); return [['src/wp-login.php', 1, 2], ['src/new.php', 0, 2]]; } } });
+	const result = await f.main.invoke('git:preview-pr', '/sites/wp', 7);
+	assert.equal(result.ok, true);
+	assert.deepEqual(result.setAside, { ref: 'ticket/59234', files: 2 });
+	assert.deepEqual(asked, ['b'.repeat(40)]);
+	assert.equal(f.checkoutPullRequest.calls.length, 0);
+
+	const fromTrunk = await prWiring({ head: 'trunk' }).main.invoke('git:preview-pr', '/sites/wp', 7);
+	assert.equal(fromTrunk.ok, true);
+	assert.equal(fromTrunk.setAside, null);
+});
+
+// A ticket branch can have no recorded branch point: migration records none
+// for a branch that already existed, and linking one the registry has never
+// seen writes none. The checkout works there, so the preview must too; it
+// only goes without the count.
+test('git:preview-pr still previews from a ticket branch with no recorded branch point (#672)', async () => {
+	const f = prWiring({ meta: { branches: { 'ticket/59234': {} } } });
+	const result = await f.main.invoke('git:preview-pr', '/sites/wp', 7);
+	assert.equal(result.ok, true);
+	assert.equal(result.setAside, null);
 });
 
 for (const head of ['ticket/59234', 'trunk']) {

@@ -70,6 +70,7 @@ function previewWords({ preview = null, pr = null } = {}) {
 			headline: pr.headline,
 			action: pr.actionLabel,
 			closedNote: pr.closedNote || '',
+			setAsideNote: pr.setAsideNote || '',
 			skipped: '',
 			installNote: pr.installNote || ''
 		};
@@ -87,6 +88,7 @@ function previewWords({ preview = null, pr = null } = {}) {
 		headline: sprintf(_n('%1$s changes %2$d file.', '%1$s changes %2$d files.', paths.length), preview.label, paths.length),
 		action: __('Apply and rebuild'),
 		closedNote: '',
+		setAsideNote: '',
 		skipped,
 		installNote: preview.needsInstall ? __('It changes package-lock.json, so dependencies will be installed before the rebuild.') : ''
 	};

@@ -325,6 +325,8 @@ export function ApplyPreviewDialog({ preview, pr, warnings, cueId, applyDisabled
                     </Notice.Description>
                   </Notice.Root>
                 ) : null}
+                {/* Where the work item's edits go while the PR is checked out (#672). */}
+                {words.setAsideNote ? <Text variant="body-sm">{words.setAsideNote}</Text> : null}
                 {words.skipped ? <Text variant="body-sm">{words.skipped}</Text> : null}
                 {words.installNote ? <Text variant="body-sm">{words.installNote}</Text> : null}
               </Stack>
