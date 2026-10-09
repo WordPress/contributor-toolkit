@@ -3470,9 +3470,16 @@ ipcMain.handle('branches:rebase', async (event, sitePath) => withRegisteredSite(
 		// resolving the scope is a Git spawn, and an apply or a discard landing
 		// in that window used to be replaced by this record, leaving a revert
 		// banner for a patch that is not there (#172).
-		await changeWorkMetaOn(sitePath, ref, (work) => (work.appliedPatch && work.appliedPatch.text
-			? { appliedPatch: { ...work.appliedPatch, text: null } }
-			: null));
+		//
+		// Its fingerprints go too (#669): the merge brings trunk's changes into
+		// files the patch wrote, and a file trunk changed is not one the
+		// contributor edited. Without them the record marks nothing, like one
+		// from before they were kept.
+		await changeWorkMetaOn(sitePath, ref, (work) => {
+			if (!work.appliedPatch || !(work.appliedPatch.text || work.appliedPatch.fingerprints)) return null;
+			const { fingerprints: _dropped, ...kept } = work.appliedPatch;
+			return { appliedPatch: { ...kept, text: null } };
+		});
 	}
 	return { ok: true, ticket: ticketIdFromRef(ref), from: result.from, to: result.to, rebased: result.rebased, parked: result.parked };
 }));

@@ -5398,6 +5398,29 @@ test('branches:rebase moves the active ticket onto trunk, records the new base a
 	assert.equal(status.ticketBehindTrunk, false);
 });
 
+// The fingerprints go with the text (#669): the merge brings trunk's changes
+// into files the patch wrote, and a file trunk changed is not one the
+// contributor edited. Without them the record is one from before they were
+// kept, which marks nothing. A record whose text an earlier move already
+// dropped still has its fingerprints dropped.
+test('branches:rebase drops the applied patch\'s fingerprints with its text (#669)', async () => {
+	for (const text of ['x', null]) {
+		const settings = rebaseFixture();
+		settings.values.siteMeta['/sites/wp'].branches['ticket/61002'].appliedPatch = { label: 'A.diff', text, files: ['f'], fingerprints: { f: 'aaa' } };
+		const main = loadMain({
+			stubs: {
+				...silentLogging(),
+				...settings.stubs,
+				'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+				'./ticket-branches': { rebaseOntoTrunk: async () => ({ rebased: true, from: 'old', to: 'new', parked: true, oid: 'wip2' }), currentBranchName: async () => 'ticket/61002' }
+			}
+		});
+
+		assert.equal((await main.invokeWith('branches:rebase', createIpcEvent(), '/sites/wp')).ok, true);
+		assert.deepEqual(settings.values.siteMeta['/sites/wp'].branches['ticket/61002'].appliedPatch, { label: 'A.diff', text: null, files: ['f'] }, `text ${text}`);
+	}
+});
+
 // The ref moves before the checkout. When only the checkout fails, the base
 // has to follow the ref at once: every patch reads `baseOid`, and none of
 // those readers is behind the marker.

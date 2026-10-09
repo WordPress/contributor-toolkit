@@ -1009,17 +1009,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // before it, so a stale "dirty" cannot resurrect the note over a tree that
   // was just reset.
   const dirtyProbeRef = useRef({ inFlight: false, generation: 0, again: false });
-  // The local answer a discard supplies (#239) — what survived the reset,
-  // decided by the module so the card has one rule for it and a test to hold
-  // it. The generation bump is what makes it outrank a probe that started
-  // before the discard did.
-  // Memoised with nothing to depend on: it touches a ref and a setter. The
-  // ticket hook lists it among a callback's dependencies, and a new function
-  // here on every render would give that callback a new identity each time.
-  const applyDiscardToNote = useCallback((outcome) => {
-    dirtyProbeRef.current.generation++;
-    setWorktreeDirty(noteAfterDiscard(outcome));
-  }, []);
   const refreshDirty = useCallback(async () => {
     const probe = dirtyProbeRef.current;
     // A walk already running answers for the tree as it was when it started.
@@ -1047,6 +1036,30 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     } finally { probe.inFlight = false; }
   }, [sitePath]);
 
+  // The file list under "Changed files" (#669) has no local answer to take
+  // from a discard: what a discard leaves is a list only a walk can give. So
+  // it is forgotten, and walked again, wherever the app itself changes the
+  // tree. A list kept until the next focus would go on naming files that are
+  // gone, or call a reverted patch's files the contributor's.
+  const forgetChangedFiles = useCallback(() => {
+    dirtyProbeRef.current.generation++;
+    setUnsubmitted(null);
+    refreshDirty();
+  }, [refreshDirty]);
+  // The local answer a discard supplies (#239) — what survived the reset,
+  // decided by the module so the card has one rule for it and a test to hold
+  // it. The generation bump in `forgetChangedFiles` is what makes it outrank a
+  // probe that started before the discard did; the walk it starts then answers
+  // for the list, and for the note with it.
+  // Memoised on `forgetChangedFiles` alone, which changes only with the site:
+  // the ticket hook lists it among a callback's dependencies, and a new
+  // function here on every render would give that callback a new identity
+  // each time.
+  const applyDiscardToNote = useCallback((outcome) => {
+    forgetChangedFiles();
+    setWorktreeDirty(noteAfterDiscard(outcome));
+  }, [forgetChangedFiles]);
+
   // A branch change invalidates the note outright rather than staling it: the
   // count is measured from the ticket's branch point (#239), so the previous
   // ticket's answer is not an old version of this one's, it is about a
@@ -1055,10 +1068,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // discard link — so the note is cleared while the new walk runs, and the
   // generation bump keeps the outgoing branch's answer from landing on it.
   const reprobeAfterBranchChange = useCallback(() => {
-    dirtyProbeRef.current.generation++;
     setWorktreeDirty(null);
-    refreshDirty();
-  }, [refreshDirty]);
+    forgetChangedFiles();
+  }, [forgetChangedFiles]);
 
   // Only the open card probes, and only while it is open: the probe walks the
   // whole checkout, which is too much to pay for every card on the shelf. The
@@ -1366,7 +1378,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // ticket offers, the preview, and the chain. Called here because it runs
   // through everything above, and because what follows reads whether an
   // apply is under way.
-  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
+  // `refreshDirty` is `forgetChangedFiles` here: an apply, a revert and a pull
+  // request switch all change the tree, and the file list from before one is
+  // not an old version of the list after it (#669).
+  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty: forgetChangedFiles, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
 
   // The tickets with work on this site (#108), in a card of their own (#240)
   // below the Trac ticket card and the patch one — which ticket am I on, what
