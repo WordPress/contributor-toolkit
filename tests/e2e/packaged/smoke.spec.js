@@ -204,8 +204,8 @@ test.afterAll( async () => {
 } );
 
 test( 'the packaged app boots and paints its first window', async () => {
-	// Deliberately not asserting "no uncaught renderer errors": index.html installs
-	// its own error handlers, and a `pageerror` listener attaches too late to be
+	// Deliberately not asserting "no uncaught renderer errors": the app log already
+	// records them (#374), and a `pageerror` listener attaches too late to be
 	// reliable. A painted window covers the same failure class positively.
 	await expect( firstWindow ).toHaveTitle( 'WordPress Contributor Toolkit' );
 
