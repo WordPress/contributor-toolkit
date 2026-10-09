@@ -37,8 +37,10 @@ import { watchOccupiesBuild } from '../watch-waiters.cjs';
 // `tracTicket`, `appliedPatch` and `pullRequest` are what the site's status
 // says is linked, applied and checked out. `loadStatus` and `refreshDirty`
 // re-read the site once the tree has changed. `forgetChangedFiles` also drops
-// the file list from before a change that wrote (#669); a refusal wrote
-// nothing, so its list stands. `confirm` announces an outcome.
+// the file list from before a change that wrote (#669). A failed exit keeps
+// the list until the walk answers: a refusal wrote nothing, and a switch
+// that failed part-way is rare enough to be put right by that walk alone.
+// `confirm` announces an outcome.
 // `showTracCards` and `isActive` say whether this project has Trac's
 // attachments and whether this site is the one in front, which is when its
 // ticket's pull requests are fetched. `project` and `workItem` name the
