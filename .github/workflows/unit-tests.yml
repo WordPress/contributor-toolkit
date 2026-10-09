@@ -11,30 +11,30 @@
 # workflow skipped by `paths-ignore` never reports them, so the PR could not merge. Instead the
 # `changes` job decides, and `unit-skipped` reports the same check names as passed on a cheap
 # Linux runner. e2e.yml does the same.
+#
+# Moving a PR's base changes its file list without a new commit, so base-change.yml re-runs the
+# latest run of this workflow for the PR's head when that happens.
 
 name: Unit tests
 
 on:
   pull_request:
-    # `edited` re-runs `changes` when the PR's base moves (see the `changes` job).
-    types: [opened, synchronize, reopened, edited]
+    # Not `edited`: GitHub reports the newest run on a commit as its checks, and an edit run
+    # that skips its jobs replaces the passes before it. base-change.yml handles a base move.
+    types: [opened, synchronize, reopened]
   push:
     branches: [trunk]
 
 permissions:
   contents: read
 
-# A new push supersedes the previous run on the same ref. A title or description edit
-# gets a group of its own, so it cannot cancel a run that is still testing the code.
+# A new push supersedes the previous run on the same ref.
 concurrency:
-  group: unit-tests-${{ github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base && '-edit' || '' }}
+  group: unit-tests-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   changes:
-    # Moving the PR's base changes its diff: a Markdown-only PR moved onto trunk from a
-    # stacked branch now carries that branch's code. Any other edit changes nothing here.
-    if: github.event.action != 'edited' || github.event.changes.base
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -42,7 +42,8 @@ jobs:
       code: ${{ steps.files.outputs.code }}
     steps:
       # A push to trunk always runs the suite. On a pull request, any file that is not Markdown
-      # (including the old name of a renamed file) counts as code.
+      # (including the old name of a renamed file) counts as code. The list is read live, not
+      # from the event, so a re-run after the base moves sees the new diff.
       - id: files
         env:
           GH_TOKEN: ${{ github.token }}

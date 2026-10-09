@@ -1,0 +1,69 @@
+# Re-runs the unit and E2E suites when a pull request's base moves.
+#
+# Moving the base changes a PR's diff without a new commit: a Markdown-only PR stacked on a
+# code PR and moved onto trunk now carries that PR's code, so its stub passes from
+# unit-tests.yml and e2e.yml no longer hold. Those workflows do not listen for `edited`
+# themselves. GitHub reports the newest run of a workflow on a commit as that commit's checks,
+# and a run started by a title or description edit, with nothing to do, skipped every job and
+# left the six required checks "Expected" in place of the passes before it (#675).
+#
+# A re-run is an attempt of the same run, not a newer one, so a title or description edit now
+# starts nothing in those workflows and a base move replaces their results with fresh ones.
+# Their `changes` job reads the PR's file list from the API at run time, so the re-run sees
+# the new base. Everything else in a re-run comes from the original event, including the
+# merge commit the suites check out: the code is tested merged into the old base, which is
+# what every PR run already does once its base branch moves on.
+#
+# Never checks out or runs the PR's code.
+
+name: Re-run on base change
+
+on:
+  pull_request:
+    types: [edited]
+
+permissions: {}
+
+# A second move cancels this one; the run it starts re-runs whatever this one left behind.
+concurrency:
+  group: base-change-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  rerun:
+    # A fork PR's token is read-only, so it cannot re-run anything; push to it instead.
+    if: github.event.changes.base && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: write
+    steps:
+      # The latest run for the head, not the latest successful one: that is the run GitHub
+      # reports. One still running may have read the old file list already, so it is
+      # cancelled and re-run rather than left to finish. No run yet means one is about to
+      # start, and it will read the new base itself.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          for workflow in unit-tests.yml e2e.yml; do
+            run=$(gh run list --workflow "$workflow" --event pull_request \
+              --commit "$SHA" --branch "$BRANCH" --limit 1 \
+              --json databaseId,status --jq '.[] | "\(.databaseId) \(.status)"')
+            if [ -z "$run" ]; then
+              echo "$workflow: no run for $SHA yet."
+              continue
+            fi
+            read -r id status <<< "$run"
+            if [ "$status" != completed ]; then
+              # It may finish between the list and the cancel; the wait covers both.
+              gh run cancel "$id" || true
+              until [ "$(gh run view "$id" --json status --jq .status)" = completed ]; do
+                sleep 10
+              done
+            fi
+            echo "$workflow: re-running run $id."
+            gh run rerun "$id"
+          done
