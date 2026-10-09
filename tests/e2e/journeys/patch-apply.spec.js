@@ -404,6 +404,52 @@ test( 'a patch that does not fit is refused, and writes nothing', async ( { sess
 	await expect( ui.revertPatchButton( page ) ).toHaveCount( 0 );
 } );
 
+test( 'a refused patch leaves the contributor\'s changes listed (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	// Holds the walks the list is measured by once the apply starts, so a list
+	// emptied by the refusal stays empty long enough to be seen. A walk that
+	// answered at once would put it back before any assertion could look.
+	await app.evaluate( ( { ipcMain } ) => {
+		global.__e2eHold = null;
+		const handler = ipcMain._invokeHandlers.get( 'git:unsubmitted-work' );
+		ipcMain.removeHandler( 'git:unsubmitted-work' );
+		ipcMain.handle( 'git:unsubmitted-work', async ( ...args ) => {
+			if ( global.__e2eHold ) await global.__e2eHold.promise;
+			return handler( ...args );
+		} );
+	} );
+	await ui.linkTicket( page, '60001' );
+
+	write( site.dir, LOGIN, '<?php // I got here first\n' );
+	await refocus( page );
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toBeVisible( { timeout: 30_000 } );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await session.answerFileDialog( [ patch ] );
+	await ui.choosePatchFile( page );
+	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await app.evaluate( () => {
+		let release;
+		const promise = new Promise( ( resolve ) => { release = resolve; } );
+		global.__e2eHold = { promise, release };
+	} );
+	await ui.applyAndRebuildButton( page ).click();
+	await expect( page.getByRole( 'alert' ).filter( { hasText: 'The checkout was not changed' } ) ).toBeVisible( { timeout: 60_000 } );
+	// With every dialog gone and the details readable, so the count below is
+	// the list's and not a modal hiding it.
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+	await expect( details( page ).getByRole( 'heading', { level: 2, name: 'Details', exact: true } ) ).toBeVisible();
+
+	// INVARIANT — a refusal writes nothing, so the list it leaves is the list
+	// from before it. Clearing it would empty the section until the next walk
+	// answered, moving the sidebar just as the refusal is shown.
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toBeVisible();
+	await app.evaluate( () => global.__e2eHold.release() );
+} );
+
 
 test( 'a partial patch failure restores the symlink and leaves no applied record (#413)', async ( { session } ) => {
 	const site = await makeSite( session );
