@@ -50,13 +50,6 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
           BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
-          # A push since the base moved has a run of its own, which reads the new base. Re-running
-          # the old head's run would join the same concurrency group and cancel it.
-          head=$(gh api "repos/$GH_REPO/pulls/$PR" --jq .head.sha)
-          if [ "$head" != "$SHA" ]; then
-            echo "The head moved to $head since the base changed; its own runs cover the new base."
-            exit 0
-          fi
           failed=0
           for workflow in unit-tests.yml e2e.yml; do
             run=$(gh run list --workflow "$workflow" --event pull_request \
@@ -73,6 +66,14 @@ jobs:
               until [ "$(gh run view "$id" --json status --jq .status)" = completed ]; do
                 sleep 10
               done
+            fi
+            # A push since the base moved has a run of its own, which reads the new base. Re-running
+            # the old head's run would join that run's concurrency group and cancel it. Checked
+            # here, after the wait, because a push can land during it.
+            head=$(gh api "repos/$GH_REPO/pulls/$PR" --jq .head.sha)
+            if [ "$head" != "$SHA" ]; then
+              echo "The head moved to $head since the base changed; its own runs cover the new base."
+              exit "$failed"
             fi
             echo "$workflow: re-running run $id."
             # GitHub refuses to re-run a run older than 30 days. Nothing required fails here, so
