@@ -4,13 +4,15 @@ const test = require('node:test');
 const assert = require('node:assert');
 const {
 	STALE_THRESHOLD_DAYS,
-	SKIP_INSTALL_MESSAGE,
-	UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE,
+	skipInstallMessage,
+	updateSummarySentence,
+	updateBuildByResumedWatchMessage,
 	SETUP_STATE_TO_STEP,
 	trunkAgeInfo,
 	planUpdateSteps,
 	updateStepText,
 	planSetupSteps,
+	planApplySteps,
 	updateStepStatuses,
 	setupOutcome,
 	updateOutcome
@@ -48,14 +50,20 @@ test('trunkAgeInfo: missing or invalid dates are never stale (issue #94)', () =>
 		assert.strictEqual(info.known, false, `trunkDate=${String(trunkDate)}`);
 		assert.strictEqual(info.stale, false);
 		assert.strictEqual(info.ageDays, null);
-		assert.strictEqual(info.label, '');
+		assert.strictEqual(info.dateLabel, '');
 	}
 });
 
-test('trunkAgeInfo: label names the snapshot date (issue #94)', () => {
+test('trunkAgeInfo: the date is given by itself, for the label the details put before it (#556)', () => {
+	const info = trunkAgeInfo({ trunkDate: daysAgo(3), now: NOW });
+	assert.match(info.dateLabel, /\d{4}/);
+	assert.doesNotMatch(info.dateLabel, /trunk as of/);
+	assert.strictEqual(trunkAgeInfo({ now: NOW }).dateLabel, '');
+});
+
+test('trunkAgeInfo: the date is the snapshot\'s (issue #94)', () => {
 	const info = trunkAgeInfo({ trunkDate: '2026-06-12T00:00:00Z', now: NOW });
-	assert.match(info.label, /^trunk as of /);
-	assert.match(info.label, /2026/);
+	assert.match(info.dateLabel, /2026/);
 });
 
 test('trunkAgeInfo: a future date clamps to age 0, not negative (issue #94)', () => {
@@ -73,8 +81,8 @@ test('planUpdateSteps: install runs when the lockfile changed (issue #94)', () =
 test('planUpdateSteps: install is skipped, with the exact message, when the lockfile did not change (issue #94)', () => {
 	const steps = planUpdateSteps({ lockfileChanged: false });
 	assert.strictEqual(steps[1].skipped, true);
-	assert.strictEqual(steps[1].skipMessage, SKIP_INSTALL_MESSAGE);
-	assert.strictEqual(SKIP_INSTALL_MESSAGE, 'Dependencies unchanged — skipping npm install');
+	assert.strictEqual(steps[1].skipMessage, skipInstallMessage());
+	assert.strictEqual(skipInstallMessage(), 'Dependencies unchanged — skipping npm install');
 });
 
 // #507: on a Gutenberg site the watch paused for the reset rebuilds from
@@ -84,19 +92,19 @@ test('planUpdateSteps: install is skipped, with the exact message, when the lock
 test('planUpdateSteps: the build step names the resumed watch while current, and is never skipped (#507)', () => {
 	const steps = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
 	assert.strictEqual(steps[2].skipped, false);
-	assert.strictEqual(steps[2].currentMessage, UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE);
-	assert.match(UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE, /Build watcher tab/);
+	assert.strictEqual(steps[2].currentMessage, updateBuildByResumedWatchMessage());
+	assert.match(updateBuildByResumedWatchMessage(), /in the Logs, under Build watch/);
 	const statuses = updateStepStatuses(steps, 'building');
 	assert.strictEqual(statuses[2].status, 'current');
 });
 
 test('updateStepText: the build step names the resumed watch only while current (#507)', () => {
 	const steps = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
-	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'current' }), UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE);
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'current' }), updateBuildByResumedWatchMessage());
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'pending' }), 'Rebuild');
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'complete' }), 'Rebuilt');
 	const own = planUpdateSteps({ lockfileChanged: false });
-	assert.strictEqual(updateStepText(own, { key: 'build', status: 'current' }), 'Rebuilding — output in the Terminal below');
+	assert.strictEqual(updateStepText(own, { key: 'build', status: 'current' }), 'Rebuilding — output in the Terminal');
 });
 
 test('updateStepText: every step has a line for every status, and unknowns fall back rather than blank (#507)', () => {
@@ -106,7 +114,7 @@ test('updateStepText: every step has a line for every status, and unknowns fall 
 			assert.ok(updateStepText(steps, { key, status }).length > 0, `${key}/${status}`);
 		}
 	}
-	assert.strictEqual(updateStepText(steps, { key: 'install', status: 'skipped' }), SKIP_INSTALL_MESSAGE);
+	assert.strictEqual(updateStepText(steps, { key: 'install', status: 'skipped' }), skipInstallMessage());
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'skipped' }), 'Rebuild');
 	assert.strictEqual(updateStepText(steps, { key: 'nope', status: 'current' }), 'nope');
 });
@@ -229,4 +237,41 @@ test('setupOutcome: Stop is not a failure, whatever exit code the kill produced 
 	// install "failed" when they pressed Stop is how a tool loses their trust.
 	assert.strictEqual(setupOutcome({ stopped: true, installCode: 1 }), 'stopped');
 	assert.strictEqual(setupOutcome({ stopped: true, installCode: 0, buildCode: 143 }), 'stopped');
+});
+
+test('updateSummarySentence: one whole sentence for each outcome, not one built from parts', () => {
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: true, elapsed: '2m 05s' }), 'Dependencies updated, rebuilt in 2m 05s.');
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: false, elapsed: '40s' }), 'Dependencies unchanged, rebuilt in 40s.');
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: true }), 'Dependencies updated, rebuilt.');
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: false, elapsed: null }), 'Dependencies unchanged, rebuilt.');
+});
+
+// Translated when they are said, not once in English when the module loads:
+// the catalog is set after the require above, as the renderer's is.
+test('the steps and messages go through the translator when they are asked for', (t) => {
+	const i18n = require('@wordpress/i18n');
+	t.after(() => i18n.resetLocaleData());
+	i18n.setLocaleData({
+		'Fetch latest trunk': ['T fetch'],
+		'Dependencies unchanged — skipping %s': ['T skipping %s'],
+		'The build watch is rebuilding — output in the Logs, under Build watch': ['T watch rebuilding'],
+		'The build watch will recompile the change': ['T watch recompiles'],
+		'The build watch rebuilds when it resumes': ['T watch resumes'],
+		'Apply the patch': ['T apply'],
+		'Download WordPress': ['T download'],
+		'Fetching and resetting to trunk…': ['T fetching'],
+		'Dependencies unchanged, rebuilt.': ['T unchanged']
+	});
+	const update = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
+	assert.strictEqual(update[0].label, 'T fetch');
+	assert.strictEqual(update[1].skipMessage, 'T skipping npm install');
+	assert.strictEqual(update[2].currentMessage, 'T watch rebuilding');
+	assert.strictEqual(updateStepText(update, { key: 'fetch', status: 'current' }), 'T fetching');
+	assert.strictEqual(updateStepText(update, { key: 'install', status: 'skipped' }), 'T skipping npm install');
+	const apply = planApplySteps({ buildByWatcher: 'live-watch' });
+	assert.strictEqual(apply[0].label, 'T apply');
+	assert.strictEqual(apply[2].skipMessage, 'T watch recompiles');
+	assert.strictEqual(planApplySteps({ buildByWatcher: 'resumed-watch' })[2].skipMessage, 'T watch resumes');
+	assert.strictEqual(planSetupSteps()[0].label, 'T download');
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: false }), 'T unchanged');
 });

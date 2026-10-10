@@ -17,7 +17,7 @@
 // to Core. A site created before this field existed has no `projectType`, so it
 // keeps Core behavior with no migration and no store write.
 
-const { __ } = require('@wordpress/i18n');
+const { __, sprintf } = require('@wordpress/i18n');
 
 const WORDPRESS_DEVELOP_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 const GUTENBERG_GIT_URL = 'https://github.com/WordPress/gutenberg.git';
@@ -28,9 +28,10 @@ const PROJECT_TYPES = {
 	core: {
 		id: 'core',
 		label: 'WordPress Core',
-		// The pill on a site's sidebar row and header. Short, because the row
-		// is narrow and the CSS upper-cases it; every site wears one, so a
-		// list of mixed sites reads at a glance.
+		// The badge beside a site's name in the page's header, and the line
+		// under its name in the sites list. Short, because the list is
+		// narrow; every site wears one, so a list of mixed sites reads at a
+		// glance.
 		tag: 'Core',
 		// The option label shown in the create-site wizard picker, and the
 		// line under it. They say what the app does with the site today, not
@@ -69,12 +70,16 @@ const PROJECT_TYPES = {
 		},
 
 		// What the setup checklist says about the steps that differ per target.
+		// Getters, like `description`, so each is translated when it is read.
 		setup: {
-			cloneLabel: 'Download WordPress development version',
-			cloneDescription: 'Clone the WordPress develop repository.',
-			buildDescription: 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
-			builtDescription: 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.',
-			serverDescription: 'Launch the development server once to complete the WordPress setup wizard.'
+			get cloneLabel() { return __('Download WordPress development version'); },
+			get cloneDescription() { return __('Clone the WordPress develop repository.'); },
+			get buildDescription() { return __('Compile WordPress Core to generate the dist files. Later updates rebuild automatically.'); },
+			get builtDescription() {
+				// translators: 1: a folder, src/. 2: the build command, npm run build.
+				return sprintf(__('Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.'), 'src/', 'npm run build');
+			},
+			get serverDescription() { return __('Launch the development server once to complete the WordPress setup wizard.'); }
 		},
 
 		// What the site page's cards say where the two targets differ. The
@@ -83,32 +88,35 @@ const PROJECT_TYPES = {
 		cards: {
 			// What the pull-request destination says when there is no work item
 			// linked to cite.
-			prBlockedNote: 'No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.',
+			get prBlockedNote() { return __('No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.'); },
 			// The rest of the pull-request destination's words that differ per
 			// target: what it costs, what happens after, what the app cannot do
 			// for a signed-out contributor, the help under the notes field, the
 			// line that sends them back to the work item once the pull request
 			// exists, and the fold that says how pull requests work here.
-			prCost: 'A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.',
-			prAfter: 'Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.',
-			signInCannot: 'It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.',
-			prNotesHelp: 'Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.',
-			prLoopBack: 'Triage and props live on the ticket, so the link belongs there too.',
+			get prCost() { return __('A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.'); },
+			get prAfter() { return __('Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.'); },
+			get signInCannot() { return __('It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.'); },
+			get prNotesHelp() { return __('Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.'); },
+			get prLoopBack() { return __('Triage and props live on the ticket, so the link belongs there too.'); },
 			// Two facts from the core handbook that a first-timer has no way to
 			// know and that change what they do next: nobody is watching GitHub,
 			// and nothing is merged there. Both make the Trac step this flow
 			// ends on the point rather than the postscript.
-			prHow: {
-				summary: 'How pull requests work in core',
-				lines: [
-					'Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.',
-					'Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.'
-				],
-				linkLabel: 'The handbook page on pull requests',
-				linkUrl: 'https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/'
+			get prHow() {
+				return {
+					summary: __('How pull requests work in core'),
+					lines: [
+						__('Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.'),
+						__('Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.')
+					],
+					linkLabel: __('The handbook page on pull requests'),
+					linkUrl: 'https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/'
+				};
 			},
-			applyHeading: 'Apply a patch or PR',
-			applyDescription: 'Pull requests are checked out with their author\u2019s commits. A .diff/.patch file is applied to the current branch as a removable layer.',
+			// Main's refusal to open a pull request with nothing linked, for a
+			// caller that skipped the card's own note above.
+			get prNeedsWorkItem() { return __('Link a Trac ticket to this site first. A pull request has to cite one.'); },
 			// Where a contributor edits, named by the hint under the terminal
 			// ("Edited files in src/? Run npm run build"). Core's source is
 			// src/; Gutenberg's is its packages (#490).
@@ -130,10 +138,10 @@ const PROJECT_TYPES = {
 			// The local branch a work item gets its own namespace under. Core's
 			// is `ticket/`, unchanged since #108, so no existing site moves.
 			branchPrefix: 'ticket/',
-			// What the panel calls it, and where a newcomer goes to find one.
-			label: 'Trac ticket',
-			browseUrl: 'https://core.trac.wordpress.org/tickets/good-first-bugs',
-			browseLabel: 'Browse good first bugs on Trac'
+			// Where a newcomer goes to find one. What the app calls it is in
+			// renderer/ticket-card.cjs and the sentences that name it, one per
+			// kind of work item, so that each is translated whole.
+			browseUrl: 'https://core.trac.wordpress.org/tickets/good-first-bugs'
 		},
 
 		pr: {
@@ -183,36 +191,40 @@ const PROJECT_TYPES = {
 		},
 
 		cards: {
-			prBlockedNote: 'No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.',
-			prCost: 'A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.',
-			prAfter: 'Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.',
-			signInCannot: 'It cannot create the GitHub account for you.',
-			prNotesHelp: 'Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.',
-			prLoopBack: 'The Fixes line already lists it on the issue. A comment there still tells the people watching it.',
+			get prBlockedNote() { return __('No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.'); },
+			get prCost() { return __('A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.'); },
+			get prAfter() { return __('Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.'); },
+			get signInCannot() { return __('It cannot create the GitHub account for you.'); },
+			get prNotesHelp() { return __('Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.'); },
+			get prLoopBack() { return __('The Fixes line already lists it on the issue. A comment there still tells the people watching it.'); },
 			// The two facts above are false here, and the audience least able
 			// to spot the app describing a different project is exactly this
 			// one, so the fold says what is true of Gutenberg instead.
-			prHow: {
-				summary: 'How pull requests work in Gutenberg',
-				lines: [
-					'The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.',
-					'Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.'
-				],
-				linkLabel: 'The Gutenberg contributing guide',
-				linkUrl: 'https://github.com/WordPress/gutenberg/blob/trunk/CONTRIBUTING.md'
+			get prHow() {
+				return {
+					summary: __('How pull requests work in Gutenberg'),
+					lines: [
+						__('The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.'),
+						__('Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.')
+					],
+					linkLabel: __('The Gutenberg contributing guide'),
+					linkUrl: 'https://github.com/WordPress/gutenberg/blob/trunk/CONTRIBUTING.md'
+				};
 			},
-			applyHeading: 'Check out a pull request',
-			applyDescription: 'Pull requests are checked out with their author\u2019s commits.',
+			get prNeedsWorkItem() { return __('Link a GitHub issue to this site first. A pull request has to cite one.'); },
 			sourceDir: 'packages/',
 			patchFiles: false
 		},
 
 		setup: {
-			cloneLabel: 'Download Gutenberg',
-			cloneDescription: 'Clone the Gutenberg repository.',
-			buildDescription: 'Compile the Gutenberg packages. Later updates rebuild automatically.',
-			builtDescription: 'Built. Edited a package since? Run npm run build in the Terminal below so the site picks it up; updates rebuild on their own.',
-			serverDescription: 'Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.'
+			get cloneLabel() { return __('Download Gutenberg'); },
+			get cloneDescription() { return __('Clone the Gutenberg repository.'); },
+			get buildDescription() { return __('Compile the Gutenberg packages. Later updates rebuild automatically.'); },
+			get builtDescription() {
+				// translators: %s: the build command, npm run build.
+				return sprintf(__('Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.'), 'npm run build');
+			},
+			get serverDescription() { return __('Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.'); }
 		},
 
 		// 'plugin-mount', Gutenberg is a plugin, so Playground boots a stock
@@ -230,9 +242,7 @@ const PROJECT_TYPES = {
 			// their own client sees the noun the upstream uses, and a site
 			// cannot end up with two namespaces meaning the same thing.
 			branchPrefix: 'issue/',
-			label: 'GitHub issue',
-			browseUrl: 'https://github.com/WordPress/gutenberg/issues?q=is%3Aissue+is%3Aopen+label%3A%22Good+First+Issue%22',
-			browseLabel: 'Browse good first issues on GitHub'
+			browseUrl: 'https://github.com/WordPress/gutenberg/issues?q=is%3Aissue+is%3Aopen+label%3A%22Good+First+Issue%22'
 		},
 
 		pr: {

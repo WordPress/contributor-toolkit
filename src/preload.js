@@ -98,6 +98,33 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	setContributionEvent: (ref) => ipcRenderer.invoke('provenance:set-event', ref)
 ,
+	// The app's settings (#559), app-wide like the two above. `setSetting`
+	// writes one, checked by main, and answers with all of them as they
+	// then are, or with why not.
+	getSettings: () => ipcRenderer.invoke('settings:get')
+,
+	setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value)
+,
+	// The languages the app can show, for the settings; and the relaunch a
+	// change of language takes.
+	listLanguages: () => ipcRenderer.invoke('i18n:languages')
+,
+	relaunch: () => ipcRenderer.invoke('app:relaunch')
+,
+	// The PHP versions a site's server can run on, for the settings.
+	listPhpVersions: () => ipcRenderer.invoke('playground:php-versions')
+,
+	// The sites whose server or watch the last quit stopped and is to start
+	// again (#559). Read once: the list is forgotten as it is read.
+	takeResumeList: () => ipcRenderer.invoke('sites:resume')
+,
+	// The menu's "Settings…" asked for the dialog.
+	subscribeSettingsOpen: (handler) => {
+		const h = () => handler && handler();
+		ipcRenderer.on('settings:open', h);
+		return () => ipcRenderer.removeListener('settings:open', h);
+	}
+,
 	showSiteInFileManager: (sitePath) => ipcRenderer.invoke('dir:show', sitePath)
 ,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)
@@ -166,8 +193,6 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on('download:status', h);
 		return () => ipcRenderer.removeListener('download:status', h);
 	}
-,
-	createPatchWindow: (sitePath) => ipcRenderer.invoke('git:create-patch', sitePath)
 ,
 	getPatch: (sitePath) => ipcRenderer.invoke('git:get-patch', sitePath)
 ,
@@ -288,7 +313,7 @@ contextBridge.exposeInMainWorld('api', {
 	// path, and only the main process can compose it correctly on both platforms.
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {
-			if (payload.sitePath === sitePath && onData) onData(payload.data);
+			if (payload.sitePath === sitePath && onData) onData(payload.data, { backlog: Boolean(payload.backlog) });
 		};
 		ipcRenderer.on('wp:debug-log:data', handler);
 		const started = await ipcRenderer.invoke('wp-debug:start', sitePath);
@@ -314,11 +339,14 @@ contextBridge.exposeInMainWorld('api', {
 		const urlHandler = (_e, payload) => {
 			if (payload.sitePath === sitePath && onUrl) onUrl(payload.url);
 		};
+		const cleanup = () => {
+			ipcRenderer.removeListener('playground:log', logHandler);
+			ipcRenderer.removeListener('playground:url', urlHandler);
+			ipcRenderer.removeListener('playground:stopped', stoppedHandler);
+		};
 		const stoppedHandler = (_e, payload) => {
 			if (payload.sitePath === sitePath) {
-				ipcRenderer.removeListener('playground:log', logHandler);
-				ipcRenderer.removeListener('playground:url', urlHandler);
-				ipcRenderer.removeListener('playground:stopped', stoppedHandler);
+				cleanup();
 				if (onStopped) onStopped();
 			}
 		};
@@ -326,8 +354,15 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on('playground:url', urlHandler);
 		ipcRenderer.on('playground:stopped', stoppedHandler);
 
-		// Invoke AFTER listeners are attached so early logs/URL are captured
-		return await ipcRenderer.invoke('playground:start', sitePath);
+		// Invoke AFTER listeners are attached so early logs/URL are captured.
+		// A start that throws has no server, so no 'stopped' is coming to
+		// remove them: left on, they answer the site's next server too (#604).
+		try {
+			return await ipcRenderer.invoke('playground:start', sitePath);
+		} catch (e) {
+			cleanup();
+			throw e;
+		}
 	},
 	stopServer: async (sitePath) => {
 		return await ipcRenderer.invoke('playground:stop', sitePath);

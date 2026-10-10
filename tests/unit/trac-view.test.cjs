@@ -51,3 +51,62 @@ test('openAndScrape: a navigation that never finishes still reaches the ready ti
 	assert.equal(result.status, 'challenge-timeout');
 	assert.equal(destroyed, true, 'the hidden Trac window is cleaned up after timing out');
 });
+
+test('fetchAttachment: a refused download is said in the locale main applied (#628)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	// Trac's answer stands in for the network, as the window does above.
+	const originalLoad = Module._load;
+	Module._load = function (request, parent, isMain) {
+		if (request === './github-prs') return { httpGet: async () => ({ status: 403, body: '' }) };
+		return originalLoad.call(this, request, parent, isMain);
+	};
+	let fetchAttachment;
+	try {
+		({ fetchAttachment } = loadTracView({ BrowserWindow: class {}, session: {} }));
+	} finally {
+		Module._load = originalLoad;
+	}
+
+	const result = await fetchAttachment('https://core.trac.wordpress.org/raw-attachment/ticket/1/a.diff');
+	assert.equal(result.ok, false);
+	assert.equal(result.error, pseudoLocalize('Trac returned %s — try opening the ticket again to pass the check.').replace('%s', '403'));
+});
+
+// The window is shown when Trac's check needs a click, and where Trac's page
+// does not paint it is the colour it was made with: the app's theme (#560),
+// which main holds and passes, not white on a dark desktop; the light theme's
+// where main passes nothing. A deadline of now skips the poll.
+test('openAndScrape: the Trac window is made in the colour of the app\'s theme', async () => {
+	const { DARK_BACKGROUND, LIGHT_BACKGROUND } = require('../../src/theme.cjs');
+	for (const [given, colour] of [[DARK_BACKGROUND, DARK_BACKGROUND], ['#102030', '#102030'], [undefined, LIGHT_BACKGROUND]]) {
+		const made = [];
+		class BrowserWindowStub {
+			constructor(options) {
+				made.push(options);
+				this.webContents = {
+					setWindowOpenHandler() {},
+					on() {},
+					executeJavaScript() { return Promise.resolve(false); }
+				};
+			}
+			loadURL() { return Promise.resolve(); }
+			isDestroyed() { return false; }
+			destroy() {}
+			show() {}
+		}
+		const electron = {
+			BrowserWindow: BrowserWindowStub,
+			session: { fromPartition: () => ({ setUserAgent() {} }) }
+		};
+		const { openAndScrape } = loadTracView(electron);
+
+		await openAndScrape(56320, { readyTimeoutMs: 0, backgroundColor: given });
+
+		assert.equal(made.length, 1);
+		assert.equal(made[0].backgroundColor, colour, `given: ${given}`);
+	}
+});

@@ -18,6 +18,8 @@
 // turns an address someone else chose into something the contributor did.
 'use strict';
 
+const { __, sprintf } = require('@wordpress/i18n');
+
 /**
  * The banner for a ticket that arrived from a link, or null when none has.
  *
@@ -56,8 +58,13 @@ function deepLinkNotice({ ticket = null, siteLabel = '', currentTicket = null, p
 	if (siteLabel && provider !== 'trac') {
 		return {
 			state: 'unsupported',
-			title: `Ticket #${ticket} cannot be linked to ${siteLabel}.`,
-			body: 'A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.',
+			title: sprintf(
+				// translators: 1: a Trac ticket number. 2: the name of the site that is open.
+				__('Ticket #%1$s cannot be linked to %2$s.'),
+				ticket,
+				siteLabel
+			),
+			body: __('A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.'),
 			confirmLabel: null
 		};
 	}
@@ -65,16 +72,25 @@ function deepLinkNotice({ ticket = null, siteLabel = '', currentTicket = null, p
 	if (siteLabel) {
 		return {
 			state: 'confirm',
-			title: `Link ticket #${ticket} to ${siteLabel}?`,
-			body: 'The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.',
-			confirmLabel: 'Link ticket'
+			title: sprintf(
+				// translators: 1: a Trac ticket number. 2: the name of the site that is open.
+				__('Link ticket #%1$s to %2$s?'),
+				ticket,
+				siteLabel
+			),
+			body: __('The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.'),
+			confirmLabel: __('Link ticket')
 		};
 	}
 
 	return {
 		state: 'no-sites',
-		title: `Ticket #${ticket} is ready to link.`,
-		body: 'There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.',
+		title: sprintf(
+			// translators: %s: a Trac ticket number.
+			__('Ticket #%s is ready to link.'),
+			ticket
+		),
+		body: __('There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.'),
 		confirmLabel: null
 	};
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { __ } from '@wordpress/i18n';
 import { discardOutcome } from '../changes-note.cjs';
 import { rebaseRefusal } from '../ticket-trunk-notice.cjs';
 
@@ -111,7 +112,7 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
             ticket: res.ticket || (parsedRef.ok ? parsedRef.id : null)
           });
         } else {
-          setTicketError(res?.error || 'Could not save the ticket.');
+          setTicketError(res?.error || __('Could not save the ticket.'));
         }
         return;
       }
@@ -175,7 +176,7 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
     try {
       const res = await window.api.discardChanges(sitePath);
       if (!res?.ok) {
-        setTicketError(res?.error || 'Could not discard the changes.');
+        setTicketError(res?.error || __('Could not discard the changes.'));
         return;
       }
       setPatchSavedTo('');
@@ -214,7 +215,7 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
       const res = await window.api.savePatch(sitePath);
       if (res?.canceled) return;
       if (!res?.ok) {
-        setTicketError(res?.error || 'Could not save the patch.');
+        setTicketError(res?.error || __('Could not save the patch.'));
         return;
       }
       savedTo = res.filePath || '';
@@ -242,7 +243,7 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
     try {
       const res = await window.api.deleteBranch(sitePath, ref);
       if (!res?.ok) {
-        setTicketError(res?.error || 'Could not delete the branch.');
+        setTicketError(res?.error || __('Could not delete the branch.'));
         return;
       }
       await loadBranches();

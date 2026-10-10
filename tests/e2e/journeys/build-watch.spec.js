@@ -34,10 +34,10 @@
  * one and a patch the watch has to be paused for still run only with no
  * watch running, where pausing and resuming do nothing.
  *
- * The watch's button is meant to open the watch's tab, and does not: the tab
- * panel cannot be switched from outside it, so the app changes what it
- * believes is open and the screen stays where it was. That is a bug of its
- * own, and nothing here pins it either way. The test opens the tab itself.
+ * The watch's button selects the watch's tab in the logs, which are in the
+ * tray along the bottom of the window (#558). The tray is the test's to
+ * open: starting a watch brings nothing up, and a watch that ends by itself
+ * does.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
@@ -46,6 +46,7 @@
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
+const { updateHeldReason } = require( '../../../src/renderer/site-menu.cjs' );
 
 // The stand-in for the script runner, and what the test uses to speak for it.
 async function standInForScripts( app, page ) {
@@ -81,21 +82,32 @@ async function standInForScripts( app, page ) {
 test( 'the build watch starts and stops by its own button, prints in its own tab, leaves the terminal free, and tells a stop it was asked for from an exit it was not', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const scripts = await standInForScripts( app, page );
 
-	const logs = ui.card( page, 'Logs' );
+	const logs = ui.tray( page, 'Logs' );
 	const tab = ( label ) => ui.logTab( page, label );
 	const line = ( text ) => logs.getByText( text, { exact: true } );
 	const buildHint = ui.terminalHint( page, 'npm run build' );
 
-	// CHARACTERISATION — nothing is watching until it is asked to.
+	const headerMenu = ( label ) => ui.processMenuButton( page, label );
+
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( tab( 'Build watcher' ) ).toBeVisible();
 	// The hint under the terminal is a link only once the site's status has
 	// been read and says the site is built. Waiting for it is what keeps the
 	// click below from landing on a site not yet known to be built, where the
 	// button would run a build first.
 	await expect( buildHint ).toBeVisible();
+	// The watch prints in the logs, which the tray shows in the terminal's
+	// place: one or the other is on screen, so the journey says which.
+	await ui.openTray( page, 'Logs' );
+
+	// CHARACTERISATION — nothing is watching until it is asked to, and the
+	// watch's tab, the header and the details all say so.
+	await expect( tab( 'Build watch' ) ).toBeVisible();
+	await expect( headerMenu( 'Build stopped' ) ).toBeVisible();
+	await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toBeVisible();
 
 	// INVARIANT — its button starts the watcher in this site's directory, and
 	// its tab says what it is doing and what it ran. CHARACTERISATION — on
@@ -103,40 +115,53 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	// starts.
 	await ui.startBuildWatchButton( page ).click();
 	await expect.poll( async () => ( await scripts.asked() ).scripts ).toEqual( [ { dir: site.dir, name: 'grunt', args: [ '--', '_watch' ] } ] );
-	await tab( 'Build watcher (watching)' ).click();
+	await tab( 'Build watch (watching)' ).click();
 	await expect( line( 'Running npm run grunt -- _watch…' ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
+	// INVARIANT — the header says it is watching, and the details say what:
+	// the two are one watch (#557).
+	await expect( headerMenu( 'Build watching' ) ).toBeVisible();
+	await expect( page.getByText( 'Edits in src/ are compiled as they are saved.', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toHaveCount( 0 );
 
 	// INVARIANT — what it prints goes to its tab, and it does not hold the
 	// terminal: the hints under the terminal are still links.
 	await scripts.prints( 1, 'Waiting for changes to the source\n' );
 	await expect( line( 'Waiting for changes to the source' ) ).toBeVisible();
+	await ui.openTray( page, 'Terminal' );
 	await expect( buildHint ).toBeVisible();
+	await ui.openTray( page, 'Logs' );
 
-	// INVARIANT — its button stops that run, by the run it was given, and the
-	// tab and the button say it has stopped.
-	await ui.stopBuildWatchButton( page ).click();
+	// INVARIANT — the header's menu stops that run, by the run it was given,
+	// and the tab, the button and the header say it has stopped.
+	await headerMenu( 'Build watching' ).click();
+	await page.getByRole( 'menuitem', { name: 'Stop build watch', exact: true } ).click();
 	await expect.poll( async () => ( await scripts.asked() ).kills ).toEqual( [ { runId: 'e2e-run-1', directoryPath: site.dir } ] );
-	await expect( tab( 'Build watcher' ) ).toBeVisible();
+	await expect( tab( 'Build watch' ) ).toBeVisible();
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+	await expect( headerMenu( 'Build stopped' ) ).toBeVisible();
 
 	// INVARIANT — a run started straight after is not told it has exited when
 	// the stopped one finally goes (#488): the old run's last words are
 	// printed, and the tab goes on saying the new one is watching.
 	await ui.startBuildWatchButton( page ).click();
 	await expect.poll( async () => ( await scripts.asked() ).scripts ).toHaveLength( 2 );
-	await expect( tab( 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( tab( 'Build watch (watching)' ) ).toBeVisible();
 	await scripts.ends( 1, 0 );
 	await expect( line( 'npm run grunt -- _watch exited with code 0' ) ).toBeVisible();
 	await scripts.heard();
-	await expect( tab( 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( tab( 'Build watch (watching)' ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
 
 	// INVARIANT — an exit nobody asked for is shown as one, with its code, and
-	// the button offers to start it again. Nothing was asked to stop.
+	// the button offers to start it again. Nothing was asked to stop. The
+	// logs, left on another tab, go to the watch's: that is where the page
+	// says its last lines are (#558).
+	await tab( 'Server' ).click();
 	await scripts.ends( 2, 2 );
-	await expect( tab( 'Build watcher (exited 2)' ) ).toBeVisible();
+	await expect( tab( 'Build watch (exited 2)' ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+	await expect( page.getByText( 'The build watch ended by itself, with exit code 2. Its last lines are in the Logs.', { exact: true } ) ).toBeVisible();
 	await scripts.heard();
 	expect( ( await scripts.asked() ).kills ).toHaveLength( 1 );
 } );
@@ -148,13 +173,18 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	const site = await makeSite( session );
 	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const scripts = await standInForScripts( app, page );
 
-	const logs = ui.card( page, 'Logs' );
+	const logs = ui.tray( page, 'Logs' );
 	const tab = ( label ) => ui.logTab( page, label );
 	const line = ( text ) => logs.getByText( text, { exact: true } );
 	const terminal = ui.terminalInput( page );
+	// Typed in the terminal, which the tray shows in the logs' place: one or
+	// the other is on screen, so the terminal is brought up to be typed in.
 	const typeAndEnter = async ( text ) => {
+		await ui.openTray( page, 'Terminal' );
 		await terminal.pressSequentially( text, { delay: 10 } );
 		await terminal.press( 'Enter' );
 	};
@@ -164,8 +194,22 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.startBuildWatchButton( page ).click();
 	await expect.poll( async () => ( await scripts.asked() ).scripts ).toEqual( [ { dir: site.dir, name: 'build', args: [] } ] );
-	await tab( 'Build watcher (building)' ).click();
+	// INVARIANT — the watch's tab is the one selected in the logs, without
+	// being pressed: starting the watch chose it.
+	await ui.openTray( page, 'Logs' );
+	await expect( tab( 'Build watch (building)' ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( line( 'No completed build found — running npm run build first…' ) ).toBeVisible();
+
+	// INVARIANT — that build holds the update to the latest trunk as well,
+	// which rewrites the tree the build is reading: the site's menu does not
+	// offer it, and says why on the item. Chosen, it used to do nothing and
+	// say nothing.
+	await ui.siteMenuButton( page ).click();
+	await expect( ui.updateTrunkMenuItem( page ) ).toBeDisabled();
+	await expect( ui.updateTrunkMenuItem( page ) ).toHaveAccessibleDescription( updateHeldReason( { building: true } ) );
+	await expect( ui.updateTrunkMenuItem( page ).getByText( updateHeldReason( { building: true } ), { exact: true } ) ).toBeVisible();
+	await page.keyboard.press( 'Escape' );
+	await expect( ui.updateTrunkMenuItem( page ) ).toHaveCount( 0 );
 
 	// INVARIANT — that build holds the terminal: a command typed while it
 	// runs starts nothing.
@@ -173,12 +217,32 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	await scripts.heard();
 	expect( ( await scripts.asked() ).scripts ).toHaveLength( 1 );
 
-	// INVARIANT — a build that fails starts no watcher, and says why.
+	// INVARIANT — a build that fails starts no watcher, and says why. The
+	// terminal is what the tray is showing, having just been typed in, and
+	// the logs do not take its place (#558): they are asked for, and are on
+	// the watch's tab, where the page says the build's last lines are.
 	await scripts.ends( 1, 1 );
+	// The details say the build failed once its end has been taken in,
+	// which is after the logs were or were not asked for.
+	await expect( page.getByText( /^The build that has to finish before the watch can start failed, with exit code 1/ ) ).toBeVisible();
+	await scripts.heard();
+	await expect( ui.tray( page, 'Terminal' ) ).toBeVisible();
+	await expect( logs ).toHaveCount( 0 );
+	await ui.openTray( page, 'Logs' );
 	await expect( line( 'npm run build failed with code 1 — build watch not started.' ) ).toBeVisible();
-	await expect( tab( 'Build watcher (exited 1)' ) ).toBeVisible();
+	await expect( tab( 'Build watch (exited 1)' ) ).toHaveAttribute( 'aria-selected', 'true' );
+	// INVARIANT — and the details say it of the build, not of a watch that
+	// never was.
+	await expect( page.getByText( 'The build that has to finish before the watch can start failed, with exit code 1, so the watch was not started. Its last lines are in the Logs.', { exact: true } ) ).toBeVisible();
 	await scripts.heard();
 	expect( ( await scripts.asked() ).scripts ).toHaveLength( 1 );
+	// INVARIANT — with the build over, the update is offered again, and the
+	// item has nothing left to explain.
+	await ui.siteMenuButton( page ).click();
+	await expect( ui.updateTrunkMenuItem( page ) ).toBeEnabled();
+	await expect( ui.updateTrunkMenuItem( page ) ).toHaveAccessibleDescription( '' );
+	await page.keyboard.press( 'Escape' );
+	await expect( ui.updateTrunkMenuItem( page ) ).toHaveCount( 0 );
 
 	// INVARIANT — a build that ends well is followed by the watcher, with
 	// nothing clicked. CHARACTERISATION — on Gutenberg that is npm run dev.
@@ -193,13 +257,65 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	await scripts.prints( 3, 'webpack compiled 12 modules\n' );
 	await expect( line( 'webpack compiled 12 modules' ) ).toBeVisible();
 	await scripts.heard();
-	await expect( tab( 'Build watcher (building)' ) ).toBeVisible();
+	await expect( tab( 'Build watch (building)' ) ).toBeVisible();
 	await scripts.prints( 3, 'Watching for changes\n' );
-	await expect( tab( 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( tab( 'Build watch (watching)' ) ).toBeVisible();
 
 	// INVARIANT — the watcher does not hold the terminal the build held: a
 	// command typed now is run.
 	await typeAndEnter( 'npm run lint' );
 	await expect.poll( async () => ( await scripts.asked() ).scripts ).toHaveLength( 4 );
 	expect( ( await scripts.asked() ).scripts[ 3 ].name ).toBe( 'lint' );
+} );
+
+test( 'a build stopped before the watch could start is not a failure, stopped by the watch\'s button or by Ctrl+C in the terminal', async ( { session } ) => {
+	// A site with no build, as above: the watch's button runs the build
+	// first, and that build is what is stopped here.
+	const site = await makeSite( session );
+	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
+	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
+	const scripts = await standInForScripts( app, page );
+
+	const failure = page.getByText( /^The build that has to finish before the watch can start failed/ );
+	const offline = page.getByText( 'Build watch offline', { exact: true } );
+	// What the watch's tab says once the app has taken in the build's end.
+	// The app reads the site's status first, so this line is what says it
+	// has: what is read before it says nothing of what the end did.
+	// It is in the logs, which the tray is not showing: the terminal is, for
+	// the Ctrl+C below. The line is in the document all the same, since the
+	// watch's tab is the one selected there, and is counted and not looked at.
+	const stopped = page.getByText( 'npm run build was stopped — build watch not started.', { exact: true } );
+
+	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.startBuildWatchButton( page ).click();
+	await expect.poll( async () => ( await scripts.asked() ).scripts ).toHaveLength( 1 );
+	await expect( ui.processMenuButton( page, 'Build building' ) ).toBeVisible();
+
+	// INVARIANT — the watch's button stops the build, and a build that was
+	// stopped did not fail: the details go back to saying there is no watch,
+	// and do not say the build failed. A process that is killed ends with no
+	// code on macOS and Linux, which is what is said here.
+	await ui.stopBuildWatchButton( page ).click();
+	await expect.poll( async () => ( await scripts.asked() ).kills ).toEqual( [ { runId: 'e2e-run-1', directoryPath: site.dir } ] );
+	await scripts.ends( 1, null );
+	await expect( stopped ).toHaveCount( 1 );
+	await expect( offline ).toBeVisible();
+	await expect( failure ).toHaveCount( 0 );
+	await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
+
+	// INVARIANT — so does Ctrl+C in the terminal, which that build holds.
+	// On Windows a killed process ends with a code, which is what is said
+	// here: it is the asking that makes it a stop, not the code.
+	await ui.startBuildWatchButton( page ).click();
+	await expect.poll( async () => ( await scripts.asked() ).scripts ).toHaveLength( 2 );
+	await expect( ui.processMenuButton( page, 'Build building' ) ).toBeVisible();
+	await ui.terminalInput( page ).press( 'Control+c' );
+	await expect.poll( async () => ( await scripts.asked() ).kills ).toHaveLength( 2 );
+	await scripts.ends( 2, 1 );
+	await expect( stopped ).toHaveCount( 2 );
+	await expect( offline ).toBeVisible();
+	await expect( failure ).toHaveCount( 0 );
+	await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
 } );

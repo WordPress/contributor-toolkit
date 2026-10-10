@@ -1,7 +1,17 @@
 import { Button, Spinner } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, sprintf } from '@wordpress/i18n';
+import { Stack, Text } from '@wordpress/ui';
 import { copy as copyIcon, check as checkIcon, download } from '@wordpress/icons';
 import { DiscardChangesLink } from './discard-changes-link.jsx';
 import { DiffText } from './diff-text.jsx';
+import { hasDiffLines } from '../diff-highlight.cjs';
+
+// What the pane says when the diff could not be generated.
+function loadError(error) {
+  // translators: %s: the error from generating the patch.
+  return error ? sprintf(__('Error: %s'), error) : __('Failed to generate patch');
+}
 
 // The left column of "Review & submit changes": the contributor's own diff,
 // with what can be done to it as a whole. Save it to a file, copy it, or throw
@@ -10,7 +20,8 @@ import { DiffText } from './diff-text.jsx';
 // It holds no state. The diff, whether it is still being generated, and what
 // the last save, copy and discard came to are the caller's, because the same
 // patch feeds the destinations beside this pane and the same discard is
-// offered from the ticket's note. This is how they look here.
+// offered from the ticket's note. This is how they look here. When the diff
+// could not be generated, `patchText` is the error.
 export function PatchDiffPane({
   heading,
   description,
@@ -29,32 +40,37 @@ export function PatchDiffPane({
 }) {
   return (
     <div className="patch-diff">
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
-        <div>
-          <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
-            {heading}
-            <span style={{ fontWeight:400 }}>
-              {'('}
-              <DiscardChangesLink
-                label="Discard all changes"
-                onClick={onDiscard}
-                reason={discardReason}
-                style={{ fontSize: 12 }}
-              />
-              {')'}
-            </span>
-          </div>
-          <div style={{ fontSize:12, color:'#6c6f72' }}>{description}</div>
-          {discardError ? <div style={{ color:'#d63638', fontSize:12, marginTop:4 }}>{discardError}</div> : null}
-        </div>
+      <Stack direction="row" align="flex-start" justify="space-between" gap="md" wrap="wrap">
+        <Stack direction="column" gap="xs">
+          <Stack direction="row" align="baseline" gap="xs" wrap="wrap">
+            <Text variant="heading-md">{heading}</Text>
+            <Text variant="body-sm">
+              {createInterpolateElement(
+                // translators: <discard /> is the "Discard all changes" link, beside the heading.
+                __('(<discard />)'),
+                {
+                  discard: (
+                    <DiscardChangesLink
+                      label={__('Discard all changes')}
+                      onClick={onDiscard}
+                      reason={discardReason}
+                    />
+                  )
+                }
+              )}
+            </Text>
+          </Stack>
+          <Text variant="body-sm" className="muted-label">{description}</Text>
+          {discardError ? <Text variant="body-sm" className="problem-text">{discardError}</Text> : null}
+        </Stack>
         {/*
           Out of the diff and into the header: these used to float
           over the top-right of the code, which was survivable at
           full width and covers the first line of a hunk once the
           pane is a column.
         */}
-        <div style={{ display:'flex', gap:8 }}>
-          <Button variant="secondary" icon={download} onClick={onSave} disabled={patchLoading || patchLoadFailed}>Save</Button>
+        <Stack direction="row" gap="sm">
+          <Button variant="secondary" icon={download} onClick={onSave} disabled={patchLoading || patchLoadFailed}>{__('Save')}</Button>
           <Button
             variant="secondary"
             icon={copied ? checkIcon : copyIcon}
@@ -65,8 +81,8 @@ export function PatchDiffPane({
             // is where the eye already is, and a screen reader
             // announces the change on the focused control.
           >{copyLabel}</Button>
-        </div>
-      </div>
+        </Stack>
+      </Stack>
       {/*
         Under the diff rather than beside the destinations that
         trigger it: this is the outcome for the file, the file is
@@ -75,31 +91,35 @@ export function PatchDiffPane({
         show.
       */}
       {patchSaved ? (
-        <div style={{ fontSize:13, color:'#0f5132' }}>Saved to {patchSaved}</div>
+        <Text variant="body-md" className="success-text">{
+          // translators: %s: the path of the saved patch file.
+          sprintf(__('Saved to %s'), patchSaved)
+        }</Text>
       ) : null}
       {patchSaveError ? (
-        <div role="alert" style={{ fontSize:13, color:'#d63638' }}>Could not save the patch: {patchSaveError}</div>
+        <Text variant="body-md" className="problem-text" role="alert">{
+          // translators: %s: why the patch could not be saved.
+          sprintf(__('Could not save the patch: %s'), patchSaveError)
+        }</Text>
       ) : null}
-      <div style={{ position:'relative', flex:1, minHeight:0 }}>
+      <div className="patch-diff-body">
         {patchLoading ? (
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
+          <Stack direction="column" align="center" justify="center" gap="lg" className="patch-diff-loading">
             <Spinner />
-            <div style={{ color:'#666', fontSize:14 }}>Generating patch...</div>
-          </div>
+            <Text variant="body-lg" className="muted-label">{__('Generating patch…')}</Text>
+          </Stack>
         ) : (
-          <>
-            {/*
-              `boxSizing: border-box` with `height: 100%` and a
-              padding: without it the pane is its container plus
-              24px of padding, and it overflows by exactly that.
-              Invisible while the diff spanned the modal and the
-              overflow fell off the bottom; beside a sidebar it
-              sits on top of the destinations.
-            */}
-            <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', boxSizing:'border-box', overflowY:'auto' }}>
-              {patchText && patchText.trim().length ? <DiffText text={patchText} /> : 'No changes.'}
-            </pre>
-          </>
+          // Its height, and why its padding is counted in it, are in
+          // shell.css under `.patch-diff-code`.
+          <pre className="patch-diff-code">
+            {patchLoadFailed ? loadError(patchText) : (
+              <>
+                {patchText && patchText.trim().length ? <DiffText text={patchText} /> : null}
+                {/* Under any `#` lines naming files the diff could not carry (#85). */}
+                {hasDiffLines(patchText) ? null : __('No changes.')}
+              </>
+            )}
+          </pre>
         )}
       </div>
     </div>

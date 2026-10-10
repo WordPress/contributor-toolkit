@@ -19,6 +19,8 @@
  */
 
 const { BrowserWindow, session } = require('electron');
+const { __, sprintf } = require('@wordpress/i18n');
+const { LIGHT_BACKGROUND } = require('./theme.cjs');
 const { parseAttachments, secureTracUrl } = require('./trac-attachments.cjs');
 const { parseTicketInfo } = require('./trac-ticket-info.cjs');
 const { httpGet } = require('./github-prs');
@@ -81,7 +83,8 @@ function pinToTrac(wc) {
  *
  * @param {number|string} ticketId
  * @param {Object}        [deps]
- * @param {number}        [deps.readyTimeoutMs] Override for tests.
+ * @param {number}        [deps.readyTimeoutMs]  Override for tests.
+ * @param {string}        [deps.backgroundColor] The colour of the app's theme (#560), which main holds.
  * @return {Promise<{status: string, items: Array, error?: string}>}
  */
 async function openAndScrape(ticketId, deps = {}) {
@@ -95,6 +98,9 @@ async function openAndScrape(ticketId, deps = {}) {
 		height: 800,
 		show: false,
 		title: `Trac #${id}`,
+		// In the app's theme (#560), so the frame is not white where Trac's
+		// page does not paint; Trac's own page is Trac's.
+		backgroundColor: deps.backgroundColor || LIGHT_BACKGROUND,
 		webPreferences: {
 			contextIsolation: true,
 			nodeIntegration: false,
@@ -175,7 +181,7 @@ async function fetchAttachment(url) {
 	// not the caller's string: the request rides the session cookie, so the URL
 	// fetched has to be the one that passed the check.
 	const safe = secureTracUrl(url);
-	if (!safe) return { ok: false, error: 'Only https core.trac.wordpress.org attachments are allowed' };
+	if (!safe) return { ok: false, error: __('Only https core.trac.wordpress.org attachments are allowed') };
 
 	let res;
 	try {
@@ -184,7 +190,8 @@ async function fetchAttachment(url) {
 		return { ok: false, error: String(e && e.message ? e.message : e) };
 	}
 	if (res.status !== 200) {
-		return { ok: false, error: `Trac returned ${res.status} — try opening the ticket again to pass the check.` };
+		// translators: %s: an HTTP status code, such as 403.
+		return { ok: false, error: sprintf(__('Trac returned %s — try opening the ticket again to pass the check.'), res.status) };
 	}
 	return { ok: true, text: res.body };
 }

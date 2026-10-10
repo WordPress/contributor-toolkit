@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react';
-import { planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planWatchImpact } from '../update-plan.cjs';
+import { __, sprintf } from '@wordpress/i18n';
+import { savedAndResetMessage } from '../confirmations.cjs';
+import { planUpdateSteps, updateStepStatuses, skipInstallMessage, planWatchImpact } from '../update-plan.cjs';
 import { planUpdateHandOff } from '../update-handoff.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
-import { discardOutcome, DISCARD_CONFIRM_MESSAGE } from '../changes-note.cjs';
+import { discardOutcome, discardQuestion } from '../changes-note.cjs';
 import { pathBasename } from '../path-basename.cjs';
+import { updateHeldReason } from '../site-menu.cjs';
 
 // Updating a site to the latest trunk (#94, #554): the chain that fetches and
 // resets the checkout, installs if the lockfile moved, and rebuilds; the
@@ -17,14 +20,17 @@ import { pathBasename } from '../path-basename.cjs';
 // the flags that keep a second chain from starting. `terminalStateRef`,
 // `terminalKillRef`, `markTerminalRunning` and `writeToTerminal` are the
 // terminal: the chain holds its lock, writes its progress there and leaves
-// there what Ctrl+C should stop. `watchStateRef`, `watchWaitersRef`,
+// there what Ctrl+C should stop. `refuseInTerminal` says there that a
+// command is already running, and brings the terminal up to be read (#558);
+// `revealTerminal` brings it up for a failure that is only printed there.
+// `watchStateRef`, `watchWaitersRef`,
 // `pauseWatcher`, `resumeWatcher` and `watchRebuildsOnStart` are the build
 // watch, which is paused for the reset and brought back after, and which on
 // some projects does the update's build (#507). `loadStatus` and
 // `refreshDirty` re-read the site once the tree has changed, and
 // `applyDiscardToNote` tells the unsubmitted-changes note that edits were
-// thrown away. `confirm` announces an outcome, and `confirmAnd` asks before
-// one that loses work.
+// thrown away. `confirm` announces an outcome, and `askFirst` asks before
+// one that loses work, in the app's own dialog.
 //
 // None of the functions here is memoised, as none was: they are called from
 // handlers and from each other, never listed as a dependency.
@@ -32,7 +38,7 @@ import { pathBasename } from '../path-basename.cjs';
 // Not here: the date of the site's trunk and the marker that an update is
 // incomplete. Both are read from the site's status with everything else the
 // status says, and this hook only asks for the status to be read again.
-export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote }) {
+export function useTrunkUpdate({ sitePath, confirm, askFirst, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote }) {
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
   // Who runs the update's build: null for the chain itself, 'resumed-watch'
   // when the watch paused for the reset rebuilds from scratch as it resumes and
@@ -55,6 +61,9 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   const updateStartRef = useRef(null);
   const savedPatchPathRef = useRef(null);
   const isUpdating = updateState !== 'idle';
+  // Why an update cannot start now, or '': asked by the guard below and said
+  // by the two controls that start one, so they cannot disagree.
+  const updateHeld = updateHeldReason({ isUpdating, installing, building });
   const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged, buildByWatcher: updateBuildBy });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
@@ -82,19 +91,20 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
       try { await window.api.markUpdateComplete(sitePath); } catch {}
       const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
       setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
-      confirm('Updated to the latest trunk');
+      confirm(__('Updated to the latest trunk'));
     };
     const runBuildStep = () => {
       setUpdateState('building');
-      writeToTerminal('\nRunning npm run build…\n');
+      // translators: %s: the command being run, such as npm run build.
+      writeToTerminal(`\n${sprintf(__('Running %s…'), 'npm run build')}\n`);
       runScript('build', {
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: async ({ code }) => {
           if (code === 0) {
             await completeUpdate();
-            finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
+            finishUpdate(`\n${__('Update complete — this site is now on the latest trunk.')}\n`);
           } else {
-            finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
+            finishUpdate(`\n${__('Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.')}\n`);
           }
         }
       });
@@ -151,19 +161,21 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
     if (lockfileChanged) {
       setUpdateState('installing');
-      writeToTerminal('\npackage-lock.json changed — running npm install (only the changed packages are downloaded)…\n');
+      // translators: 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+      writeToTerminal(`\n${sprintf(__('%1$s changed — running %2$s (only the changed packages are downloaded)…'), 'package-lock.json', 'npm install')}\n`);
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           if (code !== 0) {
-            finishUpdate('\nUpdate incomplete — npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n');
+            // translators: %s: the command that installs dependencies, npm install.
+            finishUpdate(`\n${sprintf(__('Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.'), 'npm install')}\n`);
             return;
           }
           afterInstall();
         }
       });
     } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
+      writeToTerminal(`\n${skipInstallMessage()}\n`);
       afterInstall();
     }
   };
@@ -173,7 +185,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   const beginTrunkUpdate = async () => {
     const state = terminalStateRef.current;
     if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      refuseInTerminal();
       return;
     }
     // A trunk reset rewrites the whole tree at once; a live watch would try to
@@ -194,7 +206,11 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     setUpdateState('fetching');
     window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
       if (!res || !res.ok) {
-        // The main process already wrote the failure message to the stream.
+        // The main process already wrote the failure message to the stream,
+        // and that is the only place it is: the terminal is brought up to be
+        // read, or an update that could not fetch looks like one that was
+        // never asked for.
+        revealTerminal();
         finishUpdate();
         return;
       }
@@ -203,7 +219,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
         // terminal left the contributor unsure the check had even run (#253).
         // The confirmation says so where it will be seen; there is no install
         // or build to follow.
-        confirm('Already up to date with trunk');
+        confirm(__('Already up to date with trunk'));
         finishUpdate();
         return;
       }
@@ -215,8 +231,11 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   const startTrunkUpdate = async () => {
     // The dev server no longer blocks an update: the watch is paused for the
     // reset and the PHP server stays up (#262). Only real in-progress work
-    // (an update, install or build already running) still blocks.
-    if (isUpdating || installing || building) return;
+    // (an update, install or build already running) still blocks. The two
+    // controls that start an update are held with the same answer, so this is
+    // not what a contributor meets: a click must not end here with nothing
+    // said.
+    if (updateHeld) return;
     savedPatchPathRef.current = null;
     try {
       const res = await window.api.isWorktreeDirty(sitePath);
@@ -239,38 +258,45 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
       const res = await window.api.savePatch(sitePath);
       if (res && res.canceled) return; // stay in the modal
       if (!res || !res.ok || !res.filePath) {
-        setDirtyError(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
+        const why = res && res.error ? res.error : __('Unknown error');
+        // translators: %s: why the diff could not be saved.
+        setDirtyError(sprintf(__('Error saving diff: %s'), why));
         return;
       }
       const d = await window.api.discardChanges(sitePath);
       if (!d || !d.ok) {
-        setDirtyError(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
+        const why = d && d.error ? d.error : __('Unknown error');
+        // translators: 1: the path of the saved patch file. 2: why the reset failed.
+        setDirtyError(sprintf(__('Saved your changes to %1$s, but resetting the working tree failed: %2$s'), res.filePath, why));
         return;
       }
       savedPatchPathRef.current = res.filePath;
       applyDiscardToNote(discardOutcome(d));
       setDirtyModalOpen(false);
-      writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
+      // translators: %s: the path of the patch file the changes were saved to.
+      writeToTerminal(`\n${sprintf(__('Saved your changes to %s and reset the working tree.'), res.filePath)}\n`);
       // This ran as the contributor closed the modal; the confirmation is the
       // only trace of it outside the terminal (#253).
-      confirm(`Saved your changes to ${pathBasename(res.filePath)} and reset the working tree`);
+      confirm(savedAndResetMessage(pathBasename(res.filePath)));
       beginTrunkUpdate();
     } finally {
       setDirtySaving(false);
     }
   };
 
-  const dirtyDiscardAndUpdate = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
+  const dirtyDiscardAndUpdate = () => askFirst(discardQuestion(), async () => {
     setDirtyError(null);
     const d = await window.api.discardChanges(sitePath);
     if (!d || !d.ok) {
-      setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
+      const why = d && d.error ? d.error : __('Unknown error');
+      // translators: %s: why the changes could not be discarded.
+      setDirtyError(sprintf(__('Failed to discard changes: %s'), why));
       return;
     }
     applyDiscardToNote(discardOutcome(d));
     setDirtyModalOpen(false);
-    writeToTerminal('\nDiscarded local changes.\n');
-    confirm('Local changes discarded.');
+    writeToTerminal(`\n${__('Discarded local changes.')}\n`);
+    confirm(__('Local changes discarded.'));
     beginTrunkUpdate();
   });
 
@@ -280,7 +306,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   const retryInstallAndBuild = async () => {
     const state = terminalStateRef.current;
     if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      refuseInTerminal();
       return;
     }
     // Same as beginTrunkUpdate: install + a full build need the tree to
@@ -301,6 +327,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   return {
     updateState,
     isUpdating,
+    updateHeld,
     updateWaitingOnWatch,
     updateSteps,
     updateStepStates,

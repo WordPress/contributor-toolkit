@@ -1,5 +1,12 @@
 import { Modal } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, _n, sprintf } from '@wordpress/i18n';
+import { Notice, Stack, Text } from '@wordpress/ui';
 import { prSubmissionRefusal } from '../pr-checkout.cjs';
+
+// A notice here is read by its role where it has one, and is not also spoken:
+// the dialog it is in has just been opened, and is being read.
+const SILENT = '';
 
 // Said above the destinations when the checkout is not all the contributor's
 // own: someone else's pull request is checked out, or someone else's patch is
@@ -8,17 +15,44 @@ import { prSubmissionRefusal } from '../pr-checkout.cjs';
 function OwnershipWarning({ pullRequest, appliedPatch, appliedPatchLabel }) {
   if (pullRequest) {
     return (
-      <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-        {prSubmissionRefusal(pullRequest.number)} You can still use <strong>Save</strong> to keep an unattributed copy of your edits.
-      </div>
+      <Notice.Root intent="warning" role="alert" spokenMessage={SILENT}>
+        <Notice.Description>
+          {prSubmissionRefusal(pullRequest.number)}{' '}
+          <span>
+            {createInterpolateElement(
+              // translators: <strong>Save</strong> is the name of the Save button.
+              __('You can still use <strong>Save</strong> to keep an unattributed copy of your edits.'),
+              { strong: <strong /> }
+            )}
+          </span>
+        </Notice.Description>
+      </Notice.Root>
     );
   }
   if (appliedPatch) {
+    // The label is a file's name or a pull request's, and goes in as an
+    // element rather than into the string: a `<` in a file name would
+    // otherwise be read as markup.
+    const headline = appliedPatchLabel
+      ? createInterpolateElement(
+        // translators: <label /> is the name of an applied patch, such as a file name.
+        __('<strong><label /> is part of this checkout.</strong>'),
+        { strong: <strong />, label: <>{appliedPatchLabel}</> }
+      )
+      : createInterpolateElement(__('<strong>The patch you applied is part of this checkout.</strong>'), { strong: <strong /> });
     return (
-      <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-        <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
-        The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
-      </div>
+      <Notice.Root intent="warning" role="alert" spokenMessage={SILENT}>
+        <Notice.Description>
+          <span>{headline}</span>{' '}
+          <span>
+            {createInterpolateElement(
+              // translators: <strong>Save</strong> is the name of the Save button.
+              __('The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.'),
+              { strong: <strong /> }
+            )}
+          </span>
+        </Notice.Description>
+      </Notice.Root>
     );
   }
   return null;
@@ -55,27 +89,38 @@ export function ReviewDialog({
 }) {
   return (
     <Modal
-      title="Review & submit changes"
+      title={__('Review & submit changes')}
       onRequestClose={onClose}
       shouldCloseOnClickOutside
       isFullScreen
-      headerClassName="patch-modal-header"
     >
-      <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
+      <Stack direction="column" gap="md" className="review-dialog-body">
         {!loading && age.stale && (
-          <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
-            This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
-          </div>
+          <Notice.Root intent="warning" spokenMessage={SILENT}>
+            <Notice.Description>
+              {sprintf(
+                // translators: %d: how many days old the site's copy of WordPress is.
+                _n(
+                  "This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.",
+                  "This site's WordPress code is %d days old — this patch may not apply on Trac. Consider updating to the latest trunk first.",
+                  age.ageDays
+                ),
+                age.ageDays
+              )}
+            </Notice.Description>
+          </Notice.Root>
         )}
         {!loading && loadFailed ? (
-          <div role="alert" style={{ padding: '12px 16px', color: '#8a2424', background: '#fcf0f1', borderRadius: 6 }}>
-            Could not load your changes. Close this panel and try again. The error is shown below.
-          </div>
+          <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+            <Notice.Description>
+              {__('Could not load your changes. Close this panel and try again. The error is shown below.')}
+            </Notice.Description>
+          </Notice.Root>
         ) : null}
         {!loading && !loadFailed && !hasChanges && (
-          <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-            {emptyMessage}
-          </div>
+          <Notice.Root intent="info" spokenMessage={SILENT}>
+            <Notice.Description>{emptyMessage}</Notice.Description>
+          </Notice.Root>
         )}
         {/*
           Diff on the left, destinations on the right (#186).
@@ -91,7 +136,7 @@ export function ReviewDialog({
           here on top of the destinations this app has now.
 
           The column widths, the stacking breakpoint and what scrolls in each
-          case are in index.html — a media query can express them and an inline
+          case are in shell.css — a media query can express them and an inline
           style cannot. `min-width: 0` there is load-bearing on a flex child
           holding a <pre>: without it the diff's longest line sets the column's
           floor and pushes the destinations off the modal instead of scrolling.
@@ -111,8 +156,8 @@ export function ReviewDialog({
           {!loading && hasChanges && (
             <div className="patch-destinations">
               <div>
-                <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The others save a file for you to send.</div>
+                <Text variant="heading-md" render={<div />}>{__('Where this patch goes')}</Text>
+                <Text variant="body-sm" className="muted-label" render={<div />}>{__('The pull request is the one the app sends for you. The others save a file for you to send.')}</Text>
               </div>
 
               <OwnershipWarning pullRequest={pullRequest} appliedPatch={appliedPatch} appliedPatchLabel={appliedPatchLabel} />
@@ -121,7 +166,7 @@ export function ReviewDialog({
             </div>
           )}
         </div>
-      </div>
+      </Stack>
     </Modal>
   );
 }

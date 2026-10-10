@@ -11,7 +11,7 @@ const {
 	planApply,
 	layoutMapper
 } = require('../../src/patch-plan.cjs');
-const { updateStepStatuses, SKIP_INSTALL_MESSAGE, BUILD_BY_WATCHER_MESSAGE, BUILD_BY_RESUMED_WATCH_MESSAGE, planApplySteps, planWatchImpact, planTicketSwitchImpact, APPLY_STATE_TO_STEP } = require('../../src/renderer/update-plan.cjs');
+const { updateStepStatuses, skipInstallMessage, buildByWatcherMessage, buildByResumedWatchMessage, planApplySteps, planWatchImpact, planTicketSwitchImpact, APPLY_STATE_TO_STEP } = require('../../src/renderer/update-plan.cjs');
 
 // The four header shapes that actually reach the app. Kept verbatim rather than
 // generated: the whole point of these tests is that real-world formatting —
@@ -347,7 +347,7 @@ test('planApplySteps: the install step is named even when skipped (issue #11)', 
 	const steps = planApplySteps({ needsInstall: false });
 	assert.deepStrictEqual(steps.map((s) => s.key), ['apply', 'install', 'build']);
 	assert.strictEqual(steps[1].skipped, true);
-	assert.strictEqual(steps[1].skipMessage, SKIP_INSTALL_MESSAGE);
+	assert.strictEqual(steps[1].skipMessage, skipInstallMessage());
 	assert.strictEqual(planApplySteps({ needsInstall: true })[1].skipped, false);
 });
 
@@ -385,7 +385,7 @@ test('planApplySteps: the build step is skipped and attributed to the watch (iss
 	const steps = planApplySteps({ needsInstall: false, buildByWatcher: true });
 	assert.strictEqual(steps[2].key, 'build');
 	assert.strictEqual(steps[2].skipped, true);
-	assert.strictEqual(steps[2].skipMessage, BUILD_BY_WATCHER_MESSAGE);
+	assert.strictEqual(steps[2].skipMessage, buildByWatcherMessage());
 	// Default (no watch) still runs the build, exactly as before.
 	assert.strictEqual(planApplySteps({ needsInstall: false })[2].skipped, false);
 });
@@ -396,8 +396,8 @@ test('planApplySteps: the build step is skipped and attributed to the watch (iss
 test('planApplySteps: the build step names the resumed watch when it does the rebuild (#506)', () => {
 	const resumed = planApplySteps({ needsInstall: true, buildByWatcher: 'resumed-watch' });
 	assert.strictEqual(resumed[2].skipped, true);
-	assert.strictEqual(resumed[2].skipMessage, BUILD_BY_RESUMED_WATCH_MESSAGE);
-	assert.strictEqual(planApplySteps({ buildByWatcher: 'live-watch' })[2].skipMessage, BUILD_BY_WATCHER_MESSAGE);
+	assert.strictEqual(resumed[2].skipMessage, buildByResumedWatchMessage());
+	assert.strictEqual(planApplySteps({ buildByWatcher: 'live-watch' })[2].skipMessage, buildByWatcherMessage());
 	assert.strictEqual(planApplySteps({ buildByWatcher: null })[2].skipped, false);
 });
 
@@ -719,4 +719,14 @@ test('layoutMapper: a layout the registry does not define throws rather than gue
 	assert.strictEqual(layoutMapper('repo-relative')('wp-login.php'), 'wp-login.php');
 	assert.throws(() => layoutMapper('flat'), /Unknown patch layout: flat/);
 	assert.throws(() => parsePatchFiles(OLD_LAYOUT_DIFF, { layout: 'flat' }), /Unknown patch layout/);
+});
+
+test('parsePatchFiles: a patch it cannot read is said in the locale main applied (#628)', (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	assert.strictEqual(parsePatchFiles('  ').error, pseudoLocalize('The patch is empty.'));
+	assert.strictEqual(parsePatchFiles('just some words\n').error, pseudoLocalize('No file changes found in the patch.'));
 });

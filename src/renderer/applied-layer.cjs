@@ -15,20 +15,27 @@
 //
 // DOM-free like apply-conflict.cjs and update-plan.cjs, for the same reason:
 // the renderer bundle imports it, `node --test` requires it directly, and
-// neither needs a DOM. This one has no imports at all; update-plan.cjs takes
-// one from a sibling, which is allowed for the same reason — a decision with a
-// single definition belongs beside it, not copied.
+// neither needs a DOM. Its one import is `@wordpress/i18n`; update-plan.cjs
+// takes one from a sibling, which is allowed for the same reason — a decision
+// with a single definition belongs beside it, not copied.
 'use strict';
+
+const { __, _n, sprintf } = require('@wordpress/i18n');
 
 // Saving a copy and then discarding is a recommendable way forward on this
 // project, not a defeat: a ticket's changes are one afternoon's work on a
 // checkout that gets thrown away, and redoing them is cheaper than untangling
 // them. Said once, here, so both faces that offer it say it the same way.
-const DISPOSABLE_EXIT = 'Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.';
+// Functions rather than constants, so that each is translated when it is shown.
+function disposableExit() {
+	return __('Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.');
+}
 
 // A patch that cannot be reverted still holds the slot until the ticket is
 // discarded; keeping that explicit prevents the banner implying otherwise.
-const SLOT_HELD = 'It still counts as this ticket\'s one applied patch, so another cannot be applied until this ticket is reverted or discarded.';
+function slotHeld() {
+	return __('It still counts as this ticket\'s one applied patch, so another cannot be applied until this ticket is reverted or discarded.');
+}
 
 /**
  * `a`, `a and b`, `a, b and c` — a list a person reads rather than a join.
@@ -38,7 +45,8 @@ const SLOT_HELD = 'It still counts as this ticket\'s one applied patch, so anoth
  */
 function listOf(items) {
 	if (items.length <= 1) return items[0] || '';
-	return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+	// translators: 1: file paths, separated by commas. 2: the last file path in the list.
+	return sprintf(__('%1$s and %2$s'), items.slice(0, -1).join(', '), items[items.length - 1]);
 }
 
 /**
@@ -67,14 +75,20 @@ function attributeConflicts({ conflicts = [], appliedPatch = null } = {}) {
 
 	const sentences = [];
 	if (yours.length) {
-		sentences.push(`You have your own edits to ${listOf(yours)}. Save a patch of your work first if you want a copy.`);
+		// translators: %s: one or more file paths, as a list.
+		sentences.push(sprintf(__('You have your own edits to %s. Save a patch of your work first if you want a copy.'), listOf(yours)));
 	}
 	if (fromLayer.length) {
-		const label = appliedPatch.label || 'the patch you applied';
-		sentences.push(`${listOf(fromLayer)} ${fromLayer.length === 1 ? 'includes' : 'include'} changes from ${label}, which you applied. The ${fromLayer.length === 1 ? 'file may' : 'files may'} also contain your own edits.`);
+		if (appliedPatch.label) {
+			// translators: 1: one or more file paths, as a list. 2: the name of the patch applied to the checkout, such as a file name.
+			sentences.push(sprintf(_n('%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.', '%1$s include changes from %2$s, which you applied. The files may also contain your own edits.', fromLayer.length), listOf(fromLayer), appliedPatch.label));
+		} else {
+			// translators: %s: one or more file paths, as a list.
+			sentences.push(sprintf(_n('%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.', '%s include changes from the patch you applied, which you applied. The files may also contain your own edits.', fromLayer.length), listOf(fromLayer)));
+		}
 	}
 	if (sentences.length) {
-		sentences.push('The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.');
+		sentences.push(__('The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.'));
 	}
 	return { yours, fromLayer, sentences };
 }
@@ -95,11 +109,27 @@ function attributeConflicts({ conflicts = [], appliedPatch = null } = {}) {
 function describeAppliedLayer(appliedPatch, { when = '' } = {}) {
 	if (!appliedPatch) return null;
 
-	const label = appliedPatch.label || 'A patch';
+	const label = appliedPatch.label || '';
 	const files = Array.isArray(appliedPatch.files) ? appliedPatch.files : [];
+	const count = files.length;
 	const kept = appliedPatch.kept === undefined ? Boolean(appliedPatch.revertable) : Boolean(appliedPatch.kept);
 
-	const summary = `is applied — ${files.length} file${files.length === 1 ? '' : 's'}${when ? `, ${when}` : ''}.`;
+	// The whole sentence, the patch's name in it: one per combination of a
+	// name and a time, since either can be missing.
+	let summary;
+	if (label && when) {
+		// translators: 1: the name of the applied patch, such as a file name. 2: how many files it changed. 3: when it was applied, as a date and time.
+		summary = sprintf(_n('%1$s is applied — %2$d file, %3$s.', '%1$s is applied — %2$d files, %3$s.', count), label, count, when);
+	} else if (label) {
+		// translators: 1: the name of the applied patch, such as a file name. 2: how many files it changed.
+		summary = sprintf(_n('%1$s is applied — %2$d file.', '%1$s is applied — %2$d files.', count), label, count);
+	} else if (when) {
+		// translators: 1: how many files the patch changed. 2: when it was applied, as a date and time.
+		summary = sprintf(_n('A patch is applied — %1$d file, %2$s.', 'A patch is applied — %1$d files, %2$s.', count), count, when);
+	} else {
+		// translators: %d: how many files the patch changed.
+		summary = sprintf(_n('A patch is applied — %d file.', 'A patch is applied — %d files.', count), count);
+	}
 
 	if (kept) {
 		return { label, summary, canRevert: true, explanation: '', detail: [], note: '', offerCopy: false };
@@ -107,13 +137,18 @@ function describeAppliedLayer(appliedPatch, { when = '' } = {}) {
 
 	// Too large to have kept a copy of. Nothing about the tree changes this one,
 	// so it says so plainly and goes straight to the exit that always works.
+	let explanation = __('A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.');
+	if (label) {
+		// translators: %s: the name of the applied patch, such as a file name.
+		explanation = sprintf(__('%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.'), label);
+	}
 	return {
 		label,
 		summary,
 		canRevert: false,
-		explanation: `${label} was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.`,
+		explanation,
 		detail: [],
-		note: `${DISPOSABLE_EXIT} ${SLOT_HELD}`,
+		note: `${disposableExit()} ${slotHeld()}`,
 		offerCopy: true
 	};
 }
@@ -135,9 +170,10 @@ function describeAppliedLayer(appliedPatch, { when = '' } = {}) {
  * @return {{message: string}}
  */
 function layerExitFailure({ patchSaveError = '', discardError = '' } = {}) {
-	if (patchSaveError) return { message: `The copy could not be saved: ${patchSaveError}` };
+	// translators: %s: why the copy could not be saved.
+	if (patchSaveError) return { message: sprintf(__('The copy could not be saved: %s'), patchSaveError) };
 	if (discardError) return { message: discardError };
 	return { message: '' };
 }
 
-module.exports = { attributeConflicts, describeAppliedLayer, layerExitFailure, listOf, DISPOSABLE_EXIT, SLOT_HELD };
+module.exports = { attributeConflicts, describeAppliedLayer, layerExitFailure, listOf, disposableExit, slotHeld };

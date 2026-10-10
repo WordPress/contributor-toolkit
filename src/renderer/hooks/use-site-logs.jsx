@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { appendBounded, countLines } from '../debug-log.cjs';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { __, sprintf } from '@wordpress/i18n';
+import { appendBounded, debugLogOnScreen, unseenIn } from '../debug-log.cjs';
 import { pathBasename } from '../path-basename.cjs';
 
 // How near its end a pane has to be scrolled to count as following it, in
@@ -17,18 +18,28 @@ const STICK_THRESHOLD = 8;
 // `appendWatch`. The debug.log tail is the exception, because only this panel
 // reads it: `startDebugTail` and `stopDebugTail` are called where the dev
 // server starts and stops, since WordPress writes the file only while it runs.
+// The tail starts first, so that what the file holds then is what earlier
+// runs left and nothing this run logs is taken for it.
 //
 // `appendNpm` and the buffer behind it are what is left of an install log that
 // had a pane of its own. Nothing shows the buffer any more: the install's
 // output goes to the terminal. It is here because its callers are, and it is
 // kept as it was.
 //
+// `shown` says whether the panel is on screen, which it is while the site is
+// the open one and the tray is showing its logs (#558). A pane that is not on
+// screen cannot be scrolled: one that was following its last line is put
+// back there when the panel comes back. And a line that arrives in a pane
+// that is not on screen has not been seen: debug.log's are counted until its
+// pane is in front of someone again (`debugLogOnScreen`), which is what the
+// tab's label and the footer's button show.
+//
 // Every function returned keeps its identity for as long as `sitePath` does,
 // except `copyDebugLog`, which changes with the text it copies. The callbacks
 // that run the dev server, the build watch and the installs list the `append`
 // functions as dependencies, and one that changed on every render would hand
 // those callbacks a new identity each time too.
-export function useSiteLogs({ sitePath }) {
+export function useSiteLogs({ sitePath, shown }) {
   const [npmLogs, setNpmLogs] = useState('');
   const [runtimeLogs, setRuntimeLogs] = useState('');
   // WordPress's own debug.log, kept apart from the server's output: one is what
@@ -40,7 +51,15 @@ export function useSiteLogs({ sitePath }) {
   // reason someone wants the path.
   const [debugLogPath, setDebugLogPath] = useState('');
   const [activeLogTab, setActiveLogTab] = useState('runtime');
-  const activeLogTabRef = useRef('runtime');
+  // Whether debug.log's pane is in front of someone, for the lines that
+  // arrive from the tail, which is no render's doing.
+  const debugOnScreen = debugLogOnScreen({ shown, activeTab: activeLogTab });
+  const debugOnScreenRef = useRef(debugOnScreen);
+  useLayoutEffect(() => {
+    debugOnScreenRef.current = debugOnScreen;
+    // Coming in front of someone is the lines being seen.
+    if (debugOnScreen) setDebugUnread(0);
+  }, [debugOnScreen]);
   const [watchLogs, setWatchLogs] = useState('');
   // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
   const [debugCopied, setDebugCopied] = useState('');
@@ -60,23 +79,37 @@ export function useSiteLogs({ sitePath }) {
     setLogStick((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
   }, []);
   useEffect(() => { if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight; }, [npmLogs, logStick.npm]);
-  // Both log effects watch `activeLogTab` because TabPanel renders only the
-  // selected tab: the pane is a fresh element every time it is switched back to,
+  // The log effects watch `activeLogTab` because only the selected tab's pane
+  // is rendered: the pane is a fresh element every time it is switched back to,
   // scrolled to the top, and the arriving-text dependency alone would not fire
   // to put it back at the bottom. The guard is not just for the dependency — the
-  // other tab's element is unmounted, so there is nothing to scroll.
+  // other tab's element is unmounted, so there is nothing to scroll. They
+  // watch `shown` for the same reason one level up: a pane in a panel that is
+  // not on screen has no height to scroll, and is put at its end when the
+  // panel comes back.
   useEffect(() => {
-    if (activeLogTab !== 'runtime') return;
+    if (!shown || activeLogTab !== 'runtime') return;
     if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
-  }, [runtimeLogs, logStick.runtime, activeLogTab]);
+  }, [runtimeLogs, logStick.runtime, activeLogTab, shown]);
   useEffect(() => {
-    if (activeLogTab !== 'debug') return;
+    if (!shown || activeLogTab !== 'debug') return;
     if (logStick.debug && debugRef.current) debugRef.current.scrollTop = debugRef.current.scrollHeight;
-  }, [debugLogs, logStick.debug, activeLogTab]);
+  }, [debugLogs, logStick.debug, activeLogTab, shown]);
   useEffect(() => {
-    if (activeLogTab !== 'watch') return;
+    if (!shown || activeLogTab !== 'watch') return;
     if (logStick.watch && watchRef.current) watchRef.current.scrollTop = watchRef.current.scrollHeight;
-  }, [watchLogs, logStick.watch, activeLogTab]);
+  }, [watchLogs, logStick.watch, activeLogTab, shown]);
+  // Where each pane's element is handed over, for the panel to give to its
+  // panes.
+  const runtimePane = useCallback((element) => {
+    runtimeRef.current = element;
+  }, []);
+  const watchPane = useCallback((element) => {
+    watchRef.current = element;
+  }, []);
+  const debugPane = useCallback((element) => {
+    debugRef.current = element;
+  }, []);
   const makeOnScroll = useCallback((key) => (e) => {
     const el = e.currentTarget;
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - STICK_THRESHOLD;
@@ -85,13 +118,15 @@ export function useSiteLogs({ sitePath }) {
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
   const appendRuntime = useCallback((s)=>setRuntimeLogs((v)=>v + String(s ?? '')),[]);
-  const appendDebug = useCallback((s) => {
+  const appendDebug = useCallback((s, { backlog = false } = {}) => {
     const chunk = String(s ?? '');
     if (!chunk) return;
     setDebugLogs((v) => appendBounded(v, chunk));
-    // Counted only while the tab is not the one being read. Selecting it zeroes
-    // the badge, so incrementing there would flicker it straight back on.
-    if (activeLogTabRef.current !== 'debug') setDebugUnread((n) => n + countLines(chunk));
+    // Counted only while the pane is not the one being read, and only what
+    // is news (`unseenIn`). The pane's coming on screen zeroes the count, so
+    // incrementing there would flicker it straight back on.
+    const unseen = unseenIn(chunk, { backlog, onScreen: debugOnScreenRef.current });
+    if (unseen) setDebugUnread((n) => n + unseen);
   }, []);
   // Bounded like the debug pane: the watcher is long-lived and chatty, so its
   // pane cannot grow without limit the way an unrendered buffer quietly could.
@@ -101,9 +136,12 @@ export function useSiteLogs({ sitePath }) {
     setWatchLogs((v) => appendBounded(v, chunk));
   }, []);
   const selectTab = useCallback((name) => {
-    activeLogTabRef.current = name;
+    // Leaving debug.log's pane is at once, and not when the render that
+    // follows has been drawn: the app selects a tab itself when a watch or a
+    // server fails, from a callback, and a line arriving before that render
+    // would go uncounted. Coming to the pane is the effect's to say.
+    if (name !== 'debug') debugOnScreenRef.current = false;
     setActiveLogTab(name);
-    if (name === 'debug') setDebugUnread(0);
   }, []);
   const clearDebugLog = useCallback(async () => {
     setDebugLogs('');
@@ -117,7 +155,10 @@ export function useSiteLogs({ sitePath }) {
     } catch (e) {
       cleared = { ok: false, error: e && e.message ? e.message : String(e) };
     }
-    if (!cleared?.ok) appendDebug(`Could not clear ${pathBasename(sitePath)}'s debug.log: ${cleared?.error || cleared?.reason || 'unknown error'}. The panel was cleared; the file was not.\n`);
+    if (!cleared?.ok) {
+      // translators: 1: the name of the site's folder. 2: why the file could not be cleared.
+      appendDebug(`${sprintf(__('Could not clear %1$s\'s debug.log: %2$s. The panel was cleared; the file was not.'), pathBasename(sitePath), cleared?.error || cleared?.reason || __('unknown error'))}\n`);
+    }
   }, [appendDebug, sitePath]);
   // Same shape as the patch's Copy, and for the same reason: a clipboard write
   // has no visible result, so the button has to report one. This log goes
@@ -146,10 +187,13 @@ export function useSiteLogs({ sitePath }) {
     }
     // Nothing on screen moves when a file manager opens behind the app, so a
     // refusal that says nothing is a button that did nothing.
-    if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
+    if (!revealed?.ok) {
+      // translators: %s: why the file could not be shown.
+      appendDebug(`${sprintf(__('Could not show the log file: %s'), revealed?.error || revealed?.reason || __('unknown error'))}\n`);
+    }
   }, [appendDebug, sitePath]);
 
-  // For the moment a dev server has started. Reset before subscribing: the
+  // For the moment a dev server is about to start. Reset before subscribing: the
   // tail replays the tail of the file when it attaches (up to 256KB,
   // startWpDebugTail in main.js), so a restart would otherwise show the
   // previous session's log a second time below itself. Stopping the server
@@ -160,7 +204,7 @@ export function useSiteLogs({ sitePath }) {
     setDebugUnread(0);
     try {
       if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; }
-      const tail = await window.api.startWpDebug(sitePath,(d)=>appendDebug(d || ''));
+      const tail = await window.api.startWpDebug(sitePath,(d, about)=>appendDebug(d || '', about));
       wpDebugUnsubRef.current = tail?.unsubscribe || null;
       if (tail?.filePath) setDebugLogPath(tail.filePath);
     } catch {}
@@ -177,15 +221,16 @@ export function useSiteLogs({ sitePath }) {
   }, [sitePath]);
 
   return {
+    activeTab: activeLogTab,
     runtimeLogs,
     watchLogs,
     debugLogs,
     debugUnread,
     debugLogPath,
     debugCopied,
-    runtimeRef,
-    watchRef,
-    debugRef,
+    runtimePane,
+    watchPane,
+    debugPane,
     makeOnScroll,
     ensureStick,
     selectTab,

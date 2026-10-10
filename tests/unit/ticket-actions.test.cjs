@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } = require('../../src/renderer/ticket-actions.cjs');
+const { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } = require('../../src/renderer/ticket-actions.cjs');
 
 // A disabled control with no reason is the bug (#409): the ticketActionsBlocked
 // gate used to disable the card's buttons silently. Every branch of it has a
@@ -103,4 +103,32 @@ test('the three sentences take the site\'s noun', () => {
 	assert.match(q.question, /This issue already has its own work/);
 	assert.doesNotMatch(JSON.stringify(q), /ticket/);
 	assert.equal(dirtyTrunkQuestion({ canCarry: true, noun: 'issue' }).carry, 'Take these edits into the issue');
+});
+
+// Each kind's sentences are their own strings now (#629), so each is pinned
+// whole rather than through the ticket's.
+test('dirtyTrunkQuestion words every issue sentence in full (#629)', () => {
+	assert.equal(
+		dirtyTrunkQuestion({ files: 1, canCarry: true, noun: 'issue' }).question,
+		'You have 1 uncommitted change on this site, not on any issue yet. What should happen to them?'
+	);
+	assert.equal(
+		dirtyTrunkQuestion({ canCarry: true, noun: 'issue' }).question,
+		'You have uncommitted changes on this site, not on any issue yet. What should happen to them?'
+	);
+	const parked = dirtyTrunkQuestion({ canCarry: false, noun: 'issue' });
+	assert.equal(
+		parked.question,
+		'You have uncommitted changes on this site, not on any issue yet. What should happen to them? This issue already has its own work here, so these edits cannot come along into it.'
+	);
+	assert.equal(parked.save, 'Save them as a patch, then continue on the issue…');
+	assert.equal(parked.discard, 'Discard them and continue on the issue');
+});
+
+test('the question before the edits on trunk are discarded asks it, and its button says what it does', () => {
+	assert.deepEqual(discardTrunkEditsQuestion(), {
+		title: 'Discard the uncommitted edits on trunk?',
+		description: 'This can’t be undone.',
+		confirm: 'Discard edits'
+	});
 });

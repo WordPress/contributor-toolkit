@@ -19,11 +19,14 @@
  * verification is chosen per work-item kind (`citesWorkItemFor`); the search,
  * the states and the ordering are the same for both.
  *
- * Kept pure and dependency-free so the verification and the failure
- * classification — the parts that decide whether the UI shows work that exists
- * — are unit tested without a network: the main process requires it, and so
- * does `node --test` (same convention as git-update.cjs / patch-plan.cjs).
+ * Kept pure, with `@wordpress/i18n` its one dependency, so the verification and
+ * the failure classification — the parts that decide whether the UI shows work
+ * that exists — are unit tested without a network: the main process requires
+ * it, and so does `node --test` (same convention as git-update.cjs /
+ * patch-plan.cjs).
  */
+
+const { __, sprintf } = require('@wordpress/i18n');
 
 const TICKET_HOST = 'core.trac.wordpress.org';
 const PR_REPO_PATH = 'WordPress/wordpress-develop';
@@ -42,7 +45,7 @@ const PR_REPO_PATH = 'WordPress/wordpress-develop';
  */
 function parsePrRef(input, { repoPath = PR_REPO_PATH } = {}) {
 	const raw = typeof input === 'string' ? input.trim() : '';
-	if (!raw) return { ok: false, error: 'Enter a pull request URL or number.' };
+	if (!raw) return { ok: false, error: __('Enter a pull request URL or number.') };
 
 	if (/^#?\d+$/.test(raw)) return { ok: true, number: Number(raw.replace('#', '')) };
 
@@ -50,15 +53,16 @@ function parsePrRef(input, { repoPath = PR_REPO_PATH } = {}) {
 	try {
 		parsed = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`);
 	} catch {
-		return { ok: false, error: 'That is not a pull request URL or number.' };
+		return { ok: false, error: __('That is not a pull request URL or number.') };
 	}
 	if (parsed.hostname.toLowerCase() !== 'github.com') {
-		return { ok: false, error: 'Only github.com pull requests are supported.' };
+		return { ok: false, error: __('Only github.com pull requests are supported.') };
 	}
 	const match = /^\/([^/]+\/[^/]+)\/pull\/(\d+)(?:[/?#]|$)/.exec(parsed.pathname + (parsed.pathname.endsWith('/') ? '' : '/'));
-	if (!match) return { ok: false, error: 'That does not look like a pull request URL.' };
+	if (!match) return { ok: false, error: __('That does not look like a pull request URL.') };
 	if (match[1].toLowerCase() !== String(repoPath).toLowerCase()) {
-		return { ok: false, error: `Only ${repoPath} pull requests can be applied here.` };
+		// translators: %s: a GitHub repository, such as WordPress/wordpress-develop.
+		return { ok: false, error: sprintf(__('Only %s pull requests can be applied here.'), repoPath) };
 	}
 	return { ok: true, number: Number(match[2]) };
 }

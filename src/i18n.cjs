@@ -12,88 +12,161 @@ const path = require('node:path');
  * renderer, in renderer/pseudo-locale.cjs, since it needs no file.
  */
 
-// The shape of a Chromium locale (`de`, `pt-BR`, `zh-Hant-TW`). Anything else is
-// refused before it reaches a file path, so a locale can never name a file
-// outside the catalog directory.
-const LOCALE_PATTERN = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
-
 // Catalogs are named by translate.wordpress.org's locale slug, which is
-// lowercase (`pt-br`, `zh-tw`) and differs from Chromium's name in one case.
-// Checked against every locale Electron ships: the rest match once lowercased,
-// or through the bare-language fallback (`pt-PT` to `pt`, `es-419` to `es`).
-const GLOTPRESS_SLUGS = { fil: 'tl' };
+// lowercase (`pt-br`, `zh-tw`) and is not always the tag an OS reports: 32
+// slugs use a three-letter code for a language that has a two-letter one
+// (`bel`, `zul`), and Filipino is `tl` where an OS says `fil`.
+// `Intl.getCanonicalLocales` maps all of those. Valencian is the one it cannot:
+// `ca-val` is not a language tag at all.
+const SLUG_TAGS = { 'ca-val': 'ca-ES-valencia' };
 
-// Every locale `app.getLocale()` can return: the ones Electron ships resources
-// for. Chromium falls back to one of these for any other OS language, so a
-// catalog no locale here leads to is never loaded. Kept in step with Electron
-// by tests/unit/i18n.test.cjs, which reads the list from the installed build.
-const ELECTRON_LOCALES = [
-	'af', 'am', 'ar', 'bg', 'bn', 'ca', 'cs', 'da', 'de', 'el', 'en-GB', 'en-US', 'es', 'es-419',
-	'et', 'fa', 'fi', 'fil', 'fr', 'gu', 'he', 'hi', 'hr', 'hu', 'id', 'it', 'ja', 'kn', 'ko',
-	'lt', 'lv', 'ml', 'mr', 'ms', 'nb', 'nl', 'pl', 'pt-BR', 'pt-PT', 'ro', 'ru', 'sk', 'sl',
-	'sr', 'sv', 'sw', 'ta', 'te', 'th', 'tr', 'uk', 'ur', 'vi', 'zh-CN', 'zh-TW'
-];
+// A language, then optionally a script and a region: the shape of a tag an OS
+// language list reports. `pirate` and `art-xemoji` are slugs no OS reports.
+const OS_TAG_PATTERN = /^[a-z]{2,3}(-[a-z]{4})?(-([a-z]{2}|\d{3}))?$/;
+
+function canonicalTag(tag) {
+	try {
+		return Intl.getCanonicalLocales(tag)[0].toLowerCase();
+	} catch {
+		return null;
+	}
+}
 
 /**
- * The catalog files a locale tries, in order: its own slug, then its bare
- * language's (`pt-BR` tries `pt-br`, then `pt`).
+ * The lowercase language tag an OS reports for a translate.wordpress.org slug.
  *
- * @param {string} locale A Chromium locale, as `app.getLocale()` returns it.
- * @return {string[]} translate.wordpress.org slugs, without `.json`; empty for anything that is not a locale.
+ * @param {string} slug A translate.wordpress.org locale slug, such as `es-mx` or `bel`.
+ * @return {string|null} The tag (`es-mx`, `be`), or null for a slug the app cannot select.
+ */
+function slugTag(slug) {
+	if (Object.hasOwn(SLUG_TAGS, slug)) return SLUG_TAGS[slug].toLowerCase();
+	const tag = canonicalTag(slug);
+	return tag && OS_TAG_PATTERN.test(tag) ? tag : null;
+}
+
+/**
+ * The tags a locale tries, in order: itself, then its language and region,
+ * then for a tag with a script its script's usual region, then its bare
+ * language. macOS adds the user's region to a language that names none, so
+ * Simplified Chinese in the US is `zh-Hans-US`, and translate.wordpress.org has
+ * no bare `zh`: `zh-Hans-US` tries `zh-hans-us`, `zh-us`, `zh-cn`, `zh`.
+ *
+ * @param {string} locale A language tag, from the OS or `--lang`.
+ * @return {string[]} Lowercase canonical tags; empty for anything that is not a tag.
  */
 function catalogCandidates(locale) {
-	if (typeof locale !== 'string' || !LOCALE_PATTERN.test(locale)) return [];
-	const slug = locale.toLowerCase();
-	const language = slug.split('-')[0];
-	const candidates = [GLOTPRESS_SLUGS[slug] || slug, GLOTPRESS_SLUGS[language] || language];
-	return [...new Set(candidates)];
+	const tag = typeof locale === 'string' && canonicalTag(locale);
+	if (!tag) return [];
+	const { language, script, region } = new Intl.Locale(tag);
+	const scriptRegion = script && new Intl.Locale(`${language}-${script}`).maximize().region;
+	const candidates = [tag, region && `${language}-${region}`, scriptRegion && `${language}-${scriptRegion}`, language];
+	return [...new Set(candidates.filter(Boolean).map((candidate) => candidate.toLowerCase()))];
+}
+
+// Each catalog in `dir` by the tag that selects it.
+async function catalogsByTag(dir, log) {
+	let names;
+	try {
+		names = await fs.promises.readdir(dir);
+	} catch (e) {
+		log(`no catalogs read: ${e.message}`);
+		return new Map();
+	}
+	return catalogsFromNames(names);
 }
 
 /**
- * Every translate.wordpress.org slug the app can load a catalog from.
+ * Each catalog among `names` by the tag that selects it. A slug that is its
+ * own tag wins a tie, whichever order the names come in: `bcc` and `bal` both
+ * canonicalize to `bal`.
  *
- * @return {Set<string>}
+ * @param {string[]} names File names in the catalog directory.
+ * @return {Map<string, string>} Lowercase tag to slug.
  */
-function reachableSlugs() {
-	return new Set(ELECTRON_LOCALES.flatMap(catalogCandidates));
+function catalogsFromNames(names) {
+	const byTag = new Map();
+	for (const name of names) {
+		if (!name.endsWith('.json')) continue;
+		const slug = name.slice(0, -'.json'.length);
+		const tag = slugTag(slug);
+		if (tag && (!byTag.has(tag) || tag === slug)) byTag.set(tag, slug);
+	}
+	return byTag;
 }
 
 /**
- * The catalog for a locale, or null when there is none.
+ * The catalog for the first locale that has one, or null when there is none.
  *
- * Tries each of `catalogCandidates(locale)`. A file is the JSON that
- * translate.wordpress.org's `jed1x` export writes, and what comes back is its
- * `locale_data.messages`, which is what `setLocaleData` takes.
+ * Walks `locales` in order, trying each of `catalogCandidates(locale)`. An
+ * English locale with no catalog of its own ends the walk: English is the
+ * source language, so someone who put it before German wants English.
  *
- * A catalog that cannot be read as one is logged and skipped, so a broken
- * `de-at.json` still falls back to `de.json`, and the log says why.
+ * A file is the JSON that translate.wordpress.org's `jed1x` export writes, and
+ * the messages are its `locale_data.messages`, which is what `setLocaleData`
+ * takes. A catalog that cannot be read as one is logged and skipped, so a
+ * broken `de-at.json` still falls back to `de.json`, and the log says why.
  *
- * @param {string}   locale A Chromium locale, as `app.getLocale()` returns it.
- * @param {string}   dir    The directory holding `<slug>.json` files.
- * @param {Function} [log]  Called with a sentence for each catalog skipped as unreadable.
- * @return {Promise<Object|null>} Jed locale data, or null to keep the English source strings.
+ * @param {string|string[]} locales Language tags in order of preference.
+ * @param {string}          dir     The directory holding `<slug>.json` files.
+ * @param {Function}        [log]   Called with a sentence for each catalog skipped as unreadable.
+ * @return {Promise<{locale: string, messages: Object}|null>} The locale that matched and its Jed locale data, or null to keep the English source strings.
  */
-async function resolveCatalog(locale, dir, log = () => {}) {
-	for (const candidate of catalogCandidates(locale)) {
-		let raw;
-		try {
-			raw = await fs.promises.readFile(path.join(dir, `${candidate}.json`), 'utf8');
-		} catch (e) {
-			// No file for this locale is the normal case; anything else is a catalog we shipped and cannot read.
-			if (e.code !== 'ENOENT') log(`skipped ${candidate}.json: ${e.message}`);
-			continue;
+async function resolveCatalog(locales, dir, log = () => {}) {
+	const byTag = await catalogsByTag(dir, log);
+	for (const locale of [].concat(locales)) {
+		const candidates = catalogCandidates(locale);
+		for (const candidate of candidates) {
+			const slug = byTag.get(candidate);
+			if (!slug) continue;
+			let raw;
+			try {
+				raw = await fs.promises.readFile(path.join(dir, `${slug}.json`), 'utf8');
+			} catch (e) {
+				log(`skipped ${slug}.json: ${e.message}`);
+				continue;
+			}
+			let messages;
+			try {
+				messages = JSON.parse(raw)?.locale_data?.messages;
+			} catch (e) {
+				log(`skipped ${slug}.json: ${e.message}`);
+				continue;
+			}
+			if (messages && typeof messages === 'object' && !Array.isArray(messages)) return { locale, messages };
+			log(`skipped ${slug}.json: no locale_data.messages`);
 		}
-		let messages;
-		try {
-			messages = JSON.parse(raw)?.locale_data?.messages;
-		} catch (e) {
-			log(`skipped ${candidate}.json: ${e.message}`);
-			continue;
-		}
-		if (messages && typeof messages === 'object' && !Array.isArray(messages)) return messages;
-		log(`skipped ${candidate}.json: no locale_data.messages`);
+		if (candidates.at(-1) === 'en') return null;
 	}
 	return null;
 }
 
-module.exports = { resolveCatalog, catalogCandidates, reachableSlugs, ELECTRON_LOCALES };
+/**
+ * The languages the app can be asked to show (#559): English, which is the
+ * source, and one for each catalog among `names`, each named in itself
+ * ("Deutsch", "Português do Brasil") so that someone looking for their own
+ * finds it whatever the app is showing. Sorted by that name.
+ *
+ * A tag with no name of its own in the ICU data is shown as the tag. The
+ * slugs no operating system reports (`pirate`, `art-xemoji`) are not here,
+ * as they are not selectable from the OS list either.
+ *
+ * @param {string[]} names File names in the catalog directory.
+ * @return {Array<{tag: string, label: string}>}
+ */
+function languageChoices(names) {
+	const choices = [{ tag: 'en', label: 'English' }];
+	for (const tag of catalogsFromNames(names).keys()) {
+		if (tag === 'en') continue;
+		let label = tag;
+		try {
+			// ICU writes some names as they are mid-sentence ("português");
+			// a list's entries are written as its first word.
+			const named = new Intl.DisplayNames([tag], { type: 'language' }).of(tag) || tag;
+			label = named.charAt(0).toLocaleUpperCase(tag) + named.slice(1);
+		} catch {}
+		choices.push({ tag, label });
+	}
+	return choices.sort((a, b) => a.label.localeCompare(b.label, 'en'));
+}
+
+module.exports = { resolveCatalog, catalogCandidates, catalogsFromNames, slugTag, languageChoices };

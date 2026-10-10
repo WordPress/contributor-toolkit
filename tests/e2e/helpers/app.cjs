@@ -11,14 +11,18 @@
 //      goes through TOOLKIT_USER_DATA_DIR — the `!app.isPackaged` hook in
 //      src/main.js:137 — and `start()` refuses to launch without one.
 //   2. Teardown always terminates. `close()` is known to hang on Windows in
-//      Electron apps that keep child processes alive, which this one does.
+//      Electron apps that keep child processes alive, which this one does, so
+//      it is given a limit; and an app still running at that limit is ended by
+//      force, because Playwright waits for it again when the worker stops.
 //   3. A failure leaves evidence. The trace is Playwright's; the screenshot and
 //      the persisted settings.json are attached here, because the interesting
-//      half of a failure in this app is what ended up on disk.
+//      half of a failure in this app is what ended up on disk. A launch that
+//      opens no window says what the main process knew of itself.
 //
 // The packaged smoke test does not use this: it launches a different binary and
 // deliberately writes no state at all.
 
+const { spawnSync } = require( 'node:child_process' );
 const fs = require( 'node:fs' );
 const os = require( 'node:os' );
 const path = require( 'node:path' );
@@ -67,6 +71,85 @@ function samePath( a, b ) {
 
 const EMPTY_SETTINGS = Object.freeze( { sites: [], siteMeta: {}, preferences: {} } );
 
+// How long an app gets to end by itself once asked, and how long anything asked
+// of an app that may no longer be answering is waited for.
+const PATIENCE_MS = 5_000;
+
+/**
+ * A promise, or nothing once `ms` have passed. The timer is cleared either way,
+ * so a call that answers at once does not keep the worker alive for the rest.
+ *
+ * @param {Promise<*>} promise
+ * @param {number}     ms
+ * @return {Promise<*>} What the promise settled with, or undefined.
+ */
+function within( promise, ms ) {
+	let timer;
+	const late = new Promise( ( resolve ) => {
+		timer = setTimeout( resolve, ms );
+	} );
+	return Promise.race( [ promise, late ] ).finally( () => clearTimeout( timer ) );
+}
+
+/**
+ * What the main process says of itself: whether Electron ever became ready, and
+ * the windows it has.
+ *
+ * For a launch that opens no window, where there is no screen to photograph and
+ * these are the only facts that tell the three ways it happens apart: the app
+ * never became ready, it became ready and made no window, or it made one whose
+ * page never started.
+ *
+ * @param {Object} app The Electron app.
+ * @return {Promise<{ready: boolean, windows: Object[]}>} The state, read in the main process.
+ */
+function launchState( app ) {
+	return app.evaluate( ( { app: electronApp, BrowserWindow } ) => ( {
+		ready: electronApp.isReady(),
+		windows: BrowserWindow.getAllWindows().map( ( win ) => ( {
+			visible: win.isVisible(),
+			url: win.webContents.getURL(),
+			loading: win.webContents.isLoading(),
+			crashed: win.webContents.isCrashed(),
+		} ) ),
+	} ) );
+}
+
+/**
+ * Ends an app that did not end when asked.
+ *
+ * Not `proc.kill()`, which is what this used to be. On macOS and Linux that
+ * sends SIGTERM, which a main process that has stopped answering survives: put
+ * it back and the engine's own test of this fails. On Windows it ends the shell
+ * Playwright launched through and leaves the app. Playwright then waits for
+ * the process to exit when the worker stops, with no limit of its own, so one
+ * launch that gave no window on a macOS runner failed a whole run on "Worker
+ * teardown timeout" after its test had passed on the retry. `proc.kill()` also
+ * marks the process as killed whether or not it went, which is what Playwright
+ * reads before its last forced kill, when the worker exits, and skips it.
+ *
+ * This does not wait for a quit that is merely slow. An app still sweeping its
+ * children at the limit is ended mid-sweep, and a child it started as the
+ * leader of a group of its own is then left behind.
+ *
+ * @param {Object} proc The process Playwright started.
+ */
+function forceKill( proc ) {
+	if ( process.platform === 'win32' ) {
+		// Playwright launches through a shell there, so this is cmd.exe and the
+		// app is its child: /T takes the tree.
+		spawnSync( 'taskkill', [ '/pid', String( proc.pid ), '/T', '/F' ], { windowsHide: true } );
+		return;
+	}
+	try {
+		// Playwright starts the app as the leader of its own process group, so
+		// this takes the app's helpers with it.
+		process.kill( -proc.pid, 'SIGKILL' );
+	} catch {
+		// Gone in the meantime.
+	}
+}
+
 /**
  * Where to record each journey, so a person can watch what the test did:
  * `E2E_VIDEO=/tmp/e2e-video npm run test:e2e`. Unset, nothing is recorded and
@@ -112,16 +195,27 @@ class Session {
 	/**
 	 * Seeds settings.json and launches the app.
 	 *
-	 * @param {Object} settings       Initial electron-store contents. Defaults to a
-	 *                                first-launch app with no sites.
-	 * @param {Object} [options]
-	 * @param {string} [options.lang] The locale to launch in, in place of en-US. It
-	 *                                holds across restart().
+	 * @param {Object}       settings              Initial electron-store contents. Defaults to a
+	 *                                             first-launch app with no sites.
+	 * @param {Object}       [options]
+	 * @param {string|false} [options.lang]        The locale to launch in, in place of en-US,
+	 *                                             or `false` for no `--lang` at all: the
+	 *                                             app then picks its language as it does
+	 *                                             for a contributor, from the settings
+	 *                                             and the OS. It holds across restart().
+	 * @param {?string}      [options.colorScheme] Left out, Playwright holds the page
+	 *                                             to the light scheme whatever the machine
+	 *                                             and the theme setting say, so a journey
+	 *                                             is the same on every machine. `null`
+	 *                                             lets the page follow the app's own theme
+	 *                                             (#560), for a journey about it. It holds
+	 *                                             across restart().
 	 * @return {Promise<{app: Object, page: Object}>} The Electron app and its first window.
 	 */
-	async start( settings = EMPTY_SETTINGS, { lang } = {} ) {
+	async start( settings = EMPTY_SETTINGS, { lang, colorScheme } = {} ) {
 		if ( this.app ) throw new Error( 'This session already has an app running; call restart() instead.' );
 		this.lang = lang;
+		this.colorScheme = colorScheme;
 		this.writeSettings( settings );
 		return this.#launch();
 	}
@@ -133,21 +227,32 @@ class Session {
 	 * merely holding it in memory, which is what a change to the storage layer
 	 * can break without any test noticing.
 	 *
+	 * `beforeWindow` is for a journey whose stand-ins have to be in place
+	 * before the page asks anything: a site that opens with a ticket linked
+	 * reads that ticket's pull requests as it mounts. It is called with the
+	 * app as soon as the main process answers, which is before the window's
+	 * page has loaded. That is an order and not a lock, so a journey that
+	 * leans on it should also check that its stand-in was what answered.
+	 *
+	 * @param {Object}   [options]
+	 * @param {Function} [options.beforeWindow] Called with the app before its first window is waited for.
 	 * @return {Promise<{app: Object, page: Object}>} The relaunched app and its first window.
 	 */
-	async restart() {
+	async restart( { beforeWindow } = {} ) {
 		await this.close();
-		return this.#launch();
+		return this.#launch( beforeWindow );
 	}
 
-	async #launch() {
+	async #launch( beforeWindow ) {
 		this.app = await electron.launch( {
 			// From plain Node, require('electron') resolves to the binary's path —
 			// the same trick scripts/run-tests-electron.cjs and the screenshot
 			// harness use.
 			executablePath: require( 'electron' ),
 			args: [
-				...ELECTRON_SWITCHES.map( ( s ) => ( this.lang && s.startsWith( '--lang=' ) ? `--lang=${ this.lang }` : s ) ),
+				...ELECTRON_SWITCHES
+					.filter( ( s ) => ! ( this.lang === false && s.startsWith( '--lang=' ) ) )
+					.map( ( s ) => ( this.lang && s.startsWith( '--lang=' ) ? `--lang=${ this.lang }` : s ) ),
 				REPO_ROOT,
 			],
 			// Watching a run is only ever a question of recording it. `_electron.launch`
@@ -155,6 +260,7 @@ class Session {
 			// does not recognise without a word — so a `slowMo` added here would leave the
 			// tests passing at full speed and look like it had worked.
 			...( VIDEO_DIR ? { recordVideo: { dir: VIDEO_DIR } } : {} ),
+			...( this.colorScheme === undefined ? {} : { colorScheme: this.colorScheme } ),
 			env: {
 				...process.env,
 				TZ: 'UTC',
@@ -164,15 +270,11 @@ class Session {
 				TOOLKIT_USER_DATA_DIR: this.userDataDir,
 			},
 		} );
-		this.page = await this.app.firstWindow();
-		if ( VIDEO_DIR ) {
-			const video = this.page.video();
-			if ( video ) this.videos.push( video );
-		}
-
 		// Belt and braces over the env var above. If the redirect hook ever stops
 		// firing — it is guarded by `!app.isPackaged` — every journey would start
 		// editing the contributor's real site registry, silently and permanently.
+		// Asked of the main process before anything else is done to the app,
+		// a journey's own `beforeWindow` included.
 		const inUse = await this.app.evaluate( ( { app } ) => app.getPath( 'userData' ) );
 		if ( ! samePath( inUse, this.userDataDir ) ) {
 			await this.close();
@@ -180,6 +282,31 @@ class Session {
 				`The app is using ${ inUse } as its profile, not the throwaway ${ this.userDataDir }. ` +
 				'Refusing to run a test that would write to a real site registry.'
 			);
+		}
+
+		if ( beforeWindow ) await beforeWindow( this.app );
+		try {
+			this.page = await this.app.firstWindow();
+		} catch ( error ) {
+			// Nothing to photograph, so the evidence is what the main process
+			// knows. It may be the thing that is stuck, hence the limit; and it
+			// may be gone, which is a different answer and is told apart.
+			const state = await within(
+				launchState( this.app ).then(
+					( read ) => `reported ${ JSON.stringify( read ) }.`,
+					( refusal ) => `could not be asked for its state: ${ refusal?.message ?? refusal }.`
+				),
+				PATIENCE_MS
+			);
+			throw new Error(
+				`${ error.message }\nThe launch gave the test no window. The app's main process ` +
+				( state || 'did not answer when asked for its state.' ),
+				{ cause: error }
+			);
+		}
+		if ( VIDEO_DIR ) {
+			const video = this.page.video();
+			if ( video ) this.videos.push( video );
 		}
 
 		return { app: this.app, page: this.page };
@@ -228,34 +355,6 @@ class Session {
 		}, filePaths );
 	}
 
-	/**
-	 * Answers yes to every `window.confirm` the app raises, for the life of this
-	 * window. Returns the number of prompts answered so far, so a test can assert
-	 * that a destructive action did ask before doing anything.
-	 *
-	 * Replaces `window.confirm` in the page rather than handling Playwright's
-	 * `dialog` event. Electron implements the JavaScript dialogs natively and
-	 * blocks the renderer on them, so the `dialog` event a browser would emit
-	 * does not arrive — a test relying on it clicks "Delete this ticket's work",
-	 * watches nothing happen, and fails on an assertion that had nothing to do
-	 * with the bug. (Confirmed the hard way; the listener is kept alongside for
-	 * anything that does surface as a real dialog.)
-	 *
-	 * @return {Promise<() => Promise<number>>} Reads back how many confirmations
-	 *                                          have been answered.
-	 */
-	async acceptConfirms() {
-		this.page.on( 'dialog', ( dialog ) => dialog.accept() );
-		await this.page.evaluate( () => {
-			window.__e2eConfirmCount = 0;
-			window.confirm = () => {
-				window.__e2eConfirmCount += 1;
-				return true;
-			};
-		} );
-		return () => this.page.evaluate( () => window.__e2eConfirmCount );
-	}
-
 	async close() {
 		if ( ! this.app ) return;
 		const app = this.app;
@@ -265,11 +364,18 @@ class Session {
 		// Grab the handle before closing — `process()` throws once the connection
 		// to the app is gone.
 		const proc = app.process();
-		await Promise.race( [
-			app.close().catch( () => {} ),
-			new Promise( ( resolve ) => setTimeout( resolve, 5_000 ) ),
-		] );
-		if ( proc && proc.exitCode === null ) proc.kill();
+		const exited = new Promise( ( resolve ) => proc.once( 'exit', resolve ) );
+		const running = () => proc.exitCode === null && proc.signalCode === null;
+
+		// `close()` resolves once the process has gone, hence the limit: an app
+		// that will not quit would hold the teardown for good.
+		await within( app.close().catch( () => {} ), PATIENCE_MS );
+		if ( ! running() ) return;
+
+		forceKill( proc );
+		// Waited for, so that the directories the app had open are removed after
+		// it has let go of them, and with a limit, so that teardown ends anyway.
+		await within( exited, PATIENCE_MS );
 	}
 
 	/**
@@ -376,4 +482,4 @@ const test = base.extend( {
 
 const { expect } = base;
 
-module.exports = { test, expect, Session, EMPTY_SETTINGS, REPO_ROOT };
+module.exports = { test, expect, Session, launchState, EMPTY_SETTINGS, REPO_ROOT };

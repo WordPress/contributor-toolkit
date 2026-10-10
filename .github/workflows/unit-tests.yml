@@ -6,11 +6,22 @@
 #
 # Nothing here packages or signs an artifact, so this workflow needs no secrets. Buildkite still
 # owns the signed builds (.buildkite/pipeline.yml).
+#
+# A pull request that changes only Markdown files skips the suite. The checks are required, and a
+# workflow skipped by `paths-ignore` never reports them, so the PR could not merge. Instead the
+# `changes` job decides, and `unit-skipped` reports the same check names as passed on a cheap
+# Linux runner. e2e.yml does the same.
+#
+# Moving a PR's base changes its file list without a new commit, so base-change.yml re-runs the
+# latest run of this workflow for the PR's head when that happens.
 
 name: Unit tests
 
 on:
   pull_request:
+    # Not `edited`: GitHub reports the newest run on a commit as its checks, and an edit run
+    # that skips its jobs replaces the passes before it. base-change.yml handles a base move.
+    types: [opened, synchronize, reopened]
   push:
     branches: [trunk]
 
@@ -23,8 +34,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      # A push to trunk always runs the suite. On a pull request, any file that is not Markdown
+      # (including the old name of a renamed file) counts as code. The list is read live, not
+      # from the event, so a re-run after the base moves sees the new diff.
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo code=true >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)')
+          if printf '%s\n' "$files" | grep -v '\.md$' > /dev/null; then
+            echo code=true >> "$GITHUB_OUTPUT"
+          else
+            echo code=false >> "$GITHUB_OUTPUT"
+          fi
+
+  unit-skipped:
+    name: unit (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'false'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - run: echo "Only Markdown changed; the unit suite does not run."
+
   unit:
     name: unit (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       # Report both platforms: a Windows failure must not hide the macOS result.

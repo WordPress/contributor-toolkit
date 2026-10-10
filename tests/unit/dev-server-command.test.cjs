@@ -5,6 +5,8 @@ const assert = require('node:assert');
 
 const { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } = require('../../src/renderer/dev-server-command.cjs');
 const { getProjectType } = require('../../src/project-type.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 test('a built site skips the build and goes straight to the watcher (issue #72)', () => {
 	const plan = planDevServerStart({ hasBuilt: true });
@@ -188,39 +190,46 @@ test('formatElapsed clamps negatives and non-numbers to 0s', () => {
 });
 
 // The watcher runs decoupled from the dev server (issue #247), so its tab title
-// is the only place its state is shown. Each lifecycle state gets its own label.
+// says its state beside its output. Each lifecycle state gets its own label.
 test('watchTabLabel names each watcher lifecycle state', () => {
-	assert.strictEqual(watchTabLabel('idle'), 'Build watcher');
-	assert.strictEqual(watchTabLabel('watching'), 'Build watcher (watching)');
-	assert.strictEqual(watchTabLabel('building'), 'Build watcher (building)');
-	assert.strictEqual(watchTabLabel('paused'), 'Build watcher (paused)');
+	assert.strictEqual(watchTabLabel('idle'), 'Build watch');
+	assert.strictEqual(watchTabLabel('watching'), 'Build watch (watching)');
+	assert.strictEqual(watchTabLabel('building'), 'Build watch (building)');
+	assert.strictEqual(watchTabLabel('paused'), 'Build watch (paused)');
 });
 
 // While the watch compiles a change just applied, the tab says so; the
 // contributor is told to wait for it to go quiet (#492).
 test('watchTabLabel says compiling only on a watching watch', () => {
-	assert.strictEqual(watchTabLabel('watching', null, true), 'Build watcher (compiling)');
-	assert.strictEqual(watchTabLabel('watching', null, false), 'Build watcher (watching)');
-	assert.strictEqual(watchTabLabel('building', null, true), 'Build watcher (building)');
-	assert.strictEqual(watchTabLabel('paused', null, true), 'Build watcher (paused)');
-	assert.strictEqual(watchTabLabel('idle', null, true), 'Build watcher');
+	assert.strictEqual(watchTabLabel('watching', null, true), 'Build watch (compiling)');
+	assert.strictEqual(watchTabLabel('watching', null, false), 'Build watch (watching)');
+	assert.strictEqual(watchTabLabel('building', null, true), 'Build watch (building)');
+	assert.strictEqual(watchTabLabel('paused', null, true), 'Build watch (paused)');
+	assert.strictEqual(watchTabLabel('idle', null, true), 'Build watch');
 });
 
 test('watchTabLabel shows the exit code when the watcher has exited', () => {
-	assert.strictEqual(watchTabLabel('exited', 0), 'Build watcher (exited 0)');
-	assert.strictEqual(watchTabLabel('exited', 1), 'Build watcher (exited 1)');
+	assert.strictEqual(watchTabLabel('exited', 0), 'Build watch (exited 0)');
+	assert.strictEqual(watchTabLabel('exited', 1), 'Build watch (exited 1)');
 });
 
 // A watcher we killed on purpose (pause, dev-server stop) has no meaningful
 // exit code to show — 'stopped' reads better than 'exited null'.
 test('watchTabLabel falls back to "stopped" when the exit code is unknown', () => {
-	assert.strictEqual(watchTabLabel('exited'), 'Build watcher (stopped)');
-	assert.strictEqual(watchTabLabel('exited', null), 'Build watcher (stopped)');
-	assert.strictEqual(watchTabLabel('exited', NaN), 'Build watcher (stopped)');
+	assert.strictEqual(watchTabLabel('exited'), 'Build watch (stopped)');
+	assert.strictEqual(watchTabLabel('exited', null), 'Build watch (stopped)');
+	assert.strictEqual(watchTabLabel('exited', NaN), 'Build watch (stopped)');
 });
 
 // An unknown state must never blank the tab or throw — it stays identifiable.
 test('watchTabLabel falls back to the bare name for unknown states', () => {
-	assert.strictEqual(watchTabLabel(undefined), 'Build watcher');
-	assert.strictEqual(watchTabLabel('bogus'), 'Build watcher');
+	assert.strictEqual(watchTabLabel(undefined), 'Build watch');
+	assert.strictEqual(watchTabLabel('bogus'), 'Build watch');
+});
+
+test('watchTabLabel is translated when it is read, the exit code put into it (#627)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	assert.strictEqual(watchTabLabel('paused'), pseudoLocalize('Build watch (paused)'));
+	assert.strictEqual(watchTabLabel('exited', 2), pseudoLocalize('Build watch (exited %d)').replace('%d', '2'));
 });

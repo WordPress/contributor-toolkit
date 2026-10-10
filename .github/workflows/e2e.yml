@@ -16,6 +16,11 @@
 #
 # No `playwright install` step in either job. These tests launch Electron; no
 # browser is ever downloaded.
+#
+# A pull request that changes only Markdown files skips both jobs. Their checks are
+# required, so the `*-skipped` jobs report the same names as passed on a cheap Linux
+# runner; unit-tests.yml explains why it is done this way and not with `paths-ignore`,
+# and how base-change.yml re-runs both workflows when a PR's base moves.
 
 name: E2E
 
@@ -24,6 +29,7 @@ on:
     # `ready_for_review` is not in the default set. Without it, a PR opened as a draft
     # and later marked ready never runs this workflow at all — the draft guard below
     # would skip the only run it ever gets.
+    # Not `edited`: see unit-tests.yml.
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [trunk]
@@ -37,9 +43,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      # A push to trunk always runs both jobs. On a pull request, any file that is
+      # not Markdown (including the old name of a renamed file) counts as code. The
+      # list is read live, so a re-run after the base moves sees the new diff.
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo code=true >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)')
+          if printf '%s\n' "$files" | grep -v '\.md$' > /dev/null; then
+            echo code=true >> "$GITHUB_OUTPUT"
+          else
+            echo code=false >> "$GITHUB_OUTPUT"
+          fi
+
+  journeys-skipped:
+    name: Journeys (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'false'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - run: echo "Only Markdown changed; the journey suite does not run."
+
   journeys:
     name: Journeys (${{ matrix.os }})
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -79,10 +124,22 @@ jobs:
             test-results
           retention-days: 7
 
+  packaged-skipped:
+    name: Packaged smoke (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'false'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - run: echo "Only Markdown changed; the packaged smoke test does not run."
+
   packaged:
     name: Packaged smoke (${{ matrix.os }})
     # Packaging takes several minutes per platform; don't spend it on drafts.
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:

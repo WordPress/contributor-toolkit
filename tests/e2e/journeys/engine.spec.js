@@ -2,7 +2,7 @@
  * The engine's own test (#360).
  *
  * Not a journey: it asserts nothing about ticket branches or patches. It asserts
- * that the five things every journey depends on actually work, so that when a
+ * that the things every journey depends on actually work, so that when a
  * journey fails it is about the flow and not about the harness.
  *
  *   1. The app launches from the source tree and paints.
@@ -10,6 +10,8 @@
  *   3. It uses the throwaway profile, and nothing else.
  *   4. What it persists survives closing and reopening it.
  *   5. A native file dialog can be answered from the test.
+ *   6. An app that will not quit is ended, so teardown always finishes.
+ *   7. A launch can be asked what it came to, for the one that opens no window.
  *
  * If this file is red, no other journey's result means anything.
  */
@@ -17,7 +19,7 @@
 const fs = require( 'node:fs' );
 const os = require( 'node:os' );
 const path = require( 'node:path' );
-const { test, expect } = require( '../helpers/app.cjs' );
+const { test, expect, launchState } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 
 // Directories made during a test, removed after it. The profile is the session
@@ -79,12 +81,10 @@ test( 'the app launches from source, styled, and lists the site it was seeded wi
 	// the app inside it rendered. What the app rendered is one level further down.
 	await expect( ui.renderedApp( page ) ).not.toHaveCount( 0 );
 
-	// `exact`, because the sidebar heading "Contributor Toolkit" is a substring of
-	// several button labels further down the page.
 	await expect( ui.sidebarEntry( page, 'engine-check' ) ).toBeVisible();
 	// The row wears its project (#251): a Core site says Core, not nothing.
-	await expect( ui.sidebarEntry( page, 'engine-check' ) ).toHaveAccessibleName( 'engine-check Core' );
-	await expect( page.getByText( 'No sites yet.', { exact: true } ) ).toHaveCount( 0 );
+	await expect( page.getByRole( 'row', { name: 'engine-check Core', exact: true } ) ).toBeVisible();
+	await expect( ui.noSitesTitle( page ) ).toHaveCount( 0 );
 
 	// The design system reaches the window (#549), asserted here because it needs
 	// a painted window and nothing else, and this test already has one.
@@ -181,10 +181,66 @@ test( 'a native file dialog can be answered from the test', async ( { session } 
 	expect( chosen.text ).toContain( 'wp-login.php' );
 } );
 
+/**
+ * Whether a process is still there. Signal 0 delivers nothing and only asks.
+ *
+ * @param {number} pid
+ * @return {boolean} False once the process has gone.
+ */
+function isRunning( pid ) {
+	try {
+		process.kill( pid, 0 );
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+test( 'closing ends an app that has stopped answering', async ( { session } ) => {
+	const { app } = await session.start();
+
+	// A main process that has stopped answering, which is how a launch that
+	// never finished looked from outside on a macOS runner: asked to quit it
+	// stays, and a termination signal is one more thing it never gets to.
+	const pid = await app.evaluate( () => {
+		setTimeout( () => {
+			for ( ;; ) {
+				// Busy for good, once this call has answered.
+			}
+		}, 0 );
+		return process.pid;
+	} );
+	expect( isRunning( pid ) ).toBe( true );
+
+	// INVARIANT: close() ends the app. Left running, it is what Playwright waits
+	// on when the worker stops, and the run fails on "Worker teardown timeout" a
+	// minute after its last test passed. Polled for Windows, where what close()
+	// waits for is the shell the app was launched through, and the app itself
+	// can be a moment behind it.
+	await session.close();
+	await expect.poll( () => isRunning( pid ) ).toBe( false );
+} );
+
+test( 'the main process says what a launch came to', async ( { session } ) => {
+	const { app, page } = await session.start();
+	await expect( ui.renderedApp( page ) ).not.toHaveCount( 0 );
+
+	// Read here on a launch that worked, because the launch it is for cannot be
+	// staged: it is what the helper puts in the error when no window opens.
+	await expect.poll( () => launchState( app ) ).toEqual( {
+		ready: true,
+		windows: [ {
+			visible: true,
+			url: expect.stringMatching( /\/src\/renderer\/index\.html$/ ),
+			loading: false,
+			crashed: false,
+		} ],
+	} );
+} );
+
 test( 'a failed site deletion stays visible, reports the failure, and can be retried (#414)', async ( { session } ) => {
 	const site = makeListedSite( session, 'delete-retry' );
 	const { app, page } = await session.start( site.settings );
-	const confirmsAnswered = await session.acceptConfirms();
 
 	// Hold the IPC reply in the main process. This keeps the UI operation pending
 	// without shipping a test-only delay or relying on filesystem timing.
@@ -197,15 +253,13 @@ test( 'a failed site deletion stays visible, reports the failure, and can be ret
 
 	await ui.siteMenuButton( page ).click();
 	await ui.deleteSiteMenuItem( page ).click();
+	await ui.confirmYesButton( page, 'Delete site' ).click();
 
-	// The row speaks while the call is outstanding, and the only delete action is
-	// disabled so a second request cannot race the first one.
-	const deletingEntry = page.getByRole( 'button', { name: 'delete-retry, Deleting', exact: true } );
-	await expect( deletingEntry ).toBeDisabled();
-	await expect( deletingEntry.getByText( 'Deleting site…', { exact: true } ) ).toBeVisible();
-	await page.getByRole( 'button', { name: 'Collapse site list', exact: true } ).click();
-	await expect( deletingEntry.locator( '.components-spinner' ) ).toBeVisible();
-	await page.getByRole( 'button', { name: 'Expand site list', exact: true } ).click();
+	// The row speaks while the call is outstanding, in place of its project,
+	// and the only delete action is disabled so a second request cannot race
+	// the first one.
+	await expect( page.getByRole( 'button', { name: 'delete-retry (Deleting)', exact: true } ) ).toBeVisible();
+	await expect( page.getByRole( 'row', { name: /^delete-retry/ } ).getByText( 'Deleting site…', { exact: true } ) ).toBeVisible();
 	await ui.siteMenuButton( page ).click();
 	await expect( page.getByRole( 'menuitem', { name: 'Deleting…', exact: true } ) ).toBeDisabled();
 	await ui.siteMenuButton( page ).click();
@@ -217,12 +271,11 @@ test( 'a failed site deletion stays visible, reports the failure, and can be ret
 	} );
 
 	const failure = `The site is still listed because its folder could not be deleted (EBUSY). Close anything using it, then try again. Folder: ${ site.dir }`;
-	await expect( page.getByText( failure, { exact: true } ) ).toBeVisible();
+	await expect( ui.toast( page, failure ) ).toBeVisible();
 	await expect( ui.sidebarEntry( page, 'delete-retry' ) ).toBeVisible();
 	await expect( page.getByText( 'Deleting site…', { exact: true } ) ).toHaveCount( 0 );
 
 	await ui.siteMenuButton( page ).click();
 	await expect( ui.deleteSiteMenuItem( page ) ).toBeEnabled();
-	expect( await confirmsAnswered() ).toBe( 1 );
 	expect( session.readSettings().sites ).toEqual( [ site.dir ] );
 } );

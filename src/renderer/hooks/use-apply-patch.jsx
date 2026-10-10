@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { __, sprintf } from '@wordpress/i18n';
 import { parsePrRef } from '../../patch-sources.cjs';
 import { describeApplyFailure, otherPatchCount } from '../apply-conflict.cjs';
+import { applyDoneMessage } from '../confirmations.cjs';
 import { prCheckoutRefusal } from '../pr-checkout.cjs';
 import { savedPrForSwitch } from '../ticket-branch-list.cjs';
-import { planApplySteps, updateStepStatuses, planWatchImpact, planTicketSwitchImpact, SKIP_INSTALL_MESSAGE, APPLY_STATE_TO_STEP } from '../update-plan.cjs';
-import { compilingMessage, applyFinishMessage, resumedWatchHandOff } from '../watch-activity.cjs';
+import { planApplySteps, updateStepStatuses, planWatchImpact, planTicketSwitchImpact, skipInstallMessage, APPLY_STATE_TO_STEP } from '../update-plan.cjs';
+import { applyLines, applyFinishMessage, resumedWatchHandOff } from '../watch-activity.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
 
 // Putting someone else's work on a site (#11, #458, #554): the patches and
@@ -48,8 +50,12 @@ import { watchOccupiesBuild } from '../watch-waiters.cjs';
 // for. `watchStateRef` and `watchRebuildsOnStart` are what those decisions
 // read.
 //
+// `refuseInTerminal` says in the terminal that a command is already running,
+// and brings the terminal up to be read (#558); `revealTerminal` brings it up
+// for a failure that is only printed there.
+//
 // None of the chain's functions is memoised, as none was.
-export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
+export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
   // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
   const [ticketPatches, setTicketPatches] = useState(null);
   const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
@@ -99,7 +105,9 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
   // tests rely on the full list); the filtering is purely what's shown.
   const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
 
-  const finishApply = (message) => {
+  // `settled` is what the terminal says instead of `message` while a resumed
+  // watch is still rebuilding (applyFinishMessage).
+  const finishApply = (message, settled) => {
     markTerminalRunning(false);
     terminalKillRef.current = null;
     setApplyState('idle');
@@ -110,15 +118,18 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     // leaves the site unusable until it is watching again, and the banner
     // above is already up (#492). The banner says so; so does the terminal,
     // in place of "open the site to try it out".
-    if (message) writeToTerminal(applyFinishMessage(message, watchStateRef.current));
+    if (message) writeToTerminal(applyFinishMessage(message, watchStateRef.current, settled));
     loadStatus().catch(() => {});
     refreshDirty();
   };
 
   const runApplyInstallAndBuild = (needsInstall, verb, { buildBy = null, noun = 'patch' } = {}) => {
+    const lines = applyLines(verb, noun);
+    const finishTryIt = () => finishApply(`\n${lines.tryIt}\n`, `\n${lines.settled}\n`);
     const runBuildStep = () => {
       setApplyState('building');
-      writeToTerminal('\nRunning npm run build…\n');
+      // translators: %s: the command being run, such as npm run build.
+      writeToTerminal(`\n${sprintf(__('Running %s…'), 'npm run build')}\n`);
       runScript('build', {
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
@@ -126,10 +137,12 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
           // site is rebuilt around it, so "open the site to try it out" is true
           // (#253). A failed build leaves stale assets and its own banner, so it
           // gets no success confirmation.
-          if (code === 0) confirm(`${verb} the ${noun}`);
-          finishApply(code === 0
-            ? `\n${verb} — open the site to try it out.\n`
-            : `\nThe ${noun} is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
+          if (code === 0) {
+            confirm(applyDoneMessage(verb, noun));
+            finishTryIt();
+          } else {
+            finishApply(`\n${lines.buildFailed}\n`);
+          }
         }
       });
     };
@@ -151,40 +164,43 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
       watchWaitersRef.current.add(
         () => {
           if (!applyHandOffRef.current.isCurrent(token)) return;
-          confirm(`${verb} the ${noun}`);
+          confirm(applyDoneMessage(verb, noun));
           writeToTerminal(handOff.ready);
         },
         () => {
           if (!applyHandOffRef.current.isCurrent(token)) return;
+          // Said in the terminal and nowhere else, after the page has said
+          // the patch is applied: the terminal is brought up to be read.
           writeToTerminal(handOff.failed);
+          revealTerminal();
         }
       );
-      finishApply(`\n${verb} — open the site to try it out.\n`);
+      finishTryIt();
     };
     const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
     if (buildBy === 'live-watch') {
       // A running build watch recompiles the src/ change on its own, so there is
       // no install and no build of our own to run — just hand off to it (#262).
-      confirm(`${verb} the ${noun}`);
+      confirm(applyDoneMessage(verb, noun));
       handOffToWatch();
-      finishApply(`\n${verb} — ${compilingMessage()}\n`);
+      finishApply(`\n${lines.compiling}\n`);
       return;
     }
     if (needsInstall) {
       setApplyState('installing');
-      writeToTerminal(`\nThe ${noun} changes package-lock.json — running npm install…\n`);
+      writeToTerminal(`\n${lines.installing}\n`);
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           if (code !== 0) {
-            finishApply(`\nnpm install failed, so the build was skipped. The ${noun} is ${verb.toLowerCase()} but dependencies are stale.\n`);
+            finishApply(`\n${lines.installFailed}\n`);
             return;
           }
           afterInstall();
         }
       });
     } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
+      writeToTerminal(`\n${skipInstallMessage()}\n`);
       afterInstall();
     }
   };
@@ -198,12 +214,13 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
       const chosen = await window.api.choosePatchFile();
       if (!chosen) return;
       if (chosen.error) {
-        setApplyError(`Could not read that file: ${chosen.error}`);
+        // translators: %s: why the file could not be read, as the system said it.
+        setApplyError(sprintf(__('Could not read that file: %s'), chosen.error));
         return;
       }
       const preview = await window.api.previewPatch(sitePath, chosen.text);
       if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
+        setApplyError(preview?.error || __('Could not read that patch.'));
         return;
       }
       setApplyPreview({ ...preview, label: chosen.name, text: chosen.text });
@@ -338,12 +355,13 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     try {
       const res = await window.api.fetchTracAttachment(att.url);
       if (!res || !res.ok) {
-        setApplyError(res?.error || `Could not download ${att.filename}.`);
+        // translators: %s: the file name of a Trac attachment.
+        setApplyError(res?.error || sprintf(__('Could not download %s.'), att.filename));
         return;
       }
       const preview = await window.api.previewPatch(sitePath, res.text);
       if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
+        setApplyError(preview?.error || __('Could not read that patch.'));
         return;
       }
       setApplyPreview({ ...preview, label: att.filename, text: res.text });
@@ -375,7 +393,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     if (!number) return;
     const state = terminalStateRef.current;
     if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      refuseInTerminal();
       return;
     }
     // A checkout rewrites far more than a src/ patch, so a live watch is always
@@ -401,6 +419,11 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
         if (!leaving && res?.code === 'dirty-trunk') {
           setBlockedByTrunkWork({ kind: 'pr', number, ref: `pr/${number}`, canCarry: false, files: Number.isInteger(res.files) ? res.files : null, ticket: null });
         } else {
+          // The preview is a dialog (#557), and a refusal is said on the
+          // card behind it: the preview goes, so that the refusal can be
+          // read. The question above keeps it, for the answer that goes on
+          // with this same checkout.
+          setApplyPreview(null);
           setApplyError(prCheckoutRefusal({ ...res, number }));
         }
         finishApply();
@@ -416,6 +439,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     }
 
     run.catch((e) => {
+      setApplyPreview(null);
       setApplyError(String(e));
       finishApply();
     });
@@ -440,7 +464,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     ticketSwitchLifecycleRef.current = {
       begin: async (ref) => {
         if (terminalStateRef.current.running) {
-          setTicketError('A command is already running. Stop it before switching tickets.');
+          setTicketError(__('A command is already running. Stop it before switching tickets.'));
           return false;
         }
         markTerminalRunning(true);
@@ -502,7 +526,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
   const runApply = async ({ reverse = false } = {}) => {
     const state = terminalStateRef.current;
     if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      refuseInTerminal();
       return;
     }
     const preview = applyPreview;
@@ -541,16 +565,22 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
           // nothing to install or build.
           if (res?.notApplied) {
             if (res.recordCleared) {
-              setApplyNotice(`${res.error} The applied-patch record has been cleared.`);
+              // translators: %s: why the patch could not be reverted, a sentence of its own.
+              setApplyNotice(sprintf(__('%s The applied-patch record has been cleared.'), res.error));
             } else {
-              setApplyError(`${res.error} The record of it could not be cleared, so this site still thinks it is applied.`);
+              // translators: %s: why the patch could not be reverted, a sentence of its own.
+              setApplyError(sprintf(__('%s The record of it could not be cleared, so this site still thinks it is applied.'), res.error));
             }
             // finishApply reloads the status, which is what takes the banner
             // down now that the main process has dropped the record.
             finishApply();
             return;
           }
-          setApplyError(res?.error || 'The patch could not be applied.');
+          // The preview goes with its failure, as a pull request's does:
+          // it is a dialog, and what went wrong is on the card behind it.
+          // What the breakdown needs of it was read before the apply began.
+          setApplyPreview(null);
+          setApplyError(res?.error || __('The patch could not be applied.'));
           // A conflict is where the panel used to stop: one file named, the
           // rest of the failures left in the terminal, and no sense of whether
           // one region of twenty missed or all of them. The breakdown is what
@@ -559,7 +589,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
           // patch's lines, so the ticket's other patches and the pull request's
           // author are both the wrong place to send them.
           setApplyConflict(describeApplyFailure(res, reverse
-            ? { reverting: appliedPatch?.label || 'That patch' }
+            ? { reverting: appliedPatch?.label || '' }
             : {
               otherPatchCount: otherPatchCount({
                 label: preview?.label,
@@ -589,6 +619,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     ).catch((e) => {
       // A rejected invoke never reaches onDone, so without this the terminal
       // stays wedged with `running` set and no way back short of a reload.
+      setApplyPreview(null);
       setApplyError(String(e));
       finishApply();
     });

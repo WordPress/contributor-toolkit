@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { Button, Modal } from '@wordpress/components';
+import { __, _n, sprintf } from '@wordpress/i18n';
+import { Notice, Stack, Text } from '@wordpress/ui';
+
+// The failure is read by its role, and is not also spoken.
+const SILENT = '';
 
 // The question an update asks when there are edits loose in the tree: the
 // reset would erase them, so the contributor says what happens to them first.
@@ -14,24 +19,44 @@ export function DirtyTreeModal({ files, saving, error, onSave, onDiscard, onClos
   const [dirtyChoice, setDirtyChoice] = useState('save'); // save | discard
   return (
     <Modal
-      title="Update to latest trunk?"
+      title={__('Update to latest trunk?')}
       onRequestClose={() => { if (!saving) onClose(); }}
       shouldCloseOnClickOutside={!saving}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-          You&apos;ve changed {files.length === 1 ? '1 file' : `${files.length} files`} in this site. Resetting to trunk would throw them away.
-        </p>
+      <Stack direction="column" gap="md" className="dirty-tree">
+        <Text variant="body-md" render={<p />}>
+          {sprintf(
+            // translators: %d: how many files the contributor has changed.
+            _n(
+              "You've changed %d file in this site. Resetting to trunk would throw them away.",
+              "You've changed %d files in this site. Resetting to trunk would throw them away.",
+              files.length
+            ),
+            files.length
+          )}
+        </Text>
         {files.length ? (
-          <div style={{ border: '1px solid #dcdcde', borderRadius: 6, padding: '10px 12px', maxHeight: 140, overflowY: 'auto' }}>
+          <div className="dirty-tree-files">
             {files.map((f) => (
-              <div key={f} style={{ fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere' }}>{f}</div>
+              <div key={f}>{f}</div>
             ))}
           </div>
         ) : null}
         {[
-          { key: 'save', label: 'Save them as a patch first (as a local file)', detail: 'a .diff on your machine — nothing is sent to Trac' },
-          { key: 'discard', label: 'Discard them', detail: 'your changes are lost; this cannot be undone', destructive: true }
+          // Each detail carries its own dash: punctuation is the translator's.
+          {
+            key: 'save',
+            label: __('Save them as a patch first (as a local file)'),
+            // translators: Said after "Save them as a patch first (as a local file)", on the same line.
+            detail: __('— a .diff on your machine — nothing is sent to Trac')
+          },
+          {
+            key: 'discard',
+            label: __('Discard them'),
+            // translators: Said after "Discard them", on the same line.
+            detail: __('— your changes are lost; this cannot be undone'),
+            destructive: true
+          }
         ].map((opt) => {
           const selected = dirtyChoice === opt.key;
           return (
@@ -41,39 +66,29 @@ export function DirtyTreeModal({ files, saving, error, onSave, onDiscard, onClos
               onClick={() => setDirtyChoice(opt.key)}
               disabled={saving}
               aria-pressed={selected}
-              style={{
-                textAlign: 'left',
-                cursor: 'pointer',
-                font: 'inherit',
-                fontSize: 13,
-                padding: '10px 12px',
-                borderRadius: 6,
-                border: selected ? '2px solid #3858e9' : '1px solid #dcdcde',
-                background: selected ? '#f0f3ff' : '#fff',
-                color: opt.destructive ? '#b32d2e' : '#1d2327'
-              }}
+              className={opt.destructive ? 'dirty-tree-choice is-destructive' : 'dirty-tree-choice'}
             >
-              <span style={{ fontWeight: 600 }}>{opt.label}</span>
-              <span style={{ color: opt.destructive ? '#b32d2e' : '#6c6f72' }}> — {opt.detail}</span>
+              <strong>{opt.label}</strong>{' '}
+              <span className="dirty-tree-choice-detail">{opt.detail}</span>
             </button>
           );
         })}
         {error ? (
-          <div role="alert" style={{ padding: '10px 12px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 13, lineHeight: 1.5, color: '#8a2424', overflowWrap: 'anywhere' }}>
-            {error}
-          </div>
+          <Notice.Root intent="error" role="alert" spokenMessage={SILENT} className="dirty-tree-error">
+            <Notice.Description>{error}</Notice.Description>
+          </Notice.Root>
         ) : null}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
+        <Stack direction="row" justify="flex-end" gap="sm" wrap="wrap">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>{__('Cancel')}</Button>
           <Button
             variant="primary"
             isDestructive={dirtyChoice === 'discard'}
             isBusy={saving}
             disabled={saving}
             onClick={() => (dirtyChoice === 'discard' ? onDiscard() : onSave())}
-          >{dirtyChoice === 'discard' ? 'Discard & update' : 'Save patch & update'}</Button>
-        </div>
-      </div>
+          >{dirtyChoice === 'discard' ? __('Discard & update') : __('Save patch & update')}</Button>
+        </Stack>
+      </Stack>
     </Modal>
   );
 }

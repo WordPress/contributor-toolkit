@@ -3,7 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, resumedWatchUpdateHandOff, appliedBannerState } = require('../../src/renderer/watch-activity.cjs');
+const { createWatchActivity, compilingMessage, watchBusyMessage, applyLines, applyFinishMessage, resumedWatchHandOff, resumedWatchUpdateHandOff, appliedBannerState } = require('../../src/renderer/watch-activity.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 // A change handed to the watch is compiling until the watch has been quiet
 // for quietMs (#492). The clock is injected: t is milliseconds.
@@ -86,7 +88,7 @@ test('the default quiet window is three seconds', () => {
 });
 
 test('the banner line tells the contributor what to wait for', () => {
-	assert.match(compilingMessage(), /Build watcher tab/);
+	assert.match(compilingMessage(), /Wait for it to go quiet/);
 	assert.match(compilingMessage(), /before trying the site/);
 });
 
@@ -130,7 +132,7 @@ test('output past the grace period still extends an open window', () => {
 test('the banner says rebuilding while the watch is building, whatever the hand-off', () => {
 	assert.match(watchBusyMessage('building', false), /rebuilding after this change/);
 	assert.match(watchBusyMessage('building', true), /rebuilding after this change/);
-	assert.match(watchBusyMessage('building', false), /say \(watching\)/);
+	assert.match(watchBusyMessage('building', false), /Wait for it to be watching again/);
 });
 
 test('the banner says compiling only on a watching watch with a hand-off open', () => {
@@ -147,9 +149,10 @@ test('the banner says nothing when the watch is idle, paused or exited', () => {
 
 // "Checked out — open the site to try it out." followed by "wait before trying
 // the site" contradicts itself; when the resumed watch is rebuilding, the
-// invitation goes and the rebuilding line follows.
+// settled line takes its place and the rebuilding line follows.
 test('the apply finish line drops the invitation while the resumed watch rebuilds', () => {
-	const out = applyFinishMessage('\nChecked out — open the site to try it out.\n', 'building');
+	const lines = applyLines('Checked out', 'pull request');
+	const out = applyFinishMessage(`\n${lines.tryIt}\n`, 'building', `\n${lines.settled}\n`);
 
 	assert.doesNotMatch(out, /open the site to try it out/);
 	assert.match(out, /^\nChecked out\.\n/);
@@ -159,8 +162,38 @@ test('the apply finish line drops the invitation while the resumed watch rebuild
 test('the apply finish line is untouched when the watch is watching or stopped', () => {
 	const line = '\nChecked out — open the site to try it out.\n';
 
-	assert.strictEqual(applyFinishMessage(line, 'watching'), line);
-	assert.strictEqual(applyFinishMessage(line, 'idle'), line);
+	assert.strictEqual(applyFinishMessage(line, 'watching', '\nChecked out.\n'), line);
+	assert.strictEqual(applyFinishMessage(line, 'idle', '\nChecked out.\n'), line);
+});
+
+// A line with no settled form of its own, such as a failed build, keeps
+// itself and has the rebuilding line added.
+test('the apply finish line without a settled form keeps itself and adds the rebuilding line', () => {
+	const line = '\nThe patch is applied but the build failed, so the site still runs the old assets.\n';
+	const out = applyFinishMessage(line, 'building');
+
+	assert.ok(out.startsWith(line), out);
+	assert.match(out, /rebuilding after this change/);
+});
+
+// Each of the five things an apply does says each of its endings in the
+// words it had when they were built from a verb and a noun.
+test('the apply lines keep the English the chain spliced together before (#627)', () => {
+	const applied = applyLines('Applied', 'patch');
+	assert.strictEqual(applied.tryIt, 'Applied — open the site to try it out.');
+	assert.strictEqual(applied.compiling, `Applied — ${compilingMessage()}`);
+	assert.strictEqual(applied.installing, 'The patch changes package-lock.json — running npm install…');
+	assert.strictEqual(applied.installFailed, 'npm install failed, so the build was skipped. The patch is applied but dependencies are stale.');
+	assert.strictEqual(applyLines('Reverted', 'patch').buildFailed, 'The patch is reverted but the build failed, so the site still runs the old assets.');
+	assert.strictEqual(applyLines('Restored', 'previous branch').watchStopped, 'The previous branch is restored but the build watch was stopped, so the site still runs the old assets.');
+	assert.strictEqual(applyLines('Restored', 'saved work').ready, 'Restored — the build watch has rebuilt. Open the site to try it out.');
+	for (const [verb, noun] of [['Applied', 'patch'], ['Reverted', 'patch'], ['Checked out', 'pull request'], ['Restored', 'previous branch'], ['Restored', 'saved work']]) {
+		const lines = applyLines(verb, noun);
+		assert.strictEqual(lines.settled, `${verb}.`);
+		assert.strictEqual(lines.compiling, `${verb} — ${compilingMessage()}`);
+		assert.strictEqual(lines.buildFailed, `The ${noun} is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.`);
+		assert.strictEqual(lines.watchFailed, `The ${noun} is ${verb.toLowerCase()} but the build watch stopped before it finished rebuilding, so the site still runs the old assets.`);
+	}
 });
 
 // #506: an apply that paused a watch which rebuilds from scratch on resume
@@ -262,4 +295,30 @@ test('the green applied banner keeps the compiling line while a hand-off is open
 	const out = appliedBannerState({ number: 71234, watchState: 'watching', compiling: true, buildInterrupted: false });
 	assert.strictEqual(out.tone, 'ready');
 	assert.strictEqual(out.body, compilingMessage());
+});
+
+test('what the terminal and the applied banner say is translated when it is said, each sentence whole (#627)', (t) => {
+	for (const filter of ['i18n.gettext', 'i18n.gettext_with_context', 'i18n.ngettext']) {
+		addFilter(filter, 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	}
+	t.after(() => {
+		for (const filter of ['i18n.gettext', 'i18n.gettext_with_context', 'i18n.ngettext']) removeFilter(filter, 'test/pseudo-locale');
+	});
+
+	// The apply's endings: whole sentences, never English spliced around a
+	// translated verb or noun.
+	const handOff = resumedWatchHandOff('Restored', 'saved work', 'paused');
+	assert.strictEqual(handOff.ready, `\n${pseudoLocalize('Restored — the build watch has rebuilt. Open the site to try it out.')}\n`);
+	assert.strictEqual(handOff.failed, `\n${pseudoLocalize('The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.')} ${pseudoLocalize('Start the build watch, or run %s in the Terminal.').replace('%s', 'npm run build')}\n`);
+	assert.strictEqual(applyLines('Checked out', 'pull request').installing, pseudoLocalize('The pull request changes %1$s — running %2$s…').replace('%1$s', 'package-lock.json').replace('%2$s', 'npm install'));
+
+	// The update's.
+	const update = resumedWatchUpdateHandOff('idle');
+	assert.match(update.stopped, /^\n\[.*\] \[.*\]\n$/);
+
+	// The banner.
+	const banner = appliedBannerState({ number: 7701, watchState: 'building', compiling: false, buildInterrupted: false });
+	assert.strictEqual(banner.title, pseudoLocalize('PR #%s is applied. The site is rebuilding.').replace('%s', '7701'));
+	assert.strictEqual(banner.revertReason, pseudoLocalize('Wait for the build to finish.'));
+	assert.strictEqual(banner.body, pseudoLocalize('The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.'));
 });

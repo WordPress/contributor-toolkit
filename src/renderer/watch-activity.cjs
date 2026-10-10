@@ -1,7 +1,13 @@
 'use strict';
 
-// What a site with an incomplete build/ is told, wherever it is told.
-const STALE_ASSETS = 'so the site still runs the old assets. Start the build watch, or run npm run build in the Terminal below.';
+const { __, _x, sprintf } = require('@wordpress/i18n');
+
+// What a site with an incomplete build/ is told to do, wherever it is told:
+// the sentence after the one that says the site still runs the old assets.
+function rebuildAdvice() {
+	// translators: %s: the command that builds the site, npm run build.
+	return sprintf(__('Start the build watch, or run %s in the Terminal.'), 'npm run build');
+}
 
 /**
  * Whether the build watch is still compiling a change that was just handed
@@ -66,7 +72,7 @@ function createWatchActivity({ quietMs = 3000, graceMs = 15000 } = {}) {
  * @return {string}
  */
 function compilingMessage() {
-	return 'The build watch is still compiling this change. Wait for the Build watcher tab to go quiet before trying the site.';
+	return __('The build watch is still compiling this change. Wait for it to go quiet before trying the site.');
 }
 
 /**
@@ -85,26 +91,122 @@ function compilingMessage() {
  * @return {string|null}
  */
 function watchBusyMessage(watchState, compiling) {
-	if (watchState === 'building') return 'The build watch is rebuilding after this change. Wait for the Build watcher tab to say (watching) before trying the site.';
+	if (watchState === 'building') return __('The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.');
 	if (watchState === 'watching' && compiling) return compilingMessage();
 	return null;
+}
+
+/**
+ * What the terminal says at each way an apply can end, for what was done:
+ * one set of whole sentences for each of the five things the chain does, as
+ * `applyDoneMessage` in confirmations.cjs has, since a translation cannot
+ * splice a verb or a noun into the English order.
+ *
+ * - `tryIt`: done and built, "open the site to try it out".
+ * - `settled`: done, and nothing more, for when the site is not ready yet.
+ * - `compiling`: done, and the running watch is compiling it.
+ * - `ready`: done, and the resumed watch has rebuilt.
+ * - `installing`: what was done changes the lockfile, so an install runs.
+ * - `buildFailed`, `installFailed`: the chain's own build or install failed.
+ * - `watchStopped`, `watchFailed`: the watch the build was left to was
+ *   stopped, or stopped before it finished; `rebuildAdvice` follows these.
+ *
+ * @param {string} verb 'Applied', 'Reverted', 'Checked out', 'Restored'
+ * @param {string} noun 'patch', 'pull request', 'previous branch', 'saved work'
+ * @return {{tryIt: string, settled: string, compiling: string, ready: string, installing: string, buildFailed: string, installFailed: string, watchStopped: string, watchFailed: string}}
+ */
+function applyLines(verb, noun) {
+	switch (`${verb} ${noun}`) {
+		case 'Reverted patch':
+			return {
+				tryIt: __('Reverted — open the site to try it out.'),
+				settled: __('Reverted.'),
+				compiling: __('Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.'),
+				ready: __('Reverted — the build watch has rebuilt. Open the site to try it out.'),
+				// translators: 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+				installing: sprintf(__('The patch changes %1$s — running %2$s…'), 'package-lock.json', 'npm install'),
+				buildFailed: __('The patch is reverted but the build failed, so the site still runs the old assets.'),
+				// translators: %s: the command that installs dependencies, npm install.
+				installFailed: sprintf(__('%s failed, so the build was skipped. The patch is reverted but dependencies are stale.'), 'npm install'),
+				watchStopped: __('The patch is reverted but the build watch was stopped, so the site still runs the old assets.'),
+				watchFailed: __('The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.')
+			};
+		case 'Checked out pull request':
+			return {
+				tryIt: __('Checked out — open the site to try it out.'),
+				settled: __('Checked out.'),
+				compiling: __('Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.'),
+				ready: __('Checked out — the build watch has rebuilt. Open the site to try it out.'),
+				// translators: 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+				installing: sprintf(__('The pull request changes %1$s — running %2$s…'), 'package-lock.json', 'npm install'),
+				buildFailed: __('The pull request is checked out but the build failed, so the site still runs the old assets.'),
+				// translators: %s: the command that installs dependencies, npm install.
+				installFailed: sprintf(__('%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.'), 'npm install'),
+				watchStopped: __('The pull request is checked out but the build watch was stopped, so the site still runs the old assets.'),
+				watchFailed: __('The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.')
+			};
+		case 'Restored previous branch':
+			return {
+				tryIt: _x('Restored — open the site to try it out.', 'the previous branch'),
+				settled: _x('Restored.', 'the previous branch'),
+				compiling: _x('Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.', 'the previous branch'),
+				ready: _x('Restored — the build watch has rebuilt. Open the site to try it out.', 'the previous branch'),
+				// translators: 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+				installing: sprintf(__('The previous branch changes %1$s — running %2$s…'), 'package-lock.json', 'npm install'),
+				buildFailed: __('The previous branch is restored but the build failed, so the site still runs the old assets.'),
+				// translators: %s: the command that installs dependencies, npm install.
+				installFailed: sprintf(__('%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.'), 'npm install'),
+				watchStopped: __('The previous branch is restored but the build watch was stopped, so the site still runs the old assets.'),
+				watchFailed: __('The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.')
+			};
+		case 'Restored saved work':
+			return {
+				tryIt: _x('Restored — open the site to try it out.', 'the saved work'),
+				settled: _x('Restored.', 'the saved work'),
+				compiling: _x('Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.', 'the saved work'),
+				ready: _x('Restored — the build watch has rebuilt. Open the site to try it out.', 'the saved work'),
+				// translators: 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+				installing: sprintf(__('The saved work changes %1$s — running %2$s…'), 'package-lock.json', 'npm install'),
+				buildFailed: __('The saved work is restored but the build failed, so the site still runs the old assets.'),
+				// translators: %s: the command that installs dependencies, npm install.
+				installFailed: sprintf(__('%s failed, so the build was skipped. The saved work is restored but dependencies are stale.'), 'npm install'),
+				watchStopped: __('The saved work is restored but the build watch was stopped, so the site still runs the old assets.'),
+				watchFailed: __('The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.')
+			};
+		case 'Applied patch':
+		default:
+			return {
+				tryIt: __('Applied — open the site to try it out.'),
+				settled: __('Applied.'),
+				compiling: __('Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.'),
+				ready: __('Applied — the build watch has rebuilt. Open the site to try it out.'),
+				// translators: 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+				installing: sprintf(__('The patch changes %1$s — running %2$s…'), 'package-lock.json', 'npm install'),
+				buildFailed: __('The patch is applied but the build failed, so the site still runs the old assets.'),
+				// translators: %s: the command that installs dependencies, npm install.
+				installFailed: sprintf(__('%s failed, so the build was skipped. The patch is applied but dependencies are stale.'), 'npm install'),
+				watchStopped: __('The patch is applied but the build watch was stopped, so the site still runs the old assets.'),
+				watchFailed: __('The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.')
+			};
+	}
 }
 
 /**
  * The terminal line that ends an apply, given what the watch is doing once it
  * has been resumed. An apply that ran the app's own build ends on "open the
  * site to try it out"; when the resumed watch is rebuilding from scratch that
- * is not yet true, so the invitation is dropped and the rebuilding line
- * follows instead of contradicting it.
+ * is not yet true, so the line is swapped for `settled`, the same line without
+ * the invitation, and the rebuilding line follows instead of contradicting it.
  *
  * @param {string} message    the line the apply would print on its own
  * @param {string} watchState the watch state after the resume
+ * @param {string} [settled]  the line to print instead while the watch rebuilds
  * @return {string}
  */
-function applyFinishMessage(message, watchState) {
+function applyFinishMessage(message, watchState, settled = message) {
 	const busy = watchBusyMessage(watchState, false);
 	if (!busy) return message;
-	return `${message.replace(/ — open the site to try it out\./, '.')}${busy}\n`;
+	return `${settled}${busy}\n`;
 }
 
 /**
@@ -122,15 +224,14 @@ function applyFinishMessage(message, watchState) {
  * @return {{waits: boolean, stopped?: string, ready?: string, failed?: string}}
  */
 function resumedWatchHandOff(verb, noun, watchState) {
-	const done = `The ${noun} is ${verb.toLowerCase()}`;
-	const stale = STALE_ASSETS;
+	const lines = applyLines(verb, noun);
 	if (watchState !== 'paused') {
-		return { waits: false, stopped: `\n${done} but the build watch was stopped, ${stale}\n` };
+		return { waits: false, stopped: `\n${lines.watchStopped} ${rebuildAdvice()}\n` };
 	}
 	return {
 		waits: true,
-		ready: `\n${verb} — the build watch has rebuilt. Open the site to try it out.\n`,
-		failed: `\n${done} but the build watch stopped before it finished rebuilding, ${stale}\n`
+		ready: `\n${lines.ready}\n`,
+		failed: `\n${lines.watchFailed} ${rebuildAdvice()}\n`
 	};
 }
 
@@ -149,14 +250,14 @@ function resumedWatchHandOff(verb, noun, watchState) {
  * @return {{waits: boolean, stopped?: string, ready?: string, failed?: string}}
  */
 function resumedWatchUpdateHandOff(watchState) {
-	const retry = 'The code is new but the built assets are old; retry install & build from the banner above.';
+	const retry = __('The code is new but the built assets are old; retry install & build from the banner above.');
 	if (watchState !== 'paused') {
-		return { waits: false, stopped: `\nUpdate incomplete — the build watch was stopped, so nothing rebuilt. ${retry}\n` };
+		return { waits: false, stopped: `\n${__('Update incomplete — the build watch was stopped, so nothing rebuilt.')} ${retry}\n` };
 	}
 	return {
 		waits: true,
-		ready: '\nUpdate complete — the build watch has rebuilt, and this site is now on the latest trunk.\n',
-		failed: `\nUpdate incomplete — the build watch stopped before it finished rebuilding. ${retry}\n`
+		ready: `\n${__('Update complete — the build watch has rebuilt, and this site is now on the latest trunk.')}\n`,
+		failed: `\n${__('Update incomplete — the build watch stopped before it finished rebuilding.')} ${retry}\n`
 	};
 }
 
@@ -188,25 +289,28 @@ function appliedBannerState({ number, watchState, compiling, buildInterrupted, a
 	if (watchState === 'building') {
 		return {
 			tone: 'building',
-			title: `PR #${number} is applied. The site is rebuilding.`,
+			// translators: %s: the number of the pull request.
+			title: sprintf(__('PR #%s is applied. The site is rebuilding.'), number),
 			body: watchBusyMessage('building', compiling),
-			revertReason: 'Wait for the build to finish.'
+			revertReason: __('Wait for the build to finish.')
 		};
 	}
 	if (buildInterrupted) {
 		return {
 			tone: 'unbuilt',
-			title: `PR #${number} is applied but not built.`,
-			body: `The build watch stopped before it finished rebuilding, ${STALE_ASSETS}`,
+			// translators: %s: the number of the pull request.
+			title: sprintf(__('PR #%s is applied but not built.'), number),
+			body: `${__('The build watch stopped before it finished rebuilding, so the site still runs the old assets.')} ${rebuildAdvice()}`,
 			revertReason: actionsReason
 		};
 	}
 	return {
 		tone: 'ready',
-		title: `PR #${number} is applied.`,
+		// translators: %s: the number of the pull request.
+		title: sprintf(__('PR #%s is applied.'), number),
 		body: watchBusyMessage(watchState, compiling),
 		revertReason: actionsReason
 	};
 }
 
-module.exports = { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, resumedWatchUpdateHandOff, appliedBannerState };
+module.exports = { createWatchActivity, compilingMessage, watchBusyMessage, applyLines, applyFinishMessage, resumedWatchHandOff, resumedWatchUpdateHandOff, appliedBannerState };

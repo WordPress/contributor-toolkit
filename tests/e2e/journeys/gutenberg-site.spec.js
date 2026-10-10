@@ -37,8 +37,8 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 
 	// INVARIANT — the work-item card asks for a GitHub issue, and nothing on
 	// the page asks for a Trac ticket or a patch file.
-	await expect( page.getByText( 'GitHub issue', { exact: true } ).first() ).toBeVisible();
-	await expect( page.getByRole( 'button', { name: 'Not sure yet? Browse good first issues on GitHub' } ) ).toBeVisible();
+	await expect( ui.workItemHeading( page, 'GitHub issue' ) ).toBeVisible();
+	await expect( page.getByRole( 'button', { name: 'Browse good first issues on GitHub', exact: true } ) ).toBeVisible();
 	await expect( page.getByText( 'Check out a pull request', { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( 'Trac ticket', { exact: true } ) ).toHaveCount( 0 );
 	await expect( ui.ticketField( page ) ).toHaveCount( 0 );
@@ -57,9 +57,9 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	// stay off the linked card too.
 	await field.fill( 'https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1' );
 	await ui.linkIssueButton( page ).click();
-	await expect( page.getByText( 'Working on issue #71234', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( page.getByRole( 'button', { name: 'Open on GitHub', exact: true } ) ).toBeVisible();
-	await expect( page.getByRole( 'button', { name: 'Read details from Trac' } ) ).toHaveCount( 0 );
+	await expect( ui.workItemNumber( page, 71234 ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.openWorkItemButton( page, 71234 ) ).toHaveAttribute( 'title', 'Open on GitHub' );
+	await expect( ui.readTicketDetailsButton( page ) ).toHaveCount( 0 );
 	await expect( page.getByText( 'Trac attachments', { exact: true } ) ).toHaveCount( 0 );
 	await expect( page.getByText( 'Attach to Trac', { exact: true } ) ).toHaveCount( 0 );
 	expect( branches( site.dir ) ).toContain( 'issue/71234' );
@@ -92,7 +92,7 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 
 	await ui.revertPrButton( page ).click();
 	await expect.poll( () => currentBranch( site.dir ), { timeout: 60_000 } ).toBe( 'issue/71234' );
-	await expect( page.getByText( 'Working on issue #71234', { exact: true } ) ).toBeVisible();
+	await expect( ui.workItemNumber( page, 71234 ) ).toBeVisible();
 	await expect( page.getByText( `PR #${ PR } is applied.`, { exact: true } ) ).toHaveCount( 0 );
 	expect( read( site.dir, LOGIN ) ).toBe( '<?php // trunk\n' );
 

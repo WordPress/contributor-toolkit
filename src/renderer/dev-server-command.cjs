@@ -18,6 +18,7 @@
  * watcher starts.
  */
 
+const { __, sprintf } = require('@wordpress/i18n');
 const { getProjectType } = require('../project-type.cjs');
 
 /**
@@ -140,10 +141,10 @@ function formatElapsed(seconds) {
 }
 
 /**
- * The title for the build-watcher log tab, from its lifecycle state. The tab is
- * always present, so its title is where the watcher's state is shown: a
- * contributor can tell at a glance whether `src/` edits are being compiled,
- * paused for another operation, or stopped — without opening the tab.
+ * The title for the build watch's log tab, from its lifecycle state. The tab's
+ * title says the watcher's state beside its output: whether `src/` edits are
+ * being compiled, paused for another operation, or stopped. The header says
+ * the same, for when the logs are not on screen.
  *
  * `exitCode` is only meaningful when `state` is 'exited'. `compiling` is
  * whether the watch is still compiling a change just handed to it (#492,
@@ -156,15 +157,17 @@ function formatElapsed(seconds) {
  */
 function watchTabLabel(state, exitCode, compiling = false) {
 	switch (state) {
-		case 'watching': return compiling ? 'Build watcher (compiling)' : 'Build watcher (watching)';
-		case 'building': return 'Build watcher (building)';
-		case 'paused': return 'Build watcher (paused)';
+		case 'watching': return compiling ? __('Build watch (compiling)') : __('Build watch (watching)');
+		case 'building': return __('Build watch (building)');
+		case 'paused': return __('Build watch (paused)');
 		case 'exited': {
 			const code = Number.isFinite(exitCode) ? exitCode : null;
-			return code === null ? 'Build watcher (stopped)' : `Build watcher (exited ${code})`;
+			if (code === null) return __('Build watch (stopped)');
+			// translators: %d: the code the build watch exited with.
+			return sprintf(__('Build watch (exited %d)'), code);
 		}
 		case 'idle':
-		default: return 'Build watcher';
+		default: return __('Build watch');
 	}
 }
 

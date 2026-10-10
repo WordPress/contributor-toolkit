@@ -32,7 +32,7 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { _electron } = require('playwright-core');
-const { buildFixture, cleanFixtureSites } = require('./fixtures.cjs');
+const { buildFixture, cleanFixtureSites, standInForTheOutside } = require('./fixtures.cjs');
 const { shots } = require('./shots.cjs');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
@@ -43,8 +43,14 @@ const outDir = path.join(repoRoot, 'docs', 'public', 'screenshots');
 // screenshots and the docs pages render them inconsistently.
 const WINDOW = { width: 1200, height: 800 };
 // en-US: the source language, so the docs show the strings as written, never a
-// translation catalog's.
-const ELECTRON_SWITCHES = ['--force-device-scale-factor=1', '--lang=en-US'];
+// translation catalog's. And drawn in software: a curved edge is drawn a
+// little differently from one run to the next, depending on what was redrawn
+// before it, and a picture then differs from the last by a few pixels on a
+// corner, which a retake shows as a changed image. With the graphics card
+// that was one picture in every two or three runs of the tier; in software
+// it is about one in ten. It is not never: a retake that changes one image
+// by a handful of pixels has changed nothing.
+const ELECTRON_SWITCHES = ['--force-device-scale-factor=1', '--lang=en-US', '--disable-gpu'];
 
 function parseArgs(argv) {
 	const args = { tier: 'fixture', only: null, userData: null };
@@ -85,6 +91,11 @@ async function launchApp(env) {
 		// From plain Node, require('electron') resolves to the binary's path —
 		// the same trick scripts/run-tests-electron.cjs uses.
 		executablePath: require('electron'),
+		// Playwright holds a page to the light scheme unless told not to. The
+		// pictures are of the theme the fixture's profile sets (#560), light
+		// unless SHOTS_THEME says dark, which the app reads from its own
+		// setting; so the page is left to follow the app.
+		colorScheme: null,
 		args: [...ELECTRON_SWITCHES, repoRoot],
 		// Dates rendered by the app must not rewrite screenshots according to the
 		// maintainer's locale or timezone.
@@ -100,7 +111,10 @@ async function launchApp(env) {
 
 async function captureShot(page, shot) {
 	const file = path.join(outDir, `${shot.slug}.png`);
-	if (shot.target) {
+	if (shot.clip) {
+		// A part of the window that is no one element: the shot says where.
+		await page.screenshot({ path: file, clip: await shot.clip(page) });
+	} else if (shot.target) {
 		await shot.target(page).screenshot({ path: file });
 	} else {
 		await page.screenshot({ path: file });
@@ -111,23 +125,60 @@ async function captureShot(page, shot) {
 async function runFixtureTier(selected) {
 	const variants = [...new Set(selected.map((s) => s.variant))];
 	for (const variant of variants) {
-		const { userDataDir } = buildFixture(variant);
+		const { userDataDir, sites } = buildFixture(variant);
 		const { app, page } = await launchApp({ TOOLKIT_USER_DATA_DIR: userDataDir });
 		try {
+			// A picture is of where things come to rest: a tab's underline
+			// caught half way to its tab, or a menu half open, is of neither
+			// state. With motion reduced the design system jumps.
+			await page.emulateMedia({ reducedMotion: 'reduce' });
+			// And of the app, not of the network that day, with no server
+			// started in a folder that holds no WordPress.
+			await standInForTheOutside(app);
+			// The size the window's page has, asked of the window and not of the
+			// page: the page hears of a resize a moment after it is made.
+			const viewport = await app.evaluate(({ BrowserWindow }) => {
+				const [width, height] = BrowserWindow.getAllWindows()[0].getContentSize();
+				return { width, height };
+			});
 			for (const shot of selected.filter((s) => s.variant === variant)) {
 				// Fresh renderer per shot: open menus and modals from the
 				// previous shot cannot leak into this one.
 				await page.reload();
+				// A shot of something taller than the window says how tall a
+				// window it needs, and the page is laid out for that one. The
+				// window on screen stays as it is.
+				await page.setViewportSize(shot.viewport || viewport);
 				// `app` as well as `page`: a shot of something the main process
 				// pushes to the renderer — a `wpct://` link (#464) — cannot be
 				// reached by driving the UI. Existing shots ignore it.
 				await shot.prepare(page, app);
-				// Let @wordpress/components' open/close animations settle.
+				// A field that has the focus has a caret, which blinks, and
+				// something that is waiting has a spinner, which turns: the
+				// picture would be a different one in every run. The field
+				// keeps its focus ring and the spinner is drawn, standing still.
+				await page.addStyleTag({ content: '* { caret-color: transparent !important; } *, *::before, *::after { animation: none !important; }' });
+				// Let what the last press set going come to rest: a transition,
+				// a line of text arriving.
 				await page.waitForTimeout(300);
 				await captureShot(page, shot);
+				// What a shot started in the main process is ended before the
+				// next: a server that was started tails its site's debug.log,
+				// the tail outlives the window's reload, and a second start
+				// would find it running and replay nothing of the file. Here,
+				// and not before the reload: the page is certainly loaded.
+				await page.evaluate((dirs) => Promise.all(dirs.map((dir) => window.api.stopWpDebug(dir))), Object.values(sites));
 			}
 		} finally {
 			await app.close();
+			// The launch's profile is the harness's own, made for it. One that
+			// will not go is said and left: it must not take the place of a
+			// shot's own failure, nor end a run whose pictures are taken.
+			try {
+				fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+			} catch (err) {
+				console.warn(`  (could not remove ${userDataDir}: ${err.message})`);
+			}
 		}
 	}
 	cleanFixtureSites();

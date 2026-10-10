@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, screen, nativeTheme } = require('electron');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
@@ -38,6 +38,7 @@ const { resolveRef, changesAgainst, readBlobs, readCommitInfo, treeEntryMode, bl
 const { cloneSite } = require('./git-clone.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
+const { pinToOwnPage } = require('./window-navigation');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
 const { removeTree } = require('./remove-tree');
 const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
@@ -61,7 +62,8 @@ const {
 const { fetchPullRequestHead, describePullRequestHead, pullRequestBranchState, checkoutPullRequest, leavePullRequest } = require('./pr-checkout');
 const { prSubmissionRefusal, prCheckoutRefusal } = require('./renderer/pr-checkout.cjs');
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
-const { getStore } = require('./settings-store');
+const { getStore, peekStore } = require('./settings-store');
+const { sitesToResume, readResume } = require('./resume-sites.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -83,15 +85,21 @@ const DEEP_LINK_CHANNEL = 'deep-link:ticket';
 // Trac parser is reached through it rather than directly, so no handler
 // here has to know which kind it is holding.
 const { workItemProvider } = require('./work-item.cjs');
-const { LEGACY_SITE_ERROR } = require('./renderer/legacy-site.cjs');
-const { resolveCatalog } = require('./i18n.cjs');
+const { legacySiteError } = require('./renderer/legacy-site.cjs');
+const { resolveCatalog, languageChoices } = require('./i18n.cjs');
 const { isPseudoLocale } = require('./renderer/pseudo-locale.cjs');
+const { applyLocale } = require('./renderer/locale-setup.cjs');
+const { __, _n, sprintf, setLocaleData } = require('@wordpress/i18n');
+const { addFilter } = require('@wordpress/hooks');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
+const { SETTINGS, readSettings, acceptSetting } = require('./settings.cjs');
+const { resolveTheme, nativeThemeSource, THEME_KEYS } = require('./theme.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
 const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
+const { mainWindowSize } = require('./window-size.cjs');
 
 const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
 const LOCAL_EXCLUDES = [
@@ -357,6 +365,9 @@ const runningScripts = {};
 const cancelledChildren = new WeakSet();
 /** @type {Record<string, string>} */
 const runIdByDirectory = {};
+// What each running script is, by run (#559): the quit reads which of them
+// are a site's build watch, to start those again at the next launch.
+const scriptByRunId = {};
 // The same directory index for installs. The renderer knows a script's runId
 // (`npm:run-script` returns it before the first log line) but never an
 // installId — `runNpmInstall` keeps that correlation id to itself in the
@@ -542,14 +553,31 @@ async function stopSmtpServerForSite(sitePath) {
 // cannot tell them apart.
 let mainWindow = null;
 
+// How an address leaves the app for the contributor's browser, for the
+// renderer's `url:open` and for a link the main window refused to follow. Only
+// the schemes the app actually uses reach the OS — see external-url.js for why.
+// A refusal is logged rather than dropped so a future caller that trips the
+// guard shows up in the log file instead of just doing nothing.
+function openInBrowser(url) {
+	return openExternalUrl(url, {
+		openExternal: (target) => shell.openExternal(target),
+		onRefused: (description) => logEvent('url', `refused to open ${description} — only ${ALLOWED_URL_SCHEMES.join(', ')} are allowed`)
+	});
+}
+
 function createWindow() {
 	// A new page has not subscribed yet, so anything queued waits for its
 	// `deep-link:ready` rather than being sent into a page that is still loading.
 	deepLinkQueue.reset();
+	// Sized for the shell, and no larger than the primary screen (#555).
+	// `screen` is only usable once the app is ready, which is the only time
+	// this runs.
     mainWindow = new BrowserWindow({
-		width: 1000,
-		height: 700,
+		...mainWindowSize(screen.getPrimaryDisplay().workAreaSize),
         icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
+		// The colour of the theme the window is made in (#560), so that a dark
+		// window is not white for the moment before its page has painted.
+		backgroundColor: currentTheme().background,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,
@@ -562,7 +590,35 @@ function createWindow() {
 	// rather than being flushed into one that is still loading.
 	mainWindow.webContents.on('did-start-loading', () => deepLinkQueue.reset());
 
+	// This is the window with the preload bridge, so it stays on the app's own
+	// page and opens no other (window-navigation.js). Nothing awaits the events
+	// behind that: a browser that could not be opened is logged here or nowhere.
+	pinToOwnPage(mainWindow.webContents, {
+		openInBrowser: (url) => {
+			openInBrowser(url).catch((e) => logError('url', `could not open ${describeRefused(url)}: ${String(e && e.message ? e.message : e)}`));
+		}
+	});
+
 	mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+}
+
+// The menu's "Settings…" (#559): the main window opens the dialog, and is
+// brought forward first, as it is for a deep link: the item can be pressed
+// with the window minimised or behind the Trac window. On macOS the menu is
+// there with no window, and the item then only opens one: the page it loads
+// has not subscribed yet, and a request sent into it would be lost. Pressed
+// again once the window is there, it opens the dialog.
+function openSettingsFromMenu() {
+	if (!mainWindow || mainWindow.isDestroyed?.()) {
+		createWindow();
+		return;
+	}
+	try {
+		if (mainWindow.isMinimized?.()) mainWindow.restore();
+		mainWindow.show();
+		mainWindow.focus();
+	} catch {}
+	mainWindow.webContents.send('settings:open');
 }
 
 // --- wpct:// deep links (#464) -------------------------------------------
@@ -640,16 +696,139 @@ ipcMain.handle('deep-link:ready', () => {
 	return true;
 });
 
-// The language the window shows. `app.getLocale()` follows the OS, or Chromium's
-// `--lang` switch when one is passed, which is how the journeys pick a locale.
-// Chromium only accepts a language it ships resources for, so `--lang=en-XA`
-// reaches `getLocale()` as en-GB; the pseudo-locale is read off the switch itself.
-ipcMain.handle('i18n:locale', async () => {
-	const requested = app.commandLine.getSwitchValue('lang');
-	const locale = isPseudoLocale(requested) ? requested : app.getLocale();
-	const data = await resolveCatalog(locale, path.join(__dirname, 'languages'), (message) => logEvent('i18n', message));
-	return { locale, data };
+// The language the window shows: the one chosen in the settings (#559), put
+// before the OS's languages and not in their place, so that a chosen language
+// whose catalog a release has since dropped falls back to the OS's and not
+// to English; or else the first of the OS's languages that has a catalog.
+// `app.getLocale()` is only the fallback, since it is Chromium's UI language,
+// folded into the 55 Chromium ships (Spanish (Mexico) arrives as es-419,
+// Galician as English) (#584). A `--lang` switch replaces the whole list,
+// read off the switch itself so `--lang=es-MX` is not folded either; it is
+// how the journeys pick a locale, the pseudo-locale included, and a flag
+// typed at launch is a decision.
+//
+// Resolved once: main applies it at startup for its own strings (the menu, the
+// native dialogs, the sentences it sends), and the window gets the same reply,
+// so the two cannot end up in different languages. That is also why a change
+// in the settings shows after a relaunch and not before. Read before there
+// is a window: a store that cannot be read is logged and counts as no
+// choice, since the window has to open to say so.
+const LANGUAGES_DIR = path.join(__dirname, 'languages');
+let localeReplyPromise = null;
+function localeReply() {
+	if (!localeReplyPromise) {
+		localeReplyPromise = (async () => {
+			const flag = app.commandLine.getSwitchValue('lang');
+			let chosen = null;
+			try {
+				chosen = readSettings((await getStore()).get('preferences')).locale;
+			} catch (e) {
+				logError('i18n', `the settings could not be read, so no language is chosen: ${String(e && e.message ? e.message : e)}`);
+			}
+			const requested = flag || chosen || '';
+			if (isPseudoLocale(requested)) return { locale: requested, data: null };
+			const system = [...app.getPreferredSystemLanguages(), app.getLocale()];
+			const locales = flag ? [flag] : [...(chosen ? [chosen] : []), ...system];
+			const found = await resolveCatalog(locales, LANGUAGES_DIR, (message) => logEvent('i18n', message));
+			return found ? { locale: found.locale, data: found.messages } : { locale: 'en', data: null };
+		})();
+	}
+	return localeReplyPromise;
+}
+
+// The theme (#560), given to Electron. `nativeTheme` is the one place the
+// scheme is decided: Chromium answers the page's `prefers-color-scheme` from
+// it, and paints the window's chrome and the native form controls to match,
+// so the page only has to follow what it is told, as it would the operating
+// system's. A custom theme is given as the scheme its background comes to.
+// Read from the store before the window is made, so the window is made in
+// it; a store that cannot be read leaves the system's theme, with a line in
+// the log, as it leaves the system's language.
+//
+// `themeSettings` is what the theme was last applied from, for the colour a
+// window is made with: the system's theme until the store is read.
+let themeSettings = { theme: 'system' };
+function applyTheme(settings) {
+	themeSettings = settings;
+	nativeTheme.themeSource = nativeThemeSource(settings);
+	paintWindowForTheme();
+}
+function currentTheme() {
+	return resolveTheme({ ...themeSettings, systemDark: nativeTheme.shouldUseDarkColors });
+}
+async function applyStoredTheme() {
+	try {
+		applyTheme(readSettings((await getStore()).get('preferences')));
+	} catch (e) {
+		logError('theme', `the settings could not be read, so the theme is the system's: ${String(e && e.message ? e.message : e)}`);
+		// A deep link can have opened the window while the store was read.
+		paintWindowForTheme();
+	}
+}
+
+// The colour the window was made with shows wherever the page has not
+// painted yet (a live resize, a reload), so it is given again whenever the
+// theme is: by the setting, through `applyTheme`, and by Electron's
+// `updated`, which is how the system's theme reaches it under 'system'.
+function paintWindowForTheme() {
+	if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(currentTheme().background);
+}
+
+// The languages the settings offer: what the build ships, read once.
+let languagesPromise = null;
+function languages() {
+	if (!languagesPromise) {
+		languagesPromise = fs.promises.readdir(LANGUAGES_DIR)
+			.catch((e) => {
+				logEvent('i18n', `no catalogs listed: ${e.message}`);
+				return [];
+			})
+			.then((names) => languageChoices(names));
+	}
+	return languagesPromise;
+}
+
+ipcMain.handle('i18n:languages', async () => ({ ok: true, languages: await languages() }));
+
+// The PHP versions the bundled Playground can run a site on (#559): what
+// its own module says, read once it is asked for. The module is the server
+// runner's and not otherwise main's, so it is loaded then and not at start.
+let phpVersionsList = null;
+function phpVersions() {
+	if (!phpVersionsList) {
+		// Not a declared dependency: it is @wp-playground/cli's, at whatever
+		// version that package pins, which is the one the runner serves with.
+		const { SupportedPHPVersions } = require('@php-wasm/universal');
+		phpVersionsList = [...SupportedPHPVersions];
+	}
+	return phpVersionsList;
+}
+
+ipcMain.handle('playground:php-versions', () => ({ ok: true, versions: phpVersions(), fallback: SETTINGS.phpVersion.fallback }));
+
+// What the settings dialog offers after the language is changed. `quit`, not
+// `exit`: the quit sweep ends every child the app started, as it does on any
+// quit, and the relaunch is a quit. The new instance gets this one's
+// arguments less two: a `wpct://` address a cold start was given, which is
+// not a second request for its ticket, and a `--lang` switch, which would
+// outrank the language just chosen.
+function relaunchArgs(argv) {
+	return argv.slice(1).filter((arg) => !pickDeepLinkArg([arg]) && !arg.startsWith('--lang='));
+}
+
+// On Linux the app is an AppImage, mounted while it runs at the path the
+// process was started from and gone once it quits: the new instance is
+// started from the image itself.
+ipcMain.handle('app:relaunch', () => {
+	app.relaunch({
+		args: relaunchArgs(process.argv),
+		...(process.env.APPIMAGE ? { execPath: process.env.APPIMAGE } : {})
+	});
+	app.quit();
+	return { ok: true };
 });
+
+ipcMain.handle('i18n:locale', () => localeReply());
 
 // Without the lock, a link clicked while the app is running starts a second copy
 // — which on Windows and Linux is the only way the address arrives at all, and
@@ -678,20 +857,6 @@ if (!gotSingleInstanceLock) {
 		receiveDeepLink(url);
 	});
 }
-function buildPatchHtml(content) {
-    return `<!doctype html><html><head><meta charset="utf-8"/><title>Patch</title>
-    <style>body{font-family:Menlo,monospace;padding:12px;} pre{white-space:pre-wrap;background:#111;color:#eee;padding:12px;border-radius:6px;height:85vh;overflow:auto} .bar{position:sticky;top:0;background:#fff;padding:8px 0} button{padding:6px 10px}</style>
-    </head><body>
-    <div class="bar"><button id="copy">Copy</button></div>
-    <pre id="pre"></pre>
-    <script>
-    const pre=document.getElementById('pre');
-    pre.textContent = ${JSON.stringify(content)};
-    document.getElementById('copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(pre.textContent); } catch {} });
-    </script>
-    </body></html>`;
-}
-
 // What this checkout has that its copy of trunk does not: one walk, read by
 // both destinations that need it.
 //
@@ -860,7 +1025,7 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
             gone && a.endsWith('\n')
         );
     }
-    return skippedNotice(binaries, unreadable) + (patch || 'No changes.');
+    return skippedNotice(binaries, unreadable) + patch;
 }
 
 /**
@@ -967,19 +1132,6 @@ ipcMain.handle('git:get-patch', async (_e, sitePath) => {
     }
 });
 
-ipcMain.handle('git:create-patch', async (_e, sitePath) => {
-    try {
-        const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
-        const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch)));
-        return { ok: true };
-    } catch (e) {
-        const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml('Failed to generate diff: ' + String(e))));
-        return { ok: false, error: String(e) };
-    }
-});
-
 // Saving a patch, with or without the provenance a mentor handoff needs (#166).
 //
 // `{ handoff: true }` is the only difference: the file gets the header from
@@ -1027,11 +1179,11 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
         }
 
         const { filePath, canceled } = await dialog.showSaveDialog({
-            title: handoff ? 'Save Patch for Handoff' : 'Save Diff File',
+            title: handoff ? __('Save Patch for Handoff') : __('Save Diff File'),
             defaultPath: path.join(os.homedir(), name),
             filters: [
-                { name: 'Patch Files', extensions: ['patch', 'diff'] },
-                { name: 'All Files', extensions: ['*'] }
+                { name: __('Patch Files'), extensions: ['patch', 'diff'] },
+                { name: __('All Files'), extensions: ['*'] }
             ]
         });
 
@@ -1147,7 +1299,7 @@ ipcMain.handle('github:sign-in', async (event) => {
 
 ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     if (!githubToken || !githubLogin) {
-        return { ok: false, reason: 'unauthorized', error: 'Sign in to GitHub first.', stage: 'auth' };
+        return { ok: false, reason: 'unauthorized', error: __('Sign in to GitHub first.'), stage: 'auth' };
     }
 
     // The ticket is read from this site's stored metadata rather than taken
@@ -1163,7 +1315,7 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     const project = projectTypeForSite(meta);
     const ticketId = meta.tracTicket;
     if (!ticketId) {
-        return { ok: false, reason: 'no-ticket', error: `Link a ${project.workItem.label} to this site first. A pull request has to cite one.`, stage: 'auth' };
+        return { ok: false, reason: 'no-ticket', error: project.cards.prNeedsWorkItem, stage: 'auth' };
     }
     const ownershipRefusal = await appliedPatchSubmissionRefusal(sitePath);
     if (ownershipRefusal) return { ...ownershipRefusal, stage: 'ownership' };
@@ -1456,7 +1608,7 @@ async function noOriginBlock(sitePath) {
 
 async function legacySiteBlock(sitePath) {
     if (!await isLegacySite(sitePath)) return null;
-    return { ok: false, code: 'legacy-site', error: LEGACY_SITE_ERROR };
+    return { ok: false, code: 'legacy-site', error: legacySiteError() };
 }
 
 /**
@@ -1614,13 +1766,17 @@ async function appliedPatchSubmissionRefusal(sitePath) {
     const appliedPatch = (ref === TRUNK || !meta ? site : meta).appliedPatch;
     if (!appliedPatch) return null;
 
-    const label = typeof appliedPatch.label === 'string' && appliedPatch.label.trim()
-        ? appliedPatch.label.trim()
-        : 'The patch you applied';
+    const label = typeof appliedPatch.label === 'string' ? appliedPatch.label.trim() : '';
     return {
         ok: false,
         reason: 'applied-patch',
-        error: `${label} is applied. Revert it before submitting this checkout as your own work.`
+        error: label
+            ? sprintf(
+                // translators: %s: the name of the patch or pull request, such as 60001.diff or PR #6717.
+                __('%s is applied. Revert it before submitting this checkout as your own work.'),
+                label
+            )
+            : __('The patch you applied is applied. Revert it before submitting this checkout as your own work.')
     };
 }
 
@@ -1945,7 +2101,8 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             branchBefore = active.ref;
             ticketBefore = branchBefore === TRUNK ? null : ticketIdFromRef(branchBefore);
             if (branchBefore !== TRUNK) {
-                sendLog(`Parking your work on ${branchBefore} before updating…\n`);
+                // translators: %s: the branch the contributor's work is on, such as ticket/59234.
+                sendLog(`${sprintf(__('Parking your work on %s before updating…'), branchBefore)}\n`);
                 // The same progress the ticket panel shows (#173), but into the
                 // terminal this flow already streams to rather than onto the
                 // switch channel: one operation with two progress surfaces is
@@ -2030,7 +2187,8 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // onto the new trunk is `branches:rebase`, offered by the ticket
             // card's notice — the app never silently rebases anyone.
             if (branchBefore !== TRUNK) {
-                sendLog(`\nReturning to your work on ${branchBefore}…\n`);
+                // translators: %s: the branch the contributor's work is on, such as ticket/59234.
+                sendLog(`\n${sprintf(__('Returning to your work on %s…'), branchBefore)}\n`);
                 const returnLog = updateSwitchLogger(sendLog);
                 try {
                     await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchBefore, { onProgress: returnLog.emit, onChild: trackGitChild(sitePath) }));
@@ -2069,7 +2227,18 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 // so. Neither is a case of writing where nobody will read.
                 try { await writeWorkMeta(sitePath, patch); } catch {}
             }
-            sendLog(`\nUpdate failed during ${stage}: ${String(e && e.message ? e.message : e)}\n`);
+            // One sentence per stage, which is a code: the fetch, or the
+            // checkout that follows it.
+            const why = String(e && e.message ? e.message : e);
+            let failed;
+            if (stage === 'checkout') {
+                // translators: %s: the error the checkout failed with.
+                failed = sprintf(__('Update failed during checkout: %s'), why);
+            } else {
+                // translators: %s: the error the fetch failed with.
+                failed = sprintf(__('Update failed during fetch: %s'), why);
+            }
+            sendLog(`\n${failed}\n`);
             // The ticket was parked and the site left on trunk before this went
             // wrong. Saying so is the whole difference between "my work is gone"
             // and "my work is over there": the registry must not keep naming a
@@ -2079,9 +2248,15 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 const { ref: nowOn } = await activeBranch(sitePath);
                 if (nowOn === TRUNK && branchBefore !== TRUNK) {
                     await mergeSiteMeta(sitePath, { currentBranch: TRUNK, tracTicket: null });
-                    sendLog(ticketBefore !== null
-                        ? `Your work on #${ticketBefore} is safe — it is committed on ${branchBefore}. Link that ticket again to return to it.\n`
-                        : `Your work is safe — it is committed on ${branchBefore}. Apply that pull request again to return to it.\n`);
+                    let safe;
+                    if (ticketBefore !== null) {
+                        // translators: 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
+                        safe = sprintf(__('Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.'), ticketBefore, branchBefore);
+                    } else {
+                        // translators: %s: the branch the work is committed on, such as pr/7701.
+                        safe = sprintf(__('Your work is safe — it is committed on %s. Apply that pull request again to return to it.'), branchBefore);
+                    }
+                    sendLog(`${safe}\n`);
                 }
             } catch {}
             sendDone({ ok: false, upToDate: false, error: String(e), stage, parkedOn: branchBefore === TRUNK ? null : branchBefore });
@@ -2197,7 +2372,7 @@ ipcMain.handle('git:checkout-pr', (event, sitePath, value) => streamPrOperation(
         else if (localCopy) destination = branchState.tip;
         else if (recorded.headOid === headOid) destination = await resolveRef(sitePath, ref) || headOid;
         const needsInstall = await prNeedsInstall(sitePath, destination);
-        sendLog(localCopy ? 'Returning to your saved copy of the pull request…\n' : "Downloading the pull request's files and switching to its branch…\n");
+        sendLog(`${localCopy ? __('Returning to your saved copy of the pull request…') : __('Downloading the pull request\'s files and switching to its branch…')}\n`);
         let switchOperation = () => checkoutPullRequest(sitePath, number, { headOid, recordedHeadOid: recorded.headOid, fromBaseOid: active.meta?.baseOid, onProgress, onChild });
         if (resume) switchOperation = () => resumeSwitch(sitePath, ref, { onProgress, onChild });
         else if (localCopy) switchOperation = () => switchToBranch(sitePath, ref, { baseOid: active.meta?.baseOid, onProgress, onChild });
@@ -2210,7 +2385,10 @@ ipcMain.handle('git:checkout-pr', (event, sitePath, value) => streamPrOperation(
         // it now is what makes the next attempt ours rather than a foreign PR.
         if (e.created || e.moved) await recordPrHead(sitePath, ref, number, e.headOid, returnTo);
         logError('git:checkout-pr', String(e.stack || e));
-        if (e.cleanupError) sendLog(`Could not remove the unused branch: ${e.cleanupError.message}\n`);
+        if (e.cleanupError) {
+            // translators: %s: the error Git gave.
+            sendLog(`${sprintf(__('Could not remove the unused branch: %s'), e.cleanupError.message)}\n`);
+        }
         return { ok: false, number, code: e.code, error: e.message, ...(e.code === 'dirty-trunk' ? { files: await countChangesAgainst(sitePath) } : {}) };
     }
 }));
@@ -2230,7 +2408,7 @@ ipcMain.handle('git:leave-pr', (event, sitePath) => streamPrOperation(event, sit
     if (blocked) return blocked;
     if (!recorded.headOid) return { ok: false, code: 'no-pr-head' };
     const needsInstall = await prNeedsInstall(sitePath, returnTo);
-    sendLog('Restoring the files of your previous branch…\n');
+    sendLog(`${__('Restoring the files of your previous branch…')}\n`);
     const result = await withSwitchMarker(sitePath, () => resume
         ? resumeSwitch(sitePath, returnTo, { onProgress, onChild })
         : leavePullRequest(sitePath, { returnTo, headOid: recorded.headOid, onProgress, onChild }));
@@ -2321,7 +2499,7 @@ ipcMain.handle('trac:list-attachments', async (_e, sitePath) => {
         if (projectTypeForSite(meta).workItem.provider !== 'trac') return { ok: true, status: 'not-trac', items: [] };
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, status: 'no-ticket', items: [] };
-        const result = await openAndScrape(ticketId);
+        const result = await openAndScrape(ticketId, { backgroundColor: currentTheme().background });
         return { ok: true, ...result };
     } catch (e) {
         logError('trac:list-attachments', String(e && e.stack ? e.stack : e));
@@ -2373,7 +2551,7 @@ ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
             // app could not look — surface the failure instead. An unreadable
             // base arrives here as a throw for exactly that reason (#308).
             logError('git:preview-patch', String(e && e.stack ? e.stack : e));
-            return { ok: false, error: 'Could not check your work for conflicts, so the preview was not shown.' };
+            return { ok: false, error: __('Could not check your work for conflicts, so the preview was not shown.') };
         }
         const plan = planApply({ files: parsed.files, dirtyPaths });
         return { ok: true, ...plan, files: parsed.files.map((f) => ({ kind: f.kind, path: f.path })) };
@@ -2384,11 +2562,11 @@ ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
 
 ipcMain.handle('dialog:choose-patch-file', async () => {
     const result = await dialog.showOpenDialog({
-        title: 'Choose a patch file',
+        title: __('Choose a patch file'),
         properties: ['openFile'],
         filters: [
-            { name: 'Patch Files', extensions: ['patch', 'diff'] },
-            { name: 'All Files', extensions: ['*'] }
+            { name: __('Patch Files'), extensions: ['patch', 'diff'] },
+            { name: __('All Files'), extensions: ['*'] }
         ]
     });
     if (result.canceled || result.filePaths.length === 0) return null;
@@ -2432,7 +2610,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
             if (reverse) {
                 if (!stored || !stored.text) {
-                    sendDone({ ok: false, error: 'There is no stored patch to revert.' });
+                    sendDone({ ok: false, error: __('There is no stored patch to revert.') });
                     return;
                 }
                 patchText = stored.text;
@@ -2440,10 +2618,20 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             } else if (stored) {
                 // Only one patch is tracked at a time, so a second apply would
                 // make the first one silently unrevertable and invisible.
-                sendDone({ ok: false, error: `${stored.label} is already applied. Revert it before applying another patch.` });
+                sendDone({
+                    ok: false,
+                    // translators: %s: the name of the applied patch, such as a file name.
+                    error: sprintf(__('%s is already applied. Revert it before applying another patch.'), stored.label)
+                });
                 return;
             }
-            sendLog(`\n${reverse ? 'Reverting' : 'Applying'} ${label}…\n`);
+            if (reverse) {
+                // translators: %s: the name of the patch, such as a file name.
+                sendLog(`\n${sprintf(__('Reverting %s…'), label)}\n`);
+            } else {
+                // translators: %s: the name of the patch, such as a file name.
+                sendLog(`\n${sprintf(__('Applying %s…'), label)}\n`);
+            }
 
             const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog, layout });
             if (!result.ok) {
@@ -2472,7 +2660,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             } else {
                 const revertable = patchText.length <= REVERTABLE_PATCH_LIMIT;
                 if (!revertable) {
-                    sendLog('This patch is too large to keep for an undo, so Revert will not be offered.\n');
+                    sendLog(`${__('This patch is too large to keep for an undo, so Revert will not be offered.')}\n`);
                 }
                 try {
                     await writeWorkMeta(sitePath, {
@@ -2492,9 +2680,11 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                     const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog, layout });
                     const why = String(persistErr && persistErr.message ? persistErr.message : persistErr);
                     if (undo.ok) {
-                        sendDone({ ok: false, error: `The patch applied but its revert record could not be saved, so it was undone. ${why}` });
+                        // translators: %s: why the record could not be saved, as the system said it.
+                        sendDone({ ok: false, error: sprintf(__('The patch applied but its revert record could not be saved, so it was undone. %s'), why) });
                     } else {
-                        sendDone({ ok: false, appliedButUntracked: true, files: result.applied, error: `The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. ${why}` });
+                        // translators: %s: why the record could not be saved, as the system said it.
+                        sendDone({ ok: false, appliedButUntracked: true, files: result.applied, error: sprintf(__('The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s'), why) });
                     }
                     return;
                 }
@@ -2502,7 +2692,8 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             sendDone({ ok: true, ...result, reverse });
         } catch (e) {
             logError('git:apply-patch', String(e && e.stack ? e.stack : e));
-            sendLog(`\nApplying the patch failed: ${String(e && e.message ? e.message : e)}\n`);
+            // translators: %s: what went wrong, as the system said it.
+            sendLog(`\n${sprintf(__('Applying the patch failed: %s'), String(e && e.message ? e.message : e))}\n`);
             sendDone({ ok: false, error: String(e) });
         }
     })();
@@ -2515,7 +2706,7 @@ ipcMain.handle('sites:mark-update-complete', async (_e, sitePath) => {
     return true;
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
 	// The second copy this one refused (see the lock above) is on its way out;
 	// it must not build a window or take the store with it on the way.
 	if (!gotSingleInstanceLock) return;
@@ -2537,12 +2728,22 @@ app.whenReady().then(() => {
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
 	initLogging();
+	// Before the window: it is made in the theme, and kept in it when the
+	// system's theme changes under 'system'.
+	nativeTheme.on('updated', paintWindowForTheme);
+	await applyStoredTheme();
+	// Before the menu and the window: both build their labels from `__()`.
+	applyLocale(await localeReply(), { setLocaleData, addFilter });
 	Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
 		onOpenLog: () => shell.openPath(getLogFilePath()),
-		onShowLogsFolder: () => shell.showItemInFolder(getLogFilePath())
+		onShowLogsFolder: () => shell.showItemInFolder(getLogFilePath()),
+		onOpenSettings: openSettingsFromMenu,
+		appName: app.name
 	})));
 
-	createWindow();
+	// A `wpct://` link that arrived while the locale was being read has already
+	// opened the window.
+	if (BrowserWindow.getAllWindows().length === 0) createWindow();
 
 	// Windows and Linux, cold start: the address that launched the app is in
 	// this process's own argv. macOS does not use argv for this — it sends
@@ -2565,7 +2766,50 @@ app.on('window-all-closed', function () {
 // Known residual gap on Windows: taskkill /T walks parent links at kill time,
 // so a grandchild whose intermediate parent is already gone can survive
 // (observed with grunt _watch) — tracked in #83.
+// With the quit setting on 'restart' (#559), what is running is written down
+// before it is swept, for the next launch to start again. Written through
+// the store's synchronous accessor: this handler is not awaited, and the
+// store has been made by now, at startup, for the locale. A store not yet
+// made is a launch that read nothing, with nothing running to remember.
+function rememberRunningSites() {
+	const s = peekStore();
+	if (!s) return;
+	const preferences = s.get('preferences') || {};
+	if (readSettings(preferences).quitBehavior !== 'restart') return;
+	const resume = sitesToResume({
+		servers: Object.keys(playgroundServers).filter((sitePath) => playgroundServers[sitePath]?.child),
+		scripts: Object.keys(runningScripts).map((runId) => scriptByRunId[runId]).filter(Boolean),
+		watchFor: (sitePath) => {
+			const meta = (s.get('siteMeta') || {})[sitePath];
+			return meta ? projectTypeForSite(meta).build.watch : null;
+		}
+	});
+	logEvent('quit', `remembering ${resume.servers.length} server(s) and ${resume.watches.length} watch(es) to start again`);
+	s.set('preferences', { ...preferences, resume });
+}
+
+// The list the quit left, read once by the window as it opens and then
+// forgotten, so a launch that ends badly does not start it all again twice.
+ipcMain.handle('sites:resume', async () => {
+	const s = await getStore();
+	const preferences = s.get('preferences') || {};
+	const resume = readResume(preferences);
+	if ('resume' in preferences) {
+		const { resume: _taken, ...rest } = preferences;
+		s.set('preferences', rest);
+	}
+	return { ok: true, ...resume };
+});
+
 app.on('before-quit', () => {
+	// Before the sweep, since it reads what is running; and unable to stop
+	// the sweep, since a store that cannot be written is no reason to leave
+	// every server and watch running.
+	try {
+		rememberRunningSites();
+	} catch (e) {
+		logError('quit', `could not remember what is running: ${String(e && e.message ? e.message : e)}`);
+	}
 	logEvent('quit', 'sweeping child processes');
 	const children = [
 		...Object.values(runningInstalls),
@@ -3037,7 +3281,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 				// own work to restore, so loose edits cannot ride into it.
 				return {
 					ok: false,
-					error: 'There is uncommitted work on trunk — decide what happens to it before starting the ticket',
+					error: __('There is uncommitted work on trunk — decide what happens to it before starting the ticket'),
 					code: 'dirty-trunk',
 					canCarry: true,
 					files,
@@ -3131,11 +3375,11 @@ ipcMain.handle('branches:rebase', async (event, sitePath) => withRegisteredSite(
 	if (blocked) return blocked;
 	const { ref, meta } = await activeBranch(sitePath, { migrate: true });
 	if (ref === TRUNK) {
-		return { ok: false, code: 'on-trunk', error: 'Link a ticket first: trunk is what tickets are measured against, not a ticket.' };
+		return { ok: false, code: 'on-trunk', error: __('Link a ticket first: trunk is what tickets are measured against, not a ticket.') };
 	}
-	if (ticketIdFromRef(ref) === null) return { ok: false, code: 'not-a-ticket-branch', error: 'Only a ticket branch can be moved onto the current trunk.' };
+	if (ticketIdFromRef(ref) === null) return { ok: false, code: 'not-a-ticket-branch', error: __('Only a ticket branch can be moved onto the current trunk.') };
 	if (!meta || !meta.baseOid) {
-		return { ok: false, code: 'no-base', error: 'This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.' };
+		return { ok: false, code: 'no-base', error: __('This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.') };
 	}
 	const progress = switchProgressReporter(event, sitePath);
 	let result;
@@ -3204,13 +3448,7 @@ ipcMain.handle('branches:delete', async (_e, sitePath, targetRef) => withRegiste
 	return { ok: true, deleted: targetRef, current: wasActive ? TRUNK : current, movedToTrunk: wasActive };
 }));
 
-// Only the schemes the app actually uses reach the OS — see external-url.js for
-// why. A refusal is logged rather than dropped so a future caller that trips the
-// guard shows up in the log file instead of just doing nothing.
-ipcMain.handle('url:open', async (_e, url) => openExternalUrl(url, {
-	openExternal: (target) => shell.openExternal(target),
-	onRefused: (description) => logEvent('url', `refused to open ${description} — only ${ALLOWED_URL_SCHEMES.join(', ')} are allowed`)
-}));
+ipcMain.handle('url:open', async (_e, url) => openInBrowser(url));
 
 // --- opening a site's code -----------------------------------------------
 //
@@ -3286,14 +3524,14 @@ ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
 		target = detected.path;
 	} else {
 		const filtersByPlatform = {
-			darwin: [{ name: 'Applications', extensions: ['app'] }],
-			win32: [{ name: 'Programs', extensions: ['exe'] }]
+			darwin: [{ name: __('Applications'), extensions: ['app'] }],
+			win32: [{ name: __('Programs'), extensions: ['exe'] }]
 		};
 		// Everywhere else an application is just a file, so the dialog does not
 		// narrow what can be picked.
 		const filters = filtersByPlatform[process.platform] || [];
 		const result = await dialog.showOpenDialog({
-			title: 'Choose the application to open this folder in',
+			title: __('Choose the application to open this folder in'),
 			properties: ['openFile'],
 			defaultPath: process.platform === 'darwin' ? '/Applications' : undefined,
 			filters
@@ -3368,6 +3606,53 @@ ipcMain.handle('provenance:set-event', async (_e, ref) => {
 	return { ok: true, event: parsed.name };
 });
 
+// --- The app's settings (#559) ---
+//
+// Beside the two fields above, under the same `preferences`, and for the same
+// reason: app-wide. What each setting is and what it accepts is settings.cjs's;
+// what is here is the store, and what the disk is asked.
+
+// Whether a path is a folder, asked before the pure check and not inside it:
+// a folder on a network drive that has gone can take the whole of its
+// timeout to answer, and the main process is not held for it.
+async function isDirectory(target) {
+	try {
+		return (await fs.promises.stat(target)).isDirectory();
+	} catch {
+		return false;
+	}
+}
+
+ipcMain.handle('settings:get', async () => {
+	const s = await getStore();
+	return { ok: true, settings: readSettings(s.get('preferences')) };
+});
+
+// One setting at a time, and the answer is all of them as they then stand: the
+// window holds the whole and replaces it, so what it shows is what was
+// written and not what it sent.
+ipcMain.handle('settings:set', async (_e, key, value) => {
+	// The disk is asked only about a full path for a setting there is: what
+	// the pure check would ask, and nothing a key that is not a setting sends.
+	const directory = Object.hasOwn(SETTINGS, key) && typeof value === 'string' && path.isAbsolute(value) && await isDirectory(value);
+	const known = await languages();
+	const accepted = acceptSetting(key, value, {
+		isAbsolute: path.isAbsolute,
+		isDirectory: () => directory,
+		isLanguage: (tag) => known.some((language) => language.tag === tag),
+		isPhpVersion: (version) => phpVersions().includes(version)
+	});
+	if (!accepted.ok) return { ok: false, error: accepted.error };
+	await setPreference(key, accepted.value);
+	const s = await getStore();
+	const settings = readSettings(s.get('preferences'));
+	// The theme applies at once (#560): Electron tells the page, and the
+	// window's own colour is set here rather than left to Electron's
+	// `updated`, which is not promised for a change to 'system'.
+	if (THEME_KEYS.includes(key)) applyTheme(settings);
+	return { ok: true, settings };
+});
+
 // The fallback that needs no configuration at all — see site-registry.js for why
 // it is behind the same boundary as `sites:delete`.
 ipcMain.handle('dir:show', async (_e, sitePath) => {
@@ -3380,7 +3665,28 @@ ipcMain.handle('dir:show', async (_e, sitePath) => {
 	});
 });
 
-const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this app bundles.\n  Retrying with engine checks relaxed…\n\n';
+// What the terminal says when npm has exited but something it started still
+// holds its output: one sentence per platform, and per whether a signal ended
+// it, since Windows lets that process run on and elsewhere it is ended.
+function npmLetGoLine(code, signal) {
+	if (process.platform === 'win32') {
+		if (signal) {
+			// translators: 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
+			return sprintf(__('npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.'), code, signal);
+		}
+		// translators: %s: the code npm exited with.
+		return sprintf(__('npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.'), code);
+	}
+	if (signal) {
+		// translators: 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
+		return sprintf(__('npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.'), code, signal);
+	}
+	// translators: %s: the code npm exited with.
+	return sprintf(__('npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.'), code);
+}
+
+// A function, so that it is said in the locale applied at startup.
+const engineRetryNotice = () => `\n⚠ ${__('This site requires a newer Node.js than this app bundles.')}\n  ${__('Retrying with engine checks relaxed…')}\n\n`;
 
 // Spawns an npm runner, and if it fails specifically because a dependency
 // demands a newer Node than Electron bundles, retries once with engine checks
@@ -3425,7 +3731,8 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			logError(logScope, `could not start: ${String(err)}`);
 			if (initial) throw err;
 			logEvent(logScope, 'never started; shims not written');
-			onLog('stderr', `\nFailed to start: ${err && err.message ? err.message : String(err)}\n`);
+			// translators: %s: why npm could not be started.
+			onLog('stderr', `\n${sprintf(__('Failed to start: %s'), err && err.message ? err.message : String(err))}\n`);
 			setTimeout(() => onDone(null), 0);
 			return;
 		}
@@ -3464,7 +3771,11 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			// Also surfaced in the app's terminal: the log file explains a failure
 			// after the fact, but the person who just clicked the button needs to
 			// see that the run never started.
-			onLog('stderr', `\nFailed to start: ${err && err.message ? err.message : String(err)}\n`);
+			onLog('stderr', `\n${sprintf(
+				// translators: %s: why npm could not be started.
+				__('Failed to start: %s'),
+				err && err.message ? err.message : String(err)
+			)}\n`);
 			// Deferred by a turn so that close — which knows about the engines
 			// retry — wins whenever it does arrive. A spawn failure is the very
 			// case this logging exists to expose, so it must not also become a
@@ -3498,7 +3809,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				if (settled) return;
 				const exit = `code ${code}${signal ? ` (signal ${signal})` : ''}`;
 				logEvent(logScope, `exited with ${exit} but a descendant still holds its output; letting go`);
-				onLog('stderr', `\nnpm exited with ${exit}, but something it started is still running and holding its output. Letting go${process.platform === 'win32' ? '; that process runs on until it finishes on its own' : ' and ending it'}.\n`);
+				onLog('stderr', `\n${npmLetGoLine(code, signal)}\n`);
 				// Group only: the leader is dead (this is its exit), so a group that
 				// is gone too leaves nothing to kill and a pid that may be reissued.
 				if (process.platform !== 'win32') killTreeByPid(child.pid, 'SIGKILL', { groupOnly: true });
@@ -3524,7 +3835,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				cancelled: cancelledChildren.has(child)
 			});
 			if (retry) {
-				onLog('stdout', ENGINE_RETRY_NOTICE);
+				onLog('stdout', engineRetryNotice());
 				start(true);
 				return;
 			}
@@ -3600,6 +3911,7 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 		relaxEnginesFromStart: true,
 		register: (child) => {
 			runningScripts[runId] = child;
+			scriptByRunId[runId] = { directoryPath, scriptName, scriptArgs };
 			runIdByDirectory[directoryPath] = runId;
 			trackDirectoryChild(directoryPath, child);
 		},
@@ -3610,6 +3922,7 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 			event.sender.send('npm:run-script:done', { runId, code });
 			untrackDirectoryChild(directoryPath, runningScripts[runId]);
 			delete runningScripts[runId];
+			delete scriptByRunId[runId];
 			if (runIdByDirectory[directoryPath] === runId) {
 				delete runIdByDirectory[directoryPath];
 			}
@@ -3693,13 +4006,25 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
 	const isPluginMount = serve.strategy === 'plugin-mount';
 	const buildDir = path.join(sitePath, 'build');
-	const serveConfig = isPluginMount
-		? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
-		: { strategy: 'docroot', docroot: buildDir };
+	// The PHP version and the debug flags the settings hold (#559), read at
+	// each start so a change applies to the next. A version the bundled
+	// Playground no longer has, after a bump, is passed over for the fallback.
+	const logScope = playgroundLogScope(sitePath);
+	const settings = readSettings((await getStore()).get('preferences'));
+	const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
+	if (phpVersion !== settings.phpVersion) {
+		logEvent(logScope, `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
+	}
+	const serveConfig = {
+		...(isPluginMount
+			? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
+			: { strategy: 'docroot', docroot: buildDir }),
+		phpVersion,
+		debug: { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug }
+	};
 	const serveCwd = isPluginMount ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
-	const logScope = playgroundLogScope(sitePath);
-	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
+	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
 	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
 		cwd: serveCwd,
 		extraEnv: {
@@ -3756,7 +4081,15 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 		// settles on close the same way.
 		if (typeof pendingResolve === 'function') {
 			clearTimeout(timeoutId);
-			pendingResolve({ ok: false, error: `Server exited with code ${code}${signal ? ` (signal ${signal})` : ''} before reporting a URL` });
+			let error;
+			if (signal) {
+				// translators: 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
+				error = sprintf(__('Server exited with code %1$s (signal %2$s) before reporting a URL'), code, signal);
+			} else {
+				// translators: %s: the code the server exited with.
+				error = sprintf(__('Server exited with code %s before reporting a URL'), code);
+			}
+			pendingResolve({ ok: false, error });
 			pendingResolve = null;
 		}
 		event.sender.send('playground:stopped', { sitePath, code });
@@ -3782,7 +4115,9 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 				// The tree, not the runner alone: a server that hung on the way up
 				// still has its worker underneath it.
 				killChildTree(child);
-				pendingResolve({ ok: false, error: `Server did not start within ${START_TIMEOUT_MS / 1000} seconds` });
+				const seconds = START_TIMEOUT_MS / 1000;
+				// translators: %d: how many seconds the server was given to start.
+				pendingResolve({ ok: false, error: sprintf(_n('Server did not start within %d second', 'Server did not start within %d seconds', seconds), seconds) });
 				pendingResolve = null;
 			}
 		}, START_TIMEOUT_MS);
@@ -3843,7 +4178,8 @@ ipcMain.handle('playground-web:start', async () => {
     ];
     const webDir = webDirCandidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } });
     if (!webDir) {
-        return { ok: false, error: 'local-playground-web directory not found.' };
+        // translators: %s: the name of the folder the web server serves, local-playground-web.
+        return { ok: false, error: sprintf(__('%s directory not found.'), 'local-playground-web') };
     }
 
     const runnerPath = path.join(__dirname, 'playground-web-runner.js');
@@ -3891,7 +4227,7 @@ ipcMain.handle('playground-web:start', async () => {
         if (stillPending) {
             clearTimeout(timeoutId);
             if (probeIntervalId) clearInterval(probeIntervalId);
-            try { pendingResolve({ ok: false, error: 'Server exited before becoming ready' }); } catch {}
+            try { pendingResolve({ ok: false, error: __('Server exited before becoming ready') }); } catch {}
             pendingResolve = null;
         }
         broadcastToAll('playground-web:stopped', { code });
@@ -3923,7 +4259,7 @@ ipcMain.handle('playground-web:start', async () => {
         probeIntervalId = setInterval(probe, 600);
         timeoutId = setTimeout(() => {
             if (!resolved && typeof pendingResolve === 'function') {
-                pendingResolve({ ok: false, error: 'Timed out starting web server' });
+                pendingResolve({ ok: false, error: __('Timed out starting web server') });
                 pendingResolve = null;
             }
             if (probeIntervalId) clearInterval(probeIntervalId);
@@ -4003,31 +4339,47 @@ function startWpDebugTail(sitePath, webContents) {
 	wpDebugWatchers[sitePath] = { filePath, lastSize: 0 };
 	const state = wpDebugWatchers[sitePath];
 
-	function send(data) {
-		webContents.send('wp:debug-log:data', { sitePath, data });
+	// `backlog` says the lines are not news: what the file already held when
+	// the tail started, and the app's own line that marks where that ends.
+	// The panel shows them like any others and does not count them as unseen.
+	// The tail is started before the server is (use-dev-server.jsx), so what
+	// the file holds then is what earlier runs left.
+	function send(data, backlog = false) {
+		webContents.send('wp:debug-log:data', { sitePath, data, backlog });
 	}
 
-	function attachFileWatcher() {
+	// `fromBefore` is true for the one attempt made as the tail starts: a file
+	// found then was left by earlier runs. One that appears later, or comes
+	// back after being removed, was written while this run was being watched:
+	// its lines are news, and nothing is said under them about earlier runs.
+	function attachFileWatcher(fromBefore = false) {
 		try {
 			const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
 			if (!stat) return false;
-			const initial = planInitialRead(stat.size);
-			state.lastSize = initial.lastSize;
-			if (initial.read) {
-				const rs = fs.createReadStream(filePath, initial.read);
-				rs.on('data', (chunk) => send(chunk.toString()));
+			// A file found again after a 'rename' is taken for the one the tail
+			// was reading, carried on from where it stopped, until its size says
+			// otherwise: an editor saving debug.log writes a new file at the old
+			// path, and replaying that would show every line a second time and
+			// count them all as unseen. With no offset — the first attach, a file
+			// that was gone when the app looked (watchForFile), or one that was
+			// empty or cleared — the file is new and read whole, up to the cap.
+			const plan = state.lastSize > 0 ? planTailRead(state.lastSize, stat.size) : planInitialRead(stat.size);
+			state.lastSize = plan.lastSize;
+			if (plan.read) {
+				const rs = fs.createReadStream(filePath, plan.read);
+				rs.on('data', (chunk) => send(chunk.toString(), fromBefore));
 				// The file outlives the dev server, so what was just replayed is
 				// whatever previous runs left behind — with WordPress's own
 				// timestamps on it, which is exactly what makes it read as
 				// something that happened just now. The marker is the app saying
 				// where the backlog ends.
-				rs.on('end', () => send(`${WP_DEBUG_SESSION_MARKER}\n`));
+				if (fromBefore) rs.on('end', () => send(`${WP_DEBUG_SESSION_MARKER}\n`, true));
 			}
 			state.fileWatcher = fs.watch(filePath, (evt) => {
 				// 'rename' is the file being replaced or removed under the
 				// watcher, which stays bound to the old inode and would never
 				// fire again. Re-attaching is what keeps the panel alive across a
-				// `grunt clean` or a manual delete.
+				// `grunt clean`, a manual delete or an editor's save.
 				if (evt === 'rename') { reattachAfterLoss(); return; }
 				if (evt !== 'change') return;
 				try {
@@ -4051,8 +4403,10 @@ function startWpDebugTail(sitePath, webContents) {
 	// Watch the directory for the file appearing. Used both before it exists at
 	// all — the common case, since nothing writes it until WordPress logs
 	// something — and again if it is later removed.
-	function watchForFile() {
-		if (attachFileWatcher()) return;
+	function watchForFile(fromBefore = false) {
+		if (attachFileWatcher(fromBefore)) return;
+		// Not there: whatever appears at the path is a new file, read whole.
+		state.lastSize = 0;
 		try {
 			state.dirWatcher = fs.watch(wpContentDir, () => {
 				if (attachFileWatcher() && state.dirWatcher) {
@@ -4066,11 +4420,10 @@ function startWpDebugTail(sitePath, webContents) {
 	function reattachAfterLoss() {
 		try { state.fileWatcher?.close(); } catch {}
 		state.fileWatcher = undefined;
-		state.lastSize = 0;
 		watchForFile();
 	}
 
-	watchForFile();
+	watchForFile(true);
 	return true;
 }
 

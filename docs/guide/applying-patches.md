@@ -6,7 +6,7 @@ On a WordPress Core site, the panel accepts pull requests, local `.diff` / `.pat
 
 The **Apply a patch or PR** panel lets you test someone else's work before adding your own. Pull requests and patch files take different paths: a PR becomes its own checkout with the author's commits, while a `.diff`/`.patch` file is applied on top of the branch you are already using. Your own changes are kept with their branch.
 
-![The Apply a patch or PR panel on a Core site, with a field for a pull request URL and a link to choose a patch file](/screenshots/apply-patch-panel.png)
+![The Apply a patch or PR card on a Core site, with two tabs, Pull request and Diff, and under the first a field for a pull request URL or number and an Apply PR button](/screenshots/apply-patch-panel.png)
 
 On a Gutenberg site, the corresponding card is focused on pull requests:
 
@@ -52,7 +52,7 @@ If the [build watch](running-the-site#the-build-watch) is running and the patch 
 
 The apply is all-or-nothing. If anything fails, nothing is written to your checkout — but the panel now tells you *how much* failed, because one region of twenty missing and all twenty missing are opposite decisions for you.
 
-![A pull request that does not fit this checkout, with the affected file named and confirmation that the checkout was not changed](/screenshots/apply-patch-conflict.png)
+![The Apply a patch or PR card after a patch that does not fit: a red notice reading "None of this patch's 1 change still fit your checkout. The checkout was not changed.", then the file and the lines that did not fit, and a Try another patch on this ticket button](/screenshots/apply-patch-conflict.png)
 
 The headline is a count, not an adjective: *4 of this patch's 20 changes across 3 files no longer fit — the other 16 do.* When every change is already in your checkout — which is what a patch that has since landed upstream looks like — it says that instead, rather than reporting the patch as dead.
 

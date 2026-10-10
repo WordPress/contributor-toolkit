@@ -6,10 +6,12 @@
  * likely to be a pasted URL — with a comment anchor, a trailing slash or a
  * ?format= query still attached — as it is a bare number.
  *
- * Kept as a pure, dependency-free module so it can be unit tested without a
+ * Kept as a pure module so it can be unit tested without a
  * DOM: the renderer bundle imports it, `node --test` requires it directly
  * (same convention as setup-steps.cjs and update-plan.cjs).
  */
+
+const { __, sprintf } = require('@wordpress/i18n');
 
 const TRAC_HOST = 'core.trac.wordpress.org';
 
@@ -18,7 +20,14 @@ const TRAC_HOST = 'core.trac.wordpress.org';
 // decades of headroom.
 const MAX_TICKET_ID = 9999999;
 
-const NOT_A_TICKET = 'Enter a ticket number like 62281, or a core.trac.wordpress.org ticket URL.';
+// A function, so it is read in the language applied when it is shown.
+function notATicket() {
+	return sprintf(
+		// translators: %s: the Trac host name, core.trac.wordpress.org.
+		__('Enter a ticket number like 62281, or a %s ticket URL.'),
+		TRAC_HOST
+	);
+}
 
 /**
  * Canonical URL for a ticket id.
@@ -54,7 +63,7 @@ function attachUrl(id) {
 function fromDigits(digits) {
 	const id = Number(digits);
 	if (!Number.isSafeInteger(id) || id < 1 || id > MAX_TICKET_ID) {
-		return { ok: false, error: NOT_A_TICKET };
+		return { ok: false, error: notATicket() };
 	}
 	return { ok: true, id, url: ticketUrl(id) };
 }
@@ -69,7 +78,7 @@ function fromDigits(digits) {
  */
 function parseTicketRef(input) {
 	const raw = typeof input === 'string' ? input.trim() : '';
-	if (!raw) return { ok: false, error: 'Enter a ticket number or URL.' };
+	if (!raw) return { ok: false, error: __('Enter a ticket number or URL.') };
 
 	const bare = raw.replace(/^#/, '');
 	if (/^\d+$/.test(bare)) return fromDigits(bare);
@@ -82,23 +91,24 @@ function parseTicketRef(input) {
 	// the input actually looks like one — a scheme, a path or a dotted host.
 	const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw);
 	if (!hasScheme && !raw.includes('/') && !raw.includes('.')) {
-		return { ok: false, error: NOT_A_TICKET };
+		return { ok: false, error: notATicket() };
 	}
 
 	let parsed;
 	try {
 		parsed = new URL(hasScheme ? raw : `https://${raw}`);
 	} catch {
-		return { ok: false, error: NOT_A_TICKET };
+		return { ok: false, error: notATicket() };
 	}
 
 	if (parsed.hostname.toLowerCase() !== TRAC_HOST) {
-		return { ok: false, error: `Only ${TRAC_HOST} tickets are supported.` };
+		// translators: %s: the Trac host name, core.trac.wordpress.org.
+		return { ok: false, error: sprintf(__('Only %s tickets are supported.'), TRAC_HOST) };
 	}
 
 	// Reading the id off the path drops ?format= and #comment: for free.
 	const match = /^\/ticket\/(\d+)\/?$/.exec(parsed.pathname);
-	if (!match) return { ok: false, error: NOT_A_TICKET };
+	if (!match) return { ok: false, error: notATicket() };
 	return fromDigits(match[1]);
 }
 

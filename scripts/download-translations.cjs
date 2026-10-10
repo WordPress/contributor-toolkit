@@ -16,7 +16,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { reachableSlugs } = require('../src/i18n.cjs');
+const { slugTag } = require('../src/i18n.cjs');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_DIR = path.join(REPO_ROOT, 'src', 'languages');
@@ -113,7 +113,6 @@ async function downloadTranslations({
 	if (!valid) throw new Error(`translate.wordpress.org answered for ${project} in a shape this script does not know; nothing was changed.`);
 
 
-	const reachable = reachableSlugs();
 	const shipped = [];
 	const skipped = [];
 	for (const set of sets) {
@@ -130,9 +129,8 @@ async function downloadTranslations({
 		if (!SLUG_PATTERN.test(set.locale)) throw new Error(`Refusing the locale slug ${JSON.stringify(set.locale)}: it is not a locale.`);
 		const row = { locale: set.locale, percent, strings };
 		if (RTL_LANGUAGES.has(set.locale.split('-')[0])) skipped.push({ ...row, reason: 'right-to-left, held back until the styles support it' });
-		// Shipped even when the app cannot select it yet (#584), so the catalog is
-		// there once it can; the table names it.
-		else shipped.push({ ...row, selectable: reachable.has(set.locale) });
+		// Shipped even when no OS language selects it (`pirate`); the table names it.
+		else shipped.push({ ...row, selectable: slugTag(set.locale) !== null });
 	}
 	const byLocale = (a, b) => a.locale.localeCompare(b.locale);
 	shipped.sort(byLocale);
@@ -179,7 +177,7 @@ function formatTable({ shipped, skipped = [], removed }) {
 	const rows = shipped.map(({ locale, percent, strings }) => `| ${locale} | ${percent}% | ${strings} |`);
 	const parts = [['| Locale | Translated | Strings |', '| --- | --- | --- |', ...rows].join('\n')];
 	const unselectable = shipped.filter(({ selectable }) => selectable === false).map(({ locale }) => locale);
-	if (unselectable.length) parts.push(`Shipped, but the app cannot select it yet (#584): ${unselectable.join(', ')}`);
+	if (unselectable.length) parts.push(`Shipped, but no OS language selects it: ${unselectable.join(', ')}`);
 	if (skipped.length) parts.push(`Not shipped:\n${skipped.map(({ locale, percent, reason }) => `- ${locale} (${percent}%): ${reason}`).join('\n')}`);
 	if (removed.length) parts.push(`Removed: ${removed.join(', ')}`);
 	return parts.join('\n\n');

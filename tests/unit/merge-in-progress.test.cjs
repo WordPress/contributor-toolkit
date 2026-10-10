@@ -3,6 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { mergeInProgressNotice, mergeInProgressError, mergeCheckFailedError } = require('../../src/renderer/merge-in-progress.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 test('mergeInProgressNotice names the operation, the files and both ways out (#352)', () => {
 	const notice = mergeInProgressNotice({ mergeInProgress: { kind: 'merge', paths: ['src/wp-login.php', 'src/doomed.php'] } });
@@ -63,4 +65,26 @@ test('a read that failed refuses the write and says nothing changed (#352)', () 
 	assert.match(error, /nothing was changed/);
 	assert.match(error, /\(index\.lock exists\)$/);
 	assert.doesNotMatch(mergeCheckFailedError(null), /\(/);
+});
+
+// Main returns this refusal, so it is said in the locale main applied: the
+// title for the kind, the file count's plural, and Git's commands as they are.
+test('the refusal is said in the locale applied, with Git\'s commands left as they are (#629)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+
+	const state = { kind: 'apply', paths: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] };
+	const notice = mergeInProgressNotice({ mergeInProgress: state });
+	assert.equal(notice.title, pseudoLocalize('A three-way patch apply started outside the app is in progress.'));
+	const body = pseudoLocalize('It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.')
+		.replace('%1$s', pseudoLocalize('%1$s and %2$d more files').replace('%1$s', 'a, b, c, d, e').replace('%2$d', '2'))
+		.replace('%2$s', pseudoLocalize('resolve the files, then git add them'))
+		.replace('%3$s', `git restore --staged --worktree -- <${pseudoLocalize('every file the patch touched, not only the ones in conflict')}>`);
+	assert.equal(notice.body, body);
+	assert.equal(mergeInProgressError(state), `${notice.title} ${notice.body}`);
+	assert.equal(mergeCheckFailedError(new Error('index.lock exists')), pseudoLocalize('The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)').replace('%s', 'index.lock exists'));
 });

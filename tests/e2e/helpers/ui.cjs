@@ -10,9 +10,10 @@
 // is a change to this file and to nothing that uses it.
 //
 // What is here: every control, something typed into or clicked, that more
-// than one of those files reaches; and five locators that find a part of the
-// screen rather than something to press, which are the rendered app, a sidebar
-// entry, the open site's heading, a card and a ticket's row.
+// than one of those files reaches; and six locators that find a part of the
+// screen rather than something to press, which are the rendered app, an entry
+// of the sites list, what a window with no site says, the open site's
+// heading, a card and a ticket's row.
 //
 // What is not here: a sentence one journey asserts, a button only one journey
 // presses, and a selector only one file needs even when it reads the markup
@@ -27,31 +28,78 @@
 // No `expect` in this file. The screenshot harness loads it with
 // `playwright-core` alone, and an assertion belongs in the test that makes it.
 
-// --- The sidebar -------------------------------------------------------------
+// The words of the list of a site's tickets, which each of its rows' buttons
+// is named with.
+const { ticketListCard: ticketListWords } = require( '../../../src/renderer/ticket-branch-list.cjs' );
+
+// --- The sites list ----------------------------------------------------------
 
 /**
- * A site's entry in the sidebar.
+ * A site's entry in the sites list.
  *
- * The site's name is on screen twice, the sidebar entry and the heading of the
- * open site, so neither can be reached by text alone. The entry's accessible
- * name is the site's label followed by its project tag (#251), so the label is
- * matched as the whole name minus that one word.
+ * The site's name is on screen twice, the entry in the list and the heading
+ * of the open site, so neither can be reached by text alone. The entry is a
+ * button named by the site's label. The line under it, the project (#251) or
+ * that the site is being deleted, is in the entry's row and not in the
+ * button's name.
  *
  * That is the name of a site with nothing to report, and only of that one. A
- * site whose trunk is old or whose update is incomplete adds its dot's text to
- * the name, and a site being deleted is named "<label>, Deleting": this
- * matches none of them. Seed a recent `trunkDate`, or find those by the name
- * they have.
+ * site whose trunk is old or whose update is incomplete has its dot's text
+ * after its name, in brackets, and a site being deleted is named
+ * "<label> (Deleting)": this matches none of them. Seed a recent `trunkDate`,
+ * or find those by the name they have.
+ *
+ * While the list is hidden its entries are not in the accessibility tree, so
+ * this finds none.
  *
  * @param {Object} page
  * @param {string} label The site's name.
  * @return {Object} The locator.
  */
-const sidebarEntry = ( page, label ) =>
-	page.getByRole( 'button', { name: new RegExp( `^${ label.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ) } (Core|Gutenberg)$` ) } );
+const sidebarEntry = ( page, label ) => page.getByRole( 'button', { name: label, exact: true } );
 
-const createSiteButton = ( page ) => page.getByRole( 'button', { name: 'Create a site', exact: true } );
-const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create a site' } );
+// The list's own button, there whenever the list is: with at least one site.
+const createSiteButton = ( page ) => page.getByRole( 'button', { name: 'Create new site', exact: true } );
+/**
+ * The button in the middle of a window with no site in it. It has the name the
+ * create-site dialog gives its own button, so this is the one in the app's
+ * own element: a dialog is drawn outside it.
+ *
+ * @param {Object} page
+ * @return {Object} The locator.
+ */
+const createFirstSiteButton = ( page ) =>
+	page.locator( '#root' ).getByRole( 'button', { name: 'Create site', exact: true } );
+// What a window with no site in it says.
+const noSitesTitle = ( page ) => page.getByText( 'No sites', { exact: true } );
+const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create site', exact: true } );
+/**
+ * The window's confirmations, stacked in its corner.
+ *
+ * Found by its label and not by its role. A confirmation can be raised while
+ * a dialog is open, for something done inside it, and an open dialog hides
+ * everything else from the roles.
+ *
+ * @param {Object} page
+ * @return {Object} The locator.
+ */
+const toasts = ( page ) => page.getByLabel( 'Notifications', { exact: true } );
+
+/**
+ * One confirmation, by what it says.
+ *
+ * @param {Object}        page
+ * @param {string|RegExp} text The whole sentence, or a pattern for one that carries a path.
+ * @return {Object} The locator.
+ */
+const toast = ( page, text ) => toasts( page ).getByText( text, { exact: true } );
+
+// In the footer, whatever the window shows above it.
+const giveFeedbackButton = ( page ) => page.getByRole( 'button', { name: 'Give feedback', exact: true } );
+const settingsButton = ( page ) => page.getByRole( 'button', { name: 'Settings', exact: true } );
+// The settings dialog (#559), and its tabs by name.
+const settingsDialog = ( page ) => page.getByRole( 'dialog', { name: 'Settings', exact: true } );
+const settingsTab = ( page, name ) => settingsDialog( page ).getByRole( 'tab', { name, exact: true } );
 
 // --- A dialog ----------------------------------------------------------------
 
@@ -72,8 +120,8 @@ const closeDialogButton = ( dialog ) => dialog.getByRole( 'button', { name: 'Clo
 const renderedApp = ( page ) => page.locator( '#root > * > *' );
 
 /**
- * The open site's heading. The site's name is in the sidebar too, so this is
- * the half of the pair `sidebarEntry` is not.
+ * The open site's heading, in the page's header. The site's name is in the
+ * sites list too, so this is the half of the pair `sidebarEntry` is not.
  *
  * @param {Object} page
  * @param {string} label The site's name.
@@ -81,23 +129,76 @@ const renderedApp = ( page ) => page.locator( '#root > * > *' );
  */
 const siteHeading = ( page, label ) => page.getByRole( 'heading', { name: label, exact: true } );
 
-const siteMenuButton = ( page ) => page.getByRole( 'button', { name: 'More', exact: true } );
+// The open site's menu, in the page's header, and what is in it. An item is
+// there only while the menu is open.
+const siteMenuButton = ( page ) => page.getByRole( 'button', { name: 'Site actions', exact: true } );
 const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } );
-const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete this site', exact: true } );
+const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete site', exact: true } );
 
-const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Start dev server', exact: true } );
+/**
+ * The question asked before something is deleted or discarded for good: a
+ * site, a ticket's work, or local changes. It is named by what it asks, and
+ * one is asked at a time.
+ *
+ * @param {Object} page
+ * @return {Object} The locator.
+ */
+const confirmDialog = ( page ) => page.getByRole( 'alertdialog' );
+// Its two answers. The yes is named for what it does, so it is asked for by
+// name; the no is the same everywhere.
+const confirmYesButton = ( page, name ) => confirmDialog( page ).getByRole( 'button', { name, exact: true } );
+const confirmNoButton = ( page ) => confirmDialog( page ).getByRole( 'button', { name: 'Cancel', exact: true } );
+
+// The server's button, in the open site's details. It shows one word and is
+// named by what pressing it does. The header's menu has an item of the same
+// name, which is a menu item and not this.
+const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Start development server', exact: true } );
 // The same button once the server has an address; while it is still starting it reads neither.
-const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop dev server', exact: true } );
-// The build watch's one button, by what it offers: it reads "Stop" while the
-// watch is building or watching, and "Start" the rest of the time.
+const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop development server', exact: true } );
+// The build watch's one button, likewise in the details, by what it offers:
+// it stops the watch while the watch is building or watching, and starts it
+// the rest of the time.
 const startBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Start build watch', exact: true } );
 const stopBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Stop build watch', exact: true } );
+// The header's menu for one of the open site's two processes, by what it says
+// the process is doing: "Server stopped", "Build watching". With little room
+// the header shows its dot alone; its name is the same.
+const processMenuButton = ( page, label ) => page.getByRole( 'button', { name: label, exact: true } );
+// The link to the running site's dashboard, shown once the server is up.
+const adminLink = ( page ) => page.getByRole( 'link', { name: 'wp-admin', exact: true } );
+// In the page's header.
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
+// --- The tray along the bottom of the window -------------------------------
+//
+// The tray is the window's and holds one thing at a time, for the site that
+// is open (#558). The footer has a button for each thing it can hold, pressed
+// while that one is showing, and the tray is named for what it holds.
+const trayToggle = ( page, name ) => page.getByRole( 'button', { name: `Toggle ${ name }`, exact: true } );
+const tray = ( page, name ) => page.getByRole( 'complementary', { name, exact: true } );
+
+/**
+ * Opens a tray, unless it is the one already open, and waits for it.
+ *
+ * A journey that reads the site's terminal starts with this: the tray is
+ * closed when the window opens, and what is in a closed tray is not on screen.
+ *
+ * @param {Object} page
+ * @param {string} name The tray's heading, 'Terminal'.
+ * @return {Promise<Object>} The tray's locator.
+ */
+async function openTray( page, name ) {
+	const toggle = trayToggle( page, name );
+	if ( ( await toggle.getAttribute( 'aria-pressed' ) ) !== 'true' ) await toggle.click();
+	await tray( page, name ).waitFor();
+	return tray( page, name );
+}
+
 // A command offered in the hints under the terminal. It is a button only while
 // the site is built and nothing is running; the rest of the time it is plain
-// text, or not there.
-const terminalHint = ( page, command ) => card( page, 'Terminal' ).getByRole( 'button', { name: command, exact: true } );
+// text, or not there. Under the terminal means in the tray, so it is on screen
+// only while the tray shows the terminal.
+const terminalHint = ( page, command ) => tray( page, 'Terminal' ).getByRole( 'button', { name: command, exact: true } );
 // Where keys go when the site's terminal is typed in. What the terminal shows
 // is not here: it has no role, and the one journey that reads it says how.
 const terminalInput = ( page ) => page.getByRole( 'textbox', { name: 'Terminal input' } );
@@ -105,11 +206,13 @@ const terminalInput = ( page ) => page.getByRole( 'textbox', { name: 'Terminal i
 /**
  * A card of the site's view, by its heading.
  *
- * The cards are styled `div`s with the heading as their first child, not
- * landmarks, so this reads the shape of the markup. Every site's view is in
- * the document at once and only the selected one is visible, so the visibility
- * filter is what picks the right card, and `.last()` the innermost `div` that
- * fits, should a wrapper around the card ever fit too.
+ * The cards redrawn with the design system (#557) are regions named by their
+ * heading. The ones not redrawn yet are styled `div`s with the heading as
+ * their first child, not landmarks, and for those this reads the shape of the
+ * markup. Every site's view is in the document at once and only the selected
+ * one is visible, so the visibility filter is what picks the right card, and
+ * `.last()` the innermost `div` that fits, should a wrapper around the card
+ * ever fit too.
  *
  * @param {Object} page
  * @param {string} heading The card's heading, exactly.
@@ -118,13 +221,14 @@ const terminalInput = ( page ) => page.getByRole( 'textbox', { name: 'Terminal i
 const card = ( page, heading ) =>
 	page
 		.locator( `div:has(> div:text-is("${ heading }"))` )
+		.or( page.getByRole( 'region', { name: heading, exact: true } ) )
 		.filter( { visible: true } )
 		.last();
 
 /**
  * A tab of the Logs panel, by the whole of its name. The name says what is
  * behind the tab as well as which it is: the build watch's says what the
- * watch is doing, "Build watcher (watching)" for one, and debug.log's carries
+ * watch is doing, "Build watch (watching)" for one, and debug.log's carries
  * a count.
  *
  * @param {Object} page
@@ -135,23 +239,97 @@ const logTab = ( page, name ) => page.getByRole( 'tab', { name, exact: true } );
 
 // --- The ticket or issue the site is working on ------------------------------
 
-const ticketField = ( page ) => page.getByLabel( 'Trac ticket number or URL' );
+// The field a Trac ticket is linked in. There are two, with one helper for
+// both: the work-item card's, "Ticket number or URL", and the review's,
+// "Trac ticket number or URL", which is where a ticket is linked from when a
+// patch is about to be saved for one.
+const ticketField = ( page ) => page.getByLabel( /^(Trac ticket|Ticket) number or URL$/ );
 const linkTicketButton = ( page ) => page.getByRole( 'button', { name: 'Link ticket', exact: true } );
-const issueField = ( page ) => page.getByLabel( 'GitHub issue number or URL' );
+const issueField = ( page ) => page.getByLabel( 'Issue number or URL', { exact: true } );
 const linkIssueButton = ( page ) => page.getByRole( 'button', { name: 'Link issue', exact: true } );
 const unlinkButton = ( page ) => page.getByRole( 'button', { name: 'Unlink', exact: true } );
 
 /**
- * The number of the linked ticket or issue, as the card's subject.
+ * The number of the linked ticket or issue, as the card's subject. It is
+ * what says a site is working on one: the card's own title, "Trac ticket" or
+ * "GitHub issue", is the same with nothing linked.
+ *
+ * In a heading, which is where the card says it. The list of a site's other
+ * tickets says each of theirs too, in a row, and a journey that waits for
+ * this number to know a switch has ended must not be answered by the row it
+ * has just pressed: the row is there before the switch has begun.
  *
  * @param {Object}        page
  * @param {string|number} number
  * @return {Object} The locator.
  */
-const workItemNumber = ( page, number ) => page.getByText( `#${ number }`, { exact: true } );
+const workItemNumber = ( page, number ) => page.getByRole( 'heading' ).getByText( `#${ number }`, { exact: true } );
 
-// The way back to a parked ticket while another one is linked.
-const switchBackButton = ( page ) => page.getByRole( 'button', { name: 'switch', exact: true } );
+/**
+ * The work-item card's heading, which is what kind of work item the site's
+ * project has.
+ *
+ * @param {Object} page
+ * @param {string} title "Trac ticket" or "GitHub issue".
+ * @return {Object} The locator.
+ */
+const workItemHeading = ( page, title ) => page.getByRole( 'heading', { name: title, exact: true } );
+
+/**
+ * The work-item card itself.
+ *
+ * @param {Object} page
+ * @param {string} title "Trac ticket" or "GitHub issue".
+ * @return {Object} The locator.
+ */
+const workItemCard = ( page, title ) => page.getByRole( 'region', { name: title, exact: true } );
+
+/**
+ * The way from the card to the linked ticket or issue where it lives. It is
+ * named by the number, and says where it goes as its tooltip.
+ *
+ * @param {Object}        page
+ * @param {string|number} number
+ * @return {Object} The locator.
+ */
+const openWorkItemButton = ( page, number ) => page.getByRole( 'button', { name: `#${ number }`, exact: true } );
+
+// On a Trac ticket that has not been read yet: reads its facts and its
+// attachments, which opens Trac's own window.
+const readTicketDetailsButton = ( page ) => page.getByRole( 'button', { name: 'Read details from Trac', exact: true } );
+
+// On each pull request and each attachment of the linked ticket: reads that
+// patch before it is applied. Every row's button has this one name.
+const readPatchButton = ( page ) => page.getByRole( 'button', { name: 'Apply…', exact: true } );
+
+/**
+ * The card that lists a site's parked tickets, under either of its headings:
+ * the other tickets while one is linked, every ticket while none is.
+ *
+ * @param {Object} page
+ * @return {Object} The locator.
+ */
+const ticketListCard = ( page ) =>
+	page.getByRole( 'region', { name: /^(Other|Your) (tickets|issues) on this site$/ } );
+
+// A row's button is named by what it shows and then its ticket's number.
+// What it shows is asked of the module that words the card, so that the two
+// cannot part without a journey going red.
+const rowButton = ( page, words, ticket ) =>
+	ticketListCard( page ).getByRole( 'button', ticket === undefined
+		? { name: new RegExp( `^${ escapeRegExp( words ) } #\\d+$` ) }
+		: { name: `${ words } #${ ticket }`, exact: true } );
+const escapeRegExp = ( text ) => text.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' );
+const rowWords = ( linked, provider ) => ticketListWords( { rowCount: 1, linked, provider } );
+
+/**
+ * The way back to a parked ticket while another one is linked.
+ *
+ * @param {Object}        page
+ * @param {string|number} [ticket] Which ticket's; every parked ticket's when left out.
+ * @return {Object} The locator.
+ */
+const switchBackButton = ( page, ticket ) => rowButton( page, rowWords( true ).action, ticket );
 
 /**
  * The way back to a parked ticket while nothing is linked.
@@ -160,34 +338,36 @@ const switchBackButton = ( page ) => page.getByRole( 'button', { name: 'switch',
  * @param {string|number} [ticket] Which ticket's; every parked ticket's when left out.
  * @return {Object} The locator.
  */
-const continueWorkingButton = ( page, ticket ) =>
-	page.getByRole( 'button', ticket === undefined
-		? { name: /^Continue working on #\d+$/ }
-		: { name: `Continue working on #${ ticket }`, exact: true } );
+const continueWorkingButton = ( page, ticket ) => rowButton( page, rowWords( false ).action, ticket );
+
+/**
+ * What deletes a parked ticket's work. It asks first.
+ *
+ * @param {Object}        page
+ * @param {string|number} ticket     Which ticket's.
+ * @param {string}        [provider] What the site's work items are: Trac tickets unless told 'github-issue'.
+ * @return {Object} The locator.
+ */
+const deleteWorkButton = ( page, ticket, provider ) => rowButton( page, rowWords( false, provider ).remove, ticket );
 
 /**
  * The row for one parked ticket, in the list of a site's tickets.
  *
- * Addressed by the ticket it offers to continue rather than by position. Every
- * row carries an identically labelled delete control, and the list is ordered by
- * how recently each ticket was used, so `.first()` picks whichever ticket the
- * app most recently touched, which is a different one depending on how far the
- * render has got. That is a test that deletes the wrong branch and then fails
- * somewhere else entirely.
+ * Addressed by its ticket's number rather than by position. Every row carries
+ * the same two controls, and the list is ordered by how recently each ticket
+ * was used, so `.first()` picks whichever ticket the app most recently
+ * touched, which is a different one depending on how far the render has got.
+ * That is a test that deletes the wrong branch and then fails somewhere else
+ * entirely.
  *
- * The rows are `div`s, so this reads the shape of the markup: the innermost
- * `div` holding both of the row's controls.
- *
- * @param {Object} page
- * @param {string} ticket
+ * @param {Object}        page
+ * @param {string|number} ticket
  * @return {Object} The locator.
  */
 const ticketRow = ( page, ticket ) =>
-	page
-		.locator( 'div' )
-		.filter( { has: continueWorkingButton( page, ticket ) } )
-		.filter( { has: page.getByRole( 'button', { name: "Delete this ticket's work", exact: true } ) } )
-		.last();
+	ticketListCard( page )
+		.getByRole( 'listitem' )
+		.filter( { has: page.getByText( `#${ ticket }`, { exact: true } ) } );
 
 /**
  * Links a ticket through the card, the way a contributor does, and waits for
@@ -211,11 +391,31 @@ async function linkTicket( page, ticket ) {
 
 const prField = ( page ) => page.getByLabel( 'Pull request URL or number' );
 const applyPrButton = ( page ) => page.getByRole( 'button', { name: 'Apply PR', exact: true } );
-const choosePatchFileButton = ( page ) => page.getByRole( 'button', { name: 'or choose a .diff / .patch file…', exact: true } );
-// Any button that offers to choose a patch file, whatever else its name says.
-// For asserting there is none: held to the exact name above, that assertion
-// would pass the day the sentence around those words changed.
-const anyPatchFileButton = ( page ) => page.getByRole( 'button', { name: 'choose a .diff / .patch file' } );
+// On a project that takes patch files the card has a tab for each way in,
+// and stays on the one it was left on: a journey that asks for a pull request
+// after choosing a file goes back to this tab first. A project that takes no
+// patch files has neither tab.
+const pullRequestTab = ( page ) => page.getByRole( 'tab', { name: 'Pull request', exact: true } );
+const patchFileTab = ( page ) => page.getByRole( 'tab', { name: 'Diff', exact: true } );
+const choosePatchFileButton = ( page ) => page.getByRole( 'button', { name: 'Choose a .diff or .patch file…', exact: true } );
+// Any way to a patch file, a tab or a button, whatever else its name says.
+// For asserting there is none: held to the exact names above, that assertion
+// would pass the day the words around them changed. A button that only names
+// a file, as an attachment's row does, is not one.
+const anyPatchFileButton = ( page ) =>
+	page.getByRole( 'tab', { name: /diff|patch/i } ).or( page.getByRole( 'button', { name: /^choose a\b.*(diff|patch)/i } ) );
+
+/**
+ * Opens the tab a patch file is chosen under and presses its button, which
+ * opens the system's file dialog: answer that first, with
+ * `session.answerFileDialog`.
+ *
+ * @param {Object} page
+ */
+async function choosePatchFile( page ) {
+	await patchFileTab( page ).click();
+	await choosePatchFileButton( page ).click();
+}
 const applyAndRebuildButton = ( page ) => page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } );
 const revertPatchButton = ( page ) => page.getByRole( 'button', { name: 'Revert this patch', exact: true } );
 const revertPrButton = ( page ) => page.getByRole( 'button', { name: 'Revert this PR', exact: true } );
@@ -242,24 +442,116 @@ async function inDocumentOrder( page, locators ) {
 	}, handles );
 }
 
+/**
+ * The colour a design-system token comes to in this window, as the browser
+ * writes a computed colour. Asked of the page and not written down here, so
+ * an assertion says "painted with this token" and holds whatever value the
+ * design system gives it.
+ *
+ * A token the window does not have is refused. Left alone it would compute
+ * to the colour the probe inherits, which is the page's text colour, and an
+ * assertion with a misspelled name would then pass against anything painted
+ * in that.
+ *
+ * @param {Object} page
+ * @param {string} expression The token, written `var(--wpds-…)`.
+ * @return {Promise<string>} The colour, e.g. `rgb(0, 128, 48)`.
+ */
+function tokenColour( page, expression ) {
+	return page.evaluate( ( value ) => {
+		const name = /^var\((--[\w-]+)\)$/.exec( value )?.[ 1 ];
+		const probe = document.createElement( 'span' );
+		probe.style.color = value;
+		document.body.appendChild( probe );
+		const style = window.getComputedStyle( probe );
+		const known = Boolean( name && style.getPropertyValue( name ).trim() );
+		const colour = style.color;
+		probe.remove();
+		if ( ! known ) throw new Error( `This window has no token ${ value }.` );
+		return colour;
+	}, expression );
+}
+
+/**
+ * Selects each of the named tabs in turn and says, of each, how many panels
+ * were taking room once it was selected and before the window had drawn a
+ * frame. The design system's tabs keep the panel that is leaving in the
+ * document until the next frame, and it must not hold a share of the room
+ * for that long: one panel is the answer, every time.
+ *
+ * It is asked inside the page, in one turn, because a frame is exactly what
+ * must not come between the press and the reading. A tab that is in the
+ * document and not on screen, as another site's are, is not one of these.
+ *
+ * @param {Object}    within   A locator around one set of tabs and their panels.
+ * @param {...string} tabNames The tabs to select, by what they say.
+ * @return {Promise<{selected: boolean, panels: number}[]>} For each tab, whether it took the selection and how many panels had room.
+ */
+function panelsTakingRoom( within, ...tabNames ) {
+	return within.evaluate( async ( root, names ) => {
+		const seen = [];
+		for ( const name of names ) {
+			const tab = [ ...root.querySelectorAll( '[role="tab"]' ) ].find( ( candidate ) => candidate.checkVisibility() && candidate.textContent === name );
+			tab.click();
+			// Drawn by React, and no frame drawn by the window.
+			await Promise.resolve();
+			seen.push( {
+				selected: tab.getAttribute( 'aria-selected' ) === 'true',
+				panels: [ ...root.querySelectorAll( '[role="tabpanel"]' ) ].filter( ( panel ) => panel.getBoundingClientRect().height > 0 ).length,
+			} );
+		}
+		return seen;
+	}, tabNames );
+}
+
+/**
+ * What an element is painted with: its text, what is behind it, and its
+ * border.
+ *
+ * @param {Object} locator Matching exactly one element.
+ * @return {Promise<{text: string, behind: string, border: string}>} Computed colours.
+ */
+function paintOf( locator ) {
+	return locator.evaluate( ( element ) => {
+		const style = window.getComputedStyle( element );
+		return { text: style.color, behind: style.backgroundColor, border: style.borderTopColor };
+	} );
+}
+
 module.exports = {
 	sidebarEntry,
 	createSiteButton,
+	createFirstSiteButton,
+	noSitesTitle,
 	createSiteDialog,
+	toasts,
+	toast,
+	giveFeedbackButton,
+	settingsButton,
+	settingsDialog,
+	settingsTab,
 	closeDialogButton,
 	renderedApp,
 	siteHeading,
 	siteMenuButton,
 	updateTrunkMenuItem,
 	deleteSiteMenuItem,
+	confirmDialog,
+	confirmYesButton,
+	confirmNoButton,
 	startDevServerButton,
 	stopDevServerButton,
 	startBuildWatchButton,
 	stopBuildWatchButton,
+	processMenuButton,
+	adminLink,
 	reviewChangesButton,
 	retryInstallButton,
 	terminalInput,
 	terminalHint,
+	trayToggle,
+	tray,
+	openTray,
 	logTab,
 	card,
 	ticketField,
@@ -267,17 +559,30 @@ module.exports = {
 	issueField,
 	linkIssueButton,
 	unlinkButton,
+	workItemHeading,
+	workItemCard,
+	readTicketDetailsButton,
+	readPatchButton,
+	openWorkItemButton,
 	workItemNumber,
+	ticketListCard,
 	switchBackButton,
 	continueWorkingButton,
+	deleteWorkButton,
 	ticketRow,
 	linkTicket,
 	prField,
 	applyPrButton,
+	pullRequestTab,
+	patchFileTab,
 	choosePatchFileButton,
+	choosePatchFile,
 	anyPatchFileButton,
 	applyAndRebuildButton,
 	revertPatchButton,
 	revertPrButton,
 	inDocumentOrder,
+	tokenColour,
+	paintOf,
+	panelsTakingRoom,
 };

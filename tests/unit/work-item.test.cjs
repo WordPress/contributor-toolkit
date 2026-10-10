@@ -37,8 +37,6 @@ test('the GitHub provider parses issues against the site’s own repository', ()
 		ok: true, id: 71234, url: 'https://github.com/WordPress/gutenberg/issues/71234'
 	});
 	assert.strictEqual(wi.urlFor(71234), 'https://github.com/WordPress/gutenberg/issues/71234');
-	assert.strictEqual(wi.refLabel, 'GitHub issue number or URL');
-	assert.strictEqual(wi.openLabel, 'Open on GitHub');
 	assert.strictEqual(wi.defaultPrTitle(71234), 'Issue #71234');
 	// A Trac URL is not a GitHub issue, and must not quietly parse as one.
 	assert.strictEqual(wi.parseRef('https://core.trac.wordpress.org/ticket/62281').ok, false);

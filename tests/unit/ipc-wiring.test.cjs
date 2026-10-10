@@ -34,6 +34,7 @@ const Module = require('node:module');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { EventEmitter } = require('node:events');
 const { AsyncLocalStorage } = require('node:async_hooks');
 const {
@@ -50,6 +51,7 @@ const {
 // The applied-layer module turns the handler's measured status into the
 // attribution the renderer shows.
 const { attributeConflicts } = require('../../src/renderer/applied-layer.cjs');
+const { DARK_BACKGROUND, LIGHT_BACKGROUND } = require('../../src/theme.cjs');
 const { nodeExecPath } = require('../../src/node-shims.cjs');
 const SRC_DIR = path.join(__dirname, '..', '..', 'src');
 const MAIN_PATH = path.join(SRC_DIR, 'main.js');
@@ -86,10 +88,11 @@ const statusScan = (dir) => gitOk(['status', '--porcelain=v2', '-z', '--untracke
 // A recording stand-in for the parts of `electron` main.js destructures. Every
 // method a handler can reach has to exist here, because a missing one would
 // throw inside the handler and read as a wiring failure.
-function createElectronStub() {
+function createElectronStub({ ready = false } = {}) {
 	const handlers = new Map();
 	const oneWay = new Map();
 	const appEvents = new Map();
+	const nativeThemeListeners = [];
 	const windows = [];
 	const calls = {
 		openExternal: [],
@@ -97,7 +100,9 @@ function createElectronStub() {
 		showItemInFolder: [],
 		showSaveDialog: [],
 		showOpenDialog: [],
-		applicationMenu: []
+		applicationMenu: [],
+		quit: [],
+		relaunch: []
 	};
 
 	// What `dialog` returns is per-test: git:save-patch branches on `canceled`.
@@ -108,24 +113,50 @@ function createElectronStub() {
 			this.options = options;
 			this.loaded = [];
 			this.sent = [];
+			// What the window was told to do about navigation: the listeners on
+			// its webContents, the handler for a new window, and the address it
+			// is on. Recorded rather than ignored, so that a window left free to
+			// go anywhere is something a test can see.
+			this.url = '';
+			this.windowOpenHandler = null;
+			this.webContentsListeners = new Map();
 			const self = this;
 			this.webContents = {
 				send: (channel, payload) => { self.sent.push({ channel, payload }); },
 				isDestroyed: () => false,
-				on() {},
+				getURL: () => self.url,
+				on(name, listener) {
+					if (!self.webContentsListeners.has(name)) self.webContentsListeners.set(name, []);
+					self.webContentsListeners.get(name).push(listener);
+				},
 				once() {},
-				setWindowOpenHandler() {},
+				setWindowOpenHandler(handler) { self.windowOpenHandler = handler; },
 				openDevTools() {}
 			};
 			windows.push(this);
 		}
-		loadFile(file) { this.loaded.push({ type: 'file', file }); }
-		loadURL(url) { this.loaded.push({ type: 'url', url }); }
+		loadFile(file) {
+			this.loaded.push({ type: 'file', file });
+			this.url = pathToFileURL(file).href;
+		}
+		loadURL(url) {
+			this.loaded.push({ type: 'url', url });
+			this.url = url;
+		}
+		// Replays a navigation the page asked for, as the event Electron emits
+		// for it. Returns whether a listener cancelled it.
+		emitNavigation(name, url) {
+			let prevented = false;
+			const event = { url, isMainFrame: true, preventDefault() { prevented = true; } };
+			for (const listener of this.webContentsListeners.get(name) || []) listener(event, url);
+			return prevented;
+		}
 		on() {}
 		once() {}
 		show() {}
 		focus() {}
 		restore() {}
+		setBackgroundColor(color) { this.options = { ...this.options, backgroundColor: color }; this.backgrounds = [...(this.backgrounds || []), color]; }
 		isMinimized() { return false; }
 		isDestroyed() { return false; }
 		close() {}
@@ -136,12 +167,16 @@ function createElectronStub() {
 		app: {
 			// Never settles: whatever the ready path does, it is not what these
 			// tests are about, and leaving it unrun keeps the load side-effect-free.
-			whenReady: () => new Promise(() => {}),
+			// `ready` is for the few that are about it. The ready path runs after
+			// loadMain has removed its require hook, so a `require` added there
+			// would get the real modules, `electron` included, not the stubs.
+			whenReady: () => (ready ? Promise.resolve() : new Promise(() => {})),
 			on(event, listener) {
 				if (!appEvents.has(event)) appEvents.set(event, []);
 				appEvents.get(event).push(listener);
 			},
-			quit() {},
+			quit() { calls.quit.push(true); },
+			relaunch(options) { calls.relaunch.push(options); },
 			exit() {},
 			getPath: () => os.tmpdir(),
 			getAppPath: () => path.join(SRC_DIR, '..'),
@@ -149,6 +184,7 @@ function createElectronStub() {
 			setName() {},
 			getVersion: () => '0.0.0-test',
 			getLocale: () => 'en-GB',
+			getPreferredSystemLanguages: () => ['en-GB'],
 			commandLine: { getSwitchValue: () => '' },
 			isPackaged: false,
 			// The `wpct://` registration (#464). The lock runs at module scope, so
@@ -166,6 +202,15 @@ function createElectronStub() {
 			isReady: () => true
 		},
 		BrowserWindow: BrowserWindowStub,
+		// The theme (#560): what main sets, and what Electron would then say of
+		// it. Under 'system' this machine is taken to be light.
+		nativeTheme: {
+			themeSource: 'system',
+			get shouldUseDarkColors() { return this.themeSource === 'dark'; },
+			on(event, listener) { nativeThemeListeners.push({ event, listener }); },
+			// What Electron would do: tell main the theme changed.
+			update() { for (const { event, listener } of nativeThemeListeners) if (event === 'updated') listener(); }
+		},
 		Menu: {
 			buildFromTemplate: (template) => ({ template }),
 			setApplicationMenu: (menu) => { calls.applicationMenu.push(menu); }
@@ -195,6 +240,13 @@ function createElectronStub() {
 			async openExternal(url) { calls.openExternal.push(url); },
 			async openPath(target) { calls.openPath.push(target); },
 			showItemInFolder(target) { calls.showItemInFolder.push(target); }
+		},
+		// What `createWindow` sizes the main window from (#555). A screen with
+		// less room than the window is designed for, in both directions, so a
+		// test that reads the window's options can tell the screen's numbers
+		// from the defaults.
+		screen: {
+			getPrimaryDisplay: () => ({ workAreaSize: { width: 1100, height: 720 } })
 		}
 	};
 
@@ -276,8 +328,8 @@ function spy(implementation = () => undefined) {
 
 // Returns the recorders plus `invoke`, which calls a handler the way ipcMain
 // would.
-function loadMain({ stubs = {} } = {}) {
-	const recorder = createElectronStub();
+function loadMain({ stubs = {}, ready = false } = {}) {
+	const recorder = createElectronStub({ ready });
 	const stubbed = new Map();
 
 	const originalLoad = Module._load;
@@ -334,7 +386,9 @@ function loadMain({ stubs = {} } = {}) {
 // logging is stubbed everywhere: electron-log resolves its file path through
 // `app.getPath`, which the electron stub only pretends to have, and a test has
 // no business writing to the contributor's log file either way.
-function silentLogging() {
+// `overrides` replaces any of the functions, for a test that reads what was
+// logged.
+function silentLogging(overrides = {}) {
 	return {
 		'./logging': {
 			initLogging: () => {},
@@ -342,7 +396,8 @@ function silentLogging() {
 			logChildOutput: () => {},
 			flushChildOutput: () => {},
 			logEvent: () => {},
-			logError: () => {}
+			logError: () => {},
+			...overrides
 		}
 	};
 }
@@ -387,6 +442,77 @@ test('url:open refuses a file: address and opens an http one', async () => {
 	assert.deepEqual(main.calls.openExternal, ['https://wordpress.org/']);
 });
 
+// --- the main window -> src/window-navigation.js ------------------------
+//
+// Not an IPC channel but the same gap, one step earlier: which page may use
+// the channels at all. The main window is the one with the preload bridge, so
+// a main window that stops being pinned to its own page leaves
+// window-navigation.js's suite green and the bridge open to whatever page the
+// window is sent to. The window is opened the way a `wpct://` link with no
+// window open opens one, which is the one road to `createWindow` that does not
+// go through `whenReady`.
+
+async function openMainWindow(main) {
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+	assert.equal(main.windows.length, 1);
+	return main.windows[0];
+}
+
+// The hand-off to the browser is a promise that the navigation events, being
+// synchronous, cannot wait for.
+const handedOff = () => new Promise((resolve) => setImmediate(resolve));
+
+// The end of the wire, with the real modules in place. It fails if the main
+// window stops asking window-navigation.js, and if what that module is given
+// to open a refused address with stops going through external-url.js.
+test('the main window leaves its page for nothing and opens no other, and only a web address reaches the browser', async () => {
+	const logEvent = spy();
+	const main = loadMain({ stubs: { './logging': { ...silentLogging()['./logging'], logEvent } } });
+	const win = await openMainWindow(main);
+
+	// A web address is refused the window and handed to the browser instead,
+	// by every road: a link, a redirect, a request for a new window.
+	assert.equal(win.emitNavigation('will-navigate', 'https://wordpress.org'), true);
+	assert.equal(win.emitNavigation('will-redirect', 'https://core.trac.wordpress.org/ticket/62281'), true);
+	assert.deepEqual(win.windowOpenHandler({ url: 'http://127.0.0.1:8881/wp-admin/' }), { action: 'deny' });
+	// Anything else is refused the window and goes nowhere at all.
+	assert.equal(win.emitNavigation('will-navigate', 'file:///etc/passwd'), true);
+	assert.deepEqual(win.windowOpenHandler({ url: 'file:///etc/hosts' }), { action: 'deny' });
+	await handedOff();
+
+	// The parsed href, as for `url:open`: these went through the same gate.
+	assert.deepEqual(main.calls.openExternal, [
+		'https://wordpress.org/',
+		'https://core.trac.wordpress.org/ticket/62281',
+		'http://127.0.0.1:8881/wp-admin/'
+	]);
+	// And the two it refused are in the log, not dropped.
+	const refusals = logEvent.calls.filter(([scope]) => scope === 'url').map(([, message]) => message);
+	assert.equal(refusals.length, 2);
+	assert.match(refusals[0], /file:\/\/\/etc\/passwd/);
+	assert.match(refusals[1], /file:\/\/\/etc\/hosts/);
+
+	// The one navigation it lets through is the page reloading itself.
+	assert.match(win.url, /renderer\/index\.html$/);
+	assert.equal(win.emitNavigation('will-navigate', win.url), false);
+});
+
+test('a browser that could not be opened for an address the main window refused is logged', async () => {
+	// Nothing awaits a navigation event, so nothing else is in a position to
+	// report this: unlogged, it is a link that did nothing and left no trace.
+	const logError = spy();
+	const main = loadMain({ stubs: { './logging': { ...silentLogging()['./logging'], logError } } });
+	main.electron.shell.openExternal = async () => { throw new Error('no application is registered'); };
+	const win = await openMainWindow(main);
+
+	assert.equal(win.emitNavigation('will-navigate', 'https://wordpress.org'), true);
+	await handedOff();
+
+	assert.equal(logError.calls.length, 1);
+	assert.equal(logError.calls[0][0], 'url');
+	assert.match(logError.calls[0][1], /https:\/\/wordpress\.org.*no application is registered/);
+});
+
 // The settings store is an ESM-only dependency loaded through a dynamic import,
 // which `Module._load` cannot intercept — so it lives behind src/settings-store.js
 // and this stands in for it. Values are held in a plain object the test can read
@@ -402,7 +528,7 @@ function fakeSettingsStore(initial = {}) {
 		get: (key) => structuredClone(values[key]),
 		set: (key, value) => { values[key] = value; }
 	};
-	return { values, stubs: { './settings-store': { getStore: async () => store } } };
+	return { values, stubs: { './settings-store': { getStore: async () => store, peekStore: () => store } } };
 }
 
 // --- sites:delete -> src/site-registry.js --------------------------------
@@ -1454,7 +1580,9 @@ test('a file that differs only in line endings is still no change (#311, #85)', 
 	const { patch } = await main.invoke('git:get-patch', dir);
 	const wide = await main.invoke('git:unsubmitted-work', dir);
 
-	assert.ok(patch.endsWith('No changes.'), JSON.stringify(patch));
+	// Empty, not a sentence: the pane says "No changes." in the contributor's
+	// language (#624).
+	assert.equal(patch, '');
 	assert.deepEqual(wide.files, []);
 	assert.equal(wide.changedCount, 0);
 });
@@ -1493,28 +1621,26 @@ test('a tree whose only change is binary still reports no changes (#85)', async 
 	// What the panel actually asks before offering Trac and the other
 	// destinations — the sentinel is how it is spelled, not what is meant.
 	assert.equal(require('../../src/renderer/diff-highlight.cjs').hasDiffLines(patch), false);
-	assert.ok(patch.endsWith('No changes.'), JSON.stringify(patch));
+	assert.ok(!patch.includes('No changes.'), JSON.stringify(patch));
 });
 
-// The other two entry points into the same patch path. They differ only in what
-// they do with the result — a window, or a save dialog — so what is checked here
-// is that they go through it at all rather than assembling a diff of their own.
-// A real repository rather than a path that is not one: reading the ticket's
-// base is the handler's first step (#308), and a directory that is not a
+// The other entry point into the same patch path. It differs only in what it
+// does with the result, a save dialog, so what is checked here is that it
+// goes through it at all rather than assembling a diff of its own. A real
+// repository rather than a path that is not one: reading the ticket's base
+// is the handler's first step (#308), and a directory that is not a
 // repository now stops there with "the base could not be read" instead of
 // reaching the patch path this test is about.
-test('git:create-patch and git:save-patch generate the patch the same way', async (t) => {
+test('git:save-patch goes through the patch path, from the base the walk compares against', async (t) => {
 	const dir = await fixtureRepo(t);
-	for (const channel of ['git:create-patch', 'git:save-patch']) {
-		// Throwing ends the handler at its first read, the base the walk
-		// compares against — the same one for both channels.
-		const resolveRef = spy(async () => { throw new Error('not a repository'); });
-		const main = loadMain({ stubs: { ...silentLogging(), './git-read.cjs': { resolveRef } } });
+	// A base that cannot be read ends the handler in the shared walk, before
+	// any diff: reaching `resolveRef(dir, 'HEAD')` puts it on that path.
+	const resolveRef = spy(async () => { throw new Error('not a repository'); });
+	const main = loadMain({ stubs: { ...silentLogging(), './git-read.cjs': { resolveRef } } });
 
-		await main.invoke(channel, dir);
+	await main.invoke('git:save-patch', dir);
 
-		assert.deepEqual(resolveRef.calls[0], [dir, 'HEAD'], channel);
-	}
+	assert.deepEqual(resolveRef.calls[0], [dir, 'HEAD']);
 });
 
 // --- git:save-patch -> src/patch-provenance.cjs (#166) -------------------
@@ -1713,6 +1839,28 @@ test('git:save-patch refuses submission destinations while a patch is applied, b
 	assert.equal(main.calls.showSaveDialog.length, 1, 'an unattributed backup remains available');
 });
 
+// The refusal is shown in the patch pane as it is, so it is said whole in the
+// locale main applied, with the patch's name put into it, or a sentence of its
+// own for a patch with no name on record (#630).
+test('git:save-patch words its refusal in the locale main applied, with and without the patch\'s name (#630)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	const said = [];
+	for (const appliedPatch of [{ label: 'PR #6717', text: 'STORED' }, { text: 'STORED' }]) {
+		const dir = await fixtureRepo(t);
+		const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { tracTicket: 62281, appliedPatch } } });
+		const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+		said.push((await main.invoke('git:save-patch', dir, { handoff: true })).error);
+	}
+
+	assert.deepEqual(said, [
+		pseudoLocalize('%s is applied. Revert it before submitting this checkout as your own work.').replace('%s', 'PR #6717'),
+		pseudoLocalize('The patch you applied is applied. Revert it before submitting this checkout as your own work.')
+	]);
+});
+
 // --- provenance:* -> src/wporg-handle.cjs + src/patch-provenance.cjs (#166) ---
 
 // The handle becomes a filename and a line in a file other people read, so it
@@ -1796,6 +1944,258 @@ test('provenance:get reads the remembered handle and event', async () => {
 		handle: 'janedoe',
 		event: 'WordCamp Europe 2026'
 	});
+});
+
+// --- settings:* -> src/settings.cjs (#559) --------------------------------
+
+// What a setting is and what it accepts is the module's; the handler is the
+// store and the disk. A read goes through the module too, so a value of the
+// wrong kind in the store is answered with the fallback and not sent as is.
+test('settings:get reads the store through settings.cjs', async () => {
+	const readSettings = spy(() => ({ newSiteLocation: '/sites' }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ preferences: { newSiteLocation: '/sites', wporgHandle: 'janedoe' } }).stubs,
+			'./settings.cjs': { readSettings, acceptSetting: () => { throw new Error('not asked'); } }
+		}
+	});
+
+	assert.deepEqual(await main.invoke('settings:get'), { ok: true, settings: { newSiteLocation: '/sites' } });
+	assert.deepEqual(readSettings.calls, [[{ newSiteLocation: '/sites', wporgHandle: 'janedoe' }]]);
+});
+
+test('settings:set asks settings.cjs before writing, writes what it returned, and answers with every setting', async () => {
+	const acceptSetting = spy(() => ({ ok: true, value: '/sites' }));
+	const readSettings = spy((preferences) => ({ newSiteLocation: preferences.newSiteLocation }));
+	const settings = fakeSettingsStore({ preferences: { wporgHandle: 'janedoe' } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './settings.cjs': { readSettings, acceptSetting } }
+	});
+
+	const result = await main.invoke('settings:set', 'newSiteLocation', '/sites/');
+
+	assert.deepEqual(result, { ok: true, settings: { newSiteLocation: '/sites' } });
+	assert.equal(acceptSetting.calls.length, 1);
+	const [key, value, deps] = acceptSetting.calls[0];
+	assert.equal(key, 'newSiteLocation');
+	assert.equal(value, '/sites/');
+	assert.equal(typeof deps.isAbsolute, 'function');
+	assert.equal(typeof deps.isDirectory, 'function');
+	// What the module returned, not what was sent; and the field beside it kept.
+	assert.deepEqual(settings.values.preferences, { wporgHandle: 'janedoe', newSiteLocation: '/sites' });
+});
+
+test('settings:set writes nothing on a refusal, and passes the refusal on', async () => {
+	const acceptSetting = spy(() => ({ ok: false, error: 'nope' }));
+	const settings = fakeSettingsStore();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './settings.cjs': { readSettings: () => ({}), acceptSetting } }
+	});
+
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', '/gone'), { ok: false, error: 'nope' });
+	assert.equal(settings.values.preferences, undefined, 'a refused setting must not be written');
+});
+
+// The disk, as the handler asks it on the module's behalf: a folder that is
+// there is kept, one that is not is refused. The real module, on a real
+// folder.
+test('settings:set asks the disk whether the folder is there', async (t) => {
+	const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-settings-'));
+	t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+	const settings = fakeSettingsStore();
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder } });
+	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
+	assert.equal(gone.ok, false);
+	assert.equal(settings.values.preferences.newSiteLocation, folder);
+	const file = path.join(folder, 'a-file');
+	fs.writeFileSync(file, '');
+	assert.equal((await main.invoke('settings:set', 'newSiteLocation', file)).ok, false, 'a file is not a folder');
+});
+
+test('settings:set refuses a key that is not a setting without writing, whatever the value', async (t) => {
+	const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-settings-'));
+	t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+	const settings = fakeSettingsStore({ preferences: { wporgHandle: 'janedoe' } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.equal((await main.invoke('settings:set', 'editor', folder)).ok, false);
+	assert.equal((await main.invoke('settings:set', '__proto__', folder)).ok, false);
+	assert.equal((await main.invoke('settings:set', 'newSiteLocation', 'sites')).ok, false, 'a path that is not a full one');
+	assert.deepEqual(settings.values.preferences, { wporgHandle: 'janedoe' });
+});
+
+// The theme (#560) is Electron's to apply: main gives it `nativeTheme`, and
+// Chromium answers the page's `prefers-color-scheme` from that.
+test('settings:set gives the theme to Electron as it is kept, and the fallback when it is forgotten (#560)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.equal((await main.invoke('settings:set', 'theme', 'dark')).settings.theme, 'dark');
+	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
+	assert.equal(settings.values.preferences.theme, 'dark');
+
+	// A refusal leaves it.
+	assert.equal((await main.invoke('settings:set', 'theme', 'blue')).ok, false);
+	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
+
+	assert.equal((await main.invoke('settings:set', 'theme', null)).settings.theme, 'system');
+	assert.equal(main.electron.nativeTheme.themeSource, 'system');
+
+	// Another setting does not touch it.
+	await main.invoke('settings:set', 'theme', 'light');
+	await main.invoke('settings:set', 'wpDebug', false);
+	assert.equal(main.electron.nativeTheme.themeSource, 'light');
+});
+
+// A custom theme (#560) is given to Electron as the scheme its background
+// comes to, so the native controls match the page, and the window is made
+// and painted in that background, not the standard theme's.
+test('settings:set gives Electron a custom theme\'s scheme, and paints the window its background (#560)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	await menuBuilt(main);
+	const [window] = main.windows;
+
+	await main.invoke('settings:set', 'customBackground', '#102030');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND], 'a colour of a theme that is not the one in use changes nothing');
+	await main.invoke('settings:set', 'theme', 'custom');
+	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, '#102030']);
+
+	await main.invoke('settings:set', 'customBackground', '#FFF8E1');
+	assert.equal(main.electron.nativeTheme.themeSource, 'light');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, '#102030', '#fff8e1']);
+	assert.equal(settings.values.preferences.customBackground, '#fff8e1', 'kept as the settings keep a colour');
+
+	// The primary colour is the page's; the window's colour is unchanged.
+	await main.invoke('settings:set', 'customPrimary', '#ff8800');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, '#102030', '#fff8e1', '#fff8e1']);
+	assert.equal((await main.invoke('settings:set', 'customPrimary', 'orange')).ok, false);
+	assert.equal(settings.values.preferences.customPrimary, '#ff8800');
+
+	// Started with a custom theme kept, the main window is made in its
+	// background, and the Trac window is opened in it too. The handler reads
+	// the site's record and never its folder, so a path is enough.
+	const openAndScrape = spy(async () => ({ status: 'ok', items: [], ticket: {} }));
+	const custom = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { tracTicket: 49661 } }, preferences: { theme: 'custom', customBackground: '#102030' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null }, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+	await menuBuilt(custom);
+	assert.equal(custom.windows[0].options.backgroundColor, '#102030', 'the main window is made in the custom background');
+	await custom.invoke('trac:list-attachments', '/sites/wp');
+	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: '#102030' }]], 'the Trac window is opened in it');
+});
+
+test('the ready path gives Electron the stored theme before the window is made, and makes the window in it (#560)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { theme: 'dark' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	await menuBuilt(main);
+
+	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
+	assert.equal(main.windows.length, 1);
+	assert.equal(main.windows[0].options.backgroundColor, DARK_BACKGROUND, 'a dark window is made dark, not white until its page paints');
+});
+
+// The colour the window was made with shows wherever its page has not
+// painted yet, so it follows the theme: the setting gives it as it is
+// changed, without waiting for Electron's `updated`, which is not promised
+// for a change to 'system'; and `updated` gives it when the system's theme
+// changes under 'system'.
+test('the window is given the colour of the theme as the setting changes, and as the system\'s theme does (#560)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { theme: 'dark' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	await menuBuilt(main);
+	const [window] = main.windows;
+	// Made in the stored theme, and not painted again for it: the ready path
+	// reads the store before it makes the window.
+	assert.equal(window.options.backgroundColor, DARK_BACKGROUND);
+	assert.equal(window.backgrounds, undefined);
+
+	// The setting, with no event from Electron.
+	await main.invoke('settings:set', 'theme', 'light');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND]);
+	await main.invoke('settings:set', 'theme', 'system');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, LIGHT_BACKGROUND], 'under system this machine is light');
+
+	// The system's theme changing under 'system': Electron says so, and the
+	// window follows what it now says of the colours.
+	Object.defineProperty(main.electron.nativeTheme, 'shouldUseDarkColors', { value: true, configurable: true });
+	main.electron.nativeTheme.update();
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, LIGHT_BACKGROUND, DARK_BACKGROUND]);
+
+	// A window that is gone is left alone.
+	window.isDestroyed = () => true;
+	main.electron.nativeTheme.update();
+	await main.invoke('settings:set', 'theme', 'light');
+	assert.equal(window.backgrounds.length, 3);
+});
+
+test('the ready path makes a light window light, and a store that cannot be read leaves the system\'s theme (#560)', async () => {
+	const light = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { theme: 'light' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	await menuBuilt(light);
+	assert.equal(light.electron.nativeTheme.themeSource, 'light');
+	assert.equal(light.windows[0].options.backgroundColor, LIGHT_BACKGROUND);
+
+	const logged = [];
+	const broken = loadMain({
+		ready: true,
+		stubs: {
+			...silentLogging({ logError: (scope, message) => logged.push([scope, message]) }),
+			'./settings-store': { getStore: async () => { throw new Error('settings.json is not JSON'); }, peekStore: () => null },
+			'./i18n.cjs': { resolveCatalog: async () => null }
+		}
+	});
+	await menuBuilt(broken);
+	assert.equal(broken.electron.nativeTheme.themeSource, 'system');
+	assert.equal(broken.windows.length, 1, 'the window still opens');
+	assert.ok(logged.some(([scope, message]) => scope === 'theme' && message.includes('settings.json is not JSON')), `logged: ${JSON.stringify(logged)}`);
+});
+
+// The menu's Settings… reaches the main window and brings it forward, and
+// not whichever window Electron lists first: the Trac window is one too.
+async function menuBuilt(main) {
+	for (let turn = 0; turn < 50 && main.calls.applicationMenu.length === 0; turn++) {
+		await new Promise((resolve) => setImmediate(resolve));
+	}
+	assert.equal(main.calls.applicationMenu.length, 1, 'the ready path built the menu');
+	const item = main.calls.applicationMenu[0].template
+		.flatMap((menu) => menu.submenu || [])
+		.find((entry) => entry.id === 'settings');
+	assert.ok(item, 'the menu has a Settings… item');
+	return item;
+}
+
+test('the menu\'s Settings… opens the dialog in the main window, listed first or not (#559)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	const settings = await menuBuilt(main);
+	assert.equal(main.windows.length, 1, 'the ready path opened the main window');
+	const [mainWindow] = main.windows;
+	const brought = [];
+	mainWindow.isMinimized = () => true;
+	mainWindow.restore = () => brought.push('restore');
+	mainWindow.show = () => brought.push('show');
+	mainWindow.focus = () => brought.push('focus');
+	// The Trac window, and Electron lists it first.
+	const trac = new main.electron.BrowserWindow({});
+	main.windows.reverse();
+
+	settings.click();
+
+	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }]);
+	assert.deepEqual(trac.sent, []);
+	assert.deepEqual(brought, ['restore', 'show', 'focus']);
+});
+
+test('the menu\'s Settings… with the main window closed opens one and sends nothing into it (#559)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	const settings = await menuBuilt(main);
+	const [closed] = main.windows;
+	closed.isDestroyed = () => true;
+
+	settings.click();
+
+	assert.equal(main.windows.length, 2, 'a window was opened');
+	assert.deepEqual(closed.sent, []);
+	assert.deepEqual(main.windows[1].sent, [], 'a page that has not subscribed is sent nothing');
 });
 
 // --- main must not take the windowsHide patch (#181) ---------------------
@@ -2011,6 +2411,31 @@ test('npm:install asks npm-runner whether an engine failure is worth retrying', 
 	// Saying yes has to actually start a second attempt — the retry is the
 	// module's decision, but only the handler can act on it (#54).
 	assert.equal(cp.spawned.length, 2);
+});
+
+// The notice the terminal gets before an install is retried with engine
+// checks relaxed is said in the locale main applied, not the one it loaded in.
+test('npm:install says it is retrying with engine checks relaxed in the locale main applied (#627)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { shouldRetryWithRelaxedEngines: () => true }
+		}
+	});
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	const event = createIpcEvent();
+	await main.invokeWith('npm:install', event, '/sites/wp');
+	cp.children[0].emit('close', 1, null);
+
+	const logs = event.sent.filter((m) => m.channel === 'npm:install:log').map((m) => m.payload.data).join('');
+	assert.ok(logs.includes(pseudoLocalize('This site requires a newer Node.js than this app bundles.')), logs);
+	assert.ok(logs.includes(pseudoLocalize('Retrying with engine checks relaxed…')), logs);
 });
 
 test('npm:run-script spawns the script runner through npm-runner too', async () => {
@@ -2402,6 +2827,103 @@ test('quitting sweeps every kind of running child through kill-tree', async (t) 
 	}
 });
 
+// --- the quit remembers what to start again -> src/resume-sites.cjs (#559) ---
+
+// With the quit setting on 'restart', what is running is written down before
+// the sweep: the sites with a server, and those running their project's
+// watch. The decision of which script is a watch is the module's; what is
+// here is that the handler hands it what main tracks, and writes the answer.
+test('before-quit writes the sites to start again when the quit setting says restart, and nothing otherwise', async (t) => {
+	for (const quitBehavior of ['restart', 'stop']) {
+		const cp = stubbedSpawn();
+		const settings = fakeSettingsStore({
+			sites: ['/sites/wp', '/sites/gb'],
+			siteMeta: { '/sites/wp': {}, '/sites/gb': { projectType: 'gutenberg' } },
+			preferences: { quitBehavior, wporgHandle: 'janedoe' }
+		});
+		const main = loadMain({
+			stubs: {
+				...silentLogging(),
+				...noSmtpServer(),
+				...settings.stubs,
+				'child_process': { spawn: cp.spawn },
+				'./npm-runner': { buildChildEnv: () => ({}) },
+				'./kill-tree': { killChildTree: () => {} }
+			}
+		});
+		// A Gutenberg site running its watch, a Core site running a build, and
+		// a Core site's server.
+		await main.invoke('npm:run-script', '/sites/gb', 'dev');
+		await main.invoke('npm:run-script', '/sites/wp', 'build');
+		const pendingServer = main.invoke('playground:start', '/sites/wp');
+		await waitForSpawnCount(cp, 3);
+		t.after(async () => {
+			cp.children[2].emit('close', 0, null);
+			await pendingServer;
+		});
+
+		await main.emitAppEvent('before-quit');
+
+		if (quitBehavior === 'restart') {
+			assert.deepEqual(settings.values.preferences.resume, { servers: ['/sites/wp'], watches: ['/sites/gb'] });
+			assert.equal(settings.values.preferences.wporgHandle, 'janedoe', 'the rest of the preferences are kept');
+		} else {
+			assert.equal('resume' in settings.values.preferences, false);
+		}
+	}
+});
+
+test('before-quit sweeps every child even when what is running cannot be written down, and says so in the log', async (t) => {
+	const cp = stubbedSpawn();
+	const killChildTree = spy(() => {});
+	const logError = spy();
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} }, preferences: { quitBehavior: 'restart' } });
+	const store = settings.stubs['./settings-store'];
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./logging': { ...silentLogging()['./logging'], logError },
+			...noSmtpServer(),
+			'./settings-store': {
+				getStore: store.getStore,
+				peekStore: () => ({ get: (key) => structuredClone(settings.values[key]), set: () => { throw new Error('EPERM: settings.json is locked'); } })
+			},
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv: () => ({}) },
+			'./kill-tree': { killChildTree }
+		}
+	});
+	await main.invoke('npm:run-script', '/sites/wp', 'build');
+	const pendingServer = main.invoke('playground:start', '/sites/wp');
+	await waitForSpawnCount(cp, 2);
+	t.after(async () => {
+		cp.children[1].emit('close', 0, null);
+		await pendingServer;
+	});
+
+	await main.emitAppEvent('before-quit');
+
+	assert.equal(killChildTree.calls.length, cp.children.length, 'the sweep reached every child');
+	assert.equal(logError.calls.length, 1);
+	assert.equal(logError.calls[0][0], 'quit');
+	assert.match(logError.calls[0][1], /settings\.json is locked/);
+});
+
+test('sites:resume hands the window the list once, and forgets it, only while the setting still says restart', async () => {
+	const settings = fakeSettingsStore({ preferences: { quitBehavior: 'restart', resume: { servers: ['/sites/wp'], watches: ['/sites/gb'] }, locale: 'de' } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.deepEqual(await main.invoke('sites:resume'), { ok: true, servers: ['/sites/wp'], watches: ['/sites/gb'] });
+	assert.equal('resume' in settings.values.preferences, false, 'read once');
+	assert.equal(settings.values.preferences.locale, 'de');
+	assert.deepEqual(await main.invoke('sites:resume'), { ok: true, servers: [], watches: [] });
+
+	const stopped = fakeSettingsStore({ preferences: { quitBehavior: 'stop', resume: { servers: ['/sites/wp'], watches: [] } } });
+	const other = loadMain({ stubs: { ...silentLogging(), ...stopped.stubs } });
+	assert.deepEqual(await other.invoke('sites:resume'), { ok: true, servers: [], watches: [] });
+	assert.equal('resume' in stopped.values.preferences, false, 'a list left under restart is forgotten under stop');
+});
+
 // --- playground:* / playground-web:* -> the same two modules --------------
 
 // Starting the per-site SMTP server ends by writing its port to electron-store,
@@ -2485,9 +3007,10 @@ test('playground:start spawns the server runner with the environment npm-runner 
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_PORT, '25');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground:start');
 	// The runner is told what to serve as one JSON argument: a Core site's
-	// build/ as the docroot, run from that directory as before (#251).
+	// build/ as the docroot, run from that directory as before (#251), and
+	// what the settings hold for a server, at their fallbacks here (#559).
 	const serve = JSON.parse(cp.spawned[0].args[1]);
-	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build') });
+	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build'), phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true } });
 	assert.equal(cp.spawned[0].options.cwd, path.join('/sites/wp', 'build'));
 });
 
@@ -2508,9 +3031,51 @@ test('playground:start serves a Gutenberg site as a plugin mounted from the chec
 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
 	const serve = JSON.parse(cp.spawned[0].args[1]);
-	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg' });
+	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg', phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true } });
 	// There is no build/ docroot to run from: the checkout is the plugin.
 	assert.equal(cp.spawned[0].options.cwd, '/sites/gb');
+});
+
+// The settings reach the server through the config the runner is handed
+// (#559), read at each start; a version the bundled Playground does not have,
+// left in the store by a bump, is passed over for the fallback.
+test('playground:start hands the runner the PHP version and the debug flags from the settings', async (t) => {
+	const settings = fakeSettingsStore({ preferences: { phpVersion: '8.4', wpDebug: false } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/wp'));
+
+	const serve = JSON.parse(cp.spawned[0].args[1]);
+	assert.equal(serve.phpVersion, '8.4');
+	assert.deepEqual(serve.debug, { wpDebug: false, scriptDebug: true });
+});
+
+test('playground:start passes over a stored PHP version the bundled Playground no longer has', async (t) => {
+	const settings = fakeSettingsStore({ preferences: { phpVersion: '5.6' } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/wp'));
+
+	assert.equal(JSON.parse(cp.spawned[0].args[1]).phpVersion, '8.3');
+});
+
+test('playground:php-versions lists what the bundled Playground has, and settings:set keeps only one of those (#559)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const { versions } = await main.invoke('playground:php-versions');
+	assert.ok(versions.includes('8.3'), 'the fallback is one the bundle has');
+	assert.deepEqual(await main.invoke('settings:set', 'phpVersion', versions[0]), { ok: true, settings: { ...(await main.invoke('settings:get')).settings, phpVersion: versions[0] } });
+	assert.equal((await main.invoke('settings:set', 'phpVersion', '5.6')).ok, false);
+	assert.equal(settings.values.preferences.phpVersion, versions[0]);
+	assert.deepEqual(await main.invoke('settings:set', 'wpDebug', false), { ok: true, settings: { ...(await main.invoke('settings:get')).settings, wpDebug: false } });
+	assert.equal((await main.invoke('settings:set', 'wpDebug', 'off')).ok, false);
 });
 
 test('playground-web:start spawns its runner through npm-runner too', async (t) => {
@@ -2556,6 +3121,63 @@ test('playground:stop ends the server tree rather than signalling the child', as
 	// #83).
 	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
 	assert.deepEqual(cp.children[0].kill.calls, []);
+});
+
+// A server that dies before it reports a URL fails the start with main's own
+// sentence, which the window shows after "Dev server failed to start:". It is
+// said in the locale main applied at startup, with the code put into it.
+test('playground:start words a server that died before its URL in the locale main applied (#627)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			...fakeSettingsStore().stubs,
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree: () => {} }
+		}
+	});
+
+	const pending = main.invoke('playground:start', '/sites/wp');
+	await waitForSpawnCount(cp, 1);
+	cp.children[0].emit('close', 1, 'SIGTERM');
+
+	const res = await pending;
+	assert.equal(res.ok, false);
+	assert.equal(res.error, pseudoLocalize('Server exited with code %1$s (signal %2$s) before reporting a URL').replace('%1$s', '1').replace('%2$s', 'SIGTERM'));
+});
+
+// Where the web server cannot start, the window shows main's sentence as it
+// is, so it is said in the locale main applied: with no folder to serve, and
+// with a server that exits before it is ready (#630).
+test('playground-web:start words its failures in the locale main applied (#630)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	const noFolder = loadMain({ stubs: { ...silentLogging(), ...noWebProbe(), 'fs': { existsSync: () => false } } });
+	const missing = await noFolder.invoke('playground-web:start');
+	assert.deepEqual(missing, { ok: false, error: pseudoLocalize('%s directory not found.').replace('%s', 'local-playground-web') });
+
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noWebProbe(),
+			...webDirOnDisk(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree: () => {} }
+		}
+	});
+	const pending = main.invoke('playground-web:start');
+	await waitForSpawnCount(cp, 1);
+	cp.children[0].emit('close', 1, null);
+	assert.deepEqual(await pending, { ok: false, error: pseudoLocalize('Server exited before becoming ready') });
 });
 
 test('playground-web:stop ends the web server tree rather than signalling the child', async (t) => {
@@ -2890,6 +3512,35 @@ test('git:apply-patch refuses a second patch while one is already applied', asyn
 	assert.deepEqual(applyPatchToDir.calls, []);
 });
 
+test('git:apply-patch says its refusals and its progress in the locale main applied (#628)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { sprintf } = require('@wordpress/i18n');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	const pseudo = (format, ...args) => sprintf(pseudoLocalize(format), ...args);
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php'], skipped: [] }));
+
+	// A second patch while one is applied, with the first one's name in it.
+	const busy = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { appliedPatch: { label: 'first.diff', text: 'X' } } } });
+	const refusing = loadMain({ stubs: { ...silentLogging(), ...busy.stubs, './patch-apply': { applyPatchToDir } } });
+	const second = createIpcEvent();
+	const { applyId: secondId } = await refusing.invokeWith('git:apply-patch', second, '/sites/wp', { patchText: 'SECOND' });
+	assert.equal((await applyDone(second, secondId)).error, pseudo('%s is already applied. Revert it before applying another patch.', 'first.diff'));
+
+	// A revert with nothing stored, then an apply and the line that opens it.
+	const empty = fakeSettingsStore({ sites: ['/sites/wp'] });
+	const main = loadMain({ stubs: { ...silentLogging(), ...empty.stubs, './patch-apply': { applyPatchToDir } } });
+	const revert = createIpcEvent();
+	const { applyId: revertId } = await main.invokeWith('git:apply-patch', revert, '/sites/wp', { reverse: true });
+	assert.equal((await applyDone(revert, revertId)).error, pseudoLocalize('There is no stored patch to revert.'));
+	const apply = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', apply, '/sites/wp', { patchText: 'P', label: 'mine.diff' });
+	assert.equal((await applyDone(apply, applyId)).ok, true);
+	const logged = apply.sent.filter((s) => s.channel === 'git:apply-patch:log').map((s) => s.payload.data).join('');
+	assert.ok(logged.includes(pseudo('Applying %s…', 'mine.diff')), logged);
+});
+
 test('git:apply-patch reverts using the stored patch text and clears the record', async () => {
 	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php'], skipped: [] }));
 	const settings = fakeSettingsStore({
@@ -3050,7 +3701,7 @@ test('trac:list-attachments opens the Trac window for a Trac site, and refuses a
 	const coreMain = loadMain({ stubs: { ...silentLogging(), ...coreSettings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
 	const read = await coreMain.invoke('trac:list-attachments', core);
 	assert.equal(read.status, 'ok');
-	assert.deepEqual(openAndScrape.calls, [[49661]]);
+	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: LIGHT_BACKGROUND }]], 'opened in the colour of the app\'s theme');
 });
 
 // git:list-ticket-patches reads the stored ticket, then delegates to github-prs
@@ -3891,6 +4542,48 @@ test('git:update-trunk says where the work went when the update fails (issue #10
 		event.sent.some((m) => m.channel === 'git:update-trunk:log' && /is safe/.test(m.payload.data)),
 		'the contributor is told their work is parked on the branch, not lost'
 	);
+});
+
+// The lines the update's failure prints in the terminal are main's, and said
+// in the locale it applied: one sentence for the stage it failed in, which is
+// a code, and one for where the parked work is, with the error, the ticket and
+// the branch put into them.
+test('git:update-trunk says its failure, and where the work went, in the locale main applied (#627)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	let onTrunk = false;
+	const switchToBranch = spy(async () => { onTrunk = true; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => (onTrunk ? 'trunk' : 'ticket/59234'));
+	const updateToLatestTrunk = spy(async () => { throw Object.assign(new Error('network is down'), { stage: 'fetch' }); });
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 59234,
+				currentBranch: 'ticket/59234',
+				branches: { 'ticket/59234': { tracTicket: 59234, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await new Promise((resolve) => setImmediate(resolve));
+
+	const logs = event.sent.filter((m) => m.channel === 'git:update-trunk:log').map((m) => m.payload.data).join('');
+	assert.ok(logs.includes(pseudoLocalize('Parking your work on %s before updating…').replace('%s', 'ticket/59234')), logs);
+	assert.ok(logs.includes(pseudoLocalize('Update failed during fetch: %s').replace('%s', 'network is down')), logs);
+	assert.ok(logs.includes(pseudoLocalize('Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.').replace('%1$s', '59234').replace('%2$s', 'ticket/59234')), logs);
 });
 
 // --- Ticket branches (#108) ----------------------------------------------
@@ -5671,6 +6364,116 @@ test('wp-debug:start answers with the log path', async () => {
 	assert.equal(started.filePath, path.join(SITE, 'build', 'wp-content', 'debug.log'));
 });
 
+// The file the tail reads, with the watchers it attaches and the streams it
+// opens stood in for, so a watcher's event can be delivered with the file in
+// whatever state the test says. A real fs.watch would make the order of the
+// events the platform's business; here it is the test's.
+function fakeTailedFile(logPath, size) {
+	const file = { size, exists: true, watchers: [], ranges: [] };
+	const stubs = {
+		'fs': {
+			existsSync: (p) => (p === logPath ? file.exists : fs.existsSync(p)),
+			statSync: (p, ...rest) => {
+				if (p !== logPath) return fs.statSync(p, ...rest);
+				if (!file.exists) throw Object.assign(new Error(`ENOENT: ${logPath}`), { code: 'ENOENT' });
+				return { size: file.size };
+			},
+			createReadStream: (p, range) => {
+				if (p !== logPath) return fs.createReadStream(p, range);
+				file.ranges.push(range);
+				const stream = new EventEmitter();
+				setImmediate(() => {
+					stream.emit('data', Buffer.alloc(range.end - range.start + 1, 'x'));
+					stream.emit('end');
+				});
+				return stream;
+			},
+			watch: (p, listener) => {
+				const watcher = { path: p, listener, closed: false, close() { this.closed = true; } };
+				file.watchers.push(watcher);
+				return watcher;
+			}
+		}
+	};
+	// The one watcher still open on a path, which is where the next event goes.
+	const watcherOn = (p) => file.watchers.filter((w) => w.path === p && !w.closed);
+	return { file, stubs, watcherOn };
+}
+
+const toldOf = (event) => event.sent.filter((s) => s.channel === 'wp:debug-log:data').map((s) => s.payload);
+const bytesTold = (event) => toldOf(event).filter((p) => !p.backlog || !p.data.startsWith('——')).reduce((n, p) => n + p.data.length, 0);
+const turn = () => new Promise((resolve) => setImmediate(resolve));
+
+// An editor saving debug.log writes a new file at the old path, and the watcher
+// on the old one reports 'rename' with the file still there. The lines it
+// already had were shown once; only what the save added is news. Replaying the
+// file from the start showed every line twice and counted them all as unseen.
+test('wp-debug:start carries a debug.log replaced under the tail on from where it stopped, not from its start', async () => {
+	const logPath = path.join(SITE, 'build', 'wp-content', 'debug.log');
+	const { file, stubs, watcherOn } = fakeTailedFile(logPath, 20);
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, ...stubs } });
+	const event = createIpcEvent();
+
+	await main.invokeWith('wp-debug:start', event, SITE);
+	await turn();
+	assert.deepEqual(file.ranges, [{ start: 0, end: 19 }], 'the file as found is replayed whole, to the size it had');
+	assert.equal(watcherOn(logPath).length, 1);
+
+	// Saved over with one more line, which is what the watcher on the old file
+	// sees as a rename.
+	file.size = 27;
+	const [before] = watcherOn(logPath);
+	before.listener('rename');
+	await turn();
+
+	assert.deepEqual(file.ranges.at(-1), { start: 20, end: 26 }, 'the replaced file was read from its start again');
+	assert.equal(bytesTold(event), 27, 'a byte of the file was told twice');
+	assert.equal(before.closed, true, 'the watcher on the old file was left open');
+	assert.equal(watcherOn(logPath).length, 1, 'the new file is not watched, or is watched twice');
+	// And what the new file's lines are: news, without the line that says an
+	// earlier run ends, which was said once under the replay.
+	const told = toldOf(event);
+	assert.equal(told.at(-1).backlog, false);
+	assert.equal(told.filter((p) => p.backlog && p.data.startsWith('——')).length, 1);
+
+	// Saved again without a change: nothing to show.
+	watcherOn(logPath)[0].listener('rename');
+	await turn();
+	assert.equal(file.ranges.length, 2, 'an unchanged file was read again');
+	assert.equal(bytesTold(event), 27);
+});
+
+// `grunt clean` removes the file; what appears at the path later is a new file,
+// read whole — the earlier offset would skip its first lines. The new file is
+// longer than the old one on purpose: a shorter one is read from its start by
+// either rule, and the test would be green without the offset being forgotten.
+test('wp-debug:start reads a debug.log removed under the tail whole when a file comes back', async () => {
+	const logPath = path.join(SITE, 'build', 'wp-content', 'debug.log');
+	const { file, stubs, watcherOn } = fakeTailedFile(logPath, 20);
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, ...stubs } });
+	const event = createIpcEvent();
+
+	await main.invokeWith('wp-debug:start', event, SITE);
+	await turn();
+
+	file.exists = false;
+	watcherOn(logPath)[0].listener('rename');
+	await turn();
+	assert.equal(watcherOn(logPath).length, 0, 'a file that is gone is still watched');
+	assert.equal(watcherOn(path.dirname(logPath)).length, 1, 'the folder is not watched for the file to come back');
+	assert.equal(file.ranges.length, 1, 'a file that is gone was read');
+
+	file.exists = true;
+	file.size = 25;
+	watcherOn(path.dirname(logPath))[0].listener('rename', 'debug.log');
+	await turn();
+
+	assert.deepEqual(file.ranges.at(-1), { start: 0, end: 24 }, 'the new file was read from the old offset');
+	assert.equal(toldOf(event).at(-1).backlog, false, 'the new file\'s lines were told as an earlier run\'s');
+	assert.equal(watcherOn(logPath).length, 1);
+	assert.equal(watcherOn(path.dirname(logPath)).length, 0, 'the folder is still watched with the file back');
+});
+
 // --- opening a pull request (#167) ---------------------------------------
 
 // Sign-in is two-legged: the handler returns as soon as there is a code to
@@ -6095,6 +6898,20 @@ test('a ticket with no window open opens one, and reaches its page only once tha
 	assert.deepEqual(main.windows[0].sent, [{ channel: 'deep-link:ticket', payload: { ticket: 62281 } }]);
 });
 
+test('the main window is sized from the primary screen\'s work area, with a minimum (#555)', async () => {
+	// The arithmetic is window-size.cjs's, with its own suite. This is that
+	// `createWindow` asks the screen and gives the window what comes back: the
+	// stub's screen is smaller than the 1280×800 the shell is designed for, so
+	// a window opened at the defaults, or at the old fixed size, fails here.
+	const main = loadMain({ stubs: silentLogging() });
+
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+
+	assert.equal(main.windows.length, 1);
+	const { width, height, minWidth, minHeight } = main.windows[0].options;
+	assert.deepEqual({ width, height, minWidth, minHeight }, { width: 1100, height: 720, minWidth: 800, minHeight: 600 });
+});
+
 test('a refused address opens no window and sends nothing (#464)', async () => {
 	// The other half of "nothing happens until the address parses": any page can
 	// navigate to this scheme, so an address that is not a ticket must not even
@@ -6157,19 +6974,123 @@ test('a second instance with an address delivers it, without one it only shows t
 	assert.deepEqual(main.windows[0].sent.length, 1, 'and nothing more to deliver');
 });
 
-test('i18n:locale asks i18n.cjs for the catalog of the locale Electron reports', async () => {
-	const resolveCatalog = spy(async () => ({ 'No sites yet.': ['Aucun site.'] }));
-	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
+test('i18n:locale asks i18n.cjs for the catalog of the OS languages, then of the one Electron reports', async () => {
+	const resolveCatalog = spy(async () => ({ locale: 'es-MX', messages: { 'No sites yet.': ['Aún no hay sitios.'] } }));
+	// With no language set in the settings (#559), the OS's are asked.
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog } } });
+	// Chromium folds Spanish (Mexico) into es-419; the OS list does not (#584).
+	main.electron.app.getPreferredSystemLanguages = () => ['es-MX', 'en-US'];
+	main.electron.app.getLocale = () => 'es-419';
 
 	const reply = await main.invoke('i18n:locale');
 
 	assert.equal(resolveCatalog.calls.length, 1);
-	const [locale, dir, log] = resolveCatalog.calls[0];
-	assert.equal(locale, 'en-GB');
+	const [locales, dir, log] = resolveCatalog.calls[0];
+	assert.deepEqual(locales, ['es-MX', 'en-US', 'es-419']);
 	assert.equal(dir, path.join(SRC_DIR, 'languages'));
 	// A catalog it skips is reported to the app log, not dropped.
 	assert.equal(typeof log, 'function');
-	assert.deepEqual(reply, { locale: 'en-GB', data: { 'No sites yet.': ['Aucun site.'] } });
+	assert.deepEqual(reply, { locale: 'es-MX', data: { 'No sites yet.': ['Aún no hay sitios.'] } });
+});
+
+test('i18n:locale takes --lang in place of the OS languages, unfolded', async () => {
+	const resolveCatalog = spy(async () => null);
+	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
+	main.electron.app.commandLine.getSwitchValue = (name) => (name === 'lang' ? 'es-MX' : '');
+	main.electron.app.getPreferredSystemLanguages = () => ['de-DE'];
+
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en', data: null });
+	assert.deepEqual(resolveCatalog.calls[0][0], ['es-MX']);
+});
+
+test('i18n:locale puts the language set in the settings before the OS languages, and --lang in place of both (#559)', async () => {
+	const resolveCatalog = spy(async () => null);
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { locale: 'de' } }).stubs, './i18n.cjs': { resolveCatalog, languageChoices: () => [] } }
+	});
+	main.electron.app.getPreferredSystemLanguages = () => ['fr-FR'];
+
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en', data: null });
+	// Before and not instead: a chosen language whose catalog a release has
+	// dropped falls back to the OS's language, not to English.
+	assert.deepEqual(resolveCatalog.calls[0][0], ['de', 'fr-FR', 'en-GB']);
+
+	const flagged = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { locale: 'de' } }).stubs, './i18n.cjs': { resolveCatalog, languageChoices: () => [] } }
+	});
+	flagged.electron.app.commandLine.getSwitchValue = (name) => (name === 'lang' ? 'es-MX' : '');
+	await flagged.invoke('i18n:locale');
+	assert.deepEqual(resolveCatalog.calls[1][0], ['es-MX']);
+});
+
+test('i18n:locale counts a store it cannot read as no language chosen, and the app still opens (#559)', async () => {
+	const resolveCatalog = spy(async () => null);
+	const logError = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./logging': { ...silentLogging()['./logging'], logError },
+			'./settings-store': { getStore: async () => { throw new Error('settings.json is not JSON'); } },
+			'./i18n.cjs': { resolveCatalog, languageChoices: () => [] }
+		}
+	});
+	main.electron.app.getPreferredSystemLanguages = () => ['fr-FR'];
+
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en', data: null });
+	assert.deepEqual(resolveCatalog.calls[0][0], ['fr-FR', 'en-GB']);
+	assert.equal(logError.calls.length, 1);
+	assert.match(logError.calls[0][1], /settings\.json is not JSON/);
+});
+
+test('i18n:locale takes the pseudo-locale from the settings as from --lang (#559)', async () => {
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { locale: 'en-XA' } }).stubs } });
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en-XA', data: null });
+});
+
+test('i18n:languages lists what the catalog directory holds through i18n.cjs, once (#559)', async () => {
+	const languageChoices = spy(() => [{ tag: 'en', label: 'English' }]);
+	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog: async () => null, languageChoices } } });
+
+	assert.deepEqual(await main.invoke('i18n:languages'), { ok: true, languages: [{ tag: 'en', label: 'English' }] });
+	await main.invoke('i18n:languages');
+	assert.equal(languageChoices.calls.length, 1);
+	// The names of the directory the app ships its catalogs in.
+	assert.ok(languageChoices.calls[0][0].includes('README.md'));
+});
+
+test('settings:set keeps a language the build has, and refuses one it has not (#559)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
+	});
+
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null } });
+	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
+	assert.equal(settings.values.preferences.locale, 'de');
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null } });
+});
+
+test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
+	const main = loadMain({ stubs: silentLogging() });
+	const argv = process.argv;
+	process.argv = ['/app/electron', '--no-sandbox', 'wpct://ticket/62281', '--lang=en-XA', '--inspect'];
+	t.after(() => { process.argv = argv; });
+
+	assert.deepEqual(await main.invoke('app:relaunch'), { ok: true });
+	// A cold start's address is not a second request for its ticket, and the
+	// switch would outrank the language just chosen.
+	assert.deepEqual(main.calls.relaunch, [{ args: ['--no-sandbox', '--inspect'] }]);
+	assert.deepEqual(main.calls.quit, [true]);
+});
+
+test('app:relaunch starts the new instance from the AppImage on Linux, where the mounted one is gone once this quits (#559)', async (t) => {
+	const main = loadMain({ stubs: silentLogging() });
+	const had = process.env.APPIMAGE;
+	process.env.APPIMAGE = '/home/jane/Downloads/WordPress-Contributor-Toolkit.AppImage';
+	t.after(() => { if (had === undefined) delete process.env.APPIMAGE; else process.env.APPIMAGE = had; });
+
+	await main.invoke('app:relaunch');
+	assert.equal(main.calls.relaunch[0].execPath, '/home/jane/Downloads/WordPress-Contributor-Toolkit.AppImage');
 });
 
 test('i18n:locale takes the pseudo-locale from --lang, which Chromium does not report', async () => {
@@ -6178,6 +7099,34 @@ test('i18n:locale takes the pseudo-locale from --lang, which Chromium does not r
 	main.electron.app.commandLine.getSwitchValue = (name) => (name === 'lang' ? 'en-XA' : '');
 
 	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en-XA', data: null });
+});
+
+test('main applies the locale reply the window gets, once resolved, before it builds the menu and the window', async () => {
+	const resolveCatalog = spy(async () => ({ locale: 'de', messages: { 'Open App Log': ['App-Protokoll öffnen'] } }));
+	// What had been built when main applied the locale. The ready path runs on
+	// a later turn than loadMain, so `main` is assigned by then.
+	const applied = [];
+	const applyLocale = spy((reply) => {
+		applied.push({ menus: main.calls.applicationMenu.length, windows: main.windows.length });
+		return reply.locale;
+	});
+	const main = loadMain({
+		ready: true,
+		stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog }, './renderer/locale-setup.cjs': { applyLocale } }
+	});
+	for (let i = 0; i < 50 && main.windows.length === 0; i++) await new Promise(setImmediate);
+
+	assert.deepEqual(applied, [{ menus: 0, windows: 0 }]);
+	assert.equal(main.calls.applicationMenu.length, 1);
+	assert.equal(main.windows.length, 1);
+	const [reply, deps] = applyLocale.calls[0];
+	assert.equal(typeof deps.setLocaleData, 'function');
+	assert.equal(typeof deps.addFilter, 'function');
+	// The window's reply is the one main applied, and the catalog was read
+	// once for both.
+	assert.equal(await main.invoke('i18n:locale'), reply);
+	assert.deepEqual(reply, { locale: 'de', data: { 'Open App Log': ['App-Protokoll öffnen'] } });
+	assert.equal(resolveCatalog.calls.length, 1);
 });
 
 // --- coverage guard ------------------------------------------------------
@@ -6195,7 +7144,6 @@ const WIRED = new Set([
 	'git:discard-to-base',
 	'git:update-trunk',
 	'git:get-patch',
-	'git:create-patch',
 	'git:save-patch',
 	'sites:add',
 	'sites:delete',
@@ -6225,6 +7173,10 @@ const WIRED = new Set([
 	'wp-debug:reveal',
 	'provenance:set-handle',
 	'provenance:set-event',
+	'settings:get',
+	'settings:set',
+	'sites:resume',
+	'i18n:languages',
 	'github:account',
 	'github:sign-in',
 	'github:open-pr'
@@ -6245,6 +7197,7 @@ const NO_DELEGATION = new Map([
 	['dialog:choose-dir', 'opens the directory dialog'],
 	['dialog:choose-patch-file', 'opens the file-open dialog and reads the chosen file'],
 	['playground-web:available', 'checks a path on disk'],
+	['playground:php-versions', 'reads the list the bundled Playground publishes; asserted with settings:set above'],
 	['provenance:get', 'electron-store read'],
 	['smtp:get', 'electron-store read'],
 	['smtp:clear', 'electron-store write'],
@@ -6253,7 +7206,8 @@ const NO_DELEGATION = new Map([
 	['wp-debug:start', 'tails a file'],
 	['wp-debug:stop', 'stops a tail'],
 	['github:sign-out', 'clears the in-memory token; asserted through github:account above'],
-	['github:sign-in-cancel', 'sets a flag the in-flight poll reads']
+	['github:sign-in-cancel', 'sets a flag the in-flight poll reads'],
+	['app:relaunch', 'relaunches the app; asserted directly above']
 ]);
 
 // There used to be a third list here, UNWIRED_INVARIANTS: the Playground and

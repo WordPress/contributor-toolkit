@@ -30,6 +30,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { __, _n, sprintf } = require('@wordpress/i18n');
 const { mapCheckoutPhase } = require('./switch-progress.cjs');
 const { currentBranch, listBranches, resolveRef, statusRows, changesAgainst, changedPathsBetween, otherPaths, treeDirectories, mergeTree } = require('./git-read.cjs');
 const { stagePaths, writeTree, commitTree, updateBranch, createBranchAt, pointHeadAt, deleteBranch, checkoutBranch } = require('./git-write.cjs');
@@ -147,7 +148,7 @@ async function listTicketBranches(dir) {
 async function trunkOid(dir) {
 	const oid = await resolveRef(dir, TRUNK);
 	if (!oid) {
-		const error = new Error('This site has no trunk branch');
+		const error = new Error(__('This site has no trunk branch'));
 		error.code = 'no-trunk';
 		throw error;
 	}
@@ -304,10 +305,17 @@ async function startTicketBranch(dir, ticketId, { prefix = DEFAULT_BRANCH_PREFIX
 	const ref = ticketBranchRef(ticketId, prefix);
 	const existing = await listBranches(dir);
 	if (existing.includes(ref)) {
-		// The noun follows the namespace, so a Gutenberg site is not told it is
-		// already working on a "ticket" it has never heard of.
-		const noun = prefix === 'issue/' ? 'issue' : 'ticket';
-		const error = new Error(`Already working on ${noun} #${ticketId} in this site`);
+		// The sentence follows the namespace, so a Gutenberg site is not told
+		// it is already working on a "ticket" it has never heard of.
+		let message;
+		if (prefix === 'issue/') {
+			// translators: %s: a GitHub issue number.
+			message = sprintf(__('Already working on issue #%s in this site'), ticketId);
+		} else {
+			// translators: %s: a Trac ticket number.
+			message = sprintf(__('Already working on ticket #%s in this site'), ticketId);
+		}
+		const error = new Error(message);
 		error.code = 'branch-exists';
 		throw error;
 	}
@@ -550,7 +558,8 @@ async function switchToBranch(dir, ref, { baseOid, author = WIP_AUTHOR, onProgre
 
 	const branches = await listBranches(dir);
 	if (!branches.includes(ref)) {
-		const error = new Error(`No such branch: ${ref}`);
+		// translators: %s: a Git branch name, such as ticket/60001.
+		const error = new Error(sprintf(__('No such branch: %s'), ref));
 		error.code = 'no-such-branch';
 		throw error;
 	}
@@ -707,7 +716,8 @@ async function rebaseOntoTrunk(dir, ref, { baseOid, author = WIP_AUTHOR, onProgr
 
 	const wip = await resolveRef(dir, ref);
 	if (!wip) {
-		const error = new Error(`No such branch: ${ref}`);
+		// translators: %s: a Git branch name, such as ticket/60001.
+		const error = new Error(sprintf(__('No such branch: %s'), ref));
 		error.code = 'no-such-branch';
 		throw error;
 	}
@@ -721,8 +731,12 @@ async function rebaseOntoTrunk(dir, ref, { baseOid, author = WIP_AUTHOR, onProgr
 		const { tree, conflicted, conflicts, kinds } = await mergeTree(dir, { base: baseOid, ours: trunkTip, theirs: wip });
 		if (conflicted) {
 			const error = new Error(conflicts.length
-				? `Trunk and this ticket's work disagree in ${conflicts.length} ${conflicts.length === 1 ? 'file' : 'files'}`
-				: 'Trunk and this ticket\'s work disagree');
+				? sprintf(
+					// translators: %d: how many files are in conflict.
+					_n("Trunk and this ticket's work disagree in %d file", "Trunk and this ticket's work disagree in %d files", conflicts.length),
+					conflicts.length
+				)
+				: __("Trunk and this ticket's work disagree"));
 			error.code = 'rebase-conflict';
 			error.conflicts = conflicts;
 			// Which way each file disagrees (`content`, `modify/delete`,
@@ -779,13 +793,14 @@ async function rebaseOntoTrunk(dir, ref, { baseOid, author = WIP_AUTHOR, onProgr
  */
 async function deleteTicketBranch(dir, ref, { onChild = null } = {}) {
 	if (ref === TRUNK || ticketIdFromRef(ref) === null) {
-		const error = new Error(`Refusing to delete ${ref === TRUNK ? 'trunk' : 'a branch the app did not create'}`);
+		const error = new Error(ref === TRUNK ? __('Refusing to delete trunk') : __('Refusing to delete a branch the app did not create'));
 		error.code = 'not-a-ticket-branch';
 		throw error;
 	}
 	const branches = await listBranches(dir);
 	if (!branches.includes(ref)) {
-		const error = new Error(`No such branch: ${ref}`);
+		// translators: %s: a Git branch name, such as ticket/60001.
+		const error = new Error(sprintf(__('No such branch: %s'), ref));
 		error.code = 'no-such-branch';
 		throw error;
 	}

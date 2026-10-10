@@ -6,19 +6,19 @@ You do not need one, though, for every work item. A site holds as many Core tick
 
 When the app starts with no sites, the main area shows a short prompt to create your first one.
 
-![The app before any site exists: an empty main area and the Create a site button at the bottom of the sidebar](/screenshots/empty-state.png)
+![The app before any site exists: No sites, Create your first site to begin contributing, and a Create site button in the middle of the window](/screenshots/empty-state.png)
 
 ## Start the creation flow
 
-Click **Create a site** at the bottom of the sidebar. A dialog opens with three fields.
+Click **Create site** in the middle of the window when there are no sites yet, or **Create new site** at the top of the sites list once there are. A dialog opens with three fields.
 
-![The Create a site dialog, with a Site name text field, a Contribute to choice between WordPress Core and Gutenberg with a line under each, and a Site location folder picker](/screenshots/create-site-modal.png)
+![The Create site dialog, with a Site name text field, a Project choice between WordPress Core and Gutenberg, with lines under it that describe the one selected and say it cannot be changed later, and a Location folder picker](/screenshots/create-site-modal.png)
 
 - **Site name** — the label shown in the sidebar. It also determines the folder name: spaces and characters that are not valid in file names become hyphens, so a site named `My WordPress site` lives in a folder called `My-WordPress-site`.
-- **Contribute to** — which project this site is a checkout of. **WordPress Core** clones `wordpress-develop` and works from [Trac tickets](./trac-tickets), patches and pull requests; **Gutenberg** clones the block editor's repository, builds it and runs it as a plugin in a stock WordPress, and works from [GitHub issues](./gutenberg-issues) and pull requests. The choice decides what the site clones and how it builds and runs, and it cannot be changed afterwards: create another site for the other project.
-- **Site location** — the parent folder where the site will be created. The app adds a new directory inside it for the project; it does not clone into the folder you pick directly.
+- **Project** — which project this site is a checkout of. **WordPress Core** clones `wordpress-develop` and works from [Trac tickets](./trac-tickets), patches and pull requests; **Gutenberg** clones the block editor's repository, builds it and runs it as a plugin in a stock WordPress, and works from [GitHub issues](./gutenberg-issues) and pull requests. The choice decides what the site clones and how it builds and runs, and it cannot be changed afterwards: create another site for the other project.
+- **Location** — the parent folder where the site will be created. The app adds a new directory inside it for the project; it does not clone into the folder you pick directly. With a folder set under **New sites go here** in [Settings](./settings), the dialog starts on it, and you can still pick another for this site.
 
-Click **Create site** (or press Enter) to start. **Cancel** or Escape closes the dialog without creating anything.
+Click **Create site** (or press Enter) to start. The close button or Escape closes the dialog without creating anything.
 
 ## What happens during setup
 
@@ -28,7 +28,7 @@ While the clone runs, the site view shows a **Setting up new site…** card with
 
 The clone is the first step of the [initial setup checklist](./setup-wizard); the remaining steps stay locked until it finishes. Then the app carries on by itself — installing the dependencies and running the first build without waiting for you — so the only step left to click is starting the dev server.
 
-If setup fails, the half-created site is removed from the list — the row simply disappears. The reason goes to the application log rather than to a dialog, so **Help → Open App Log** is where to look when a site never finishes.
+If setup fails, the half-created site is removed from the list — the row simply disappears. The reason is said in a red notice in the bottom corner of the window. Unlike a green one, it does not go away after a few seconds: it waits to be dismissed. The setup's own output is in the application log: **Help → Open App Log** is where to look for the detail.
 
 ## Where sites live on disk
 
@@ -38,7 +38,9 @@ Each site is an ordinary folder on your disk: the parent folder you chose in **S
 
 Every site appears in the sidebar, newest first. Click a site to switch to it; the button for the active site is highlighted. Every site carries its project as a tag on its row and next to its status, **Core** or **Gutenberg**, so the two kinds are told apart at a glance; on a Gutenberg site the checklist, the terminal and the cards on its page follow suit (a GitHub issue instead of a Trac ticket, and pull-request checkout instead of Trac attachments or a local patch-file picker). The chevron at the top collapses the sidebar to a narrow strip showing only each site's initial.
 
-A colored dot next to a site name warns that it has fallen behind trunk:
+A dot before each site name shows its development server, so you can see which sites are running without opening each: grey while it is stopped, green while it is running, amber while it starts, and red when it stopped by itself or could not start. The red dot's reason is in the open site's details and in its Logs.
+
+A second colored dot, after it, warns that a site has fallen behind trunk:
 
 - **Amber** — the checkout is more than 14 days old.
 - **Red** — a previous update moved the code but never finished installing or rebuilding.
