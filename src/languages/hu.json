@@ -1,0 +1,3263 @@
+{
+	"translation-revision-date": "2026-10-10 07:12:53+0000",
+	"generator": "GlotPress/4.1.0",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": {
+				"domain": "messages",
+				"plural-forms": "nplurals=2; plural=n != 1;",
+				"lang": "hu"
+			},
+			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
+				"Nagyítás"
+			],
+			"Discard edits": [
+				"Módosítások elvetése"
+			],
+			"Discard the uncommitted edits on trunk?": [
+				"Elveti a trunk ágban végzett, még nem rögzített módosításokat?"
+			],
+			"Discard changes": [
+				"Módosítások elvetése"
+			],
+			"This can’t be undone.": [
+				"Ez nem vonható vissza."
+			],
+			"Discard all local changes?": [
+				"Elveti az összes helyi módosítást?"
+			],
+			"Stop Speaking": [
+				"Felolvasás leállítása"
+			],
+			"Start Speaking": [
+				"Felolvasás indítása"
+			],
+			"Speech": [
+				"Beszéd"
+			],
+			"Text Replacement": [
+				"Szöveghelyettesítés"
+			],
+			"Smart Dashes": [
+				"Intelligens kötőjelek"
+			],
+			"Smart Quotes": [
+				"Intelligens idézőjelek"
+			],
+			"Show Substitutions": [
+				"Helyettesítések megjelenítése"
+			],
+			"Substitutions": [
+				"Helyettesítések"
+			],
+			"Paste and Match Style": [
+				"Beillesztés és stílus egyeztetése"
+			],
+			"Paste": [
+				"Beillesztés"
+			],
+			"Cut": [
+				"Kivágás"
+			],
+			"Redo": [
+				"Ismét"
+			],
+			"Undo": [
+				"Visszavonás"
+			],
+			"Edit": [
+				"Szerkesztés"
+			],
+			"Quit": [
+				"Kilépés"
+			],
+			"Exit": [
+				"Kilépés"
+			],
+			"Close Window": [
+				"Ablak bezárása"
+			],
+			"File": [
+				"Fájl"
+			],
+			"Quit %s": [
+				"Kilépés a %s alkalmazásból"
+			],
+			"Show All": [
+				"Összes megjelenítése"
+			],
+			"Hide Others": [
+				"Többi alkalmazás elrejtése"
+			],
+			"Hide %s": [
+				"%s elrejtése"
+			],
+			"Services": [
+				"Szolgáltatások"
+			],
+			"About %s": [
+				"%s névjegye"
+			],
+			"Toggle Developer Tools": [
+				"Fejlesztői eszközök megjelenítése/elrejtése"
+			],
+			"Help": [
+				"Súgó"
+			],
+			"Bring All to Front": [
+				"Összes ablak előtérbe hozása"
+			],
+			"Minimize": [
+				"Kis méret"
+			],
+			"Window": [
+				"Ablak"
+			],
+			"Toggle Full Screen": [
+				"Teljes képernyős mód váltása"
+			],
+			"Zoom Out": [
+				"Kicsinyítés"
+			],
+			"Zoom In": [
+				"Nagyítás"
+			],
+			"Actual Size": [
+				"Tényleges méret"
+			],
+			"Force Reload": [
+				"Kényszerített újratöltés"
+			],
+			"Reload": [
+				"Újratöltés"
+			],
+			"View": [
+				"Nézet"
+			],
+			"Select All": [
+				"Összes kijelölése"
+			],
+			"Delete": [
+				"Törlés"
+			],
+			"Choose folder…": [
+				"Mappa kiválasztása…"
+			],
+			"Mail": [
+				"Levelek"
+			],
+			"ends a sentence that lacks a full stop\u0004%s.": [
+				"%s."
+			],
+			"Too much output to announce, navigate to rows manually to read": [
+				"A kimenet túl hosszú a felolvasáshoz; az olvasáshoz navigáljon kézzel a sorokhoz"
+			],
+			"Terminal input": [
+				"Terminálbemenet"
+			],
+			"Timed out starting web server": [
+				"A webkiszolgáló indításakor lejárt a várakozási idő"
+			],
+			"Server exited before becoming ready": [
+				"A kiszolgáló leállt, mielőtt készen állt volna"
+			],
+			"%s directory not found.": [
+				"Nem található a következő könyvtár: %s."
+			],
+			"The patch you applied is applied. Revert it before submitting this checkout as your own work.": [
+				"Az alkalmazott javítócsomag érvényben van. Vonja vissza, mielőtt ezt a munkapéldányt saját munkájaként beküldi."
+			],
+			"%s is applied. Revert it before submitting this checkout as your own work.": [
+				"%s alkalmazva van. Vonja vissza, mielőtt ezt a munkapéldányt saját munkájaként beküldi."
+			],
+			"an action that finished\u0004Done": [
+				"Kész"
+			],
+			"No such branch: %s": [
+				"Nincs ilyen ág: %s"
+			],
+			"Refusing to delete a branch the app did not create": [
+				"Az alkalmazás megtagadja az olyan ág törlését, amelyet nem maga hozott létre"
+			],
+			"Refusing to delete trunk": [
+				"Az alkalmazás megtagadja a trunk törlését"
+			],
+			"Trunk and this ticket's work disagree": [
+				"A trunk és a hibajegyhez tartozó módosítások között ütközés van"
+			],
+			"Trunk and this ticket's work disagree in %d file": [
+				"A trunk és a hibajegyhez tartozó módosítások között %d fájlban ütközés van",
+				"A trunk és a hibajegyhez tartozó módosítások között %d fájlban ütközés van"
+			],
+			"Already working on ticket #%s in this site": [
+				"Ezen a webhelyen már folyamatban van a munka a #%s számú hibajegyen"
+			],
+			"Already working on issue #%s in this site": [
+				"Ezen a webhelyen már folyamatban van a #%s számú feladaton végzett munka"
+			],
+			"This site has no trunk branch": [
+				"Ennek a webhelynek nincs trunk ága"
+			],
+			"Enter a ticket number or URL.": [
+				"Adjon meg egy hibajegyszámot vagy URL-t."
+			],
+			"Enter a ticket number like 62281, or a %s ticket URL.": [
+				"Adjon meg egy hibajegyszámot, például 62281, vagy egy hibajegy URL-jét a következő kiszolgálóról: %s."
+			],
+			"Only %s tickets are supported.": [
+				"Csak a következő kiszolgáló hibajegyei támogatottak: %s."
+			],
+			"Trunk and your work disagree in: %s.": [
+				"A trunk ág és a munkája eltér ezekben a fájlokban: %s."
+			],
+			"Trunk added a file your work also adds, with different content: %s.": [
+				"A trunk ágon és a munkájában is megjelent egy új fájl, de eltérő tartalommal: %s.",
+				"A trunk ágon és a munkájában is megjelentek új fájlok, de eltérő tartalommal: %s."
+			],
+			"Deleted on one side and changed on the other: %s.": [
+				"Az egyik oldalon törölve, a másikon módosítva: %s."
+			],
+			"Trunk changed the same lines as your work in: %s.": [
+				"A trunk ágon ugyanazok a sorok módosultak, mint a munkájában, ezekben a fájlokban: %s."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.": [
+				"Mentsen egy másolatot a munkájáról, szüntesse meg a hibajegy csatolását, törölje a hozzá tartozó munkát a webhelyről, majd csatolja újra a #%s számú hibajegyet, és alkalmazza a másolatot."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.": [
+				"Mentsen egy másolatot a munkájáról, szüntesse meg a hibajegy csatolását, törölje a hozzá tartozó munkát a webhelyről, majd csatolja újra a hibajegyet, és alkalmazza a másolatot."
+			],
+			"Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.": [
+				"Tartsa meg a feladat ágát, és mentsen egy másolatot a „Módosítások áttekintése és beküldése” lehetőséggel. Kérjen segítséget egy mentortól a munka áthelyezéséhez az aktuális trunk ágra; ez az alkalmazás nem tudja feloldani az ütközést vagy importálni a mentett másolatot."
+			],
+			"Update this ticket to the current trunk": [
+				"A hibajegy frissítése az aktuális trunk ágra"
+			],
+			"Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.": [
+				"Előfordulhat, hogy az újabb javítócsomagok nem alkalmazhatók ütközés nélkül. Itt áthelyezheti a munkáját az aktuális trunk ágra, vagy menthet róla egy másolatot, és újrakezdheti a hibajegyen végzett munkát."
+			],
+			"Trunk has moved since this ticket started.": [
+				"A trunk ág megváltozott a hibajegy megkezdése óta."
+			],
+			"Update this issue to the current trunk": [
+				"A feladat frissítése az aktuális trunk ágra"
+			],
+			"Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.": [
+				"Itt áthelyezheti a munkáját az aktuális trunk ágra. Ha a módosítások ütköznek, az ága érintetlen marad, így segítséget kérhet az ütközések feloldásához."
+			],
+			"Trunk has moved since this issue started.": [
+				"A trunk ág megváltozott a feladat megkezdése óta."
+			],
+			"Could not move the ticket onto the current trunk.": [
+				"Nem sikerült áthelyezni a hibajegyet az aktuális trunk ágra."
+			],
+			"Could not move the issue onto the current trunk.": [
+				"Nem sikerült áthelyezni a feladatot az aktuális trunk ágra."
+			],
+			"Only an issue branch can be moved onto the current trunk.": [
+				"Csak feladathoz tartozó ág helyezhető át az aktuális trunk ágra."
+			],
+			"Link a ticket first: trunk is what tickets are measured against.": [
+				"Először csatoljon egy hibajegyet: a hibajegyek viszonyítási alapja a trunk ág."
+			],
+			"Link an issue first: trunk is what issues are measured against.": [
+				"Először csatoljon egy feladatot: a feladatok viszonyítási alapja a trunk ág."
+			],
+			"The app does not know which trunk the ticket started from, so it cannot move the work safely.": [
+				"Az alkalmazás nem tudja, melyik trunk ágból indult a hibajegy, ezért nem tudja biztonságosan áthelyezni a munkát."
+			],
+			"The app does not know which trunk the issue started from, so it cannot move the work safely.": [
+				"Az alkalmazás nem tudja, melyik trunk ágból indult a feladat, ezért nem tudja biztonságosan áthelyezni a munkát."
+			],
+			"The app does not know which trunk #%s started from, so it cannot move the work safely.": [
+				"Az alkalmazás nem tudja, hogy a trunk ág melyik állapotából indult a #%s, ezért nem tudja biztonságosan áthelyezni a munkát."
+			],
+			"Nothing was moved.": [
+				"Semmi sem lett áthelyezve."
+			],
+			"Trunk and your work disagree.": [
+				"A trunk ág és a módosítások ütköznek."
+			],
+			"You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?": [
+				"Ezen a webhelyen %d nem véglegesített módosítás van, amely még egyetlen hibajegyhez sem tartozik. Mi történjen vele?",
+				"Ezen a webhelyen %d nem véglegesített módosítás van, amelyek még egyetlen hibajegyhez sem tartoznak. Mi történjen velük?"
+			],
+			"You have %d uncommitted change on this site, not on any issue yet. What should happen to them?": [
+				"Ezen a webhelyen %d nem véglegesített módosítás van, amely még egyetlen problémához sem tartozik. Mi történjen vele?",
+				"Ezen a webhelyen %d nem véglegesített módosítás van, amelyek még egyetlen problémához sem tartoznak. Mi történjen velük?"
+			],
+			"Stop the dev server before updating the ticket.": [
+				"A hibajegy frissítése előtt állítsa le a fejlesztői kiszolgálót."
+			],
+			"Stop the dev server before updating the issue.": [
+				"A probléma frissítése előtt állítsa le a fejlesztői kiszolgálót."
+			],
+			"Wait for the discard to finish before updating the ticket.": [
+				"A hibajegy frissítése előtt várja meg, amíg befejeződik a módosítások elvetése."
+			],
+			"Wait for the discard to finish before updating the issue.": [
+				"A probléma frissítése előtt várja meg, amíg befejeződik a módosítások elvetése."
+			],
+			"Wait for the PR or patch operation to finish.": [
+				"Várja meg, amíg befejeződik a PR-rel vagy a javítófolttal kapcsolatos művelet."
+			],
+			"Wait for the ticket's work to finish deleting.": [
+				"Várja meg, amíg befejeződik a hibajegyhez tartozó munka törlése."
+			],
+			"Wait for the issue's work to finish deleting.": [
+				"Várja meg, amíg befejeződik a problémához tartozó munka törlése."
+			],
+			"Wait for the current ticket change to finish.": [
+				"Várja meg, amíg befejeződik a folyamatban lévő hibajegyváltás."
+			],
+			"Wait for the current issue change to finish.": [
+				"Várja meg, amíg befejeződik a folyamatban lévő problémaváltás."
+			],
+			"This ticket already has its own work here, so these edits cannot come along into it.": [
+				"Ehhez a hibajegyhez már tartozik itt külön munka, ezért ezek a módosítások nem vihetők át hozzá."
+			],
+			"This issue already has its own work here, so these edits cannot come along into it.": [
+				"Ehhez a problémához már tartozik itt külön munka, ezért ezek a módosítások nem vihetők át hozzá."
+			],
+			"Discard them and continue on the ticket": [
+				"Elvetés és a munka folytatása a hibajegyen"
+			],
+			"Save them as a patch, then continue on the ticket…": [
+				"Mentés javítófoltként, majd a munka folytatása a hibajegyen…"
+			],
+			"Discard them and continue on the issue": [
+				"Elvetés és a munka folytatása a problémán"
+			],
+			"Save them as a patch, then continue on the issue…": [
+				"Mentés javítófoltként, majd a munka folytatása a problémán…"
+			],
+			"Discard them and continue on #%s": [
+				"Elvetés és a munka folytatása itt: #%s"
+			],
+			"Save them as a patch, then continue on #%s…": [
+				"Mentés javítófoltként, majd a munka folytatása itt: #%s…"
+			],
+			"Discard them and start clean": [
+				"Elvetés és újrakezdés tiszta állapottal"
+			],
+			"Save them as a patch, then start clean…": [
+				"Mentés javítófoltként, majd újrakezdés tiszta állapottal…"
+			],
+			"Take these edits into the ticket": [
+				"A módosítások átvitele a hibajegybe"
+			],
+			"Take these edits into the issue": [
+				"Módosítások átvitele a hibajegyhez"
+			],
+			"Take these edits into #%s": [
+				"Módosítások átvitele ide: #%s"
+			],
+			"Discard them and check out PR #%d": [
+				"Módosítások elvetése és átváltás a PR #%d munkapéldányára"
+			],
+			"Save them as a patch, then check out PR #%d…": [
+				"Mentés javítócsomagként, majd átváltás a PR #%d munkapéldányára…"
+			],
+			"PR #%d is a separate checkout, so these edits cannot come along into it.": [
+				"A PR #%d külön munkapéldány, ezért ezek a módosítások nem vihetők át bele."
+			],
+			"You have uncommitted changes on this site, not on any ticket yet. What should happen to them?": [
+				"A webhelyen vannak még nem véglegesített módosítások, amelyek egyelőre nem tartoznak egyetlen jegyhez sem. Mi történjen velük?"
+			],
+			"You have uncommitted changes on this site, not on any issue yet. What should happen to them?": [
+				"A webhelyen vannak még nem véglegesített módosítások, amelyek egyelőre nem tartoznak egyetlen hibajegyhez sem. Mi történjen velük?"
+			],
+			"Could not open the folder.": [
+				"Nem sikerült megnyitni a mappát."
+			],
+			"Could not reach the app's main process: %s": [
+				"Nem sikerült elérni az alkalmazás főfolyamatát: %s"
+			],
+			"This app has no record of that folder, so it will not open it.": [
+				"Ez az alkalmazás nem tartja nyilván ezt a mappát, ezért nem nyitja meg."
+			],
+			"The file manager would not open the folder: %s": [
+				"A fájlkezelő nem tudta megnyitni a mappát: %s"
+			],
+			"The application would not start: %s": [
+				"Nem sikerült elindítani az alkalmazást: %s"
+			],
+			"That application is no longer where it was. Choose another.": [
+				"Az alkalmazás már nem található a korábbi helyén. Válasszon másikat."
+			],
+			"That is not an application this app can open a folder in.": [
+				"Ebben az alkalmazásban nem tud mappát megnyitni ez az alkalmazás."
+			],
+			"A merge started outside the app is in progress.": [
+				"Az alkalmazáson kívül indított egyesítés van folyamatban."
+			],
+			"every file the patch touched, not only the ones in conflict": [
+				"a javítócsomag által érintett összes fájl, nem csak az ütközést tartalmazók"
+			],
+			"git add the files": [
+				"adja hozzá a fájlokat a git add paranccsal"
+			],
+			"resolve the files, then git add them": [
+				"oldja fel a fájlok ütközéseit, majd adja hozzá őket a git add paranccsal"
+			],
+			"A three-way patch apply started outside the app is in progress.": [
+				"Az alkalmazáson kívül indított háromutas javítócsomag-alkalmazás van folyamatban."
+			],
+			"A revert started outside the app is in progress.": [
+				"Az alkalmazáson kívül indított revert művelet van folyamatban."
+			],
+			"A cherry-pick started outside the app is in progress.": [
+				"Az alkalmazáson kívül indított cherry-pick művelet van folyamatban."
+			],
+			"A rebase started outside the app is in progress.": [
+				"Az alkalmazáson kívül indított rebase művelet van folyamatban."
+			],
+			"resolve the files, then git add them and run %s": [
+				"oldja fel a fájlok ütközéseit, majd adja hozzá őket a git add paranccsal, és futtassa a következő parancsot: %s"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)": [
+				"Az alkalmazás nem tudta ellenőrizni, hogy folyamatban van-e egyesítés ebben a munkapéldányban, ezért semmit sem módosított. Ha egy terminálból indított Git-parancs fut benne, várja meg, amíg befejeződik, majd próbálja újra. (%s)"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again.": [
+				"Az alkalmazás nem tudta ellenőrizni, hogy folyamatban van-e egyesítés ebben a munkapéldányban, ezért semmit sem módosított. Ha egy terminálból indított Git-parancs fut benne, várja meg, amíg befejeződik, majd próbálja újra."
+			],
+			"Its conflicts are resolved but it is not finished. Finish it from a terminal (%1$s) or abandon it (%2$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"Az ütközések már fel vannak oldva, de a művelet még nem fejeződött be. Mielőtt ezen a webhelyen használná az alkalmazást, fejezze be a műveletet terminálból (%1$s), vagy szakítsa meg (%2$s). Addig ezen a webhelyen nem engedélyezett a hibajegyek összekapcsolása, a javítócsomagok alkalmazása, a módosítások elvetése és a trunk ág frissítése."
+			],
+			"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"A művelet során ütközések keletkeztek a következő fájlokban: %1$s. Mielőtt ezen a webhelyen használná az alkalmazást, fejezze be a műveletet terminálból (%2$s), vagy szakítsa meg (%3$s). Addig ezen a webhelyen nem engedélyezett a hibajegyek összekapcsolása, a javítócsomagok alkalmazása, a módosítások elvetése és a trunk ág frissítése."
+			],
+			"The app now runs on a different Git engine, so linking tickets, applying patches, discarding changes and updating trunk are refused here. Export your work as a patch, create a new site, apply the patch there, then delete this one.": [
+				"Az alkalmazás már más Git-motort használ, ezért ezen a webhelyen nem engedélyezett a hibajegyek összekapcsolása, a javítócsomagok alkalmazása, a módosítások elvetése és a trunk ág frissítése. Exportálja a munkáját javítócsomagként, hozzon létre egy új webhelyet, alkalmazza ott a javítócsomagot, majd törölje ezt a webhelyet."
+			],
+			"This site was created by an earlier version of the app.": [
+				"Ezt a webhelyet az alkalmazás egy korábbi verziója hozta létre."
+			],
+			"This site was created by an earlier version of the app and cannot be changed by this one. Create a new site to keep working; you can still export a patch of what is here, and delete this site.": [
+				"Ezt a webhelyet az alkalmazás egy korábbi verziója hozta létre, ezért a jelenlegi verzióval nem módosítható. A munka folytatásához hozzon létre egy új webhelyet. Az itteni módosításokat továbbra is exportálhatja javítócsomagként, és törölheti ezt a webhelyet."
+			],
+			"Unable to copy path: %s": [
+				"Nem sikerült másolni az útvonalat: %s"
+			],
+			"Clipboard access is not available in this environment": [
+				"Ebben a környezetben nem érhető el a vágólap"
+			],
+			"Dismiss": [
+				"Bezárás"
+			],
+			"Stopped": [
+				"Leállítva"
+			],
+			"Playground web server": [
+				"Playground webkiszolgáló"
+			],
+			"Start Playground web server": [
+				"A Playground webkiszolgáló indítása"
+			],
+			"Stop Playground web server": [
+				"A Playground webkiszolgáló leállítása"
+			],
+			"Starting the Playground web server": [
+				"A Playground webkiszolgáló indítása"
+			],
+			"Server exited with code %d": [
+				"A kiszolgáló kilépett. Kilépési kód: %d"
+			],
+			"Choose application…": [
+				"Alkalmazás kiválasztása…"
+			],
+			"Saved to %s. The edits are still in the working tree.": [
+				"Mentve a következő fájlba: %s. A módosítások továbbra is a munkafában vannak."
+			],
+			"Your edits were saved to %s and are no longer in the working tree.": [
+				"A módosítások mentése megtörtént a következő fájlba, és már nincsenek a munkafában: %s."
+			],
+			"Your %1$d uncommitted change came along into #%2$s, and will go into its patch.": [
+				"A %1$d még nem véglegesített módosítás átkerült a #%2$s hibajegyhez, és bekerül annak javítócsomagjába.",
+				"A %1$d még nem véglegesített módosítás átkerült a #%2$s hibajegyhez, és bekerül annak javítócsomagjába."
+			],
+			"Could not delete the branch.": [
+				"Nem sikerült törölni az ágat."
+			],
+			"Could not save the patch.": [
+				"Nem sikerült menteni a javítócsomagot."
+			],
+			"Could not discard the changes.": [
+				"Nem sikerült elvetni a módosításokat."
+			],
+			"Could not save the ticket.": [
+				"Nem sikerült menteni a hibajegyet."
+			],
+			"Only %s issues are supported.": [
+				"Csak a következő webhelyen található hibajegyek támogatottak: %s."
+			],
+			"Enter an issue number or URL.": [
+				"Adjon meg egy hibajegyszámot vagy URL-t."
+			],
+			"Enter an issue number like 1234, or a %s issue URL.": [
+				"Adjon meg egy hibajegyszámot (például 1234), vagy egy hibajegy URL-jét a következő tárolóból: %s."
+			],
+			"Only %s issues can be linked here.": [
+				"Itt csak a következő tároló hibajegyei kapcsolhatók össze: %s."
+			],
+			"That is a pull request. Link the issue it fixes instead.": [
+				"Ez egy beolvasztási kérelem. Helyette az általa megoldott hibajegyet kapcsolja össze."
+			],
+			"There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.": [
+				"Még nincs olyan webhely, amelyen dolgozni lehetne rajta. Hozzon létre egyet az oldalsávból, és amint elkészül, az alkalmazás felajánlja ezt a hibajegyet."
+			],
+			"Ticket #%s is ready to link.": [
+				"A #%s hibajegy készen áll az összekapcsolásra."
+			],
+			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
+				"A hibajegy száma egy hivatkozásból származik. Az összekapcsolás félreteszi a webhely aktuális állapotát, és átvált a hibajegy ágára, ezért az alkalmazás előbb megerősítést kér."
+			],
+			"Link ticket #%1$s to %2$s?": [
+				"Összekapcsolja a #%1$s hibajegyet a következő webhellyel: %2$s?"
+			],
+			"A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.": [
+				"A Trac-hibajegyek WordPress Core-webhelyhez kapcsolhatók. Nyisson meg egy ilyen webhelyet, és az alkalmazás ott felajánlja a hibajegyet."
+			],
+			"Ticket #%1$s cannot be linked to %2$s.": [
+				"A #%1$s hibajegy nem kapcsolható a következő webhelyhez: %2$s."
+			],
+			"Raw": [
+				"Nyers nézet"
+			],
+			"Rendered": [
+				"Megjelenített nézet"
+			],
+			"Date:": [
+				"Dátum:"
+			],
+			"CC:": [
+				"Másolat:"
+			],
+			"To:": [
+				"Címzett:"
+			],
+			"From:": [
+				"Feladó:"
+			],
+			"You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"A #%s hibajegyhez beküldetlen módosítások tartoznak. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>."
+			],
+			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"A #%2$d PR-hez képest %1$d további módosítás van. Ezek <review>áttekinthetők</review>, vagy <discard>elvethetők</discard>. A PR visszavonásakor megmaradnak a beolvasztási kérelem helyi példányában.",
+				"A #%2$d PR-hez képest %1$d további módosítás van. Ezek <review>áttekinthetők</review>, vagy <discard>elvethetők</discard>. A PR visszavonásakor megmaradnak a beolvasztási kérelem helyi példányában."
+			],
+			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"A #%d PR-hez képest további módosítások vannak. Ezek <review>áttekinthetők</review>, vagy <discard>elvethetők</discard>. A PR visszavonásakor megmaradnak a beolvasztási kérelem helyi példányában."
+			],
+			"Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.": [
+				"A hibajegy leválasztása nem érinti a hozzá tartozó helyi módosításokat — ezen a webhelyen továbbra is a hibajegyhez kapcsolódnak, és az újbóli összekapcsoláskor rendelkezésre állnak."
+			],
+			"Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.": [
+				"A hibajegy leválasztása nem érinti a hozzá tartozó helyi módosításokat — ezen a webhelyen továbbra is a hibajegyhez kapcsolódnak, és az újbóli összekapcsoláskor rendelkezésre állnak."
+			],
+			"You have %d change not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"%d módosítás egyetlen hibajegyhez sincs hozzárendelve. Ezekből <review>javítócsomag készíthető és menthető</review>, vagy <discard>elvethetők a módosítások</discard>.",
+				"%d módosítás egyetlen hibajegyhez sincs hozzárendelve. Ezekből <review>javítócsomag készíthető és menthető</review>, vagy <discard>elvethetők a módosítások</discard>."
+			],
+			"You have %d change not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"%d módosítás egyetlen hibajegyhez sincs hozzárendelve. Ezekből <review>javítócsomag készíthető és menthető</review>, vagy <discard>elvethetők a módosítások</discard>.",
+				"%d módosítás egyetlen hibajegyhez sincs hozzárendelve. Ezekből <review>javítócsomag készíthető és menthető</review>, vagy <discard>elvethetők a módosítások</discard>."
+			],
+			"You have changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Vannak olyan módosítások, amelyek egyetlen hibajegyhez sincsenek hozzárendelve. Ezekből <review>javítócsomag készíthető és menthető</review>, vagy <discard>elvethetők a módosítások</discard>."
+			],
+			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Vannak olyan módosítások, amelyek egyetlen hibajegyhez sincsenek hozzárendelve. Ezekből <review>javítócsomag készíthető és menthető</review>, vagy <discard>elvethetők a módosítások</discard>."
+			],
+			"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"A #%2$s hibajegyhez %1$d beküldetlen módosítás tartozik. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>.",
+				"A #%2$s hibajegyhez %1$d beküldetlen módosítás tartozik. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>."
+			],
+			"You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"A #%2$s hibajegyhez %1$d beküldetlen módosítás tartozik. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>.",
+				"A #%2$s hibajegyhez %1$d beküldetlen módosítás tartozik. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>."
+			],
+			"You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"A(z) #%s hibajegyhez még be nem küldött módosítások tartoznak. <review>Áttekintheti és beküldheti</review>, vagy <discard>elvetheti a módosításokat</discard>."
+			],
+			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
+				"Ehhez a hibajegyhez nincs rögzített kiindulópont, ezért az alkalmazás nem tudja áthelyezni a hozzá tartozó módosításokat a trunk jelenlegi állapotára."
+			],
+			"Only a ticket branch can be moved onto the current trunk.": [
+				"Csak hibajegyhez tartozó ág helyezhető át a trunk jelenlegi állapotára."
+			],
+			"Link a ticket first: trunk is what tickets are measured against, not a ticket.": [
+				"Először társítson egy hibajegyet: a trunk a hibajegyek összehasonlítási alapja, nem hibajegy."
+			],
+			"There is uncommitted work on trunk — decide what happens to it before starting the ticket": [
+				"A trunk ágon nem véglegesített módosítások vannak — a hibajegyen végzett munka megkezdése előtt döntse el, mi történjen velük"
+			],
+			"the editor could not be opened (exit code %s)": [
+				"nem sikerült megnyitni a szerkesztőt (kilépési kód: %s)"
+			],
+			"the saved work\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Visszaállítva — a fordításfigyelő elvégezte az újrafordítást. A kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"the saved work\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Visszaállítva — a fordításfigyelő még fordítja ezt a módosítást. A webhely kipróbálása előtt várja meg, amíg befejezi a munkát."
+			],
+			"the saved work\u0004Restored.": [
+				"Visszaállítva."
+			],
+			"the saved work\u0004Restored — open the site to try it out.": [
+				"Visszaállítva — a kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"the previous branch\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Visszaállítva — a fordításfigyelő elvégezte az újrafordítást. A kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"the previous branch\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Visszaállítva — a fordításfigyelő még fordítja ezt a módosítást. A webhely kipróbálása előtt várja meg, amíg befejezi a munkát."
+			],
+			"the previous branch\u0004Restored.": [
+				"Visszaállítva."
+			],
+			"the previous branch\u0004Restored — open the site to try it out.": [
+				"Visszaállítva — a kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"Now on trunk as of %s.": [
+				"Jelenleg a trunk %s dátumú állapota az aktív."
+			],
+			"Resetting to latest trunk (%s)…": [
+				"Visszaállítás a trunk legfrissebb állapotára (%s)…"
+			],
+			"Already up to date.": [
+				"Már naprakész."
+			],
+			"Fetching latest trunk…": [
+				"A trunk legfrissebb állapotának lekérése…"
+			],
+			"Trac returned %s — try opening the ticket again to pass the check.": [
+				"A Trac válaszkódja: %s — az ellenőrzés teljesítéséhez próbálja meg újra megnyitni a hibajegyet."
+			],
+			"Only https core.trac.wordpress.org attachments are allowed": [
+				"Csak a core.trac.wordpress.org webhelyről származó, https protokollon elérhető mellékletek engedélyezettek"
+			],
+			"%s file": [
+				"%s fájl",
+				"%s fájl"
+			],
+			"Ready to work on %s": [
+				"Kezdődhet a munka: %s"
+			],
+			"Ready to try %s": [
+				"Készen áll a kipróbálásra: %s"
+			],
+			"Checking which files change…": [
+				"A módosuló fájlok ellenőrzése…"
+			],
+			"Swapping files for %s…": [
+				"Fájlok cseréje ehhez: %s…"
+			],
+			"Swapping files…": [
+				"Fájlok cseréje…"
+			],
+			"Moving your work on %s onto the current trunk…": [
+				"A(z) %s kapcsán végzett munka áthelyezése a trunk ág jelenlegi verziójára…"
+			],
+			"Moving your edits on %s onto the current trunk…": [
+				"A(z) %s módosításainak áthelyezése a trunk ág jelenlegi verziójára…"
+			],
+			"Moving your work onto the current trunk…": [
+				"Munka áthelyezése a trunk ág jelenlegi verziójára…"
+			],
+			"Saving your work on %s…": [
+				"A(z) %s kapcsán végzett munka mentése…"
+			],
+			"Saving your edits on %s…": [
+				"A(z) %s módosításainak mentése…"
+			],
+			"Saving your work…": [
+				"Munka mentése…"
+			],
+			"The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.": [
+				"Az összeállítási figyelőfolyamat a módosítás után újraösszeállítást végez. A webhely kipróbálása előtt várja meg, amíg ismét figyelési állapotba lép."
+			],
+			"Start the build watch, or run %s in the Terminal.": [
+				"Indítsa el az összeállítási figyelőfolyamatot, vagy futtassa a(z) %s parancsot a terminálban."
+			],
+			"The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Az összeállítási figyelőfolyamat még fordítja ezt a módosítást. A webhely kipróbálása előtt várja meg, amíg befejezi a munkát."
+			],
+			"PR #%s is applied.": [
+				"A PR #%s alkalmazva."
+			],
+			"The build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Az összeállítási figyelőfolyamat az újraösszeállítás befejezése előtt leállt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"PR #%s is applied but not built.": [
+				"A PR #%s alkalmazva, de még nincs összeállítva."
+			],
+			"PR #%s is applied. The site is rebuilding.": [
+				"A PR #%s alkalmazva. A webhely újraösszeállítása folyamatban."
+			],
+			"Update incomplete — the build watch stopped before it finished rebuilding.": [
+				"A frissítés nem fejeződött be — az összeállítási figyelőfolyamat az újraösszeállítás befejezése előtt leállt."
+			],
+			"Update complete — the build watch has rebuilt, and this site is now on the latest trunk.": [
+				"A frissítés befejeződött — az összeállítási figyelőfolyamat befejezte az újraösszeállítást, és a webhely már a trunk ág legfrissebb verzióját használja."
+			],
+			"Update incomplete — the build watch was stopped, so nothing rebuilt.": [
+				"A frissítés nem fejeződött be — az összeállítási figyelőfolyamatot leállították, ezért semmi sem lett újra összeállítva."
+			],
+			"The code is new but the built assets are old; retry install & build from the banner above.": [
+				"A kód új, de az összeállított erőforrások régiek; a fenti értesítési sávból indítsa újra a telepítést és az összeállítást."
+			],
+			"The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"A javítás alkalmazva, de az összeállítási figyelőfolyamat az újraösszeállítás befejezése előtt leállt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"The patch is applied but the build watch was stopped, so the site still runs the old assets.": [
+				"A javítás alkalmazva, de az összeállítási figyelőfolyamatot leállították, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"%s failed, so the build was skipped. The patch is applied but dependencies are stale.": [
+				"A(z) %s parancs futtatása sikertelen volt, ezért az összeállítás kimaradt. A javítás alkalmazva, de a függőségek elavultak."
+			],
+			"The patch is applied but the build failed, so the site still runs the old assets.": [
+				"A javítás alkalmazva, de az összeállítás sikertelen volt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"The patch changes %1$s — running %2$s…": [
+				"A javítás módosítja a(z) %1$s fájlt — a(z) %2$s parancs futtatása…"
+			],
+			"Applied — the build watch has rebuilt. Open the site to try it out.": [
+				"Alkalmazva — az összeállítási figyelőfolyamat befejezte az újraösszeállítást. A kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Alkalmazva — az összeállítási figyelőfolyamat még fordítja ezt a módosítást. A webhely kipróbálása előtt várja meg, amíg befejezi a munkát."
+			],
+			"Applied.": [
+				"Alkalmazás kész."
+			],
+			"Applied — open the site to try it out.": [
+				"Alkalmazás kész — a kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"A mentett munka visszaállítása kész, de az összeállítás figyelőfolyamata az újraösszeállítás befejezése előtt leállt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"The saved work is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"A mentett munka visszaállítása kész, de az összeállítás figyelőfolyamatát leállították, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"%s failed, so the build was skipped. The saved work is restored but dependencies are stale.": [
+				"A(z) %s parancs futtatása sikertelen volt, ezért az összeállítás kimaradt. A mentett munka visszaállítása kész, de a függőségek elavultak."
+			],
+			"The saved work is restored but the build failed, so the site still runs the old assets.": [
+				"A mentett munka visszaállítása kész, de az összeállítás sikertelen volt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"The saved work changes %1$s — running %2$s…": [
+				"A mentett munka módosítja a(z) %1$s fájlt — a(z) %2$s parancs futtatása…"
+			],
+			"The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Az előző ág visszaállítása kész, de az összeállítás figyelőfolyamata az újraösszeállítás befejezése előtt leállt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"The previous branch is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Az előző ág visszaállítása kész, de az összeállítás figyelőfolyamatát leállították, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.": [
+				"A(z) %s parancs futtatása sikertelen volt, ezért az összeállítás kimaradt. Az előző ág visszaállítása kész, de a függőségek elavultak."
+			],
+			"The previous branch is restored but the build failed, so the site still runs the old assets.": [
+				"Az előző ág visszaállítása kész, de az összeállítás sikertelen volt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"The previous branch changes %1$s — running %2$s…": [
+				"Az előző ág módosítja a(z) %1$s fájlt — a(z) %2$s parancs futtatása…"
+			],
+			"The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Az összevonási kérelem kódjára váltás kész, de az összeállítás figyelőfolyamata az újraösszeállítás befejezése előtt leállt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"The pull request is checked out but the build watch was stopped, so the site still runs the old assets.": [
+				"Az összevonási kérelem kódjára váltás kész, de az összeállítás figyelőfolyamatát leállították, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.": [
+				"A(z) %s parancs futtatása sikertelen volt, ezért az összeállítás kimaradt. Az összevonási kérelem kódjára váltás kész, de a függőségek elavultak."
+			],
+			"The pull request is checked out but the build failed, so the site still runs the old assets.": [
+				"Az összevonási kérelem kódjára váltás kész, de az összeállítás sikertelen volt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"The pull request changes %1$s — running %2$s…": [
+				"Az összevonási kérelem módosítja a(z) %1$s fájlt — a(z) %2$s parancs futtatása…"
+			],
+			"Checked out — the build watch has rebuilt. Open the site to try it out.": [
+				"Átváltás kész — az összeállítás figyelőfolyamata befejezte az újraösszeállítást. A kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Átváltás kész — az összeállítás figyelőfolyamata még fordítja ezt a módosítást. A webhely kipróbálása előtt várja meg, amíg befejezi a munkát."
+			],
+			"Checked out.": [
+				"Átváltás kész."
+			],
+			"Checked out — open the site to try it out.": [
+				"Átváltás kész — a kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"A javítás visszavonva, de az összeállítás figyelőfolyamata az újraösszeállítás befejezése előtt leállt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"The patch is reverted but the build watch was stopped, so the site still runs the old assets.": [
+				"A javítás visszavonva, de az összeállítás figyelőfolyamatát leállították, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"%s failed, so the build was skipped. The patch is reverted but dependencies are stale.": [
+				"A(z) %s parancs futtatása sikertelen volt, ezért az összeállítás kimaradt. A javítás visszavonva, de a függőségek elavultak."
+			],
+			"The patch is reverted but the build failed, so the site still runs the old assets.": [
+				"A javítás visszavonva, de az összeállítás sikertelen volt, ezért a webhely továbbra is a régi erőforrásokat használja."
+			],
+			"Reverted — the build watch has rebuilt. Open the site to try it out.": [
+				"Visszavonva — a buildfigyelő elvégezte az újraépítést. A kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Visszavonva — a buildfigyelő még fordítja ezt a módosítást. A webhely kipróbálása előtt várja meg, amíg befejezi a munkát."
+			],
+			"Reverted.": [
+				"Visszavonva."
+			],
+			"Reverted — open the site to try it out.": [
+				"Visszavonva — a kipróbáláshoz nyissa meg a webhelyet."
+			],
+			"The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.": [
+				"A buildfigyelő az újraindulásakor teljesen újraépíti a(z) %s mappa tartalmát — a kimenet a Naplók között, a Buildfigyelő alatt látható. A frissítés akkor fejeződik be, amikor ismét figyel."
+			],
+			"This pull request is closed. You can still check out its last head to investigate it.": [
+				"Ez a pull request le van zárva. A vizsgálatához továbbra is kivehető a legutóbbi commitja."
+			],
+			"Return to saved copy": [
+				"Visszatérés a mentett példányhoz"
+			],
+			"PR #%d is already on this site; you will switch to your local copy.": [
+				"A(z) #%d PR már megtalálható ezen a webhelyen; a helyi példányára fog átváltani."
+			],
+			"PR #%d has moved on GitHub; your local copy will be updated.": [
+				"A(z) #%d PR megváltozott a GitHubon; a helyi példány frissülni fog."
+			],
+			"PR #%d has moved on GitHub, but your copy has edits on top.": [
+				"A(z) #%d PR megváltozott a GitHubon, de a helyi példány további módosításokat tartalmaz."
+			],
+			"PR #%1$d changes %2$d file.": [
+				"A(z) #%1$d PR %2$d fájlt módosít.",
+				"A(z) #%1$d PR %2$d fájlt módosít."
+			],
+			"Could not switch this pull request. Check the log and try again.": [
+				"Nem sikerült átváltani erre a pull requestre. Ellenőrizze a naplót, és próbálja újra."
+			],
+			"This pull request has no recorded starting point, so the app cannot safely save its edits. Save a patch before changing branches.": [
+				"Ehhez a pull requesthez nincs rögzített kiindulópont, ezért az alkalmazás nem tudja biztonságosan menteni a hozzá tartozó módosításokat. Ágváltás előtt mentse a módosításokat patchként."
+			],
+			"No pull request is checked out on this site.": [
+				"Ezen a webhelyen nincs kivett pull request."
+			],
+			"Enter a positive whole pull request number.": [
+				"Adja meg a pull request számát pozitív egész számként."
+			],
+			"PR #%d is already checked out. Revert it before applying it again.": [
+				"A(z) #%d PR már ki van véve. Az újbóli alkalmazás előtt vonja vissza."
+			],
+			"This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.": [
+				"Ezen a webhelyen már létezik egy pr/%d nevű ág, amelyet nem az alkalmazás hozott létre. Az újabb próbálkozás előtt nevezze át vagy törölje ezt az ágat egy terminálból."
+			],
+			"PR #%d has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.": [
+				"A(z) #%d PR megváltozott a GitHubon, és a helyi példány további módosításokat tartalmaz. Frissítés előtt vesse el ezeket a módosításokat, vagy tartsa meg a jelenlegi példányt."
+			],
+			"Revert this PR": [
+				"A PR visszavonása"
+			],
+			"Edits you make here stay with your local copy of the PR.": [
+				"Az itt végzett módosítások a PR helyi példányában maradnak."
+			],
+			"Your edits here stay with your local copy of the PR.": [
+				"Az itt végzett módosítások a PR helyi példányában maradnak."
+			],
+			"Your ticket changes are saved separately and return when you revert this PR.": [
+				"A hibajegyhez kapcsolódó módosítások külön mentésben tárolódnak, és a PR visszavonásakor visszaállnak."
+			],
+			"Your issue changes are saved separately and return when you revert this PR.": [
+				"A problémához kapcsolódó módosítások külön mentésben tárolódnak, és a PR visszavonásakor visszaállnak."
+			],
+			"Reverting this PR returns to trunk.": [
+				"A PR visszavonásával a trunk ágra tér vissza."
+			],
+			"Setup failed: %s": [
+				"A beállítás nem sikerült: %s"
+			],
+			"Site setup request completed.": [
+				"A webhely beállítására irányuló kérés feldolgozása befejeződött."
+			],
+			"Starting site setup…": [
+				"A webhely beállításának indítása…"
+			],
+			"Cloning repository…": [
+				"A kódtár klónozása…"
+			],
+			"Setup finished.": [
+				"A beállítás befejeződött."
+			],
+			"Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.": [
+				"A támogatott parancsok listázásához írja be a <code><command /></code> parancsot. Az aktuális parancs leállításához nyomja meg a <code><keys /></code> billentyűkombinációt."
+			],
+			"Added a dependency to <code><file /></code>? Run <command />.": [
+				"Új függőséget adott a <code><file /></code> fájlhoz? Futtassa a <command /> parancsot."
+			],
+			"Edited files in <code><folder /></code>? Run <command /> so the site picks them up.": [
+				"Módosította a fájlokat a <code><folder /></code> mappában? Futtassa a <command /> parancsot, hogy a webhelyen megjelenjenek a változtatások."
+			],
+			"Setting this site up — running %s…": [
+				"A webhely beállítása — a következő parancs futtatása: %s…"
+			],
+			"Stopping setup…": [
+				"A beállítás leállítása…"
+			],
+			"Debug.log": [
+				"Debug.log"
+			],
+			"Debug.log (%d)": [
+				"Debug.log (%d)"
+			],
+			"Discarded local changes.": [
+				"A helyi módosítások elvetve."
+			],
+			"Saved your changes to %s and reset the working tree.": [
+				"A módosítások mentése a következő fájlba és a munkafa alaphelyzetbe állítása megtörtént: %s."
+			],
+			"Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.": [
+				"A frissítés nem fejeződött be — a következő parancs futtatása sikertelen volt: %s. A kód új, de a függőségek és az összeállított erőforrások régiek; a fenti sávból próbálja újra a telepítést és az összeállítást."
+			],
+			"%1$s changed — running %2$s (only the changed packages are downloaded)…": [
+				"Megváltozott a %1$s fájl — a következő parancs futtatása: %2$s (csak a megváltozott csomagok töltődnek le)…"
+			],
+			"Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.": [
+				"A frissítés nem fejeződött be — az összeállítás sikertelen volt. A kód új, de az összeállított erőforrások régiek; a fenti sávból próbálja újra a telepítést és az összeállítást."
+			],
+			"Update complete — this site is now on the latest trunk.": [
+				"A frissítés befejeződött — a webhely most a trunk ág legfrissebb verzióját használja."
+			],
+			"WordPress npm helper terminal.": [
+				"WordPress npm-segédterminál."
+			],
+			"A command is already running. Press %s to stop it.": [
+				"Már fut egy parancs. A leállításához nyomja meg a következő billentyűkombinációt: %s."
+			],
+			"Try \"%s\" for the list of supported commands.": [
+				"A támogatott parancsok listájához futtassa a következő parancsot: \"%s\"."
+			],
+			"Unsupported command: %s": [
+				"Nem támogatott parancs: %s"
+			],
+			"Unsupported script \"%1$s\". Allowed scripts: %2$s": [
+				"Nem támogatott szkript: \"%1$s\". Engedélyezett szkriptek: %2$s"
+			],
+			"Missing script name. Example: %s": [
+				"Hiányzik a szkript neve. Példa: %s"
+			],
+			"Run them here whenever you change files or add a dependency afterwards.": [
+				"A későbbiekben itt futtassa ezeket, amikor fájlokat módosít vagy függőséget ad hozzá."
+			],
+			"The setup checklist runs %1$s and %2$s once.": [
+				"A beállítási ellenőrzőlista egy-egy alkalommal futtatja a következő parancsokat: %1$s és %2$s."
+			],
+			"%1$s Run one of: %2$s": [
+				"%1$s A következők egyikének futtatása: %2$s"
+			],
+			"%1$s Run %2$s in the site directory": [
+				"%1$s A %2$s parancs futtatása a webhely könyvtárában"
+			],
+			"%s Show this help text": [
+				"%s Ennek a súgószövegnek a megjelenítése"
+			],
+			"Available commands:": [
+				"Elérhető parancsok:"
+			],
+			"Could not show the log file: %s": [
+				"Nem sikerült megjeleníteni a naplófájlt: %s"
+			],
+			"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was not.": [
+				"Nem sikerült kiüríteni a %1$s mappában lévő debug.log fájlt: %2$s. A panel tartalma törölve, a fájlé nem."
+			],
+			"Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.": [
+				"A fejlesztői kiszolgáló indítása megszakítva: a buildfigyelés leállt, mielőtt a %s mappa elkészült volna. Indítsa el újra a kiszolgálót, ha már fut a figyelés."
+			],
+			"%s is complete: starting the server without the build watch. Start build watch to compile edits on save.": [
+				"A %s mappa elkészült: a kiszolgáló buildfigyelés nélkül indul el. Indítsa el a buildfigyelést, hogy mentéskor lefordítsa a módosításokat."
+			],
+			"Failed to start PHP server: %s": [
+				"Nem sikerült elindítani a PHP-kiszolgálót: %s"
+			],
+			"unknown error": [
+				"ismeretlen hiba"
+			],
+			"Dev server failed to start: %s": [
+				"Nem sikerült elindítani a fejlesztői kiszolgálót: %s"
+			],
+			"Dev server stopped unexpectedly (see Help → %s for details).": [
+				"A fejlesztői kiszolgáló váratlanul leállt (részletek a Súgó → %s menüpontban)."
+			],
+			"Resumed.": [
+				"Folytatva."
+			],
+			"Paused while another operation uses the build.": [
+				"Szünetel, amíg egy másik művelet használja a buildet."
+			],
+			"%1$s failed with code %2$s — build watch not started.": [
+				"A %1$s parancs sikertelenül zárult, kilépési kódja: %2$s — a buildfigyelés nem indult el."
+			],
+			"%s was stopped — build watch not started.": [
+				"A %s parancs leállt — a buildfigyelés nem indult el."
+			],
+			"No completed build found — running %s first…": [
+				"Nem található elkészült build — először a %s parancs futtatása…"
+			],
+			"A command is already running in the terminal — stop it before starting the build watch.": [
+				"Már fut egy parancs a terminálban — a buildfigyelés elindítása előtt állítsa le."
+			],
+			"%1$s exited with code %2$s": [
+				"A %1$s parancs kilépési kódja: %2$s"
+			],
+			"%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for \"%3$s\".": [
+				"A %1$s parancs a figyelés megkezdése előtt újraépíti a %2$s mappát. A fejlesztői kiszolgáló – ha elindította – a következőre vár: \"%3$s\"."
+			],
+			"The patch could not be applied.": [
+				"Nem sikerült alkalmazni a javítócsomagot."
+			],
+			"%s The record of it could not be cleared, so this site still thinks it is applied.": [
+				"%s A nyilvántartási bejegyzését nem sikerült törölni, ezért ez a webhely továbbra is alkalmazottnak tekinti."
+			],
+			"%s The applied-patch record has been cleared.": [
+				"%s Az alkalmazott javítócsomag nyilvántartási bejegyzése törölve."
+			],
+			"A command is already running. Stop it before switching tickets.": [
+				"Már fut egy parancs. Hibajegyváltás előtt állítsa le."
+			],
+			"Could not read that patch.": [
+				"Nem sikerült beolvasni a javítócsomagot."
+			],
+			"Could not download %s.": [
+				"Nem sikerült letölteni a fájlt: %s."
+			],
+			"Could not read that file: %s": [
+				"Nem sikerült beolvasni a fájlt: %s"
+			],
+			"Running %s…": [
+				"Parancs futtatása: %s…"
+			],
+			"Build watch (exited %d)": [
+				"Fordításfigyelő (kilépett, kilépési kód: %d)"
+			],
+			"Build watch (stopped)": [
+				"Fordításfigyelő (leállt)"
+			],
+			"Build watch (paused)": [
+				"Fordításfigyelő (szünetel)"
+			],
+			"Build watch (building)": [
+				"Fordításfigyelő (összeállítás folyamatban)"
+			],
+			"Build watch (watching)": [
+				"Fordításfigyelő (figyel)"
+			],
+			"Build watch (compiling)": [
+				"Fordításfigyelő (fordítás folyamatban)"
+			],
+			"Could not copy": [
+				"Nem sikerült másolni"
+			],
+			"The build failed — dependencies are installed. Its output is above; retry the build from the checklist.": [
+				"Az összeállítás sikertelen volt — a függőségek telepítve vannak. A kimenete fent látható; próbálja újra az összeállítást az ellenőrzőlistából."
+			],
+			"%s failed — setup stopped here. Its output is above; retry the install from the checklist.": [
+				"A parancs sikertelen volt: %s — a beállítás itt leállt. A kimenete fent látható; próbálja újra a telepítést az ellenőrzőlistából."
+			],
+			"Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.": [
+				"A beállítás leállt. A hátralévő lépések a fenti ellenőrzőlistában találhatók — végezze el őket, amikor készen áll."
+			],
+			"Setup complete — start the dev server when you are ready.": [
+				"A beállítás befejeződött — indítsa el a fejlesztői szervert, amikor készen áll."
+			],
+			"Status update": [
+				"Állapotfrissítés"
+			],
+			"Status: done": [
+				"Állapot: kész"
+			],
+			"Status: cloning": [
+				"Állapot: klónozás"
+			],
+			"Clear": [
+				"Törlés"
+			],
+			"Show in folder": [
+				"Megjelenítés a mappában"
+			],
+			"The log file appears once the dev server has run.": [
+				"A naplófájl a fejlesztői szerver első futtatása után jelenik meg."
+			],
+			"No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.": [
+				"Még nincsenek PHP-értesítések vagy hibák. A fejlesztői szerver futása közben itt jelenik meg minden, amit a WordPress vagy a saját kód a naplóba ír — a <code><function /></code> kimenete, az értesítések, az elavultsági figyelmeztetések és a végzetes hibák."
+			],
+			"The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.": [
+				"A fordításfigyelő a <code><source /></code> módosításait a <code><build /></code> mappába fordítja le. A fejlesztői szervertől függetlenül fut — itt látható a kimenete és az állapota: figyel, szünetel vagy leállt."
+			],
+			"it no longer fits": [
+				"már nem illeszkedik"
+			],
+			"Open the pull request": [
+				"Beolvasztási kérelem megnyitása"
+			],
+			"the code around it has changed": [
+				"a környező kód megváltozott"
+			],
+			"looks like that change is not in your checkout any more": [
+				"úgy tűnik, ez a módosítás már nem szerepel a munkapéldányban"
+			],
+			"It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Most már a saját módosításainak része. Ha visszavonja az érintett sorokon végzett saját módosításait, a Visszaállítás ismét elérhető lesz; máskülönben mentse a munkája másolatát, és az összes módosítás elvetésével állítsa vissza a hibajegyet az alapállapotába — ennél a projektnél ez a továbblépés szokásos módja, nem pedig egy elvesztegetett délután."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.": [
+				"Ez a javítás önmagában nem vonható vissza: a(z) %2$d módosításából %1$d saját módosításokat is tartalmaz, %3$d fájlban.",
+				"Ez a javítás önmagában nem vonható vissza: a(z) %2$d módosításából %1$d saját módosításokat is tartalmaz, %3$d fájlban."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.": [
+				"Ez a javítás önmagában nem vonható vissza: a(z) %2$d módosításából %1$d saját módosításokat is tartalmaz.",
+				"Ez a javítás önmagában nem vonható vissza: a(z) %2$d módosításából %1$d saját módosításokat is tartalmaz."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.": [
+				"A(z) %1$s javítás önmagában nem vonható vissza: a(z) %3$d módosításából %2$d saját módosításokat is tartalmaz, %4$d fájlban.",
+				"A(z) %1$s javítás önmagában nem vonható vissza: a(z) %3$d módosításából %2$d saját módosításokat is tartalmaz, %4$d fájlban."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.": [
+				"A(z) %1$s javítás önmagában nem vonható vissza: a(z) %3$d módosításából %2$d saját módosításokat is tartalmaz.",
+				"A(z) %1$s javítás önmagában nem vonható vissza: a(z) %3$d módosításából %2$d saját módosításokat is tartalmaz."
+			],
+			"Ask its author for a rebase": [
+				"Rebase kérése a szerzőtől"
+			],
+			"Bringing it up to date is its author's work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.": [
+				"A naprakésszé tétel a szerző feladata — rebase végrehajtásával vagy a trunk beolvasztásával. Már az is valódi hozzájárulás, ha egy hozzászólásban jelzi ezt a pull requestnél."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Ez a pull request a trunk egy régebbi változatához készült, és már nem illeszkedik hozzá: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban.",
+				"Ez a pull request a trunk egy régebbi változatához készült, és már nem illeszkedik hozzá: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Ez a pull request a trunk egy régebbi változatához készült, és már nem illeszkedik hozzá: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban.",
+				"Ez a pull request a trunk egy régebbi változatához készült, és már nem illeszkedik hozzá: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban."
+			],
+			"looks like it is already in your checkout": [
+				"úgy tűnik, már szerepel a munkapéldányban"
+			],
+			"Your own work is also in %s, so it may be part of why the pull request does not fit.": [
+				"A saját módosításai a következő fájlokban is szerepelnek, ezért hozzájárulhatnak ahhoz, hogy a pull request nem illeszkedik: %s."
+			],
+			"%s includes changes from the patch you applied and may also contain your own edits.": [
+				"A(z) %s tartalmazza az alkalmazott javítás módosításait, és saját módosításokat is tartalmazhat.",
+				"A következő fájlok tartalmazzák az alkalmazott javítás módosításait, és saját módosításokat is tartalmazhatnak: %s."
+			],
+			"%1$s includes changes from %2$s and may also contain your own edits.": [
+				"A(z) %1$s tartalmazza a(z) %2$s javítás módosításait, és saját módosításokat is tartalmazhat.",
+				"A következő fájlok tartalmazzák a(z) %2$s javítás módosításait, és saját módosításokat is tartalmazhatnak: %1$s."
+			],
+			"Other failures are in %s.": [
+				"További hibák a következő fájlokban találhatók: %s."
+			],
+			"Your own work is also in %s and may be part of the failure.": [
+				"A saját módosításai a következő fájlokban is szerepelnek, és hozzájárulhatnak a sikertelenséghez: %s."
+			],
+			"Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.": [
+				"Először mentse a munkáját javításként, hogy megmaradjon egy másolata, majd próbálja ki ezt a pull requestet egy módosításoktól mentes hibajegyen. Ha ott sem illeszkedik, nyissa meg a pull requestet, és jelezze a szerzőjének, hogy frissítésre lehet szükség."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Ez a pull request nem illeszkedik a munkapéldányhoz: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban.",
+				"Ez a pull request nem illeszkedik a munkapéldányhoz: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Ez a pull request nem illeszkedik a munkapéldányhoz: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban.",
+				"Ez a pull request nem illeszkedik a munkapéldányhoz: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban."
+			],
+			"See why it was closed": [
+				"A lezárás okának megtekintése"
+			],
+			"Nobody is coming back to update a closed pull request — its discussion may say why it ended.": [
+				"Senki sem fog visszatérni egy lezárt pull request frissítéséhez — a hozzászólásokból kiderülhet, miért zárták le."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Ez a pull request le van zárva, és a trunk egy régebbi változatához készült — már nem illeszkedik hozzá: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban.",
+				"Ez a pull request le van zárva, és a trunk egy régebbi változatához készült — már nem illeszkedik hozzá: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Ez a pull request le van zárva, és a trunk egy régebbi változatához készült — már nem illeszkedik hozzá: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban.",
+				"Ez a pull request le van zárva, és a trunk egy régebbi változatához készült — már nem illeszkedik hozzá: a(z) %2$d módosításából %1$d átdolgozást igényelne, %3$d fájlban."
+			],
+			"All %d of this pull request's change look like they are already in trunk — there is nothing left to apply.": [
+				"Úgy tűnik, a pull request mind a(z) %d módosítása már szerepel a trunkban — nincs több alkalmazható módosítás.",
+				"Úgy tűnik, a pull request mind a(z) %d módosítása már szerepel a trunkban — nincs több alkalmazható módosítás."
+			],
+			"All %d of this pull request's change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.": [
+				"Úgy tűnik, a pull request mind a(z) %d módosítása már szerepel a trunkban — valószínűleg már bekerült a WordPress alaprendszerébe, ezért zárták le. Nincs több alkalmazható módosítás.",
+				"Úgy tűnik, a pull request mind a(z) %d módosítása már szerepel a trunkban — valószínűleg már bekerült a WordPress alaprendszerébe, ezért zárták le. Nincs több alkalmazható módosítás."
+			],
+			"All %d of this pull request's change look like they are already in your checkout — there is nothing left to apply.": [
+				"Úgy tűnik, a beolvasztási kérelem mind a(z) %d módosítása már megtalálható a munkapéldányban — nincs több alkalmazható módosítás.",
+				"Úgy tűnik, a beolvasztási kérelem mind a(z) %d módosítása már megtalálható a munkapéldányban — nincs több alkalmazható módosítás."
+			],
+			"%1$s and %2$d more file": [
+				"%1$s és további %2$d fájl",
+				"%1$s és további %2$d fájl"
+			],
+			"%1$d of this patch's %2$d change across %3$d files no longer fit — the other %4$d do.": [
+				"A javítófolt %3$d fájlt érintő %2$d módosításából %1$d már nem alkalmazható — a fennmaradó %4$d igen.",
+				"A javítófolt %3$d fájlt érintő %2$d módosításából %1$d már nem alkalmazható — a fennmaradó %4$d igen."
+			],
+			"%1$d of this patch's %2$d change no longer fit — the other %3$d do.": [
+				"A javítófolt %2$d módosításából %1$d már nem alkalmazható — a fennmaradó %3$d igen.",
+				"A javítófolt %2$d módosításából %1$d már nem alkalmazható — a fennmaradó %3$d igen."
+			],
+			"None of this patch's %1$d change across %2$d files still fit your checkout.": [
+				"A javítófolt %2$d fájlt érintő %1$d módosítása közül már egyik sem alkalmazható a munkapéldányra.",
+				"A javítófolt %2$d fájlt érintő %1$d módosítása közül már egyik sem alkalmazható a munkapéldányra."
+			],
+			"None of this patch's %d change still fit your checkout.": [
+				"A javítófolt %d módosítása közül már egyik sem alkalmazható a munkapéldányra.",
+				"A javítófolt %d módosítása közül már egyik sem alkalmazható a munkapéldányra."
+			],
+			"%1$d of this patch's %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.": [
+				"Úgy tűnik, a javítófolt %3$d fájlt érintő %2$d módosításából %1$d már megtalálható a munkapéldányban — a fennmaradó %4$d még alkalmazható.",
+				"Úgy tűnik, a javítófolt %3$d fájlt érintő %2$d módosításából %1$d már megtalálható a munkapéldányban — a fennmaradó %4$d még alkalmazható."
+			],
+			"%1$d of this patch's %2$d change look like they are already in your checkout — the other %3$d still fit.": [
+				"Úgy tűnik, a javítófolt %2$d módosításából %1$d már megtalálható a munkapéldányban — a fennmaradó %3$d még alkalmazható.",
+				"Úgy tűnik, a javítófolt %2$d módosításából %1$d már megtalálható a munkapéldányban — a fennmaradó %3$d még alkalmazható."
+			],
+			"All %1$d of this patch's change across %2$d files look like they are already in your checkout.": [
+				"Úgy tűnik, a javítófolt %2$d fájlt érintő mind a(z) %1$d módosítása már megtalálható a munkapéldányban.",
+				"Úgy tűnik, a javítófolt %2$d fájlt érintő mind a(z) %1$d módosítása már megtalálható a munkapéldányban."
+			],
+			"All %d of this patch's change look like they are already in your checkout.": [
+				"Úgy tűnik, a javítófolt mind a(z) %d módosítása már megtalálható a munkapéldányban.",
+				"Úgy tűnik, a javítófolt mind a(z) %d módosítása már megtalálható a munkapéldányban."
+			],
+			"The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.": [
+				"A javítófolt ezekre a módosításokra épülve lesz alkalmazva: ha nincs köztük átfedés, az alkalmazás sikeres; ha van, sikertelen, és semmit sem módosít."
+			],
+			"%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.": [
+				"A következő fájl tartalmazza az alkalmazott javítófolt módosításait: %s. A fájl saját módosításokat is tartalmazhat.",
+				"A következő fájlok tartalmazzák az alkalmazott javítófolt módosításait: %s. A fájlok saját módosításokat is tartalmazhatnak."
+			],
+			"%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.": [
+				"A következő fájl tartalmazza az alkalmazott %2$s javítófolt módosításait: %1$s. A fájl saját módosításokat is tartalmazhat.",
+				"A következő fájlok tartalmazzák az alkalmazott %2$s javítófolt módosításait: %1$s. A fájlok saját módosításokat is tartalmazhatnak."
+			],
+			"You have your own edits to %s. Save a patch of your work first if you want a copy.": [
+				"A következő fájlokban saját módosítások vannak: %s. Ha másolatot szeretne megőrizni, először mentse el a munkáját javítófoltként."
+			],
+			"%1$s and %2$s": [
+				"%1$s és %2$s"
+			],
+			"It still counts as this ticket's one applied patch, so another cannot be applied until this ticket is reverted or discarded.": [
+				"Ez továbbra is a hibajegy egyetlen alkalmazott javítófoltjának számít, ezért a hibajegy visszaállításáig vagy elvetéséig nem alkalmazható másik."
+			],
+			"Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Először mentse el a munkája másolatát, ezután a hibajegy biztonságosan visszaállítható az alapállapotára a módosítások elvetésével — ebben a projektben ez a továbblépés szokásos módja, nem egy elvesztegetett délután."
+			],
+			"The copy could not be saved: %s": [
+				"Nem sikerült menteni a másolatot: %s"
+			],
+			"%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"A következő javítófolt túl nagy volt ahhoz, hogy másolatot lehessen megőrizni róla a visszavonáshoz, ezért önállóan nem vonható vissza: %s."
+			],
+			"A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"Egy javítófolt túl nagy volt ahhoz, hogy másolatot lehessen megőrizni róla a visszavonáshoz, ezért önállóan nem vonható vissza."
+			],
+			"A patch is applied — %d file.": [
+				"Egy javítófolt alkalmazva — %d fájl.",
+				"Egy javítófolt alkalmazva — %d fájl."
+			],
+			"A patch is applied — %1$d file, %2$s.": [
+				"Egy javítófolt alkalmazva — %1$d fájl, %2$s.",
+				"Egy javítófolt alkalmazva — %1$d fájl, %2$s."
+			],
+			"%1$s is applied — %2$d file.": [
+				"Alkalmazva: %1$s — %2$d fájl.",
+				"Alkalmazva: %1$s — %2$d fájl."
+			],
+			"%1$s is applied — %2$d file, %3$s.": [
+				"Alkalmazva: %1$s — %2$d fájl, %3$s.",
+				"Alkalmazva: %1$s — %2$d fájl, %3$s."
+			],
+			"Only %s pull requests can be applied here.": [
+				"Itt csak a következő tároló beolvasztási kérelmei alkalmazhatók: %s."
+			],
+			"That does not look like a pull request URL.": [
+				"Ez nem tűnik pull requestre mutató URL-címnek."
+			],
+			"Only github.com pull requests are supported.": [
+				"Csak a github.com beolvasztási kérelmei támogatottak."
+			],
+			"That is not a pull request URL or number.": [
+				"Ez nem beolvasztási kérelem URL-je vagy száma."
+			],
+			"Enter a pull request URL or number.": [
+				"Adja meg a beolvasztási kérelem URL-jét vagy számát."
+			],
+			"That does not look like a patch — no file changes found.": [
+				"Ez nem tűnik javításnak — nem található benne fájlmódosítás."
+			],
+			"No file changes found in the patch.": [
+				"A javításban nem található fájlmódosítás."
+			],
+			"The patch is empty.": [
+				"A javítás üres."
+			],
+			"The empty file path is quoted or ambiguous.": [
+				"Az üres fájlútvonal idézőjelek között áll vagy nem egyértelmű."
+			],
+			"Applied %d file.": [
+				"%d fájl módosításai alkalmazva.",
+				"%d fájl módosításai alkalmazva."
+			],
+			"Reverted %d file.": [
+				"%d fájl módosításai visszavonva.",
+				"%d fájl módosításai visszavonva."
+			],
+			"The patch could not be written, so the checkout was put back as it was: %s": [
+				"Nem sikerült kiírni a javítást, ezért a munkapéldány visszaállt az eredeti állapotára: %s"
+			],
+			"The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s": [
+				"Nem sikerült kiírni a javítást, és a munkapéldányt sem sikerült teljesen visszaállítani — az állapota ismeretlen. Nem sikerült visszavonni: %s"
+			],
+			"writing could not verify %1$s after git apply: %2$s": [
+				"írás: a git apply után nem sikerült ellenőrizni a következő fájlt: %1$s. A hiba oka: %2$s"
+			],
+			"writing git apply exited %s": [
+				"írás: a git apply kilépési kódja %s"
+			],
+			"writing %s": [
+				"írás: %s"
+			],
+			"Could not snapshot the checkout before applying the patch: %s": [
+				"Nem sikerült pillanatképet készíteni a munkapéldányról a javítás alkalmazása előtt: %s"
+			],
+			"The patch was not applied — the checkout is unchanged.": [
+				"A javítás alkalmazása nem történt meg — a munkapéldány változatlan."
+			],
+			"That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.": [
+				"Ez a javítás már nincs a munkapéldányban — valami visszaállította az állapotát, valószínűleg a trunk frissítése vagy a módosítások elvetése. Nem történt visszavonás."
+			],
+			"The patch does not apply.": [
+				"A javítás nem alkalmazható."
+			],
+			"a file has moved on since the patch was written, so it no longer applies": [
+				"egy fájl megváltozott a javítás elkészítése óta, ezért a javítás már nem alkalmazható"
+			],
+			"%s has moved on since the patch was written, so it no longer applies": [
+				"A javítás elkészítése óta megváltozott a következő fájl, ezért a javítás már nem alkalmazható: %s"
+			],
+			"%d more file was not checked one by one": [
+				"További %d fájl egyenkénti ellenőrzése elmaradt",
+				"További %d fájl egyenkénti ellenőrzése elmaradt"
+			],
+			"The patch does not change any files.": [
+				"A javítás egyetlen fájlt sem módosít."
+			],
+			"(unnamed binary file)": [
+				"(névtelen bináris fájl)"
+			],
+			"Could not read the patch: %s": [
+				"Nem sikerült beolvasni a javítást: %s"
+			],
+			"Skipped %1$d binary file the app cannot apply: %2$s": [
+				"Kimaradt %1$d bináris fájl, mert az alkalmazás nem tudja alkalmazni: %2$s",
+				"Kimaradt %1$d bináris fájl, mert az alkalmazás nem tudja alkalmazni: %2$s"
+			],
+			"%s is not in this checkout, so the patch does not fit it": [
+				"A fájl (%s) nincs ebben a munkapéldányban, ezért a javítófolt nem alkalmazható rá"
+			],
+			"%1$s already exists, so the patch cannot move %2$s onto it": [
+				"A célútvonal (%1$s) már létezik, ezért a javítófolt nem tudja oda áthelyezni a fájlt (%2$s)"
+			],
+			"%s is not in this checkout, so the patch cannot move it": [
+				"A fájl (%s) nincs ebben a munkapéldányban, ezért a javítófolt nem tudja áthelyezni"
+			],
+			"%s could not be created from the patch": [
+				"Nem sikerült létrehozni a fájlt (%s) a javítófoltból"
+			],
+			"%s already exists, so the patch cannot add it": [
+				"A fájl (%s) már létezik, ezért a javítófolt nem tudja hozzáadni"
+			],
+			"%s is already gone, so the patch cannot remove it": [
+				"A fájl (%s) már nem létezik, ezért a javítófolt nem tudja eltávolítani"
+			],
+			"%s points outside the site folder": [
+				"Az útvonal (%s) a webhely mappáján kívülre mutat"
+			],
+			"%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do": [
+				"A fájl (%1$s) megváltozott a javítófolt készítése óta: a javítófolt %3$d módosításából %2$d már nem alkalmazható, a többi %4$d viszont igen",
+				"A fájl (%1$s) megváltozott a javítófolt készítése óta: a javítófolt %3$d módosításából %2$d már nem alkalmazható, a többi %4$d viszont igen"
+			],
+			"%1$s has moved on since the patch was written, so none of its %2$d change still fits": [
+				"A fájl (%1$s) megváltozott a javítófolt készítése óta, ezért a javítófolt %2$d módosításának egyike sem alkalmazható már",
+				"A fájl (%1$s) megváltozott a javítófolt készítése óta, ezért a javítófolt %2$d módosításának egyike sem alkalmazható már"
+			],
+			"Server did not start within %d second": [
+				"A kiszolgáló nem indult el %d másodpercen belül",
+				"A kiszolgáló nem indult el %d másodpercen belül"
+			],
+			"Server exited with code %s before reporting a URL": [
+				"A kiszolgáló kilépett, mielőtt közölt volna egy URL-t. Kilépési kód: %s"
+			],
+			"Server exited with code %1$s (signal %2$s) before reporting a URL": [
+				"A kiszolgáló kilépett, mielőtt közölt volna egy URL-t. Kilépési kód: %1$s (szignál: %2$s)"
+			],
+			"Failed to start: %s": [
+				"Nem sikerült elindítani: %s"
+			],
+			"Retrying with engine checks relaxed…": [
+				"Újrapróbálkozás a futtatókörnyezetre vonatkozó ellenőrzések enyhítésével…"
+			],
+			"This site requires a newer Node.js than this app bundles.": [
+				"Ez a webhely az alkalmazáshoz mellékelt verziónál újabb Node.js-verziót igényel."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.": [
+				"az npm kilépett. Kilépési kód: %s, de egy általa indított folyamat még fut, és nyitva tartja a kimenetét. Az alkalmazás nem vár tovább, és leállítja ezt a folyamatot."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.": [
+				"az npm kilépett. Kilépési kód: %1$s (szignál: %2$s), de egy általa indított folyamat még fut, és nyitva tartja a kimenetét. Az alkalmazás nem vár tovább, és leállítja ezt a folyamatot."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"az npm kilépett. Kilépési kód: %s, de egy általa indított folyamat még fut, és nyitva tartja a kimenetét. Az alkalmazás nem vár tovább; ez a folyamat tovább fut, amíg magától be nem fejeződik."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"az npm kilépett. Kilépési kód: %1$s (szignál: %2$s), de egy általa indított folyamat még fut, és nyitva tartja a kimenetét. Az alkalmazás nem vár tovább; ez a folyamat tovább fut, amíg magától be nem fejeződik."
+			],
+			"Applying the patch failed: %s": [
+				"Nem sikerült alkalmazni a javítófoltot: %s"
+			],
+			"The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s": [
+				"A javítófolt alkalmazása sikerült, de a visszaállítási adatokat nem sikerült menteni, és a módosításokat sem sikerült visszavonni — a munkapéldány tartalmazza a javítófolt módosításait, és az alkalmazás nem tudja visszaállítani a korábbi állapotot. %s"
+			],
+			"The patch applied but its revert record could not be saved, so it was undone. %s": [
+				"A javítófolt alkalmazása sikerült, de a visszaállítási adatokat nem sikerült menteni, ezért az alkalmazás visszavonta a módosításokat. %s"
+			],
+			"This patch is too large to keep for an undo, so Revert will not be offered.": [
+				"Ez a javítófolt túl nagy ahhoz, hogy a visszavonáshoz meg lehessen őrizni, ezért a Visszaállítás nem lesz elérhető."
+			],
+			"Applying %s…": [
+				"Javítófolt alkalmazása: %s…"
+			],
+			"Reverting %s…": [
+				"Javítófolt visszaállítása: %s…"
+			],
+			"%s is already applied. Revert it before applying another patch.": [
+				"Ez a javítócsomag már alkalmazva van: %s. Másik javítócsomag alkalmazása előtt vonja vissza."
+			],
+			"There is no stored patch to revert.": [
+				"Nincs visszavonható tárolt javítócsomag."
+			],
+			"Could not check your work for conflicts, so the preview was not shown.": [
+				"Nem sikerült ellenőrizni, hogy vannak-e ütközések a munkában, ezért nem jelent meg az előnézet."
+			],
+			"Restoring the files of your previous branch…": [
+				"Az előző ág fájljainak visszaállítása…"
+			],
+			"Could not remove the unused branch: %s": [
+				"Nem sikerült eltávolítani a nem használt ágat: %s"
+			],
+			"Downloading the pull request's files and switching to its branch…": [
+				"A pull request fájljainak letöltése és átváltás az ágára…"
+			],
+			"Returning to your saved copy of the pull request…": [
+				"Visszatérés a pull request mentett példányához…"
+			],
+			"Your work is safe — it is committed on %s. Apply that pull request again to return to it.": [
+				"A munka biztonságban van — commitként mentve ezen az ágon: %s. A visszatéréshez alkalmazza újra ezt a pull requestet."
+			],
+			"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.": [
+				"A #%1$s számú jegyen végzett munka biztonságban van — commitként mentve ezen az ágon: %2$s. A visszatéréshez társítsa újra ezt a jegyet."
+			],
+			"Update failed during fetch: %s": [
+				"A frissítés sikertelen a lekérés során: %s"
+			],
+			"Update failed during checkout: %s": [
+				"A frissítés sikertelen az ágváltás során: %s"
+			],
+			"Returning to your work on %s…": [
+				"Visszatérés a munkához ezen az ágon: %s…"
+			],
+			"Parking your work on %s before updating…": [
+				"A munka ideiglenes mentése frissítés előtt ezen az ágon: %s…"
+			],
+			"Fetch latest trunk": [
+				"A trunk legfrissebb változatának lekérése"
+			],
+			"The build watch is rebuilding — output in the Logs, under Build watch": [
+				"Az összeállításfigyelő újraösszeállítást végez — a kimenet a Naplók között, az Összeállítás figyelése alatt található"
+			],
+			"Dependencies unchanged — skipping %s": [
+				"A függőségek változatlanok — a következő parancs kihagyása: %s"
+			],
+			"Dependencies unchanged, rebuilt.": [
+				"A függőségek változatlanok, az újraösszeállítás elkészült."
+			],
+			"Dependencies updated, rebuilt.": [
+				"A függőségek frissítve, az újraösszeállítás elkészült."
+			],
+			"Dependencies unchanged, rebuilt in %s.": [
+				"A függőségek változatlanok, az újraösszeállítás elkészült. Időtartam: %s."
+			],
+			"Dependencies updated, rebuilt in %s.": [
+				"A függőségek frissítve, az újraösszeállítás elkészült. Időtartam: %s."
+			],
+			"Install dependencies": [
+				"A függőségek telepítése"
+			],
+			"Download WordPress": [
+				"A WordPress letöltése"
+			],
+			"Rebuild": [
+				"Újraösszeállítás"
+			],
+			"Apply the patch": [
+				"A javítócsomag alkalmazása"
+			],
+			"Revert the pull request": [
+				"A pull request visszavonása"
+			],
+			"Apply the pull request": [
+				"Pull request alkalmazása"
+			],
+			"The build watch rebuilds when it resumes": [
+				"Az összeállítás változásfigyelője a folytatáskor újra futtatja az összeállítást"
+			],
+			"The build watch will recompile the change": [
+				"Az összeállítás változásfigyelője újrafordítja a módosítást"
+			],
+			"Rebuilt": [
+				"Újraösszeállítva"
+			],
+			"Rebuilding — output in the Terminal": [
+				"Újraösszeállítás — a kimenet a terminálban látható"
+			],
+			"Dependencies changed — installing the difference…": [
+				"A függőségek megváltoztak — az eltérések telepítése…"
+			],
+			"Fetched and reset to trunk": [
+				"Lekérés és visszaállítás a trunk ágra befejezve"
+			],
+			"Fetching and resetting to trunk…": [
+				"Lekérés és visszaállítás a trunk ágra…"
+			],
+			"Fetch and reset to trunk": [
+				"Lekérés és visszaállítás a trunk ágra"
+			],
+			"The build did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"Az összeállítás nem fejeződött be. A kimenete a terminálban látható — elolvasása után próbálja újra."
+			],
+			"Retry the build": [
+				"Összeállítás újrapróbálása"
+			],
+			"Build complete": [
+				"Összeállítás befejezve"
+			],
+			"The install did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"A telepítés nem fejeződött be. A kimenete a terminálban látható — elolvasása után próbálja újra."
+			],
+			"Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.": [
+				"Telepítve. Azóta új függőséget adott hozzá a %1$s fájlhoz? Futtassa a %2$s parancsot a terminálban."
+			],
+			"Install npm packages so commands can run.": [
+				"A parancsok futtatásához telepítse az npm-csomagokat."
+			],
+			"Retry %s": [
+				"%s újbóli futtatása"
+			],
+			"Dependencies installed": [
+				"Függőségek telepítve"
+			],
+			"Ready": [
+				"Kész"
+			],
+			"In progress": [
+				"Folyamatban"
+			],
+			"Locked": [
+				"Zárolva"
+			],
+			"Pending": [
+				"Függőben"
+			],
+			"Failed": [
+				"Sikertelen"
+			],
+			"Completed": [
+				"Befejezve"
+			],
+			"The trunk snapshot is old; update before making a patch.": [
+				"A trunk ág pillanatképe régi; javítófolt készítése előtt frissítse."
+			],
+			"The update left the build stale; install and build to recover.": [
+				"A frissítés után az összeállítás elavult; a helyreállításhoz futtassa a telepítést és az összeállítást."
+			],
+			"A patch is staged — apply and rebuild, or cancel.": [
+				"Egy javítócsomag elő van készítve — alkalmazza és indítsa újra az összeállítást, vagy szakítsa meg a műveletet."
+			],
+			"The trunk update in progress.": [
+				"A trunk frissítése folyamatban."
+			],
+			"A patch is being applied or reverted.": [
+				"Javítócsomag alkalmazása vagy visszavonása folyamatban."
+			],
+			"The next step in the setup checklist.": [
+				"A beállítási ellenőrzőlista következő lépése."
+			],
+			"Link a Trac ticket to give your work a home.": [
+				"Társítson egy Trac-hibajegyet, hogy a munka ahhoz kapcsolódjon."
+			],
+			"Link a GitHub issue to give your work a home.": [
+				"Társítson egy GitHub-hibajegyet, hogy a munka ahhoz kapcsolódjon."
+			],
+			"You have uncommitted changes ready to review and submit.": [
+				"A még nem véglegesített módosítások készen állnak az ellenőrzésre és beküldésre."
+			],
+			"PR #%d is applied; revert it before applying another change.": [
+				"A PR #%d már alkalmazva van; másik módosítás alkalmazása előtt vonja vissza."
+			],
+			"Start the dev server to work on the site.": [
+				"A webhelyen végzett munkához indítsa el a fejlesztői kiszolgálót."
+			],
+			"Setting up new site…": [
+				"Új webhely beállítása…"
+			],
+			"Finish setting this site up first.": [
+				"Először fejezze be a webhely beállítását."
+			],
+			"Hide": [
+				"Elrejtés"
+			],
+			"Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.": [
+				"Teljes összeállítás futtatása. Ez Windows rendszeren akár fél órát is igénybe vehet; a terminálban látható, hogy éppen milyen művelet zajlik."
+			],
+			"Installing dependencies. You can leave this running — the build follows on its own.": [
+				"Függőségek telepítése. A folyamat felügyelet nélkül is futhat — az összeállítás ezután automatikusan elindul."
+			],
+			"Setting this site up for you — step %1$d of %2$d": [
+				"A webhely beállítása folyamatban — %1$d. lépés (összesen %2$d)"
+			],
+			"Your changes were saved to %s before the reset.": [
+				"A visszaállítás előtt a módosításokat a %s fájlba mentettük."
+			],
+			"Up to date with trunk as of today.": [
+				"Naprakész a trunk mai állapotához képest."
+			],
+			"Most packages are already cached, so this is a download of the difference — not the whole tree.": [
+				"A legtöbb csomag már a gyorsítótárban van, így csak a különbséget kell letölteni, nem a teljes forrásfát."
+			],
+			"step %1$d of %2$d": [
+				"%1$d. lépés (összesen %2$d)"
+			],
+			"Patches you create now may not apply on Trac. Updating takes a few minutes.": [
+				"Előfordulhat, hogy a most létrehozott javítócsomagok nem alkalmazhatók a Trac rendszerében. A frissítés néhány percet vesz igénybe."
+			],
+			"This site's WordPress code is %d day old": [
+				"A webhely WordPress-kódja %d napos",
+				"A webhely WordPress-kódja %d napos"
+			],
+			"Retry install & build": [
+				"Telepítés és összeállítás újrapróbálása"
+			],
+			"The code is new but the built assets are old. The site may not run correctly until install and build succeed.": [
+				"A kód új, de az összeállított erőforrások régiek. Előfordulhat, hogy a webhely nem működik megfelelően, amíg a telepítés és az összeállítás sikeresen be nem fejeződik."
+			],
+			"Update incomplete": [
+				"A frissítés nem fejeződött be"
+			],
+			"Next step: %s": [
+				"Következő lépés: %s"
+			],
+			"Starting… (%s)": [
+				"Indítás folyamatban… (%s)"
+			],
+			"Start dev server and finish the wizard": [
+				"Fejlesztői kiszolgáló indítása és a varázsló befejezése"
+			],
+			"Stop dev server": [
+				"Fejlesztői kiszolgáló leállítása"
+			],
+			"Start dev server & finish wizard": [
+				"Fejlesztői kiszolgáló indítása és a varázsló befejezése"
+			],
+			"Run full build": [
+				"Teljes összeállítás futtatása"
+			],
+			"Install npm dependencies": [
+				"Az npm-függőségek telepítése"
+			],
+			"Cloning the repository… install and build start on their own when it finishes.": [
+				"A kódtár klónozása folyamatban… a befejezése után a telepítés és az összeállítás automatikusan elindul."
+			],
+			"Failed to discard changes: %s": [
+				"Nem sikerült elvetni a módosításokat: %s"
+			],
+			"Saved your changes to %1$s, but resetting the working tree failed: %2$s": [
+				"A módosítások mentése sikerült (%1$s), de nem sikerült visszaállítani a munkafát: %2$s"
+			],
+			"Error saving diff: %s": [
+				"Hiba a diff mentésekor: %s"
+			],
+			"Please complete the full build before starting the dev server. You can also skip the wizard.": [
+				"A fejlesztői kiszolgáló indítása előtt be kell fejezni a teljes összeállítást. A varázsló ki is hagyható."
+			],
+			"Updating to latest trunk": [
+				"Frissítés a trunk legújabb állapotára"
+			],
+			"Skip initialization wizard": [
+				"Inicializálási varázsló kihagyása"
+			],
+			"Nothing was lost — pick it back up with the buttons below whenever you want.": [
+				"Semmi sem veszett el — az alábbi gombokkal bármikor folytatható."
+			],
+			"Setup stopped.": [
+				"A beállítás leállt."
+			],
+			"Stop setup": [
+				"Beállítás leállítása"
+			],
+			"Complete each step to prepare this site for development.": [
+				"A webhely fejlesztésre való előkészítéséhez minden lépést el kell végezni."
+			],
+			"Initial setup checklist": [
+				"A kezdeti beállítás ellenőrzőlistája"
+			],
+			"Save patch & update": [
+				"Javítófolt mentése és frissítés"
+			],
+			"Discard & update": [
+				"Elvetés és frissítés"
+			],
+			"— your changes are lost; this cannot be undone": [
+				"— a módosítások elvesznek; ez nem vonható vissza"
+			],
+			"Discard them": [
+				"A módosítások elvetése"
+			],
+			"— a .diff on your machine — nothing is sent to Trac": [
+				"— egy .diff fájl a számítógépen — semmi sem jut el a Trac rendszerébe"
+			],
+			"Save them as a patch first (as a local file)": [
+				"A módosítások mentése előbb javítófoltként (helyi fájlba)"
+			],
+			"You've changed %d file in this site. Resetting to trunk would throw them away.": [
+				"%d fájl módosult ezen a webhelyen. A trunk állapotára való visszaállítással ezek a módosítások elvesznének.",
+				"%d fájl módosult ezen a webhelyen. A trunk állapotára való visszaállítással ezek a módosítások elvesznének."
+			],
+			"Update to latest trunk?": [
+				"Frissítés a trunk legújabb verziójára?"
+			],
+			"Launch the development server once to complete the WordPress setup wizard.": [
+				"A WordPress beállítóvarázslójának befejezéséhez indítsa el egyszer a fejlesztői kiszolgálót."
+			],
+			"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.": [
+				"Az összeállítás kész. Módosított azóta fájlokat a következő mappában: %1$s? Futtassa a terminálban a következő parancsot, hogy a webhely átvegye a módosításokat: %2$s — a frissítések és az alkalmazott javítócsomagok automatikusan újra összeállítják az alaprendszert."
+			],
+			"Compile WordPress Core to generate the dist files. Later updates rebuild automatically.": [
+				"A WordPress alaprendszerének összeállítása a dist fájlok előállításához. A későbbi frissítések automatikusan újra összeállítják az alaprendszert."
+			],
+			"Clone the WordPress develop repository.": [
+				"A WordPress fejlesztői kódtárának klónozása."
+			],
+			"Download WordPress development version": [
+				"A WordPress fejlesztői verziójának letöltése"
+			],
+			"Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.": [
+				"A beállítás befejezéséhez indítson el egyszer egy olyan WordPress-példányt, amely ezt a munkapéldányt használja Gutenberg bővítményként."
+			],
+			"Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.": [
+				"Az összeállítás kész. Módosított azóta valamelyik csomagon? Futtassa a terminálban a következő parancsot, hogy a webhely átvegye a módosításokat: %s. A frissítések automatikusan újra összeállítják a csomagokat."
+			],
+			"Compile the Gutenberg packages. Later updates rebuild automatically.": [
+				"A Gutenberg csomagjainak összeállítása. A későbbi frissítések automatikusan újra összeállítják a csomagokat."
+			],
+			"Clone the Gutenberg repository.": [
+				"A Gutenberg kódtárának klónozása."
+			],
+			"Download Gutenberg": [
+				"Gutenberg letöltése"
+			],
+			"the window’s theme: two colours of one’s own\u0004Custom": [
+				"Egyéni"
+			],
+			"Choose a colour as six hex digits, like #3858e9.": [
+				"Adjon meg egy színt hat hexadecimális számjeggyel, például: #3858e9."
+			],
+			"Choose light, dark, your system’s theme, or custom.": [
+				"Válasszon világos, sötét, a rendszerhez igazodó vagy egyéni témát."
+			],
+			"Some text may be hard to read with these colours. They are kept as they are; choose others if it is.": [
+				"Ezekkel a színekkel egyes szövegek nehezen olvashatók lehetnek. A színek változatlanul maradnak; ha a szöveg nehezen olvasható, válasszon más színeket."
+			],
+			"Primary": [
+				"Elsődleges"
+			],
+			"Background": [
+				"Háttér"
+			],
+			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
+				"A Rendszer beállítás az operációs rendszer világos vagy sötét megjelenését követi. Az Egyéni beállítás két szabadon választott színből állítja össze a témát."
+			],
+			"%s colour picker": [
+				"%s – színválasztó"
+			],
+			"Working…": [
+				"Folyamatban…"
+			],
+			"Opening the pull request…": [
+				"A pull request megnyitása…"
+			],
+			"Uploading your changes…": [
+				"A módosítások feltöltése…"
+			],
+			"Bringing your fork up to date…": [
+				"A saját fork naprakésszé tétele…"
+			],
+			"Creating your fork of %s…": [
+				"Saját fork létrehozása ebből: %s…"
+			],
+			"Could not start sign-in.": [
+				"Nem sikerült elindítani a bejelentkezést."
+			],
+			"Sign-in did not complete.": [
+				"A bejelentkezés nem fejeződött be."
+			],
+			"The authorization was declined on GitHub. Nothing was changed.": [
+				"A GitHubon elutasították a hozzáférési engedélyt. Semmi sem változott."
+			],
+			"The pull request could not be opened.": [
+				"Nem sikerült létrehozni a pull requestet."
+			],
+			"Your checkout was behind trunk, so the branch was based on today's trunk. None of your files were changed upstream in between — the pull request shows only your work.": [
+				"A helyi munkapéldány elmaradt a trunk ágtól, ezért az új ág a trunk mai állapotán alapul. Időközben egyik fájlja sem változott az eredeti tárolóban — a pull request csak az Ön munkáját tartalmazza."
+			],
+			"Opened <link>pull request #%s</link> from <branch />.": [
+				"Létrejött a <link>#%s számú pull request</link> a <branch /> ágból."
+			],
+			"Dry run — branch <branch /> was created on your fork; no pull request was opened.": [
+				"Próbaüzem — a <branch /> ág létrejött a forkjában; nem jött létre pull request."
+			],
+			"Save the patch file instead": [
+				"Inkább a javítófájl mentése"
+			],
+			"Pull requests go to <target />, not to <upstream />.": [
+				"A pull requestek célhelye <target />, nem pedig <upstream />."
+			],
+			"Dry run — a branch is pushed to your fork, no pull request is opened.": [
+				"Próbaüzem — az alkalmazás feltölt egy ágat a forkjába, de nem hoz létre pull requestet."
+			],
+			"Test mode": [
+				"Tesztmód"
+			],
+			"Open a pull request": [
+				"Pull request létrehozása"
+			],
+			"Not now": [
+				"Most nem"
+			],
+			"Sign in with GitHub": [
+				"Bejelentkezés GitHub-fiókkal"
+			],
+			"Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.": [
+				"Bejelentkezés után az alkalmazás létrehozhatja a(z) %s tároló forkját a fiókjában, feltöltheti ezt a javítást a fork egyik ágára, és létrehozhatja a pull requestet. A bejelentkezés a böngészőn keresztül történik, az alkalmazás soha nem kéri a jelszavát, és kilépéskor elfelejti a hozzáférési engedélyt."
+			],
+			"Show this again": [
+				"Megjelenítés újra"
+			],
+			"Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.": [
+				"Nem történt bejelentkezés vagy küldés. A javítófájl továbbra is menthető, a többi célhely pedig változatlan."
+			],
+			"Signed in as <login /> — the fork and branch go to <fork />.": [
+				"Bejelentkezve <login /> néven — a fork és az ág célhelye: <fork />."
+			],
+			"Open pull request": [
+				"Pull request létrehozása"
+			],
+			"Push branch (dry run)": [
+				"Ág feltöltése (próbaüzem)"
+			],
+			"Anything you are unsure about.": [
+				"Bármi, amiben bizonytalan."
+			],
+			"How to see it working — the steps you used.": [
+				"Hogyan ellenőrizhető a működése — az alkalmazott lépések."
+			],
+			"What the change does, and why.": [
+				"Mit változtat a módosítás, és miért."
+			],
+			"Notes for reviewers (optional)": [
+				"Megjegyzések a véleményezőknek (nem kötelező)"
+			],
+			"Left empty, it will be titled <strong><title /></strong>.": [
+				"Ha üresen marad, a címe <strong><title /></strong> lesz."
+			],
+			"What the change does, in one line. Reviewers scan these.": [
+				"A módosítás hatása egy sorban. A véleményezők ezeket futják át."
+			],
+			"Title": [
+				"Cím"
+			],
+			"Reject a theme zip in the plugin installer": [
+				"Sablon ZIP-fájljának elutasítása a bővítménytelepítőben"
+			],
+			"No connection to GitHub.": [
+				"Nincs kapcsolat a GitHubbal."
+			],
+			"GitHub is rate-limiting this connection. It usually clears within the hour.": [
+				"A GitHub korlátozza a kérések gyakoriságát ezen a kapcsolaton. A korlátozás általában egy órán belül megszűnik."
+			],
+			"Waiting for you to finish in the browser…": [
+				"Várakozás a művelet befejezésére a böngészőben…"
+			],
+			"That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.": [
+				"Ez a GitHub-bejelentkezés már nem érvényes. Jelentkezzen be újra, vagy mentse inkább a javítófájlt."
+			],
+			"Copy the code": [
+				"Kód másolása"
+			],
+			"Code copied": [
+				"Kód másolva"
+			],
+			"Enter this code at <strong><address /></strong>, which has been opened in your browser.": [
+				"Adja meg ezt a kódot a böngészőben megnyitott <strong><address /></strong> oldalon."
+			],
+			"This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.": [
+				"Ebben a buildben nincs GitHub-alkalmazás beállítva, ezért nem tud módosítási kérelmet létrehozni. A többi célhely továbbra is működik."
+			],
+			"Checking…": [
+				"Ellenőrzés…"
+			],
+			"Open #%s to comment": [
+				"A #%s hibajegy megnyitása hozzászóláshoz"
+			],
+			"Copy the link": [
+				"Hivatkozás másolása"
+			],
+			"Link copied": [
+				"Hivatkozás másolva"
+			],
+			"Triage and props live on the ticket, so the link belongs there too.": [
+				"A hibajegyen történik a besorolás és a közreműködők elismerése, ezért a hivatkozásnak is ott a helye."
+			],
+			"Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.": [
+				"A leírás tetején jelenik meg. Alatta a hibajegy hivatkozása és a WordPress.org-felhasználóneve is megjelenik."
+			],
+			"It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.": [
+				"Nem tudja létrehozni Ön helyett a GitHub-fiókot, és az Ön nevében sem tud hozzászólást közzétenni a Tracben."
+			],
+			"Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.": [
+				"Automatikus ellenőrzések futnak rajta. A GitHubot azonban senki sem figyeli – akkor veszik észre, ha közzéteszi a hivatkozást a hibajegyen."
+			],
+			"No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.": [
+				"Ehhez a webhelyhez nincs hibajegy kapcsolva. A módosítási kérelemnek hivatkoznia kell egy hibajegyre – kapcsolja hozzá a Trac-kártyán."
+			],
+			"Link a GitHub issue to this site first. A pull request has to cite one.": [
+				"Először kapcsoljon egy GitHub-hibajegyet ehhez a webhelyhez. A módosítási kérelemnek hivatkoznia kell egy hibajegyre."
+			],
+			"The Gutenberg contributing guide": [
+				"A Gutenberg közreműködői útmutatója"
+			],
+			"Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.": [
+				"Az ellenőrzők kérik a tesztelés lépéseit. Adja meg ezeket a megjegyzésekben: mit kell megnyitni, mire kell kattintani, és minek kell történnie."
+			],
+			"The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.": [
+				"A módosítási kérelemben ellenőrzik a változtatást, majd jóváhagyás után beolvasztják. Nem kell máshol közzétenni semmit ahhoz, hogy észrevegyék."
+			],
+			"How pull requests work in Gutenberg": [
+				"A módosítási kérelmek működése a Gutenbergben"
+			],
+			"The Fixes line already lists it on the issue. A comment there still tells the people watching it.": [
+				"A Fixes sor révén már szerepel a hibajegyen. Egy ottani hozzászólás ettől függetlenül értesíti a hibajegyet követőket."
+			],
+			"Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.": [
+				"A leírás tetejére kerül. Alá kerül a hibajegyre hivatkozó Fixes sor és az Ön WordPress.org-felhasználóneve."
+			],
+			"It cannot create the GitHub account for you.": [
+				"A GitHub-fiókot nem tudja létrehozni Ön helyett."
+			],
+			"Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.": [
+				"Automatikus ellenőrzések futnak rajta, és az átvizsgálása és beolvasztása is ugyanott történik: a Gutenberg esetében a pull request a munka helyszíne."
+			],
+			"A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.": [
+				"Egy GitHub-fiók. A fork automatikusan létrejön; ebben az alkalmazásban nem kell jelszót megadni, és a rendszer nem ír hitelesítési adatokat a lemezre."
+			],
+			"No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.": [
+				"Ehhez a webhelyhez nincs hibajegy kapcsolva. A pull requestnek hivatkoznia kell egy hibajegyre: kapcsolja hozzá a GitHub-hibajegy kártyáján."
+			],
+			"Link a Trac ticket to this site first. A pull request has to cite one.": [
+				"Először kapcsoljon egy Trac-hibajegyet ehhez a webhelyhez. A pull requestnek hivatkoznia kell egy ilyen hibajegyre."
+			],
+			"The handbook page on pull requests": [
+				"A kézikönyv pull requestekről szóló oldala"
+			],
+			"Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.": [
+				"A GitHubon beolvasztás sem történik. Egy commitjoggal rendelkező fejlesztő maga alkalmazza a módosítást, és a hibajegynél dönt arról, hogy megteszi-e."
+			],
+			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
+				"Senki sem figyeli a pull requestek listáját. Az Ön pull requestjét azért veszik észre, mert a hivatkozása szerepel a hibajegyen — ezért ez a folyamat végül visszairányítja a hibajegyhez."
+			],
+			"How pull requests work in core": [
+				"Hogyan működnek a pull requestek a WordPress alaprendszerében?"
+			],
+			"Sign in to GitHub first.": [
+				"Először jelentkezzen be a GitHubra."
+			],
+			"Could not read the base commit": [
+				"Nem sikerült beolvasni az alapul szolgáló commitot"
+			],
+			"Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.": [
+				"A trunk ágon időközben megváltozott egy szerkesztett fájl (%s). Frissítse ezt a webhelyet a trunk ág legújabb állapotára, ellenőrizze, hogy a módosításai továbbra is alkalmazhatók-e, majd próbálja újra.",
+				"A trunk ágon időközben megváltoztak a szerkesztett fájlok (%s). Frissítse ezt a webhelyet a trunk ág legújabb állapotára, ellenőrizze, hogy a módosításai továbbra is alkalmazhatók-e, majd próbálja újra."
+			],
+			"There are no changes to open a pull request with.": [
+				"Nincsenek olyan módosítások, amelyekkel pull requestet lehetne nyitni."
+			],
+			"Could not open the pull request": [
+				"Nem sikerült megnyitni a pull requestet"
+			],
+			"Could not find an unused branch name": [
+				"Nem sikerült még nem használt ágnevet találni"
+			],
+			"Could not create the branch": [
+				"Nem sikerült létrehozni az ágat"
+			],
+			"Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s": [
+				"A saját fork beállítása még folyamatban van a GitHubon. Próbálja újra egy perc múlva — a patchfájl továbbra is használható.%s"
+			],
+			"Could not create the commit": [
+				"Nem sikerült létrehozni a commitot"
+			],
+			"Could not assemble the change": [
+				"Nem sikerült összeállítani a módosítást"
+			],
+			"Could not upload %s": [
+				"Nem sikerült feltölteni a következő fájlt: %s"
+			],
+			"Could not read your fork’s %s": [
+				"Nem sikerült beolvasni a saját fork következő ágát: %s"
+			],
+			"Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.": [
+				"A saját fork beállítása még folyamatban van a GitHubon — egy ekkora tárolónál ez néhány percig is eltarthat. Próbálja újra hamarosan; a patchfájl továbbra is használható."
+			],
+			"Could not read your fork": [
+				"Nem sikerült beolvasni a saját forkot"
+			],
+			"Could not fork %s": [
+				"Nem sikerült forkot létrehozni a következő tárolóból: %s"
+			],
+			"Could not check for your fork": [
+				"Nem sikerült ellenőrizni, hogy van-e saját forkja"
+			],
+			"You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.": [
+				"Már van %1$s nevű tárolója, amely nem a(z) %2$s forkja, ezért nincs hová feltölteni ezeket a módosításokat. A javítófájl továbbra is használható."
+			],
+			"%1$s: %2$s%3$s": [
+				"%1$s: %2$s%3$s"
+			],
+			"This build has no GitHub application configured, so it cannot sign you in.": [
+				"Ebben a buildben nincs GitHub-alkalmazás beállítva, ezért nem teszi lehetővé a bejelentkezést."
+			],
+			"GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke \"%1$s\" under %2$s, then sign in here again.": [
+				"A GitHub ehhez a bejelentkezéshez kevesebb jogosultságot adott, mint amennyi egy pull request megnyitásához szükséges – valószínűleg az alkalmazás egy korábbi engedélyezését használta fel újra. Vonja vissza a(z) \"%1$s\" engedélyét a következő helyen: %2$s, majd jelentkezzen be itt újra."
+			],
+			"GitHub returned %s": [
+				"A GitHub válaszkódja: %s"
+			],
+			"That sign-in is no longer valid.": [
+				"Ez a bejelentkezés már nem érvényes."
+			],
+			"The authorization was declined on GitHub.": [
+				"Az engedélyezést elutasították a GitHubon."
+			],
+			"The code expired before it was entered.": [
+				"A kód a megadása előtt lejárt."
+			],
+			"Sign-in was canceled.": [
+				"Bejelentkezés megszakítva."
+			],
+			"GitHub does not recognise this application, or device flow is not enabled on it.": [
+				"A GitHub nem ismeri fel ezt az alkalmazást, vagy az eszközkódos hitelesítés nincs engedélyezve hozzá."
+			],
+			"Revert the patch you applied before opening a pull request from this checkout.": [
+				"Mielőtt ebből a munkapéldányból pull requestet nyitna, vonja vissza az alkalmazott javítást."
+			],
+			"Revert %s before opening a pull request from this checkout.": [
+				"Mielőtt ebből a munkapéldányból pull requestet nyitna, vonja vissza a következő javítást: %s."
+			],
+			"PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.": [
+				"A #%d pull request alkalmazva van. A szerző commitjai alkotják ennek a munkapéldánynak az előzményeit, ezért nem küldhető be saját munkaként. Először vonja vissza ezt a pull requestet."
+			],
+			"Unknown error": [
+				"Ismeretlen hiba"
+			],
+			"Trac ticket number or URL": [
+				"Trac-hibajegyszám vagy URL"
+			],
+			"Ticket number or URL, e.g. 62281": [
+				"Hibajegyszám vagy URL, pl. 62281"
+			],
+			"No ticket is linked to this site, so there is nowhere to attach it yet.": [
+				"Ehhez a webhelyhez nincs hibajegy társítva, így egyelőre nincs mihez csatolni."
+			],
+			"Save, then open #%d": [
+				"Mentés, majd a #%d megnyitása"
+			],
+			"No automated checks. Often followed by a request to open a pull request.": [
+				"Nincsenek automatizált ellenőrzések. Gyakran ezután pull request megnyitását kérik."
+			],
+			"A WordPress.org account — needed anyway, for props and to comment.": [
+				"WordPress.org-fiók – az elismerésekhez és a hozzászólásokhoz egyébként is szükséges."
+			],
+			"Attach to Trac": [
+				"Csatolás a Trac rendszerében"
+			],
+			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
+				"Az alkalmazás nem tudja biztonságosan elkülöníteni a javítás szerzőjének módosításait a későbbi szerkesztésektől, ezért ez az összevont javítás nem küldhető be saját munkaként. A <strong>Mentés</strong> gombbal továbbra is megőrizhető egy szerző megjelölése nélküli másolat; beküldés előtt vonja vissza az alkalmazott javítást."
+			],
+			"<strong>The patch you applied is part of this checkout.</strong>": [
+				"<strong>Ez a munkapéldány tartalmazza az alkalmazott javítást.</strong>"
+			],
+			"<strong><label /> is part of this checkout.</strong>": [
+				"<strong>Ez a munkapéldány tartalmazza a következő javítást: <label />.</strong>"
+			],
+			"You can still use <strong>Save</strong> to keep an unattributed copy of your edits.": [
+				"A <strong>Mentés</strong> gombbal továbbra is megőrizheti a módosítások egy olyan példányát, amelyben nincs feltüntetve a szerző."
+			],
+			"The pull request is the one the app sends for you. The others save a file for you to send.": [
+				"A beolvasztási kérelmet az alkalmazás küldi el Ön helyett. A többi lehetőség egy fájlt ment, amelyet Ön küldhet el."
+			],
+			"Where this patch goes": [
+				"A javítás célja"
+			],
+			"Could not load your changes. Close this panel and try again. The error is shown below.": [
+				"Nem sikerült betölteni a módosításokat. Zárja be ezt a panelt, és próbálja újra. A hiba alább látható."
+			],
+			"This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.": [
+				"A webhely WordPress-kódja %d napos — lehet, hogy ez a javítás nem alkalmazható a Trac rendszerében. Érdemes előbb a trunk legfrissebb változatára frissíteni.",
+				"A webhely WordPress-kódja %d napos — lehet, hogy ez a javítás nem alkalmazható a Trac rendszerében. Érdemes előbb a trunk legfrissebb változatára frissíteni."
+			],
+			"Saved to %s": [
+				"Mentve ide: %s"
+			],
+			"Discard all changes": [
+				"Összes módosítás elvetése"
+			],
+			"(<discard />)": [
+				"(<discard />)"
+			],
+			"Failed to generate patch": [
+				"Nem sikerült létrehozni a javítást"
+			],
+			"Error: %s": [
+				"Hiba: %s"
+			],
+			"No changes.": [
+				"Nincsenek módosítások."
+			],
+			"Generating patch…": [
+				"Javítás létrehozása…"
+			],
+			"Could not save the patch: %s": [
+				"Nem sikerült menteni a javítást: %s"
+			],
+			"Change these": [
+				"Adatok módosítása"
+			],
+			"No event on the patch.": [
+				"A javításban nem szerepel esemény."
+			],
+			"The patch will say it was written at <strong><event /></strong>.": [
+				"A javításban szerepelni fog, hogy ezen az eseményen készült: <strong><event /></strong>."
+			],
+			"Save patch as %s": [
+				"Javítás mentése %s szerzőnévvel"
+			],
+			"Someone else pushes it; the props still land on you.": [
+				"Más küldi be a javítást, de az elismerés továbbra is Önt illeti."
+			],
+			"No accounts at all. The patch carries your WordPress.org username, and the event you are at.": [
+				"Egyáltalán nincs szükség fiókokra. A javítás tartalmazza a WordPress.org-felhasználónevét és az eseményt, amelyen részt vesz."
+			],
+			"Hand it to a mentor": [
+				"Átadás egy mentornak"
+			],
+			"Remember this": [
+				"Adatok megjegyzése"
+			],
+			"Event this patch was written at": [
+				"Az esemény, ahol ez a javítás készült"
+			],
+			"Event, e.g. WordCamp Europe 2026 (optional)": [
+				"Esemény, pl. WordCamp Europe 2026 (nem kötelező)"
+			],
+			"WordPress.org username, e.g. janedoe": [
+				"WordPress.org-felhasználónév, pl. janedoe"
+			],
+			"Asked once and remembered for every site — these are facts about you, not about this checkout.": [
+				"Csak egyszer kell megadni, és minden webhelyen megmaradnak — ezek az adatok Önről szólnak, nem erről a munkapéldányról."
+			],
+			"There is nothing to send yet — this site has no changes against its copy of trunk.": [
+				"Még nincs mit elküldeni — ezen a webhelyen nincsenek módosítások a trunk hozzá tartozó példányához képest."
+			],
+			"Everything this site has that its copy of trunk does not.": [
+				"Minden, ami ezen a webhelyen megtalálható, de a trunk hozzá tartozó példányában nem."
+			],
+			"Your changes": [
+				"Módosítások"
+			],
+			"There are no changes on top of PR #%d.": [
+				"Nincsenek további módosítások a(z) #%d PR-hez képest."
+			],
+			"Edits to this local copy, compared with the original PR commits.": [
+				"A helyi példány módosításai a PR eredeti commitjaihoz képest."
+			],
+			"Your changes on top of PR #%d": [
+				"További módosítások a(z) #%d PR-hez"
+			],
+			"Your changes for ticket #%d": [
+				"Módosítások a(z) #%d hibajegyhez"
+			],
+			"Your changes for issue #%d": [
+				"Módosítások a(z) #%d hibajegyhez"
+			],
+			"Stop the dev server before discarding changes.": [
+				"A módosítások elvetése előtt állítsa le a fejlesztői kiszolgálót."
+			],
+			"Wait for the build to finish before discarding changes.": [
+				"A módosítások elvetése előtt várja meg az összeállítás befejezését."
+			],
+			"Wait for the installation to finish before discarding changes.": [
+				"A módosítások elvetése előtt várja meg a telepítés befejezését."
+			],
+			"Wait for the trunk update to finish before discarding changes.": [
+				"A módosítások elvetése előtt várja meg a trunk frissítésének befejezését."
+			],
+			"There are no changes to discard.": [
+				"Nincsenek elvethető módosítások."
+			],
+			"Changes could not be loaded.": [
+				"Nem sikerült betölteni a módosításokat."
+			],
+			"Wait for your changes to finish loading.": [
+				"Várja meg a módosítások betöltésének befejezését."
+			],
+			"Changes are already being discarded.": [
+				"A módosítások elvetése már folyamatban van."
+			],
+			"the window’s theme: the operating system’s\u0004System": [
+				"Rendszer szerinti"
+			],
+			"the window’s theme\u0004Dark": [
+				"Sötét"
+			],
+			"the window’s theme\u0004Light": [
+				"Világos"
+			],
+			"Theme": [
+				"Megjelenés"
+			],
+			"Choose what happens when the app quits.": [
+				"Válassza ki, mi történjen az alkalmazás bezárásakor."
+			],
+			"Stop them, and start them again next time": [
+				"Leállításuk és újraindításuk a következő alkalommal"
+			],
+			"Stop them": [
+				"Leállításuk"
+			],
+			"So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.": [
+				"Így a webhely és a wp-admin gombnyomás nélkül használatra kész. WordPress Core esetén az összeállításhoz tartozó fájlfigyelés is elindul vele."
+			],
+			"Start the server when I open a site": [
+				"A kiszolgáló indítása webhely megnyitásakor"
+			],
+			"Opening and quitting": [
+				"Megnyitás és kilépés"
+			],
+			"Quitting always stops them; they can be started again when the app next opens.": [
+				"Kilépéskor mindig leállnak; az alkalmazás következő megnyitásakor újra elindíthatók."
+			],
+			"When I quit, running servers and build watches": [
+				"Kilépéskor a futó kiszolgálók és buildfigyelő folyamatok"
+			],
+			"So edits are compiled as they are saved.": [
+				"Így a módosítások fordítása a mentésükkor megtörténik."
+			],
+			"Start the build watch when I open a site": [
+				"Buildfigyelés indítása a webhely megnyitásakor"
+			],
+			"The app does not have that PHP version.": [
+				"Ez a PHP-verzió nem érhető el az alkalmazásban."
+			],
+			"Choose on or off.": [
+				"Válasszon a bekapcsolt és a kikapcsolt állapot közül."
+			],
+			"Off": [
+				"Kikapcsolva"
+			],
+			"Debugging": [
+				"Hibakeresés"
+			],
+			"%1$s · PHP %2$s": [
+				"%1$s · PHP %2$s"
+			],
+			"PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.": [
+				"A kiválasztott PHP %1$s nem érhető el az alkalmazás ezen verziójában; a kiszolgálók PHP %2$s verzióval indulnak."
+			],
+			"Sites": [
+				"Webhelyek"
+			],
+			"Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.": [
+				"A WordPress magja nem tömörített formában szolgálja ki a JavaScript- és CSS-fájlokat, így azok olvashatók, és a böngészőben lépésenként vizsgálhatók."
+			],
+			"Use unminified scripts (SCRIPT_DEBUG)": [
+				"Nem tömörített szkriptek használata (SCRIPT_DEBUG)"
+			],
+			"Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.": [
+				"Kikapcsolt állapotban az értesítéseket és az elavulási jelzéseket nem jelenti a rendszer. A figyelmeztetések és hibák továbbra is megjelennek a debug.log fájlban és a böngészőben, az error_log() hívások pedig továbbra is a debug.log fájlba írnak."
+			],
+			"Report notices and deprecations (WP_DEBUG)": [
+				"Értesítések és elavulási jelzések jelentése (WP_DEBUG)"
+			],
+			"PHP version": [
+				"PHP-verzió"
+			],
+			"Applies the next time a site’s server starts. A server that is running keeps what it started with.": [
+				"A webhely kiszolgálójának következő indításakor lép érvénybe. A futó kiszolgáló megtartja az indításkor használt beállításokat."
+			],
+			"Development server": [
+				"Fejlesztői kiszolgáló"
+			],
+			"The PHP versions could not be read. Quit the app and open it again.": [
+				"Nem sikerült beolvasni a PHP-verziókat. Lépjen ki az alkalmazásból, majd nyissa meg újra."
+			],
+			"Could not keep that.": [
+				"Ezt nem sikerült megőrizni."
+			],
+			"The app has no translation for that language.": [
+				"Az alkalmazáshoz nincs fordítás ezen a nyelven."
+			],
+			"Choose a language.": [
+				"Válasszon nyelvet."
+			],
+			"Your system’s language": [
+				"A rendszer nyelve"
+			],
+			"Relaunch now": [
+				"Újraindítás most"
+			],
+			"The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.": [
+				"Az alkalmazás újraindítás után az új nyelven jelenik meg. A futó kiszolgálók és összeállítási folyamatok leállnak, ugyanúgy, mint az alkalmazás bezárásakor."
+			],
+			"Which language the app is shown in. A change applies after a relaunch.": [
+				"Az alkalmazás megjelenítési nyelve. A módosítás újraindítás után lép érvénybe."
+			],
+			"Language": [
+				"Nyelv"
+			],
+			"The app could not relaunch. Quit it and open it again.": [
+				"Nem sikerült újraindítani az alkalmazást. Zárja be, majd nyissa meg újra."
+			],
+			"Could not keep that language.": [
+				"Nem sikerült menteni a nyelvi beállítást."
+			],
+			"Appearance": [
+				"Megjelenés"
+			],
+			"Enter your WordPress.org username.": [
+				"Adja meg a WordPress.org-felhasználónevét."
+			],
+			"Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.": [
+				"Adja meg a WordPress.org-felhasználónevét, például janedoe, vagy a profiles.wordpress.org-profiljának URL-címét."
+			],
+			"Only %s profile links are supported.": [
+				"Csak a következő webhelyre mutató profilhivatkozások támogatottak: %s."
+			],
+			"There is no such setting.": [
+				"Nincs ilyen beállítás."
+			],
+			"That folder does not exist.": [
+				"Ez a mappa nem létezik."
+			],
+			"Choose a folder by its full path.": [
+				"Válasszon egy mappát a teljes elérési útjának megadásával."
+			],
+			"Choose a folder.": [
+				"Válasszon egy mappát."
+			],
+			"Not set: the create-site dialog asks each time.": [
+				"Nincs beállítva: a webhely létrehozására szolgáló párbeszédablak minden alkalommal rákérdez."
+			],
+			"Reading…": [
+				"Olvasás…"
+			],
+			"Not signed in. The app asks you to sign in when you open a pull request.": [
+				"Nincs bejelentkezve. Az alkalmazás pull request megnyitásakor kéri a bejelentkezést."
+			],
+			"Signed in as %s.": [
+				"Bejelentkezve a következő felhasználónévvel: %s."
+			],
+			"Sign-in is not set up in this build.": [
+				"Ebben a verzióban nincs beállítva a bejelentkezés."
+			],
+			"Could not save that event.": [
+				"Nem sikerült menteni az eseményt."
+			],
+			"Could not save that username.": [
+				"Nem sikerült menteni a felhasználónevet."
+			],
+			"Forget this folder": [
+				"Mappa elfelejtése"
+			],
+			"Each new site is created in a subfolder of this location.": [
+				"Minden új webhely ennek a helynek egy almappájában jön létre."
+			],
+			"New sites go here": [
+				"Az új webhelyek helye"
+			],
+			"New sites": [
+				"Új webhelyek"
+			],
+			"Could not keep that folder.": [
+				"Nem sikerült menteni a mappabeállítást."
+			],
+			"Account": [
+				"Fiók"
+			],
+			"General": [
+				"Általános"
+			],
+			"Sign out": [
+				"Kijelentkezés"
+			],
+			"GitHub": [
+				"GitHub"
+			],
+			"Save": [
+				"Mentés"
+			],
+			"Saving": [
+				"Mentés folyamatban"
+			],
+			"Saved.": [
+				"Mentve."
+			],
+			"Where you are contributing from, if you are at an event. Leave it empty otherwise.": [
+				"Az esemény, amelyen közreműködik, ha éppen egy eseményen vesz részt. Egyébként hagyja üresen a mezőt."
+			],
+			"Event": [
+				"Esemény"
+			],
+			"Goes on a patch you hand to a mentor, so the props land on you.": [
+				"Rákerül a mentornak átadott patchfájlra, hogy a közreműködésért járó elismerést Ön kapja."
+			],
+			"WordPress.org username": [
+				"WordPress.org-felhasználónév"
+			],
+			"How you contribute": [
+				"A közreműködés módja"
+			],
+			"Settings": [
+				"Beállítások"
+			],
+			"The event name has to fit on one line.": [
+				"Az esemény nevének egy sorban kell elférnie."
+			],
+			"Enter the event name, or leave it empty.": [
+				"Adja meg az esemény nevét, vagy hagyja üresen a mezőt."
+			],
+			"Keep the event name under %d characters.": [
+				"Az esemény neve legyen rövidebb %d karakternél."
+			],
+			"Settings…": [
+				"Beállítások…"
+			],
+			"Show Logs Folder": [
+				"Naplómappa megjelenítése"
+			],
+			"Open App Log": [
+				"Alkalmazásnapló megnyitása"
+			],
+			"Choose the application to open this folder in": [
+				"Válassza ki, melyik alkalmazással szeretné megnyitni ezt a mappát"
+			],
+			"Programs": [
+				"Programok"
+			],
+			"Applications": [
+				"Alkalmazások"
+			],
+			"All Files": [
+				"Minden fájl"
+			],
+			"Patch Files": [
+				"Patchfájlok"
+			],
+			"Choose a patch file": [
+				"Patchfájl kiválasztása"
+			],
+			"Save Diff File": [
+				"Diff-fájl mentése"
+			],
+			"Save Patch for Handoff": [
+				"Javítás mentése átadáshoz"
+			],
+			"Toggle Email": [
+				"E-mail megjelenítése/elrejtése"
+			],
+			"Email": [
+				"E-mail"
+			],
+			"Toggle Logs": [
+				"Naplók megjelenítése/elrejtése"
+			],
+			"Logs": [
+				"Naplók"
+			],
+			"Toggle Terminal": [
+				"Terminál megjelenítése/elrejtése"
+			],
+			"Terminal": [
+				"Terminál"
+			],
+			"Closed": [
+				"Lezárva"
+			],
+			"Merged": [
+				"Egyesítve"
+			],
+			"Opened %s": [
+				"Megnyitva: %s"
+			],
+			"Milestone: %s": [
+				"Mérföldkő: %s"
+			],
+			"Component: %s": [
+				"Komponens: %s"
+			],
+			"No pull requests cite this ticket yet.": [
+				"Még egyetlen egyesítési kérelem sem hivatkozik erre a hibajegyre."
+			],
+			"See the work that already exists on this ticket before adding your own.": [
+				"Saját munkája hozzáadása előtt tekintse át a hibajeggyel kapcsolatos eddigi munkát."
+			],
+			"Open in Trac": [
+				"Megnyitás a Trac rendszerben"
+			],
+			"Browse good first bugs on Trac": [
+				"Kezdőknek ajánlott hibák böngészése a Trac rendszerben"
+			],
+			"Linking ticket": [
+				"Hibajegy társítása folyamatban"
+			],
+			"Link ticket": [
+				"Hibajegy társítása"
+			],
+			"e.g. 62281": [
+				"pl. 62281"
+			],
+			"Ticket number or URL": [
+				"Hibajegy száma vagy URL-je"
+			],
+			"Link the ticket you’re working on.": [
+				"Társítsa azt a hibajegyet, amelyen dolgozik."
+			],
+			"Trac ticket": [
+				"Trac-hibajegy"
+			],
+			"No pull requests cite this issue yet.": [
+				"Még egyetlen egyesítési kérelem sem hivatkozik erre a hibajegyre."
+			],
+			"See the work that already exists on this issue before adding your own.": [
+				"Saját munkája hozzáadása előtt tekintse át a hibajeggyel kapcsolatos eddigi munkát."
+			],
+			"Open on GitHub": [
+				"Megnyitás a GitHubon"
+			],
+			"Browse good first issues on GitHub": [
+				"Kezdőknek ajánlott hibajegyek böngészése a GitHubon"
+			],
+			"Linking issue": [
+				"Hibajegy hozzákapcsolása folyamatban"
+			],
+			"Link issue": [
+				"Hibajegy hozzákapcsolása"
+			],
+			"e.g. 71234": [
+				"pl. 71234"
+			],
+			"Issue number or URL": [
+				"Hibajegy száma vagy URL-je"
+			],
+			"Link the issue you’re working on.": [
+				"Kapcsolja hozzá azt a hibajegyet, amelyen dolgozik."
+			],
+			"GitHub issue": [
+				"GitHub-hibajegy"
+			],
+			"Could not read the attachments from Trac. (%s)": [
+				"Nem sikerült beolvasni a mellékleteket a Tracből. (%s)"
+			],
+			"Could not read the attachments from Trac.": [
+				"Nem sikerült beolvasni a mellékleteket a Tracből."
+			],
+			"The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.": [
+				"A Trac ablaka bezárult, mielőtt a mellékletek betöltődtek volna. Az újrapróbálkozáshoz kattintson a „Frissítés” gombra."
+			],
+			"Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.": [
+				"A Trac robotellenőrzése nem fejeződött be időben. Próbálja újra, és kattintson az „I am human” gombra, ha megjelenik."
+			],
+			"by %s": [
+				"feltöltő: %s"
+			],
+			"Showing what was last seen %s.": [
+				"A legutóbb látott állapot látható (%s)."
+			],
+			"No cached list to fall back on.": [
+				"Nincs használható gyorsítótárazott lista."
+			],
+			"Could not reach GitHub.": [
+				"Nem sikerült elérni a GitHubot."
+			],
+			"GitHub is rate-limiting this connection.": [
+				"A GitHub korlátozza az ezen a kapcsolaton küldhető kérések gyakoriságát."
+			],
+			"Could not read the pull requests from GitHub.": [
+				"Nem sikerült beolvasni a beolvasztási kérelmeket a GitHubról."
+			],
+			"Updated %s": [
+				"Frissítve: %s"
+			],
+			"Last commit %s": [
+				"Legutóbbi commit: %s"
+			],
+			"Open": [
+				"Nyitott"
+			],
+			"Edited on %s": [
+				"Szerkesztés dátuma: %s"
+			],
+			"Edited %d day ago": [
+				"Szerkesztve %d napja",
+				"Szerkesztve %d napja"
+			],
+			"Edited %d hour ago": [
+				"Szerkesztve %d órája",
+				"Szerkesztve %d órája"
+			],
+			"Edited %d minute ago": [
+				"Szerkesztve %d perce",
+				"Szerkesztve %d perce"
+			],
+			"Edited just now": [
+				"Épp most szerkesztve"
+			],
+			"Delete this ticket’s work": [
+				"A hibajegyhez kapcsolódó munka törlése"
+			],
+			"This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.": [
+				"Ez véglegesen törli a honlapon a hibajegyhez kapcsolódó összes módosítást, függetlenül attól, hogy beküldték-e őket. A művelet nem vonható vissza."
+			],
+			"Delete all work on ticket #%d?": [
+				"Törli a #%d számú hibajegyhez kapcsolódó összes munkát?"
+			],
+			"Delete this issue’s work": [
+				"A feladathoz kapcsolódó munka törlése"
+			],
+			"This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.": [
+				"Ez véglegesen törli a honlapon a feladathoz kapcsolódó összes módosítást, függetlenül attól, hogy beküldték-e őket. A művelet nem vonható vissza."
+			],
+			"Delete all work on issue #%d?": [
+				"Törli a #%d számú feladathoz kapcsolódó összes munkát?"
+			],
+			"Your tickets on this site": [
+				"Saját hibajegyek ezen a honlapon"
+			],
+			"Other tickets on this site": [
+				"Egyéb hibajegyek ezen a honlapon"
+			],
+			"Your issues on this site": [
+				"Saját feladatok ezen a honlapon"
+			],
+			"Other issues on this site": [
+				"Egyéb feladatok ezen a honlapon"
+			],
+			"Deleting": [
+				"Törlés folyamatban"
+			],
+			"Continue working": [
+				"Munka folytatása"
+			],
+			"Switch": [
+				"Átváltás"
+			],
+			"Deleting site…": [
+				"Honlap törlése…"
+			],
+			"WordPress code is %d day old — update to latest trunk": [
+				"A WordPress kódja %d napos — frissítés a trunk legújabb verziójára",
+				"A WordPress kódja %d napos — frissítés a trunk legújabb verziójára"
+			],
+			"Update incomplete — code is new, built assets are old": [
+				"A frissítés nem teljes — a kód új, a lefordított fájlok régiek"
+			],
+			"Build watching": [
+				"Automatikus fordítás: változások figyelése"
+			],
+			"Build compiling": [
+				"Fordítás folyamatban"
+			],
+			"Edits in %s are compiled as they are saved.": [
+				"A rendszer mentéskor lefordítja a %s mappában végzett módosításokat."
+			],
+			"Start build watch": [
+				"Automatikus fordítás indítása"
+			],
+			"Start": [
+				"Indítás"
+			],
+			"Stop build watch": [
+				"Automatikus fordítás leállítása"
+			],
+			"Stop": [
+				"Leállítás"
+			],
+			"The development server could not start. Its last lines are in the Logs.": [
+				"Nem sikerült elindítani a fejlesztői szervert. A kimenetének utolsó sorai a Naplók részben találhatók."
+			],
+			"The development server stopped by itself. Its last lines are in the Logs.": [
+				"A fejlesztői kiszolgáló magától leállt. Kimenetének utolsó sorai a naplókban találhatók."
+			],
+			"Start development server": [
+				"Fejlesztői kiszolgáló indítása"
+			],
+			"Server stopped": [
+				"A kiszolgáló leállt"
+			],
+			"Stop development server": [
+				"Fejlesztői kiszolgáló leállítása"
+			],
+			"Server running": [
+				"A kiszolgáló fut"
+			],
+			"Starting…": [
+				"Indítás…"
+			],
+			"Starting development server…": [
+				"Fejlesztői kiszolgáló indítása…"
+			],
+			"Server starting…": [
+				"A kiszolgáló indul…"
+			],
+			"Dev server is starting… (%s)": [
+				"A fejlesztői kiszolgáló indul… (%s)"
+			],
+			"Database": [
+				"Adatbázis"
+			],
+			"wp-admin": [
+				"wp-admin"
+			],
+			"View site": [
+				"Webhely megtekintése"
+			],
+			"Build stopped": [
+				"Összeállítás leállítva"
+			],
+			"The build watch ended by itself, with exit code %d. Its last lines are in the Logs.": [
+				"Az összeállítás figyelése magától leállt, %d kilépési kóddal. Kimenetének utolsó sorai a naplókban találhatók."
+			],
+			"The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.": [
+				"A figyelés elindításához szükséges összeállítás sikertelen volt, ezért a figyelés nem indult el. Kimenetének utolsó sorai a naplókban találhatók."
+			],
+			"The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.": [
+				"A figyelés elindításához szükséges összeállítás sikertelen volt, és %d kilépési kóddal zárult, ezért a figyelés nem indult el. Kimenetének utolsó sorai a naplókban találhatók."
+			],
+			"The build watch ended by itself. Its last lines are in the Logs.": [
+				"Az összeállítás figyelése magától leállt. Kimenetének utolsó sorai a naplókban találhatók."
+			],
+			"Paused while another operation builds the site. It comes back by itself.": [
+				"Szünetel, amíg egy másik művelet összeállítja a webhelyet. Automatikusan folytatódik."
+			],
+			"Build paused": [
+				"Összeállítás szüneteltetve"
+			],
+			"Building the site before watching it.": [
+				"A webhely összeállítása a figyelés megkezdése előtt."
+			],
+			"Build building": [
+				"Összeállítás folyamatban"
+			],
+			"Wait for the build to finish.": [
+				"Várja meg az összeállítás befejezését."
+			],
+			"Wait for the installation to finish.": [
+				"Várja meg a telepítés befejezését."
+			],
+			"Wait for the trunk update to finish.": [
+				"Várja meg a trunk frissítésének befejezését."
+			],
+			"Looking for applications…": [
+				"Alkalmazások keresése…"
+			],
+			"Other application…": [
+				"Másik alkalmazás…"
+			],
+			"Show in file manager": [
+				"Megjelenítés a fájlkezelőben"
+			],
+			"Show in Explorer": [
+				"Megjelenítés a Fájlkezelőben"
+			],
+			"Show in Finder": [
+				"Megjelenítés a Finderben"
+			],
+			"Deleting…": [
+				"Törlés…"
+			],
+			"Open in": [
+				"Megnyitás ezzel"
+			],
+			"Copy path": [
+				"Elérési út másolása"
+			],
+			"Rename…": [
+				"Átnevezés…"
+			],
+			"Update to latest trunk": [
+				"Frissítés a trunk legújabb verziójára"
+			],
+			"(no subject)": [
+				"(nincs tárgy)"
+			],
+			"No mail yet. WordPress transactional email will appear here once the site sends any.": [
+				"Még nincs levél. A WordPress tranzakciós e-mailjei itt jelennek meg, amint a honlap küld egyet."
+			],
+			"SMTP listening on 127.0.0.1:%d": [
+				"Az SMTP a 127.0.0.1:%d címen figyel"
+			],
+			"SMTP will start with the dev server.": [
+				"Az SMTP a fejlesztői kiszolgálóval együtt indul el."
+			],
+			"Delete site": [
+				"Honlap törlése"
+			],
+			"This will permanently delete the site and all of its files from your computer. This can’t be undone.": [
+				"Ez véglegesen törli a honlapot és az összes hozzá tartozó fájlt a számítógépről. A művelet nem vonható vissza."
+			],
+			"Delete %s?": [
+				"Törölhető a következő honlap: %s?"
+			],
+			"Site name cannot be empty.": [
+				"A honlap neve nem lehet üres."
+			],
+			"Checkout": [
+				"Munkapéldány"
+			],
+			"Local path": [
+				"Helyi elérési út"
+			],
+			"%d day old": [
+				"%d napos",
+				"%d napos"
+			],
+			"Trunk as of": [
+				"Trunk állapotának dátuma"
+			],
+			"Created": [
+				"Létrehozva"
+			],
+			"Uninitialized": [
+				"Nincs inicializálva"
+			],
+			"Initialized": [
+				"Inicializálva"
+			],
+			"Setup": [
+				"Beállítás"
+			],
+			"Show sites list": [
+				"Honlaplista megjelenítése"
+			],
+			"Hide sites list": [
+				"Honlaplista elrejtése"
+			],
+			"Site": [
+				"Honlap"
+			],
+			"Create your first site to begin contributing": [
+				"Az első honlap létrehozásával megkezdheti a közreműködést"
+			],
+			"No sites": [
+				"Nincsenek honlapok"
+			],
+			"All changes discarded.": [
+				"Az összes módosítás elvetve."
+			],
+			"This site is ready to work on": [
+				"A honlap készen áll a munkára"
+			],
+			"Copied the path": [
+				"Az útvonal másolva"
+			],
+			"Updated to the latest trunk": [
+				"Frissítve a trunk ág legfrissebb változatára"
+			],
+			"Local changes discarded.": [
+				"A helyi módosítások elvetve."
+			],
+			"Already up to date with trunk": [
+				"Már a trunk ág legfrissebb változata van használatban"
+			],
+			"%d unseen line in Debug.log": [
+				"Debug.log: %d még nem látott sor",
+				"Debug.log: %d még nem látott sor"
+			],
+			"A site’s project cannot be changed later.": [
+				"A honlaphoz tartozó projekt később nem módosítható."
+			],
+			"Opened pull request #%1$s on %2$s": [
+				"Beolvasztási kérelem megnyitva: #%1$s. Tároló: %2$s"
+			],
+			"Dry run — branch created, no pull request opened": [
+				"Próbaüzem — az ág létrejött, beolvasztási kérelem nem jött létre"
+			],
+			"Saved your changes to %s and reset the working tree": [
+				"A módosítások mentve, a munkafa visszaállítva. A mentés helye: %s"
+			],
+			"Patch saved to %s": [
+				"A javítócsomag mentve ide: %s"
+			],
+			"Restored the saved work": [
+				"A mentett munka visszaállítva"
+			],
+			"Restored the previous branch": [
+				"Az előző ág visszaállítva"
+			],
+			"Checked out the pull request": [
+				"Sikeres átváltás a beolvasztási kérelem ágára"
+			],
+			"Reverted the patch": [
+				"A javítócsomag visszavonva"
+			],
+			"Applied the patch": [
+				"A javítócsomag alkalmazva"
+			],
+			"The site could not be created. %s": [
+				"Nem sikerült létrehozni a honlapot. %s"
+			],
+			"The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s": [
+				"A honlap továbbra is szerepel a listában, mert nem sikerült törölni a mappáját. Zárjon be mindent, ami használja, majd próbálja újra. Mappa: %s"
+			],
+			"The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s": [
+				"A honlap továbbra is szerepel a listában, mert nem sikerült törölni a mappáját (%1$s). Zárjon be mindent, ami használja, majd próbálja újra. Mappa: %2$s"
+			],
+			"Opened pull request #%s": [
+				"A(z) #%s számú pull request megnyílt"
+			],
+			"Notifications": [
+				"Értesítések"
+			],
+			"Checking GitHub…": [
+				"GitHub ellenőrzése…"
+			],
+			"Checking GitHub": [
+				"GitHub ellenőrzése"
+			],
+			"Linked pull requests": [
+				"Kapcsolódó pull requestek"
+			],
+			"Keywords:": [
+				"Kulcsszavak:"
+			],
+			"Apply…": [
+				"Alkalmazás…"
+			],
+			"The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.": [
+				"A hibajegyhez tartozó legfrissebb javítás fájlmelléklet, nem pull request — lásd alább a Trac-mellékleteket."
+			],
+			"Read details from Trac": [
+				"Részletek beolvasása a Trac rendszerből"
+			],
+			"Reading the ticket on Trac": [
+				"Hibajegy beolvasása a Trac rendszerből"
+			],
+			"Unlink": [
+				"Kapcsolat megszüntetése"
+			],
+			"Refresh": [
+				"Frissítés"
+			],
+			"Not sure yet?": [
+				"Még nem biztos benne?"
+			],
+			"If you have edited anything already, you will be asked what should happen to those edits.": [
+				"Ha már történt módosítás, a rendszer megkérdezi, mi történjen ezekkel a módosításokkal."
+			],
+			"Latest": [
+				"Legfrissebb"
+			],
+			"No patch files attached to this ticket.": [
+				"Ehhez a hibajegyhez nincsenek javítófájlok csatolva."
+			],
+			"Opening the ticket on Trac…": [
+				"Hibajegy megnyitása a Trac rendszerben…"
+			],
+			"Show Trac attachments": [
+				"Trac-mellékletek megjelenítése"
+			],
+			"Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.": [
+				"A javítófájlokat néha pull request helyett a Trac rendszerben csatolják. Beolvasásukkor megnyílik a hibajegy, így egyszer igazolhatja, hogy nem robot."
+			],
+			"Opening the ticket on Trac": [
+				"Hibajegy megnyitása a Trac rendszerben"
+			],
+			"Trac attachments": [
+				"Trac-mellékletek"
+			],
+			"Applied": [
+				"Alkalmazva"
+			],
+			"My sites": [
+				"Honlapjaim"
+			],
+			"Create new site": [
+				"Új honlap létrehozása"
+			],
+			"(Deleting)": [
+				"(Törlés folyamatban)"
+			],
+			"(%s)": [
+				"(%s)"
+			],
+			"Name": [
+				"Név"
+			],
+			"Site actions": [
+				"Honlapműveletek"
+			],
+			"Show details": [
+				"Részletek megjelenítése"
+			],
+			"Hide details": [
+				"Részletek elrejtése"
+			],
+			"Review & submit changes": [
+				"Módosítások áttekintése és beküldése"
+			],
+			"Review": [
+				"Áttekintés"
+			],
+			"Show password": [
+				"Jelszó megjelenítése"
+			],
+			"Hide password": [
+				"Jelszó elrejtése"
+			],
+			"Password": [
+				"Jelszó"
+			],
+			"Username": [
+				"Felhasználónév"
+			],
+			"Admin credentials": [
+				"Adminisztrátori bejelentkezési adatok"
+			],
+			"Server": [
+				"Kiszolgáló"
+			],
+			"Copied": [
+				"Másolva"
+			],
+			"Copy": [
+				"Másolás"
+			],
+			"Details": [
+				"Részletek"
+			],
+			"Details of %s": [
+				"%s részletei"
+			],
+			"Build watch offline": [
+				"A buildfigyelő nem érhető el"
+			],
+			"Build watch": [
+				"Buildfigyelő"
+			],
+			"Development server offline": [
+				"A fejlesztői kiszolgáló nem érhető el"
+			],
+			"Rename": [
+				"Átnevezés"
+			],
+			"Renaming the site": [
+				"Honlap átnevezése folyamatban"
+			],
+			"Rename site": [
+				"Honlap átnevezése"
+			],
+			"Clear emails": [
+				"E-mailek törlése"
+			],
+			"Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.": [
+				"Válassza ki azt a szülőmappát, amelyben az új honlapot létre szeretné hozni. A honlap számára új almappa jön létre."
+			],
+			"Location": [
+				"Hely"
+			],
+			"Setting up a site": [
+				"Webhely beállítása"
+			],
+			"Project": [
+				"Projekt"
+			],
+			"Close": [
+				"Bezárás"
+			],
+			"Resize tray": [
+				"Panel átméretezése"
+			],
+			"This patch is applied to your current work. Removing it may require undoing overlapping edits.": [
+				"Ez a javítás már része a jelenlegi munkának. Az eltávolításához szükség lehet az átfedő módosítások visszavonására."
+			],
+			"Discard this ticket to its base": [
+				"A hibajegy módosításainak elvetése és az alapállapot visszaállítása"
+			],
+			"Save a copy of your work": [
+				"A munka másolatának mentése"
+			],
+			"Revert this PR before applying another PR or patch file.": [
+				"Másik PR vagy javítófájl alkalmazása előtt vissza kell vonni ezt a PR-t."
+			],
+			"Try another patch on this ticket": [
+				"Másik javítás kipróbálása ehhez a hibajegyhez"
+			],
+			"Revert this patch": [
+				"A javítás visszavonása"
+			],
+			"Give feedback": [
+				"Visszajelzés küldése"
+			],
+			"It changes package-lock.json, so dependencies will be installed before the rebuild.": [
+				"Módosítja a package-lock.json fájlt, ezért az újraépítés előtt a rendszer telepíti a függőségeket."
+			],
+			"Apply and rebuild": [
+				"Alkalmazás és újraépítés"
+			],
+			"%1$s changes %2$d file.": [
+				"A javítófájl (%1$s) %2$d fájlt módosít.",
+				"A javítófájl (%1$s) %2$d fájlt módosít."
+			],
+			"Apply %s": [
+				"%s alkalmazása"
+			],
+			"%s is a binary file and will be skipped.": [
+				"%s bináris fájl, ezért kimarad.",
+				"%s bináris fájlok, ezért kimaradnak."
+			],
+			"Apply PR #%d": [
+				"PR #%d alkalmazása"
+			],
+			"A .diff or .patch file is applied to the current branch as a removable layer.": [
+				"A rendszer a .diff vagy .patch fájlt eltávolítható rétegként alkalmazza az aktuális ágra."
+			],
+			"Choose a .diff or .patch file…": [
+				".diff vagy .patch fájl kiválasztása…"
+			],
+			"Diff": [
+				"Diff"
+			],
+			"Pull request": [
+				"Pull request"
+			],
+			"Test changes in this checkout. Your own changes are preserved.": [
+				"Módosítások tesztelése ebben a munkapéldányban. A saját módosítások megmaradnak."
+			],
+			"Apply a patch or PR": [
+				"Javítás vagy PR alkalmazása"
+			],
+			"Test a pull request in this checkout. Your own changes are preserved.": [
+				"Pull request tesztelése ebben a munkapéldányban. A saját módosítások megmaradnak."
+			],
+			"Check out a pull request": [
+				"Váltás egy beolvasztási kérelemre"
+			],
+			"A pull request is checked out with its author’s commits.": [
+				"A beolvasztási kérelemre váltáskor a munkapéldány a szerző commitjait is tartalmazza."
+			],
+			"Apply PR": [
+				"PR alkalmazása"
+			],
+			"Pull request URL or number": [
+				"Beolvasztási kérelem URL-je vagy száma"
+			],
+			"line %d of the patch": [
+				"a javítócsomag %d. sora"
+			],
+			"… %d more line": [
+				"… további %d sor",
+				"… további %d sor"
+			],
+			"Near %s": [
+				"%s közelében"
+			],
+			"%1$s — %2$d of %3$d change": [
+				"%1$s — %3$d módosításból %2$d",
+				"%1$s — %3$d módosításból %2$d"
+			],
+			"The checkout was not changed.": [
+				"A munkapéldány nem változott."
+			],
+			"Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.": [
+				"Egy másik parancs fut ezen a webhelyen. Várja meg, amíg befejeződik, vagy állítsa le a terminálban a Ctrl+C billentyűkombinációval."
+			],
+			"text direction\u0004ltr": [
+				"ltr"
+			],
+			"Finish creating the current site first": [
+				"Előbb be kell fejezni az aktuális webhely létrehozását"
+			],
+			"Open the feedback form ↗": [
+				"Visszajelzési űrlap megnyitása ↗"
+			],
+			"Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.": [
+				"A válaszok egy közös űrlapra érkeznek, amelyet a csapat rendszeresen áttekint. A beküldések névtelenek, kivéve, ha megadja az e-mail-címét."
+			],
+			"Your feedback helps decide what to build next.": [
+				"A visszajelzések segítenek eldönteni, mi készüljön el következőként."
+			],
+			"WordPress Contributor Toolkit": [
+				"WordPress Contributor Toolkit"
+			],
+			"Please choose where to create the site.": [
+				"Kérjük, válassza ki, hol szeretné létrehozni a webhelyet."
+			],
+			"Please provide a site name.": [
+				"Kérjük, adja meg a webhely nevét."
+			],
+			"Create site": [
+				"Webhely létrehozása"
+			],
+			"Cancel": [
+				"Mégse"
+			],
+			"No folder selected yet.": [
+				"Még nincs kiválasztott mappa."
+			],
+			"My WordPress site": [
+				"WordPress-webhelyem"
+			],
+			"Site name": [
+				"Webhely neve"
+			],
+			"The wordpress-develop repository: Trac tickets, patches and pull requests.": [
+				"A wordpress-develop kódtár: Trac-hibajegyek, javítócsomagok és beolvasztási kérelmek."
+			],
+			"The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.": [
+				"Az alap WordPress-telepítésben bővítményként összeállított és futtatott blokkszerkesztő: GitHub-hibajegyek és beolvasztási kérelmek a munkapéldány átváltásával."
+			]
+		}
+	}
+}
