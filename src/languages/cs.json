@@ -1,0 +1,3082 @@
+{
+	"translation-revision-date": "2026-10-13 06:50:57+0000",
+	"generator": "GlotPress/4.1.0",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": {
+				"domain": "messages",
+				"plural-forms": "nplurals=3; plural=(n == 1) ? 0 : ((n >= 2 && n <= 4) ? 1 : 2);",
+				"lang": "cs_CZ"
+			},
+			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
+				"Přiblížit"
+			],
+			"Discard edits": [
+				"Zrušit úpravy"
+			],
+			"Discard the uncommitted edits on trunk?": [
+				"Mám smazat neuložené úpravy v kmeni?"
+			],
+			"Discard changes": [
+				"Zahodit změny"
+			],
+			"This can’t be undone.": [
+				"To už nelze vzít zpět."
+			],
+			"Discard all local changes?": [
+				"Mám zrušit všechny místní změny?"
+			],
+			"Stop Speaking": [
+				"Přestaň mluvit"
+			],
+			"Start Speaking": [
+				"Začněte mluvit"
+			],
+			"Speech": [
+				"Projev"
+			],
+			"Text Replacement": [
+				"Nahrazení textu"
+			],
+			"Smart Dashes": [
+				"Chytré palubní desky"
+			],
+			"Smart Quotes": [
+				"Inteligentní uvozovky"
+			],
+			"Show Substitutions": [
+				"Zobrazit střídání"
+			],
+			"Substitutions": [
+				"Střídání"
+			],
+			"Paste and Match Style": [
+				"Vložit a přizpůsobit styl"
+			],
+			"Paste": [
+				"Vložit"
+			],
+			"Cut": [
+				"Vyjmout"
+			],
+			"Redo": [
+				"Znovu"
+			],
+			"Undo": [
+				"Zpět"
+			],
+			"Edit": [
+				"Upravit"
+			],
+			"Quit": [
+				"Odejít"
+			],
+			"Exit": [
+				"Exit"
+			],
+			"Close Window": [
+				"Zavřít okno"
+			],
+			"File": [
+				"Soubor"
+			],
+			"Quit %s": [
+				"Ukončit %s"
+			],
+			"Show All": [
+				"Ukázat vše"
+			],
+			"Hide Others": [
+				"Skrýt ostatní"
+			],
+			"Hide %s": [
+				"Skrýt %s"
+			],
+			"Services": [
+				"Služby"
+			],
+			"About %s": [
+				"Autor: %s"
+			],
+			"Toggle Developer Tools": [
+				"Přepnout vývojářské nástroje"
+			],
+			"Help": [
+				"Nápověda"
+			],
+			"Bring All to Front": [
+				"Přesunout vše do popředí"
+			],
+			"Minimize": [
+				"Minimalizovat"
+			],
+			"Window": [
+				"Okno"
+			],
+			"Toggle Full Screen": [
+				"Přepnout na celou obrazovku"
+			],
+			"Zoom Out": [
+				"Oddálit"
+			],
+			"Zoom In": [
+				"Přiblížit"
+			],
+			"Actual Size": [
+				"Skutečná velikost"
+			],
+			"Force Reload": [
+				"Vynucení opětovného načtení"
+			],
+			"Reload": [
+				"Obnovit"
+			],
+			"View": [
+				"Zobrazit"
+			],
+			"Select All": [
+				"Označit vše"
+			],
+			"Delete": [
+				"Smazat"
+			],
+			"Choose folder…": [
+				"Vyberte složku…"
+			],
+			"Mail": [
+				"E-mail"
+			],
+			"ends a sentence that lacks a full stop\u0004%s.": [
+				"%s."
+			],
+			"Too much output to announce, navigate to rows manually to read": [
+				"Je zde příliš mnoho výstupních údajů na to, aby se daly všechny oznámit; pro přečtení je třeba ručně přecházet mezi řádky"
+			],
+			"Terminal input": [
+				"Zadání z terminálu"
+			],
+			"Timed out starting web server": [
+				"Vypršela časová lhůta pro spuštění webového serveru"
+			],
+			"Server exited before becoming ready": [
+				"Server se ukončil dříve, než byl připraven"
+			],
+			"%s directory not found.": [
+				"Adresář %s nebyl nalezen."
+			],
+			"The patch you applied is applied. Revert it before submitting this checkout as your own work.": [
+				"Nainstalovaná oprava je již zapracována. Zrušte ji, než tento checkout odešlete jako svou vlastní práci."
+			],
+			"%s is applied. Revert it before submitting this checkout as your own work.": [
+				"Byla použita změna %s. Před odesláním této revize jako vlastní práce ji prosím zrušte."
+			],
+			"an action that finished\u0004Done": [
+				"Hotovo"
+			],
+			"No such branch: %s": [
+				"Taková větev neexistuje: %s"
+			],
+			"Refusing to delete a branch the app did not create": [
+				"Odmítnutí smazání větve, kterou aplikace nevytvořila"
+			],
+			"Refusing to delete trunk": [
+				"Odmítnutí smazání kmenu"
+			],
+			"Trunk and this ticket's work disagree": [
+				"Trunk a práce na tomto tiketu se neshodují"
+			],
+			"Trunk and this ticket's work disagree in %d file": [],
+			"Already working on ticket #%s in this site": [
+				"Na tomto webu již pracuji na požadavku č. %s"
+			],
+			"Already working on issue #%s in this site": [
+				"Na problému č. %s na tomto webu již pracuji"
+			],
+			"This site has no trunk branch": [
+				"Tento web nemá žádnou hlavní větev"
+			],
+			"Enter a ticket number or URL.": [
+				"Zadejte číslo tiketu nebo adresu URL."
+			],
+			"Enter a ticket number like 62281, or a %s ticket URL.": [
+				"Zadejte číslo tiketu, například 62281, nebo URL tiketu %s."
+			],
+			"Only %s tickets are supported.": [
+				"Podporovány jsou pouze lístky typu %s."
+			],
+			"Trunk and your work disagree in: %s.": [
+				"Trunk a vaše práce se liší v: %s."
+			],
+			"Trunk added a file your work also adds, with different content: %s.": [],
+			"Deleted on one side and changed on the other: %s.": [
+				"Na jedné straně smazáno a na druhé změněno: %s."
+			],
+			"Trunk changed the same lines as your work in: %s.": [
+				"Trunk provedl změny ve stejných řádcích jako ve tvé práci v souboru: %s."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.": [
+				"Uložte si kopii své práce, zrušte propojení s lístkem, smažte svou práci ze stránky, poté znovu propojte #%s a použijte uloženou kopii."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.": [
+				"Uložte si kopii své práce, zrušte propojení s lístkem, smažte svou práci ze stránky, poté lístku znovu přiřaďte a použijte uloženou kopii."
+			],
+			"Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.": [
+				"Zachovejte větev tohoto vydání a uložte kopii pomocí funkce „Zkontrolovat a odeslat změny“. Požádejte mentora o pomoc s přesunutím práce do aktuálního kmenového repozitáře; tato aplikace nedokáže vyřešit konflikt ani importovat uloženou kopii."
+			],
+			"Update this ticket to the current trunk": [
+				"Aktualizujte tento ticket na aktuální verzi z hlavního větve"
+			],
+			"Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.": [
+				"Novější opravy se nemusí aplikovat bez problémů. Přesuňte svou práci sem do aktuálního trunk, nebo si ji uložte a založte nový ticket."
+			],
+			"Trunk has moved since this ticket started.": [
+				"Od otevření tohoto tiketu došlo k přesunu repozitáře."
+			],
+			"Update this issue to the current trunk": [
+				"Aktualizuj tento problém na aktuální verzi v kmenovém repozitáři"
+			],
+			"Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.": [
+				"Zde přeneste svou práci do aktuálního kmenového repozitáře. Pokud dojde ke konfliktu změn, vaše větev zůstane beze změny, takže můžete požádat o pomoc s jejich vyřešením."
+			],
+			"Trunk has moved since this issue started.": [
+				"Od začátku tohoto čísla se Trunk přestěhoval."
+			],
+			"Could not move the ticket onto the current trunk.": [
+				"Nepodařilo se přesunout ticket do aktuálního trunk."
+			],
+			"Could not move the issue onto the current trunk.": [
+				"Nepodařilo se přesunout tento problém do aktuální hlavní větve."
+			],
+			"Only an issue branch can be moved onto the current trunk.": [
+				"Do aktuálního kmenového větve lze přesunout pouze větev s vydáním."
+			],
+			"Link a ticket first: trunk is what tickets are measured against.": [
+				"Nejprve přiřaďte ticket: trunk slouží jako měřítko pro hodnocení ticketů."
+			],
+			"Link an issue first: trunk is what issues are measured against.": [
+				"Nejprve přiřaďte problém: trunk slouží jako měřítko pro hodnocení problémů."
+			],
+			"The app does not know which trunk the ticket started from, so it cannot move the work safely.": [
+				"Aplikace neví, ze kterého trunků byl ticket vytvořen, a proto nemůže práci bezpečně přesunout."
+			],
+			"The app does not know which trunk the issue started from, so it cannot move the work safely.": [
+				"Aplikace neví, ve kterém trunk se problém objevil, a proto nemůže práci bezpečně přesunout."
+			],
+			"The app does not know which trunk #%s started from, so it cannot move the work safely.": [
+				"Aplikace neví, ze kterého kmenového adresáře #%s byla práce spuštěna, a proto ji nemůže bezpečně přesunout."
+			],
+			"Nothing was moved.": [
+				"Nic se nepohnulo."
+			],
+			"Trunk and your work disagree.": [
+				"Trunk a tvoje práce si odporují."
+			],
+			"You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?": [],
+			"You have %d uncommitted change on this site, not on any issue yet. What should happen to them?": [],
+			"Stop the dev server before updating the ticket.": [
+				"Před aktualizací lístku zastavte vývojový server."
+			],
+			"Stop the dev server before updating the issue.": [
+				"Před aktualizací problému zastavte vývojový server."
+			],
+			"Wait for the discard to finish before updating the ticket.": [
+				"Před aktualizací lístku počkejte, až se dokončí vyřazení."
+			],
+			"Wait for the discard to finish before updating the issue.": [
+				"Před aktualizací úkolu počkejte, až se dokončí vyřazení."
+			],
+			"Wait for the PR or patch operation to finish.": [
+				"Počkejte, až se operace PR nebo patch dokončí."
+			],
+			"Wait for the ticket's work to finish deleting.": [
+				"Počkejte, až se dokončí mazání úlohy lístku."
+			],
+			"Wait for the issue's work to finish deleting.": [
+				"Počkejte, až se dokončí mazání dat z tohoto čísla."
+			],
+			"Wait for the current ticket change to finish.": [
+				"Počkejte, až se dokončí aktuální změna jízdenky."
+			],
+			"Wait for the current issue change to finish.": [
+				"Počkejte, až se dokončí změna aktuálního čísla."
+			],
+			"This ticket already has its own work here, so these edits cannot come along into it.": [
+				"Tento ticket již má zde svůj vlastní úkol, takže tyto úpravy do něj nelze zahrnout."
+			],
+			"This issue already has its own work here, so these edits cannot come along into it.": [
+				"Toto téma již má zde svou vlastní stránku, takže tyto úpravy do ní nelze začlenit."
+			],
+			"Discard them and continue on the ticket": [
+				"Zrušte je a pokračujte v práci na lístku"
+			],
+			"Save them as a patch, then continue on the ticket…": [
+				"Uložte je jako opravu a pak pokračujte v řešení požadavku…"
+			],
+			"Discard them and continue on the issue": [
+				"Zahoďte je a pokračujte v řešení problému"
+			],
+			"Save them as a patch, then continue on the issue…": [
+				"Uložte je jako opravu a poté pokračujte v řešení problému…"
+			],
+			"Discard them and continue on #%s": [
+				"Zahoďte je a pokračujte na #%s"
+			],
+			"Save them as a patch, then continue on #%s…": [
+				"Uložte je jako opravu a poté pokračujte na #%s…"
+			],
+			"Discard them and start clean": [
+				"Zahoďte je a začněte s čistým štítem"
+			],
+			"Save them as a patch, then start clean…": [
+				"Uložte je jako záplatu a pak začněte od nuly…"
+			],
+			"Take these edits into the ticket": [
+				"Zapracujte tyto úpravy do tiketu"
+			],
+			"Take these edits into the issue": [
+				"Zapracujte tyto úpravy do úkolu"
+			],
+			"Take these edits into #%s": [
+				"Zapracuj tyto úpravy do #%s"
+			],
+			"Discard them and check out PR #%d": [
+				"Zrušte je a podívejte se na PR č. %d"
+			],
+			"Save them as a patch, then check out PR #%d…": [
+				"Uložte je jako patch a poté si prohlédněte PR #%d…"
+			],
+			"PR #%d is a separate checkout, so these edits cannot come along into it.": [
+				"PR #%d je samostatná revize, takže tyto úpravy do ní nelze převést."
+			],
+			"You have uncommitted changes on this site, not on any ticket yet. What should happen to them?": [
+				"Na této stránce máte neuložené změny, které zatím nejsou přiřazeny k žádnému tiketu. Co se s nimi má stát?"
+			],
+			"You have uncommitted changes on this site, not on any issue yet. What should happen to them?": [
+				"Na této stránce máte neuložené změny, které zatím nejsou přiřazeny k žádnému problému. Co se s nimi má stát?"
+			],
+			"Could not open the folder.": [
+				"Složku se nepodařilo otevřít."
+			],
+			"Could not reach the app's main process: %s": [
+				"Nepodařilo se navázat spojení s hlavním procesem aplikace: %s"
+			],
+			"This app has no record of that folder, so it will not open it.": [
+				"Tato aplikace nemá o této složce žádný záznam, a proto ji neotevře."
+			],
+			"The file manager would not open the folder: %s": [
+				"Správce souborů nemohl otevřít složku: %s"
+			],
+			"The application would not start: %s": [
+				"Aplikace se nespustila: %s"
+			],
+			"That application is no longer where it was. Choose another.": [
+				"Tato aplikace už není tam, kde byla. Vyberte jinou."
+			],
+			"That is not an application this app can open a folder in.": [
+				"Toto není aplikace, ve které by tato aplikace mohla otevřít složku."
+			],
+			"A merge started outside the app is in progress.": [
+				"Probíhá sloučení, které bylo zahájeno mimo aplikaci."
+			],
+			"every file the patch touched, not only the ones in conflict": [
+				"všechny soubory, na které se oprava vztahovala, nejen ty, u nichž došlo ke konfliktu"
+			],
+			"git add the files": [
+				"Přidejte soubory pomocí příkazu git add"
+			],
+			"resolve the files, then git add them": [
+				"soubory zpracujte a poté je přidejte pomocí příkazu `git add`"
+			],
+			"A three-way patch apply started outside the app is in progress.": [
+				"Probíhá aplikace tříčlenného patche, která byla spuštěna mimo aplikaci."
+			],
+			"A revert started outside the app is in progress.": [
+				"Probíhá vrácení změn, které bylo zahájeno mimo aplikaci."
+			],
+			"A cherry-pick started outside the app is in progress.": [
+				"Právě probíhá proces „cherry-pick“, který byl spuštěn mimo aplikaci."
+			],
+			"A rebase started outside the app is in progress.": [
+				"Probíhá rebase spuštěný mimo aplikaci."
+			],
+			"resolve the files, then git add them and run %s": [
+				"zpracujte soubory, poté je přidejte pomocí git add a spusťte %s"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)": [
+				"Aplikace nemohla ověřit, zda v tomto checkoutu právě probíhá sloučení, proto nedošlo k žádné změně. Pokud se v něm z terminálu právě spouští nějaký příkaz Git, počkejte, až se dokončí, a pak to zkuste znovu. (%s)"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again.": [
+				"Aplikace nemohla ověřit, zda v tomto checkoutu právě probíhá sloučení, proto nedošlo k žádné změně. Pokud v něm právě běží příkaz Git z terminálu, počkejte, až se dokončí, a pak to zkuste znovu."
+			],
+			"Its conflicts are resolved but it is not finished. Finish it from a terminal (%1$s) or abandon it (%2$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"Konflikty jsou vyřešeny, ale projekt ještě není dokončen. Před použitím aplikace na tomto webu jej dokončete z terminálu (%1$s) nebo jej zrušte (%2$s). Do té doby zde není možné propojovat tikety, aplikovat opravy, rušit změny ani aktualizovat hlavní větev."
+			],
+			"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"V souboru %1$s se vyskytují konflikty. Před použitím aplikace na tomto webu jej dokončete z terminálu (%2$s) nebo zrušte (%3$s). Do té doby zde není možné propojovat tikety, aplikovat opravy, rušit změny ani aktualizovat kmenovou větev."
+			],
+			"The app now runs on a different Git engine, so linking tickets, applying patches, discarding changes and updating trunk are refused here. Export your work as a patch, create a new site, apply the patch there, then delete this one.": [
+				"Aplikace nyní běží na jiném Git enginu, takže zde nelze propojovat tikety, aplikovat záplaty, zrušit změny ani aktualizovat hlavní větev. Exportujte svou práci jako záplatu, vytvořte nový web, tam záplatu aplikujte a poté tento web smažte."
+			],
+			"This site was created by an earlier version of the app.": [
+				"Tato stránka byla vytvořena pomocí starší verze aplikace."
+			],
+			"This site was created by an earlier version of the app and cannot be changed by this one. Create a new site to keep working; you can still export a patch of what is here, and delete this site.": [
+				"Tento web byl vytvořen starší verzí aplikace a nelze jej v této verzi upravovat. Chcete-li pokračovat v práci, vytvořte nový web; obsah tohoto webu můžete stále exportovat a poté jej smazat."
+			],
+			"Unable to copy path: %s": [
+				"Nelze zkopírovat cestu: %s"
+			],
+			"Clipboard access is not available in this environment": [
+				"V tomto prostředí není k dispozici přístup ke schránce"
+			],
+			"Dismiss": [
+				"Zavřít"
+			],
+			"Stopped": [
+				"Zastaveno"
+			],
+			"Playground web server": [
+				"Webový server Playground"
+			],
+			"Start Playground web server": [
+				"Spustit webový server Playground"
+			],
+			"Stop Playground web server": [
+				"Zastavit webový server Stop Playground"
+			],
+			"Starting the Playground web server": [
+				"Spuštění webového serveru Playground"
+			],
+			"Server exited with code %d": [
+				"Server byl ukončen s kódem %d"
+			],
+			"Choose application…": [
+				"Vyberte aplikaci…"
+			],
+			"Saved to %s. The edits are still in the working tree.": [
+				"Soubor byl uložen do %s. Úpravy jsou stále v pracovním stromu."
+			],
+			"Your edits were saved to %s and are no longer in the working tree.": [
+				"Vaše změny byly uloženy do souboru %s a již se nenacházejí v pracovním stromu."
+			],
+			"Your %1$d uncommitted change came along into #%2$s, and will go into its patch.": [],
+			"Could not delete the branch.": [
+				"Větvu se nepodařilo odstranit."
+			],
+			"Could not save the patch.": [
+				"Nepodařilo se uložit opravu."
+			],
+			"Could not discard the changes.": [
+				"Změny se nepodařilo zrušit."
+			],
+			"Could not save the ticket.": [
+				"Nepodařilo se uložit lístek."
+			],
+			"Only %s issues are supported.": [
+				"Podporovány jsou pouze problémy typu %s."
+			],
+			"Enter an issue number or URL.": [
+				"Zadejte číslo problému nebo adresu URL."
+			],
+			"Enter an issue number like 1234, or a %s issue URL.": [
+				"Zadejte číslo čísla, například 1234, nebo URL čísla ve formátu %s."
+			],
+			"Only %s issues can be linked here.": [
+				"Zde lze propojit pouze problémy typu %s."
+			],
+			"That is a pull request. Link the issue it fixes instead.": [
+				"To je žádost o začlenění. Místo toho přidejte odkaz na problém, který tato změna řeší."
+			],
+			"There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.": [
+				"Zatím neexistuje žádný projekt, na kterém by se na tom dalo pracovat. Vytvořte jej v postranním panelu a aplikace tento ticket nabídne, až bude připraven."
+			],
+			"Ticket #%s is ready to link.": [
+				"Lístek č. %s je připraven k propojení."
+			],
+			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
+				"Číslo tiketu pochází z odkazu. Kliknutím na něj se pozastaví aktuální stránka a aplikace přejde do větve tohoto tiketu, proto se nejprve zobrazí dotaz."
+			],
+			"Link ticket #%1$s to %2$s?": [
+				"Propojit lístek č. %1$s s %2$s?"
+			],
+			"A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.": [
+				"Trac ticket patří na web WordPress Core. Otevřete jej a aplikace tam tento ticket nabídne."
+			],
+			"Ticket #%1$s cannot be linked to %2$s.": [
+				"Lístek č. %1$s nelze propojit s %2$s."
+			],
+			"Raw": [
+				"Surové"
+			],
+			"Rendered": [
+				"Vykresleno"
+			],
+			"Date:": [
+				"Data:"
+			],
+			"CC:": [
+				"Kopie:"
+			],
+			"To:": [
+				"Komu:"
+			],
+			"From:": [
+				"Od:"
+			],
+			"You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"Máte neuložené změny v úkolu č. %s. Můžete <review>změny zkontrolovat a odeslat</review> nebo <discard>změny zrušit</discard>."
+			],
+			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [],
+			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"Máte změny v rámci pull requestu č. %d. Můžete je <review>zkontrolovat</review> nebo <discard>zrušit své změny</discard>. Pokud tento pull request vrátíte zpět, zůstanou tyto změny v lokální kopii tohoto pull requestu."
+			],
+			"Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.": [
+				"Odpojení tohoto tiketu nemá vliv na vaše lokální změny týkající se tohoto tiketu – ty zde na tomto webu zůstávají připojené a budou k dispozici, až jej znovu propojíte."
+			],
+			"Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.": [
+				"Odpojení tohoto úkolu nemá vliv na vaše lokální změny týkající se tohoto úkolu – ty na něm na tomto webu zůstávají a budou k dispozici, až jej znovu propojíte."
+			],
+			"You have %d change not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [],
+			"You have %d change not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [],
+			"You have changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Máte změny, které nejsou přiřazeny k žádnému tiketu. Můžete <review>vytvořit a uložit opravu</review> nebo <discard>změny zrušit</discard>."
+			],
+			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Máte změny, které nejsou přiřazeny k žádnému úkolu. Můžete <review>vytvořit a uložit opravu</review> nebo <discard>změny zrušit</discard>."
+			],
+			"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [],
+			"You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [],
+			"You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"Máte neuložené změny v tiketu č. %s. Můžete <review>změny zkontrolovat a odeslat</review> nebo <discard>změny zrušit</discard>."
+			],
+			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
+				"Tento ticket nemá zaznamenaný výchozí bod, takže aplikace nemůže převést svou práci do aktuálního kmenového větve."
+			],
+			"Only a ticket branch can be moved onto the current trunk.": [
+				"Do aktuálního kmenového větve lze přesunout pouze větev s ticketem."
+			],
+			"Link a ticket first: trunk is what tickets are measured against, not a ticket.": [
+				"Nejprve přiřaďte ticket: měřítkem pro hodnocení ticketů je trunk, nikoli jednotlivý ticket."
+			],
+			"There is uncommitted work on trunk — decide what happens to it before starting the ticket": [
+				"V kmeni se nachází neuložená práce – před zahájením úkolu se rozhodněte, co s ní bude"
+			],
+			"the editor could not be opened (exit code %s)": [
+				"nelze otevřít editor (výstupní kód %s)"
+			],
+			"the saved work\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Obnoveno — build watch provedl novou kompilaci. Otevřete stránku a vyzkoušejte si to."
+			],
+			"the saved work\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Obnoveno — Systém Build Watch tuto změnu stále kompiluje. Než stránku vyzkoušíte, počkejte, až se hlášení zastaví."
+			],
+			"the saved work\u0004Restored.": [
+				"Obnoveno."
+			],
+			"the saved work\u0004Restored — open the site to try it out.": [
+				"Obnoveno — otevřete stránku a vyzkoušejte si to."
+			],
+			"the previous branch\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Obnoveno — build watch provedl kompilaci znovu. Otevřete stránku a vyzkoušejte si to."
+			],
+			"the previous branch\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Obnoveno — Systém sledování sestavení stále kompiluje tuto změnu. Než stránku vyzkoušíte, počkejte, až se hlášení ustaví."
+			],
+			"the previous branch\u0004Restored.": [
+				"Obnoveno."
+			],
+			"the previous branch\u0004Restored — open the site to try it out.": [
+				"Obnoveno — otevřete stránku a vyzkoušejte si to."
+			],
+			"Now on trunk as of %s.": [
+				"Nyní je to v kmeni od verze %s."
+			],
+			"Resetting to latest trunk (%s)…": [
+				"Obnovení na nejnovější verzi z hlavního větve (%s)…"
+			],
+			"Already up to date.": [
+				"Již je to aktuální."
+			],
+			"Fetching latest trunk…": [
+				"Načítání nejnovějšího kódu z hlavního větve…"
+			],
+			"Trac returned %s — try opening the ticket again to pass the check.": [
+				"Trac vrátil %s — zkuste ticket otevřít znovu, abyste prošli kontrolou."
+			],
+			"Only https core.trac.wordpress.org attachments are allowed": [
+				"Povoleny jsou pouze přílohy z adresy https://core.trac.wordpress.org"
+			],
+			"%s file": [
+				"%s soubor",
+				"%s soubory",
+				"%s souborů"
+			],
+			"Ready to work on %s": [
+				"Jsem připraven pracovat na %s"
+			],
+			"Ready to try %s": [
+				"Jste připraveni vyzkoušet %s?"
+			],
+			"Checking which files change…": [
+				"Zjišťování, které soubory se změnily…"
+			],
+			"Swapping files for %s…": [
+				"Probíhá výměna souborů pro %s…"
+			],
+			"Swapping files…": [
+				"Přenos souborů…"
+			],
+			"Moving your work on %s onto the current trunk…": [
+				"Přenáším vaši práci na %s do aktuálního kmenového repozitáře…"
+			],
+			"Moving your edits on %s onto the current trunk…": [
+				"Přenos vašich úprav z %s do aktuálního kmenového repozitáře…"
+			],
+			"Moving your work onto the current trunk…": [
+				"Přesunutí vaší práce do aktuálního kmenového repozitáře…"
+			],
+			"Saving your work on %s…": [
+				"Ukládání práce do %s…"
+			],
+			"Saving your edits on %s…": [
+				"Ukládání vašich úprav do %s…"
+			],
+			"Saving your work…": [
+				"Ukládání práce…"
+			],
+			"The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.": [
+				"Sledování sestavení se po této změně znovu nastavuje. Než stránku vyzkoušíte, počkejte, až bude opět aktivní."
+			],
+			"Start the build watch, or run %s in the Terminal.": [
+				"Spusťte sledování sestavení nebo v Terminálu zadejte příkaz %s."
+			],
+			"The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Sledovač sestavení stále kompiluje tuto změnu. Počkejte, až se přestane zobrazovat aktivita, a teprve poté stránku vyzkoušejte."
+			],
+			"PR #%s is applied.": [
+				"Použije se PR #%s."
+			],
+			"The build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Sledování sestavení se zastavilo ještě před dokončením sestavení, takže web stále používá staré soubory."
+			],
+			"PR #%s is applied but not built.": [
+				"PR #%s je zařazen, ale nebyl sestaven."
+			],
+			"PR #%s is applied. The site is rebuilding.": [
+				"Byla použita PR #%s. Stránka se právě načítá."
+			],
+			"Update incomplete — the build watch stopped before it finished rebuilding.": [
+				"Aktualizace nebyla dokončena – sledování sestavení se zastavilo před dokončením sestavení."
+			],
+			"Update complete — the build watch has rebuilt, and this site is now on the latest trunk.": [
+				"Aktualizace dokončena — Build Watch provedl novou kompilaci a tento web nyní využívá nejnovější verzi z hlavního větvení."
+			],
+			"Update incomplete — the build watch was stopped, so nothing rebuilt.": [
+				"Aktualizace nebyla dokončena – sledování sestavení bylo zastaveno, takže se nic nepřestavovalo."
+			],
+			"The code is new but the built assets are old; retry install & build from the banner above.": [
+				"Kód je nový, ale vygenerované soubory jsou staré; zkuste instalaci a kompilaci zopakovat pomocí odkazu v horním banneru."
+			],
+			"The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Oprava byla aplikována, ale sledování sestavení se zastavilo ještě před dokončením sestavení, takže web stále používá staré soubory."
+			],
+			"The patch is applied but the build watch was stopped, so the site still runs the old assets.": [
+				"Oprava byla aplikována, ale sledování sestavení bylo pozastaveno, takže web stále používá staré soubory."
+			],
+			"%s failed, so the build was skipped. The patch is applied but dependencies are stale.": [
+				"%s selhalo, takže sestavení bylo přeskočeno. Oprava byla aplikována, ale závislosti jsou zastaralé."
+			],
+			"The patch is applied but the build failed, so the site still runs the old assets.": [
+				"Oprava byla aplikována, ale sestavení selhalo, takže web stále používá staré soubory."
+			],
+			"The patch changes %1$s — running %2$s…": [
+				"Aktualizace mění %1$s — spouští se %2$s…"
+			],
+			"Applied — the build watch has rebuilt. Open the site to try it out.": [
+				"Aplikováno — build watch provedl novou kompilaci. Otevřete web a vyzkoušejte si to."
+			],
+			"Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Probíhá — Systém Build Watch tuto změnu stále kompiluje. Počkejte, až se situace uklidní, a teprve poté vyzkoušejte web."
+			],
+			"Applied.": [
+				"Podáno."
+			],
+			"Applied — open the site to try it out.": [
+				"Aplikováno — otevřete stránku a vyzkoušejte si to."
+			],
+			"The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Uložená práce byla obnovena, ale sledování sestavení se zastavilo ještě před dokončením sestavení, takže web stále používá staré soubory."
+			],
+			"The saved work is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Uložená práce byla obnovena, ale sledování sestavení bylo zastaveno, takže web stále používá staré soubory."
+			],
+			"%s failed, so the build was skipped. The saved work is restored but dependencies are stale.": [
+				"Došlo k chybě %s, proto byla kompilace přeskočena. Uložená práce byla obnovena, ale závislosti jsou zastaralé."
+			],
+			"The saved work is restored but the build failed, so the site still runs the old assets.": [
+				"Uložená práce byla obnovena, ale sestavení se nezdařilo, takže web stále používá staré soubory."
+			],
+			"The saved work changes %1$s — running %2$s…": [
+				"Uložené změny v práci %1$s – spouštím %2$s…"
+			],
+			"The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Předchozí větev byla obnovena, ale sledování sestavení se zastavilo ještě před dokončením přestavby, takže web stále používá staré soubory."
+			],
+			"The previous branch is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Předchozí větev byla obnovena, ale sledování sestavení bylo zastaveno, takže web stále používá staré soubory."
+			],
+			"%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.": [
+				"%s selhalo, takže sestavení bylo přeskočeno. Předchozí větev byla obnovena, ale závislosti jsou zastaralé."
+			],
+			"The previous branch is restored but the build failed, so the site still runs the old assets.": [
+				"Předchozí větev byla obnovena, ale sestavení selhalo, takže web stále používá staré soubory."
+			],
+			"The previous branch changes %1$s — running %2$s…": [
+				"Předchozí větev se mění na %1$s — spouštím %2$s…"
+			],
+			"The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Pull request byl zkopírován, ale sledování sestavení se zastavilo ještě před dokončením sestavení, takže web stále používá staré soubory."
+			],
+			"The pull request is checked out but the build watch was stopped, so the site still runs the old assets.": [
+				"Pull request byl zkopírován, ale sledování sestavení bylo zastaveno, takže web stále používá staré soubory."
+			],
+			"%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.": [
+				"%s selhalo, takže sestavení bylo přeskočeno. Pull request byl zkontrolován, ale závislosti jsou zastaralé."
+			],
+			"The pull request is checked out but the build failed, so the site still runs the old assets.": [
+				"Pull request byl zkopírován, ale sestavení selhalo, takže web stále používá staré soubory."
+			],
+			"The pull request changes %1$s — running %2$s…": [
+				"Pull request mění %1$s — spouštím %2$s…"
+			],
+			"Checked out — the build watch has rebuilt. Open the site to try it out.": [
+				"Ověřeno – build watch provedl novou kompilaci. Otevřete stránku a vyzkoušejte to."
+			],
+			"Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Označeno jako „Checked out“ — Build Watch stále kompiluje tuto změnu. Počkejte, až se proces dokončí, než stránku vyzkoušíte."
+			],
+			"Checked out.": [
+				"Odhlášen."
+			],
+			"Checked out — open the site to try it out.": [
+				"Ověřeno – otevřete stránku a vyzkoušejte si to."
+			],
+			"The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Oprava byla vrácena zpět, ale sledování sestavení se zastavilo ještě před dokončením nové kompilace, takže web stále používá staré soubory."
+			],
+			"The patch is reverted but the build watch was stopped, so the site still runs the old assets.": [
+				"Oprava byla vrácena zpět, ale sledování sestavení bylo zastaveno, takže web stále používá staré soubory."
+			],
+			"%s failed, so the build was skipped. The patch is reverted but dependencies are stale.": [
+				"%s selhalo, takže sestavení bylo přeskočeno. Oprava byla vrácena zpět, ale závislosti jsou zastaralé."
+			],
+			"The patch is reverted but the build failed, so the site still runs the old assets.": [
+				"Oprava byla vrácena zpět, ale sestavení selhalo, takže web stále používá staré soubory."
+			],
+			"Reverted — the build watch has rebuilt. Open the site to try it out.": [
+				"Vráceno – nástroj pro sledování sestavení provedl novou kompilaci. Otevřete web a vyzkoušejte to."
+			],
+			"Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Vráceno — Sledování sestavení stále kompiluje tuto změnu. Počkejte, až se stav vrátí do normálu, než stránku vyzkoušíte."
+			],
+			"Reverted.": [
+				"Zrušeno."
+			],
+			"Reverted — open the site to try it out.": [
+				"Vráceno — otevřete stránku a vyzkoušejte to."
+			],
+			"The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.": [
+				"Sledování sestavení při obnovení činnosti znovu sestaví %s od začátku – výstup najdete v sekci „Logs“ pod položkou „Build watch“. Aktualizace je dokončena, jakmile se sledování znovu spustí."
+			],
+			"This pull request is closed. You can still check out its last head to investigate it.": [
+				"Tento pull request je uzavřen. Stále si však můžete stáhnout jeho poslední verzi (head) a prozkoumat ji."
+			],
+			"Return to saved copy": [
+				"Návrat k uložené kopii"
+			],
+			"PR #%d is already on this site; you will switch to your local copy.": [
+				"PR #%d se na tomto webu již nachází; přepnete se na svou lokální kopii."
+			],
+			"PR #%d has moved on GitHub; your local copy will be updated.": [
+				"PR č. %d byl přesunut na GitHub; vaše lokální kopie bude aktualizována."
+			],
+			"PR #%d has moved on GitHub, but your copy has edits on top.": [
+				"PR č. %d byl přesunut na GitHub, ale vaše kopie obsahuje úpravy v horní části."
+			],
+			"PR #%1$d changes %2$d file.": [
+				"PR #%1$d mění %2$d soubor.",
+				"PR #%1$d mění %2$d soubory.",
+				"PR #%1$d mění %2$d souborů."
+			],
+			"Could not switch this pull request. Check the log and try again.": [
+				"Tento pull request se nepodařilo převést. Zkontrolujte protokol a zkuste to znovu."
+			],
+			"This pull request has no recorded starting point, so the app cannot safely save its edits. Save a patch before changing branches.": [
+				"Tento pull request nemá zaznamenaný počáteční bod, takže aplikace nemůže bezpečně uložit provedené úpravy. Před změnou větve uložte patch."
+			],
+			"No pull request is checked out on this site.": [
+				"Na tomto webu není žádný pull request zkontrolován."
+			],
+			"Enter a positive whole pull request number.": [
+				"Zadejte kladné celé číslo žádosti o začlenění."
+			],
+			"PR #%d is already checked out. Revert it before applying it again.": [
+				"PR #%d je již zkontrolováno. Před dalším použitím jej vraťte zpět."
+			],
+			"This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.": [
+				"Na tomto serveru již existuje větev s názvem pr/%d, kterou aplikace nevytvořila. Před dalším pokusem tuto větev v terminálu přejmenujte nebo smažte."
+			],
+			"PR #%d has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.": [
+				"PR #%d byl přesunut na GitHub a vaše kopie obsahuje úpravy v horní části. Před aktualizací tyto úpravy zrušte, nebo si ponechte kopii, kterou máte."
+			],
+			"Revert this PR": [
+				"Vrátit tento PR do původního stavu"
+			],
+			"Edits you make here stay with your local copy of the PR.": [
+				"Úpravy, které zde provedete, zůstanou pouze ve vaší lokální kopii PR."
+			],
+			"Your edits here stay with your local copy of the PR.": [
+				"Vaše úpravy zde zůstávají pouze ve vaší lokální kopii PR."
+			],
+			"Your ticket changes are saved separately and return when you revert this PR.": [
+				"Změny v lístku se ukládají samostatně a po vrácení tohoto PR se obnoví."
+			],
+			"Your issue changes are saved separately and return when you revert this PR.": [
+				"Změny, které jste provedli, se ukládají samostatně a budou obnoveny, jakmile tento PR vrátíte zpět."
+			],
+			"Reverting this PR returns to trunk.": [
+				"Zrušením tohoto PR se vrátíme do hlavní větve."
+			],
+			"Setup failed: %s": [
+				"Instalace se nezdařila: %s"
+			],
+			"Site setup request completed.": [
+				"Žádost o zřízení stránky byla vyřízena."
+			],
+			"Starting site setup…": [
+				"Probíhá nastavení výchozího webu…"
+			],
+			"Cloning repository…": [
+				"Klonování repozitáře…"
+			],
+			"Setup finished.": [
+				"Nastavení bylo dokončeno."
+			],
+			"Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.": [
+				"Zadejte <code><command /></code>, abyste zobrazili seznam podporovaných příkazů. Stisknutím <code><keys /></code> zastavíte aktuální příkaz."
+			],
+			"Added a dependency to <code><file /></code>? Run <command />.": [
+				"Byla přidána závislost na <code><file /></code>? Spusťte <command />."
+			],
+			"Edited files in <code><folder /></code>? Run <command /> so the site picks them up.": [
+				"Upravili jste soubory v <code><folder /></code>? Spusťte <command />, aby je web načítal."
+			],
+			"Setting this site up — running %s…": [
+				"Příprava této stránky – spouštění %s…"
+			],
+			"Stopping setup…": [
+				"Zastavování nastavení…"
+			],
+			"Debug.log": [
+				"Ladicí protokol"
+			],
+			"Debug.log (%d)": [
+				"Debug.log (%d)"
+			],
+			"Discarded local changes.": [
+				"Místní změny byly zrušeny."
+			],
+			"Saved your changes to %s and reset the working tree.": [
+				"Změny byly uloženy do souboru %s a pracovní strom byl resetován."
+			],
+			"Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.": [
+				"Aktualizace nebyla dokončena — došlo k chybě %s. Kód je nový, ale závislosti a zkompilované soubory jsou staré; zkuste instalaci a kompilaci zopakovat pomocí banneru výše."
+			],
+			"%1$s changed — running %2$s (only the changed packages are downloaded)…": [
+				"%1$s se změnilo — spouštím %2$s (stahují se pouze změněné balíčky)…"
+			],
+			"Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.": [
+				"Aktualizace nebyla dokončena – sestavení se nezdařilo. Kód je nový, ale sestavené soubory jsou staré; zkuste instalaci a sestavení znovu pomocí odkazu v horním banneru."
+			],
+			"Update complete — this site is now on the latest trunk.": [
+				"Aktualizace dokončena — tento web nyní využívá nejnovější verzi z hlavního větvení."
+			],
+			"WordPress npm helper terminal.": [
+				"Terminál pro pomocné skripty WordPressu pro npm."
+			],
+			"A command is already running. Press %s to stop it.": [
+				"Příkaz se již spouští. Stiskněte klávesu %s, chcete-li jej zastavit."
+			],
+			"Try \"%s\" for the list of supported commands.": [
+				"Zadejte „%s“, chcete-li zobrazit seznam podporovaných příkazů."
+			],
+			"Unsupported command: %s": [
+				"Nepodporovaný příkaz: %s"
+			],
+			"Unsupported script \"%1$s\". Allowed scripts: %2$s": [
+				"Nepodporovaný skript „%1$s“. Povolené skripty: %2$s"
+			],
+			"Missing script name. Example: %s": [
+				"Chybí název skriptu. Příklad: %s"
+			],
+			"Run them here whenever you change files or add a dependency afterwards.": [
+				"Spusťte je zde pokaždé, když změníte soubory nebo dodatečně přidáte nějakou závislost."
+			],
+			"The setup checklist runs %1$s and %2$s once.": [
+				"Kontrolní seznam nastavení spustí %1$s a %2$s jednou."
+			],
+			"%1$s Run one of: %2$s": [
+				"%1$s Spusťte jednu z následujících možností: %2$s"
+			],
+			"%1$s Run %2$s in the site directory": [
+				"%1$s Spusťte %2$s v adresáři webu"
+			],
+			"%s Show this help text": [
+				"%s Zobrazit tento nápovědný text"
+			],
+			"Available commands:": [
+				"Dostupné příkazy:"
+			],
+			"Could not show the log file: %s": [
+				"Nelze zobrazit soubor protokolu: %s"
+			],
+			"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was not.": [
+				"Nepodařilo se vymazat soubor debug.log položky %1$s: %2$s. Panel byl vymazán, soubor však nikoli."
+			],
+			"Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.": [
+				"Spuštění vývojového serveru bylo zrušeno: sledování sestavení se zastavilo před dokončením %s. Spusťte jej znovu, jakmile bude sledování opět v chodu."
+			],
+			"%s is complete: starting the server without the build watch. Start build watch to compile edits on save.": [
+				"%s je hotovo: spouštím server bez sledování změn. Spusťte sledování změn, aby se úpravy kompilovaly při uložení."
+			],
+			"Failed to start PHP server: %s": [
+				"Nepodařilo se spustit server PHP: %s"
+			],
+			"unknown error": [
+				"neznámá chyba"
+			],
+			"Dev server failed to start: %s": [
+				"Spuštění vývojového serveru se nezdařilo: %s"
+			],
+			"Dev server stopped unexpectedly (see Help → %s for details).": [
+				"Vývojový server se neočekávaně zastavil (podrobnosti najdete v nabídce Nápověda → %s)."
+			],
+			"Resumed.": [
+				"Pokračování."
+			],
+			"Paused while another operation uses the build.": [
+				"Proběhla pauza, protože sestavení právě využívá jiná operace."
+			],
+			"%1$s failed with code %2$s — build watch not started.": [
+				"%1$s selhalo s kódem %2$s — sledování sestavení nebylo spuštěno."
+			],
+			"%s was stopped — build watch not started.": [
+				"%s bylo zastaveno — sledování sestavení nebylo spuštěno."
+			],
+			"No completed build found — running %s first…": [
+				"Nebylo nalezeno žádné hotové sestavení — nejprve se spustí %s…"
+			],
+			"A command is already running in the terminal — stop it before starting the build watch.": [
+				"V terminálu již běží nějaký příkaz – před spuštěním sledování sestavení jej zastavte."
+			],
+			"%1$s exited with code %2$s": [
+				"%1$s skončilo s kódem %2$s"
+			],
+			"%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for \"%3$s\".": [
+				"%1$s se před spuštěním znovu sestaví. Vývojový server, pokud jste jej spustili, čeká na „%3$s“."
+			],
+			"The patch could not be applied.": [
+				"Opravu se nepodařilo nainstalovat."
+			],
+			"%s The record of it could not be cleared, so this site still thinks it is applied.": [
+				"%s Záznam o tom se nepodařilo vymazat, takže tento web stále považuje tuto aplikaci za aktivní."
+			],
+			"%s The applied-patch record has been cleared.": [
+				"%s Záznam o aplikované opravě byl vymazán."
+			],
+			"A command is already running. Stop it before switching tickets.": [
+				"Příkaz již běží. Před přepnutím mezi lístky jej zastavte."
+			],
+			"Could not read that patch.": [
+				"Tuto opravu se nepodařilo načíst."
+			],
+			"Could not download %s.": [
+				"Nepodařilo se stáhnout %s."
+			],
+			"Could not read that file: %s": [
+				"Nelze načíst tento soubor: %s"
+			],
+			"Running %s…": [
+				"Spouštím %s…"
+			],
+			"Build watch (exited %d)": [
+				"Sestavení hodinek (ukončeno %d)"
+			],
+			"Build watch (stopped)": [
+				"Zobrazit stav (zastaveno)"
+			],
+			"Build watch (paused)": [
+				"Sestavení (pozastaveno)"
+			],
+			"Build watch (building)": [
+				"Hodinky „Build“ (budova)"
+			],
+			"Build watch (watching)": [
+				"Sestavit sledování (sledování)"
+			],
+			"Build watch (compiling)": [
+				"Sestavení (kompilace)"
+			],
+			"Could not copy": [
+				"Kopírování se nezdařilo"
+			],
+			"The build failed — dependencies are installed. Its output is above; retry the build from the checklist.": [
+				"Kompilace se nezdařila – závislosti jsou nainstalovány. Výstup je uveden výše; zkuste kompilaci zopakovat podle kontrolního seznamu."
+			],
+			"%s failed — setup stopped here. Its output is above; retry the install from the checklist.": [
+				"%s selhalo — instalace se zde zastavila. Výstup je uveden výše; zkuste instalaci zopakovat podle kontrolního seznamu."
+			],
+			"Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.": [
+				"Instalace byla přerušena. Zbývající kroky najdete v kontrolním seznamu výše – proveďte je, až budete připraveni."
+			],
+			"Setup complete — start the dev server when you are ready.": [
+				"Nastavení je dokončeno — až budete připraveni, spusťte vývojový server."
+			],
+			"Status update": [
+				"Aktualizace stavu"
+			],
+			"Status: done": [
+				"Stav: hotovo"
+			],
+			"Status: cloning": [
+				"Stav: klonování"
+			],
+			"Clear": [
+				"Vymazat"
+			],
+			"Show in folder": [
+				"Zobrazit ve složce"
+			],
+			"The log file appears once the dev server has run.": [
+				"Soubor protokolu se zobrazí, jakmile se spustí vývojový server."
+			],
+			"No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.": [
+				"Zatím se neobjevily žádné upozornění ani chyby v PHP. Cokoli, co vygeneruje WordPress nebo váš kód – <code><function /></code>, upozornění, zastaralé funkce, fatální chyby – se zde zobrazí během běhu vývojového serveru."
+			],
+			"The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.": [
+				"Nástroj pro sledování sestavení kompiluje úpravy v souborech <code><source /></code> do souboru <code><build /></code>. Běží nezávisle na vývojovém serveru – jeho výstup, stejně jako informace o tom, zda právě sleduje změny, je pozastaven nebo zastaven, se zobrazuje zde."
+			],
+			"it no longer fits": [
+				"už mi to nesedí"
+			],
+			"Open the pull request": [
+				"Otevřít žádost o začlenění"
+			],
+			"the code around it has changed": [
+				"kód kolem něj se změnil"
+			],
+			"looks like that change is not in your checkout any more": [
+				"vypadá to, že ta změna už ve vašem košíku není"
+			],
+			"It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Nyní je to součástí vašich změn. Pokud tyto úpravy v daných řádcích zrušíte, vrátíte se k verzi „Revert“; v opačném případě si uložte kopii své práce a vraťte ticket do původního stavu – v rámci tohoto projektu je to běžný postup, ne promarněné odpoledne."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.": [],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.": [],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.": [],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.": [],
+			"Ask its author for a rebase": [
+				"Požádejte autora o rebase"
+			],
+			"Bringing it up to date is its author's work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.": [
+				"Aktualizace je úkolem autora – jde o rebase nebo začlenění trunk. Zanechání komentáře k žádosti o pull, ve kterém autora na tuto skutečnost upozorníte, je samo o sobě skutečným příspěvkem."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.": [],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.": [],
+			"looks like it is already in your checkout": [
+				"vypadá to, že už to máte v košíku"
+			],
+			"Your own work is also in %s, so it may be part of why the pull request does not fit.": [
+				"Vaše vlastní práce je také v %s, takže to může být jeden z důvodů, proč se pull request nehodí."
+			],
+			"%s includes changes from the patch you applied and may also contain your own edits.": [],
+			"%1$s includes changes from %2$s and may also contain your own edits.": [],
+			"Other failures are in %s.": [
+				"Další chyby jsou uvedeny v souboru %s."
+			],
+			"Your own work is also in %s and may be part of the failure.": [
+				"Vaše vlastní práce je také v %s a může být příčinou selhání."
+			],
+			"Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.": [
+				"Nejprve si uložte část své práce, abyste měli zálohu, a poté tento pull request vyzkoušejte na novém ticketu. Pokud se tam stále nehodí, otevřete pull request a dejte jeho autorovi vědět, že bude možná třeba jej aktualizovat."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.": [],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.": [],
+			"See why it was closed": [
+				"Zjistěte, proč bylo uzavřeno"
+			],
+			"Nobody is coming back to update a closed pull request — its discussion may say why it ended.": [
+				"Nikdo se nevrátí, aby aktualizoval uzavřený pull request – v diskusi k němu může být uvedeno, proč byl uzavřen."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.": [],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.": [],
+			"All %d of this pull request's change look like they are already in trunk — there is nothing left to apply.": [],
+			"All %d of this pull request's change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.": [],
+			"All %d of this pull request's change look like they are already in your checkout — there is nothing left to apply.": [],
+			"%1$s and %2$d more file": [],
+			"%1$d of this patch's %2$d change across %3$d files no longer fit — the other %4$d do.": [],
+			"%1$d of this patch's %2$d change no longer fit — the other %3$d do.": [],
+			"None of this patch's %1$d change across %2$d files still fit your checkout.": [],
+			"None of this patch's %d change still fit your checkout.": [],
+			"%1$d of this patch's %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.": [],
+			"%1$d of this patch's %2$d change look like they are already in your checkout — the other %3$d still fit.": [],
+			"All %1$d of this patch's change across %2$d files look like they are already in your checkout.": [],
+			"All %d of this patch's change look like they are already in your checkout.": [],
+			"The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.": [
+				"Oprava se aplikuje nad rámec těchto změn: pokud se nepřekrývají, je úspěšná; pokud se překrývají, selže, aniž by cokoli změnila."
+			],
+			"%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.": [],
+			"%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.": [],
+			"You have your own edits to %s. Save a patch of your work first if you want a copy.": [
+				"Provedli jste vlastní úpravy v souboru %s. Pokud si chcete ponechat kopii, nejprve si svou práci uložte jako patch."
+			],
+			"%1$s and %2$s": [
+				"%1$s a %2$s"
+			],
+			"It still counts as this ticket's one applied patch, so another cannot be applied until this ticket is reverted or discarded.": [
+				"Stále se to počítá jako jediná aplikovaná oprava tohoto tiketu, takže další opravu nelze aplikovat, dokud nebude tento tiket vrácen do původního stavu nebo zrušen."
+			],
+			"Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Nejprve si svou práci uložte a pak můžete lístek bez obav odeslat zpět na základnu – v rámci tohoto projektu je to běžný postup, nikoli promarněné odpoledne."
+			],
+			"The copy could not be saved: %s": [
+				"Kopii se nepodařilo uložit: %s"
+			],
+			"%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"Soubor %s byl příliš velký na to, aby se z něj uložila kopie pro vrácení zpět, a proto jej nelze samostatně obnovit."
+			],
+			"A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"Změna byla příliš rozsáhlá na to, aby se z ní uložila kopie pro vrácení zpět, a proto ji nelze samostatně vrátit zpět."
+			],
+			"A patch is applied — %d file.": [],
+			"A patch is applied — %1$d file, %2$s.": [],
+			"%1$s is applied — %2$d file.": [],
+			"%1$s is applied — %2$d file, %3$s.": [],
+			"Only %s pull requests can be applied here.": [
+				"Zde lze použít pouze %s žádostí o začlenění."
+			],
+			"That does not look like a pull request URL.": [
+				"To nevypadá jako URL žádosti o začlenění."
+			],
+			"Only github.com pull requests are supported.": [
+				"Podporovány jsou pouze žádosti o začlenění (pull requests) na github.com."
+			],
+			"That is not a pull request URL or number.": [
+				"To není URL ani číslo žádosti o začlenění."
+			],
+			"Enter a pull request URL or number.": [
+				"Zadejte adresu URL nebo číslo žádosti o začlenění."
+			],
+			"That does not look like a patch — no file changes found.": [
+				"To nevypadá jako oprava – nebyly nalezeny žádné změny v souborech."
+			],
+			"No file changes found in the patch.": [
+				"V opravném souboru nebyly nalezeny žádné změny souborů."
+			],
+			"The patch is empty.": [
+				"Kapsa je prázdná."
+			],
+			"The empty file path is quoted or ambiguous.": [
+				"Cesta k prázdnému souboru je uvedena v uvozovkách nebo je nejednoznačná."
+			],
+			"Applied %d file.": [],
+			"Reverted %d file.": [],
+			"The patch could not be written, so the checkout was put back as it was: %s": [
+				"Záplatu nebylo možné zapsat, proto byl výpis vrácen do původního stavu: %s"
+			],
+			"The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s": [
+				"Záplatu se nepodařilo zapsat a výpis se nepodařilo zcela vrátit zpět – nachází se v neznámém stavu. Nelze vrátit zpět: %s"
+			],
+			"writing could not verify %1$s after git apply: %2$s": [
+				"Po provedení příkazu `git apply` se nepodařilo ověřit %1$s: %2$s"
+			],
+			"writing git apply exited %s": [
+				"při psaní příkazu git apply došlo k ukončení %s"
+			],
+			"writing %s": [
+				"zápis %s"
+			],
+			"Could not snapshot the checkout before applying the patch: %s": [
+				"Před aplikací opravy se nepodařilo pořídit snímek stavu: %s"
+			],
+			"The patch was not applied — the checkout is unchanged.": [
+				"Oprava nebyla aplikována – revize zůstala beze změn."
+			],
+			"That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.": [
+				"Ta oprava už v tomto checkoutu není – něco ji resetovalo, pravděpodobně aktualizace z hlavního větve nebo zrušení změny. Nic nebylo vráceno zpět."
+			],
+			"The patch does not apply.": [
+				"Oprava se nepodařilo aplikovat."
+			],
+			"a file has moved on since the patch was written, so it no longer applies": [
+				"od doby, kdy byla tato oprava napsána, došlo ke změně v souboru, takže již není použitelná"
+			],
+			"%s has moved on since the patch was written, so it no longer applies": [
+				"Od doby, kdy byl tento patch napsán, se %s změnilo, takže již neplatí"
+			],
+			"%d more file was not checked one by one": [],
+			"The patch does not change any files.": [
+				"Tato oprava nemění žádné soubory."
+			],
+			"(unnamed binary file)": [
+				"(binární soubor bez názvu)"
+			],
+			"Could not read the patch: %s": [
+				"Nepodařilo se načíst opravu: %s"
+			],
+			"Skipped %1$d binary file the app cannot apply: %2$s": [],
+			"%s is not in this checkout, so the patch does not fit it": [
+				"%s není součástí této objednávky, takže se na ni záplata nevztahuje"
+			],
+			"%1$s already exists, so the patch cannot move %2$s onto it": [
+				"%1$s již existuje, takže patch nemůže přesunout %2$s na tento soubor"
+			],
+			"%s is not in this checkout, so the patch cannot move it": [
+				"%s není součástí této revize, takže patch jej nemůže přesunout"
+			],
+			"%s could not be created from the patch": [
+				"Z této opravy se nepodařilo vytvořit soubor %s"
+			],
+			"%s already exists, so the patch cannot add it": [
+				"%s již existuje, takže jej záplata nemůže přidat"
+			],
+			"%s is already gone, so the patch cannot remove it": [
+				"%s již neexistuje, takže ho záplata nemůže odstranit"
+			],
+			"%s points outside the site folder": [
+				"%s se nachází mimo složku webu"
+			],
+			"%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do": [],
+			"%1$s has moved on since the patch was written, so none of its %2$d change still fits": [],
+			"Server did not start within %d second": [],
+			"Server exited with code %s before reporting a URL": [
+				"Server se ukončil s kódem %s ještě před nahlášením URL adresy"
+			],
+			"Server exited with code %1$s (signal %2$s) before reporting a URL": [
+				"Server byl ukončen s kódem %1$s (signál %2$s) ještě před nahlášením adresy URL"
+			],
+			"Failed to start: %s": [
+				"Spuštění se nezdařilo: %s"
+			],
+			"Retrying with engine checks relaxed…": [
+				"Zkouším to znovu s méně přísnými kontrolami enginu…"
+			],
+			"This site requires a newer Node.js than this app bundles.": [
+				"Tato stránka vyžaduje novější verzi Node.js, než jakou obsahuje tato aplikace."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm skončilo s kódem %s, ale nějaký proces, který spustilo, stále běží a zadržuje svůj výstup. Uvolňuji ho a ukončuji."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm skončil s kódem %1$s (signál %2$s), ale nějaký proces, který spustil, stále běží a zadržuje výstup. Uvolňuji ho a ukončuji."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm skončil s kódem %s, ale nějaký proces, který spustil, stále běží a zadržuje svůj výstup. Proces se uvolní; bude běžet, dokud sám neskončí."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm skončil s kódem %1$s (signál %2$s), ale nějaký proces, který spustil, stále běží a zadržuje svůj výstup. Proces se uvolní; bude pokračovat, dokud sám neskončí."
+			],
+			"Applying the patch failed: %s": [
+				"Aplikace opravy se nezdařila: %s"
+			],
+			"The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s": [
+				"Oprava byla aplikována, ale záznam o jejím vrácení se nepodařilo uložit a nelze ji vrátit zpět – v pracovní kopii je tato oprava a aplikace ji nemůže vrátit zpět. %s"
+			],
+			"The patch applied but its revert record could not be saved, so it was undone. %s": [
+				"Oprava byla aplikována, ale záznam o jejím vrácení zpět se nepodařilo uložit, a proto byla zrušena. %s"
+			],
+			"This patch is too large to keep for an undo, so Revert will not be offered.": [
+				"Tato změna je příliš velká na to, aby mohla být uložena pro vrácení zpět, proto nebude nabídnuta možnost „Vrátit zpět“."
+			],
+			"Applying %s…": [
+				"Probíhá aplikace %s…"
+			],
+			"Reverting %s…": [
+				"Vracím %s…"
+			],
+			"%s is already applied. Revert it before applying another patch.": [
+				"%s je již aplikováno. Před aplikací další opravy ji nejprve zrušte."
+			],
+			"There is no stored patch to revert.": [
+				"Neexistuje žádná uložená oprava, kterou by bylo možné vrátit zpět."
+			],
+			"Could not check your work for conflicts, so the preview was not shown.": [
+				"Nebylo možné zkontrolovat, zda váš výstup neobsahuje konflikty, proto se náhled nezobrazil."
+			],
+			"Restoring the files of your previous branch…": [
+				"Probíhá obnovení souborů z vaší předchozí větve…"
+			],
+			"Could not remove the unused branch: %s": [
+				"Nepodařilo se odstranit nepoužívanou větev: %s"
+			],
+			"Downloading the pull request's files and switching to its branch…": [
+				"Stahování souborů z pull requestu a přepnutí do příslušné větve…"
+			],
+			"Returning to your saved copy of the pull request…": [
+				"Vraťme se k vaší uložené kopii žádosti o začlenění…"
+			],
+			"Your work is safe — it is committed on %s. Apply that pull request again to return to it.": [
+				"Vaše práce je v bezpečí – byla uložena na %s. Chcete-li se k ní vrátit, odešlete tento pull request znovu."
+			],
+			"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.": [
+				"Vaše práce na #%1$s je v bezpečí – byla zapsána do %2$s. Pro návrat k tomuto tiketu jej znovu propojte."
+			],
+			"Update failed during fetch: %s": [
+				"Během načítání došlo k selhání aktualizace: %s"
+			],
+			"Update failed during checkout: %s": [
+				"Při dokončování objednávky došlo k chybě: %s"
+			],
+			"Returning to your work on %s…": [
+				"Vraťme se k vaší práci na %s…"
+			],
+			"Parking your work on %s before updating…": [
+				"Před aktualizací ukládám svou práci do %s…"
+			],
+			"Fetch latest trunk": [
+				"Načíst nejnovější verzi z hlavního větve"
+			],
+			"The build watch is rebuilding — output in the Logs, under Build watch": [
+				"Sledování sestavení právě probíhá – výstup najdete v sekci „Logs“ pod položkou „Build watch“"
+			],
+			"Dependencies unchanged — skipping %s": [
+				"Závislosti beze změn — %s se přeskočí"
+			],
+			"Dependencies unchanged, rebuilt.": [
+				"Závislosti zůstaly beze změny, bylo provedeno nové sestavení."
+			],
+			"Dependencies updated, rebuilt.": [
+				"Závislosti byly aktualizovány a projekt znovu sestaven."
+			],
+			"Dependencies unchanged, rebuilt in %s.": [
+				"Závislosti zůstaly beze změny, byly znovu sestaveny v %s."
+			],
+			"Dependencies updated, rebuilt in %s.": [
+				"Závislosti byly aktualizovány a znovu sestaveny v %s."
+			],
+			"Install dependencies": [
+				"Nainstalovat závislosti"
+			],
+			"Download WordPress": [
+				"Stáhnout WordPress"
+			],
+			"Rebuild": [
+				"Obnovit"
+			],
+			"Apply the patch": [
+				"Nainstalujte opravu"
+			],
+			"Revert the pull request": [
+				"Zrušit žádost o začlenění"
+			],
+			"Apply the pull request": [
+				"Odeslat žádost o začlenění"
+			],
+			"The build watch rebuilds when it resumes": [
+				"Sledování sestavení se po obnovení spustí znovu"
+			],
+			"The build watch will recompile the change": [
+				"Nástroj Build Watch tuto změnu znovu zkompiluje"
+			],
+			"Rebuilt": [
+				"Zrekonstruováno"
+			],
+			"Rebuilding — output in the Terminal": [
+				"Obnova — výstup v Terminálu"
+			],
+			"Dependencies changed — installing the difference…": [
+				"Změny v závislostech — instalace rozdílů…"
+			],
+			"Fetched and reset to trunk": [
+				"Načteno a resetováno do kmenové větve"
+			],
+			"Fetching and resetting to trunk…": [
+				"Načítání a obnovení do hlavního větve…"
+			],
+			"Fetch and reset to trunk": [
+				"Načíst a obnovit do hlavního větve"
+			],
+			"The build did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"Kompilace nebyla dokončena. Výstup je zobrazen v Terminálu – až si jej přečtete, zkuste to znovu."
+			],
+			"Retry the build": [
+				"Zkuste sestavení znovu"
+			],
+			"Build complete": [
+				"Sestavení dokončeno"
+			],
+			"The install did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"Instalace nebyla dokončena. Výstup se nachází v Terminálu – až si jej přečtete, zkuste to znovu."
+			],
+			"Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.": [
+				"Nainstalováno. Byla přidána závislost na %1$s. Chcete ji spustit? Spusťte %2$s v Terminálu."
+			],
+			"Install npm packages so commands can run.": [
+				"Nainstalujte balíčky npm, aby bylo možné spouštět příkazy."
+			],
+			"Retry %s": [
+				"Zkusit znovu %s"
+			],
+			"Dependencies installed": [
+				"Nainstalované závislosti"
+			],
+			"Ready": [
+				"Připraveno"
+			],
+			"In progress": [
+				"Probíhá"
+			],
+			"Locked": [
+				"Zamčeno"
+			],
+			"Pending": [
+				"Čeká na vyřízení"
+			],
+			"Failed": [
+				"Neúspěšné"
+			],
+			"Completed": [
+				"Dokončeno"
+			],
+			"The trunk snapshot is old; update before making a patch.": [
+				"Snímek větve „trunk“ je zastaralý; před vytvořením opravy jej aktualizujte."
+			],
+			"The update left the build stale; install and build to recover.": [
+				"Po aktualizaci zůstala sestava neaktuální; proveďte instalaci a sestavení, abyste situaci napravili."
+			],
+			"A patch is staged — apply and rebuild, or cancel.": [
+				"Oprava je připravena k použití – proveďte její aplikaci a znovu sestavte, nebo zrušte."
+			],
+			"The trunk update in progress.": [
+				"Probíhá aktualizace hlavního repozitáře."
+			],
+			"A patch is being applied or reverted.": [
+				"Probíhá aplikace nebo vrácení opravy."
+			],
+			"The next step in the setup checklist.": [
+				"Další krok v kontrolním seznamu pro nastavení."
+			],
+			"Link a Trac ticket to give your work a home.": [
+				"Propojte lístek v systému Trac, abyste své práci přidělili konkrétní místo."
+			],
+			"Link a GitHub issue to give your work a home.": [
+				"Propojte problém na GitHubu, abyste své práci poskytli „domov“."
+			],
+			"You have uncommitted changes ready to review and submit.": [
+				"Máte neuložené změny připravené ke kontrole a odeslání."
+			],
+			"PR #%d is applied; revert it before applying another change.": [
+				"Byla použita revize PR #%d; před provedením další změny ji prosím vraťte zpět."
+			],
+			"Start the dev server to work on the site.": [
+				"Spusťte vývojový server, abyste mohli pracovat na webu."
+			],
+			"Setting up new site…": [
+				"Vytváření nové stránky…"
+			],
+			"Finish setting this site up first.": [
+				"Nejprve dokončete nastavení této stránky."
+			],
+			"Hide": [
+				"Skrýt"
+			],
+			"Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.": [
+				"Spouštím kompletní sestavení. Ve Windows to může trvat až půl hodiny; terminál zobrazuje průběh procesu."
+			],
+			"Installing dependencies. You can leave this running — the build follows on its own.": [
+				"Instalace závislostí. Tento proces můžete nechat běžet – sestavení proběhne automaticky."
+			],
+			"Setting this site up for you — step %1$d of %2$d": [
+				"Příprava této stránky pro vás — krok %1$d z %2$d"
+			],
+			"Your changes were saved to %s before the reset.": [
+				"Vaše změny byly před resetem uloženy do souboru %s."
+			],
+			"Up to date with trunk as of today.": [
+				"Aktualizováno na stav kmenové větve k dnešnímu dni."
+			],
+			"Most packages are already cached, so this is a download of the difference — not the whole tree.": [
+				"Většina balíčků je již uložena v mezipaměti, takže se stahuje pouze rozdíl – nikoli celý strom."
+			],
+			"step %1$d of %2$d": [
+				"krok %1$d z %2$d"
+			],
+			"Patches you create now may not apply on Trac. Updating takes a few minutes.": [
+				"Opravy, které nyní vytvoříte, se v systému Trac nemusí projevit. Aktualizace trvá několik minut."
+			],
+			"This site's WordPress code is %d day old": [],
+			"Retry install & build": [
+				"Zkuste instalaci a kompilaci znovu"
+			],
+			"The code is new but the built assets are old. The site may not run correctly until install and build succeed.": [
+				"Kód je nový, ale vygenerované soubory jsou staré. Web nemusí fungovat správně, dokud se instalace a kompilace nezdaří."
+			],
+			"Update incomplete": [
+				"Aktualizace není dokončena"
+			],
+			"Next step: %s": [
+				"Další krok: %s"
+			],
+			"Starting… (%s)": [
+				"Spouštím… (%s)"
+			],
+			"Start dev server and finish the wizard": [
+				"Spusťte vývojový server a dokončete průvodce"
+			],
+			"Stop dev server": [
+				"Zastavit vývojový server"
+			],
+			"Start dev server & finish wizard": [
+				"Spustit vývojový server a dokončit průvodce"
+			],
+			"Run full build": [
+				"Spustit kompletní sestavení"
+			],
+			"Install npm dependencies": [
+				"Nainstalovat závislosti npm"
+			],
+			"Cloning the repository… install and build start on their own when it finishes.": [
+				"Klonování repozitáře… Po dokončení se instalace a kompilace spustí samy."
+			],
+			"Failed to discard changes: %s": [
+				"Nepodařilo se uložit změny: %s"
+			],
+			"Saved your changes to %1$s, but resetting the working tree failed: %2$s": [
+				"Změny byly uloženy do souboru %1$s, ale resetování pracovního stromu se nezdařilo: %2$s"
+			],
+			"Error saving diff: %s": [
+				"Chyba při ukládání rozdílu: %s"
+			],
+			"Please complete the full build before starting the dev server. You can also skip the wizard.": [
+				"Než spustíte vývojový server, dokončete prosím celou kompilaci. Průvodce můžete také přeskočit."
+			],
+			"Updating to latest trunk": [
+				"Aktualizace na nejnovější verzi z hlavního větve"
+			],
+			"Skip initialization wizard": [
+				"Přeskočit průvodce inicializací"
+			],
+			"Nothing was lost — pick it back up with the buttons below whenever you want.": [
+				"O nic jste nepřišli — můžete pokračovat pomocí tlačítek níže, kdykoli budete chtít."
+			],
+			"Setup stopped.": [
+				"Instalace byla zastavena."
+			],
+			"Stop setup": [
+				"Zastavit nastavení"
+			],
+			"Complete each step to prepare this site for development.": [
+				"Proveďte všechny kroky, abyste tento web připravili k vývoji."
+			],
+			"Initial setup checklist": [
+				"Kontrolní seznam pro počáteční nastavení"
+			],
+			"Save patch & update": [
+				"Uložit opravu a aktualizaci"
+			],
+			"Discard & update": [
+				"Zrušit a aktualizovat"
+			],
+			"— your changes are lost; this cannot be undone": [
+				"— vaše změny budou ztraceny; tento krok nelze vrátit zpět"
+			],
+			"Discard them": [
+				"Zlikvidujte je"
+			],
+			"— a .diff on your machine — nothing is sent to Trac": [
+				"— soubor .diff na vašem počítači — do systému Trac se nic neodesílá"
+			],
+			"Save them as a patch first (as a local file)": [
+				"Nejprve je uložte jako záplatu (jako místní soubor)"
+			],
+			"You've changed %d file in this site. Resetting to trunk would throw them away.": [],
+			"Update to latest trunk?": [
+				"Aktualizovat na nejnovější verzi z hlavního repozitáře?"
+			],
+			"Launch the development server once to complete the WordPress setup wizard.": [
+				"Spusťte vývojový server jednou, abyste dokončili průvodce nastavením WordPressu."
+			],
+			"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.": [
+				"Bylo sestaveno. Kdy byly naposledy upraveny soubory v %1$s? Spusťte v Terminálu příkaz %2$s, aby je web zaznamenal – aktualizace a aplikované opravy se sestaví samy."
+			],
+			"Compile WordPress Core to generate the dist files. Later updates rebuild automatically.": [
+				"Zkompilujte jádro WordPressu a vygenerujte soubory dist. Pozdější aktualizace se provedou automaticky."
+			],
+			"Clone the WordPress develop repository.": [
+				"Zkopírujte repozitář WordPress pro vývoj."
+			],
+			"Download WordPress development version": [
+				"Stáhnout vývojovou verzi WordPressu"
+			],
+			"Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.": [
+				"Spusťte WordPress s tímto modulem jako pluginem pro Gutenberg – stačí to udělat jednou, abyste dokončili nastavení."
+			],
+			"Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.": [
+				"Hotovo. Upravili jste od té doby nějaký balíček? Spusťte v Terminálu příkaz %s, aby si to web zaznamenal; aktualizace se sestaví samy."
+			],
+			"Compile the Gutenberg packages. Later updates rebuild automatically.": [
+				"Zkompilujte balíčky Gutenbergu. Pozdější aktualizace se provedou automaticky."
+			],
+			"Clone the Gutenberg repository.": [
+				"Zklonujte repozitář Gutenberg."
+			],
+			"Download Gutenberg": [
+				"Stáhnout Gutenberg"
+			],
+			"the window’s theme: two colours of one’s own\u0004Custom": [
+				"Vlastní"
+			],
+			"Choose a colour as six hex digits, like #3858e9.": [
+				"Zvolte barvu v podobě šesti hexadecimálních číslic, například #3858e9."
+			],
+			"Choose light, dark, your system’s theme, or custom.": [
+				"Vyberte si světlý, tmavý, motiv vašeho systému nebo vlastní."
+			],
+			"Some text may be hard to read with these colours. They are kept as they are; choose others if it is.": [
+				"S těmito barvami může být některé texty obtížné číst. Jsou ponechány tak, jak jsou; pokud je to pro vás problém, vyberte si jiné."
+			],
+			"Primary": [
+				"Primární"
+			],
+			"Background": [
+				"Pozadí"
+			],
+			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
+				"Systém se přizpůsobí nastavení světlého nebo tmavého režimu vašeho operačního systému. Funkce „Vlastní“ vám umožní sestavit motiv ze dvou barev, které si sami vyberete."
+			],
+			"%s colour picker": [
+				"Výběr barvy %s"
+			],
+			"Working…": [
+				"Zpracovávám…"
+			],
+			"Opening the pull request…": [
+				"Otevření žádosti o začlenění…"
+			],
+			"Uploading your changes…": [
+				"Probíhá nahrávání vašich změn…"
+			],
+			"Bringing your fork up to date…": [
+				"Aktualizace vaší vidličky…"
+			],
+			"Creating your fork of %s…": [
+				"Vytváření vaší odnože %s…"
+			],
+			"Could not start sign-in.": [
+				"Nepodařilo se zahájit přihlášení."
+			],
+			"Sign-in did not complete.": [
+				"Přihlášení se nepodařilo dokončit."
+			],
+			"The authorization was declined on GitHub. Nothing was changed.": [
+				"Oprávnění bylo na GitHubu zamítnuto. Nic se nezměnilo."
+			],
+			"The pull request could not be opened.": [
+				"Pull request se nepodařilo otevřít."
+			],
+			"Your checkout was behind trunk, so the branch was based on today's trunk. None of your files were changed upstream in between — the pull request shows only your work.": [
+				"Tvůj checkout byl založen na trunk, takže větev vycházela z dnešního trunku. Mezitím nedošlo v upstreamu k žádné změně tvých souborů – pull request obsahuje pouze tvou práci."
+			],
+			"Opened <link>pull request #%s</link> from <branch />.": [
+				"Byl otevřen <link>pull request #%s</link> z <branch />."
+			],
+			"Dry run — branch <branch /> was created on your fork; no pull request was opened.": [
+				"Zkušební provedení — ve vašem forku byla vytvořena větev <branch />; nebyl otevřen žádný pull request."
+			],
+			"Save the patch file instead": [
+				"Místo toho soubor s opravou uložte"
+			],
+			"Pull requests go to <target />, not to <upstream />.": [
+				"Žádosti o začlenění se zasílají na <target />, nikoli na <upstream />."
+			],
+			"Dry run — a branch is pushed to your fork, no pull request is opened.": [
+				"Zkušební běh – větev je zkopírována do vaší vidlice, není otevřena žádná žádost o začlenění."
+			],
+			"Test mode": [
+				"Testovací mód"
+			],
+			"Open a pull request": [
+				"Otevřít žádost o začlenění"
+			],
+			"Not now": [
+				"Teď ne"
+			],
+			"Sign in with GitHub": [
+				"Přihlásit se přes GitHub"
+			],
+			"Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.": [
+				"Přihlášení umožní aplikaci vytvořit fork %s ve vašem účtu, odeslat tuto opravu do tamější větve a otevřít pull request. Přihlásí vás prostřednictvím vašeho prohlížeče, nikdy nepožaduje zadání hesla a po ukončení prohlížeče autorizaci zruší."
+			],
+			"Show this again": [
+				"Zobrazit to znovu"
+			],
+			"Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.": [
+				"Nic nebylo zařazeno a nic nebylo odesláno. Soubor s opravou si stále můžete uložit a ostatní cíle zůstávají beze změny."
+			],
+			"Signed in as <login /> — the fork and branch go to <fork />.": [
+				"Přihlášeno jako <login /> — fork a větev směřují do <fork />."
+			],
+			"Open pull request": [
+				"Otevřít žádost o začlenění"
+			],
+			"Push branch (dry run)": [
+				"Zaslat větev (simulace)"
+			],
+			"Anything you are unsure about.": [
+				"Cokoli, v čem si nejste jisti."
+			],
+			"How to see it working — the steps you used.": [
+				"Jak zjistit, zda to funguje – kroky, které jste provedli."
+			],
+			"What the change does, and why.": [
+				"Co tato změna přináší a proč."
+			],
+			"Notes for reviewers (optional)": [
+				"Poznámky pro recenzenty (volitelné)"
+			],
+			"Left empty, it will be titled <strong><title /></strong>.": [
+				"Pokud pole zůstane prázdné, bude název <strong><title /></strong>."
+			],
+			"What the change does, in one line. Reviewers scan these.": [
+				"Co tato změna přináší – v jedné větě. Recenzenti si tyto informace rychle prohlédnou."
+			],
+			"Title": [
+				"Název"
+			],
+			"Reject a theme zip in the plugin installer": [
+				"Odmítnutí souboru ZIP s motivem v instalačním programu pluginů"
+			],
+			"No connection to GitHub.": [
+				"Není navázáno připojení k GitHubu."
+			],
+			"GitHub is rate-limiting this connection. It usually clears within the hour.": [
+				"GitHub omezuje počet požadavků na toto připojení. Obvykle se to vyřeší do hodiny."
+			],
+			"Waiting for you to finish in the browser…": [
+				"Čekám, až to v prohlížeči dokončíš…"
+			],
+			"That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.": [
+				"Toto přihlašovací jméno na GitHubu již není platné. Přihlaste se znovu, nebo si místo toho uložte soubor s opravou."
+			],
+			"Copy the code": [
+				"Zkopírujte kód"
+			],
+			"Code copied": [
+				"Kód zkopírován"
+			],
+			"Enter this code at <strong><address /></strong>, which has been opened in your browser.": [
+				"Zadejte tento kód na stránce <strong><address /></strong>, která se otevřela ve vašem prohlížeči."
+			],
+			"This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.": [
+				"V této sestavě není nakonfigurována žádná aplikace GitHub, takže nelze otevřít žádost o začlenění. Ostatní cíle stále fungují."
+			],
+			"Checking…": [
+				"Kontroluji…"
+			],
+			"Open #%s to comment": [
+				"Otevřete soubor #%s a vložte komentář"
+			],
+			"Copy the link": [
+				"Zkopírovat odkaz"
+			],
+			"Link copied": [
+				"Odkaz zkopírován"
+			],
+			"Triage and props live on the ticket, so the link belongs there too.": [
+				"Triage a rekvizity jsou uvedeny přímo na vstupence, takže odkaz tam patří také."
+			],
+			"Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.": [
+				"Umístí se na začátek popisu. Odkaz na lístek a vaše uživatelské jméno na WordPress.org se přidají pod něj."
+			],
+			"It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.": [
+				"Nemůže za vás vytvořit účet na GitHubu a nemůže za vás zveřejňovat příspěvky v systému Trac."
+			],
+			"Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.": [
+				"Probíhají na něm automatické kontroly. Nikdo však GitHub nesleduje – aby si toho někdo všiml, stačí odkaz zveřejnit v ticketu."
+			],
+			"No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.": [
+				"K této stránce není přiřazen žádný ticket. V žádosti o začlenění (pull request) je nutné na něj odkazovat – uveďte odkaz v kartě Trac."
+			],
+			"Link a GitHub issue to this site first. A pull request has to cite one.": [
+				"Nejprve propojte problém na GitHubu s tímto webem. Pull request musí na něj odkazovat."
+			],
+			"The Gutenberg contributing guide": [
+				"Průvodce pro přispěvatele projektu Gutenberg"
+			],
+			"Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.": [
+				"Recenzenti požadují popis testovacích kroků. Uveďte je v poznámkách: co je třeba otevřít, na co kliknout a co by se mělo stát."
+			],
+			"The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.": [
+				"V pull requestu se změna posuzuje a po schválení se začlení do kódu. Není třeba ji zveřejňovat nikde jinde, aby byla viditelná."
+			],
+			"How pull requests work in Gutenberg": [
+				"Jak fungují žádosti o začlenění v Gutenbergu"
+			],
+			"The Fixes line already lists it on the issue. A comment there still tells the people watching it.": [
+				"V sekci „Opravy“ je to již uvedeno v popisu problému. Komentář tam stále informuje ty, kteří tento problém sledují."
+			],
+			"Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.": [
+				"Umístí se na začátek popisu. Pod ním se přidá řádek „Opravy“, který obsahuje odkaz na daný problém a vaše uživatelské jméno na WordPress.org."
+			],
+			"It cannot create the GitHub account for you.": [
+				"Nemůže za vás vytvořit účet na GitHubu."
+			],
+			"Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.": [
+				"Probíhají na něm automatické kontroly a přímo tam se také provádí jeho revize a sloučení: v editoru Gutenberg je místem pro tyto úkony právě pull request."
+			],
+			"A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.": [
+				"Účet na GitHubu. Fork se vytvoří automaticky; v této aplikaci se nezadává žádné heslo a na disk se neukládají žádné přihlašovací údaje."
+			],
+			"No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.": [
+				"S touto stránkou není spojena žádná záležitost. V žádosti o začlenění (pull request) je nutné jednu uvést: vložte odkaz do karty záležitosti na GitHubu."
+			],
+			"Link a Trac ticket to this site first. A pull request has to cite one.": [
+				"Nejprve propojte lístek v systému Trac s tímto webem. Pull request musí na něj odkazovat."
+			],
+			"The handbook page on pull requests": [
+				"Stránka v příručce věnovaná žádostem o začlenění"
+			],
+			"Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.": [
+				"Ani na GitHubu se nic neslučuje. Autor změny ji provede sám a o tom, kam ji zařadí, rozhoduje na základě příslušného tiketu."
+			],
+			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
+				"Nikdo nesleduje seznam žádostí o začlenění. Ta tvoje je vidět, protože její odkaz je v tiketu – a právě proto tě tento postup nakonec přesměruje zpět tam."
+			],
+			"How pull requests work in core": [
+				"Jak fungují žádosti o začlenění v jádru"
+			],
+			"Sign in to GitHub first.": [
+				"Nejprve se přihlaste na GitHub."
+			],
+			"Could not read the base commit": [
+				"Nepodařilo se načíst základní revizi"
+			],
+			"Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.": [],
+			"There are no changes to open a pull request with.": [
+				"Neexistují žádné změny, na jejichž základě by bylo možné otevřít žádost o začlenění."
+			],
+			"Could not open the pull request": [
+				"Nedařilo se otevřít žádost o začlenění"
+			],
+			"Could not find an unused branch name": [
+				"Nenašel se název nepoužité větve"
+			],
+			"Could not create the branch": [
+				"Vytvoření větve se nezdařilo"
+			],
+			"Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s": [
+				"Tvá větev se na GitHubu stále připravuje. Zkus to za chvíli znovu – soubor s opravou stále funguje.%s"
+			],
+			"Could not create the commit": [
+				"Nepodařilo se vytvořit commit"
+			],
+			"Could not assemble the change": [
+				"Změnu se nepodařilo provést"
+			],
+			"Could not upload %s": [
+				"Nelze nahrát %s"
+			],
+			"Could not read your fork’s %s": [
+				"Nepodařilo se načíst %s z vaší větve"
+			],
+			"Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.": [
+				"Tvá větev se na GitHubu stále připravuje – u repozitáře této velikosti to může trvat několik minut. Zkus to za chvíli znovu; soubor s opravou stále funguje."
+			],
+			"Could not read your fork": [
+				"Nepodařilo se načíst váš fork"
+			],
+			"Could not fork %s": [
+				"Nelze vytvořit proces %s"
+			],
+			"Could not check for your fork": [
+				"Nepodařilo se ověřit váš fork"
+			],
+			"You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.": [
+				"Již máte repozitář s názvem %1$s, který není odvozeným repozitářem %2$s, takže sem tento patch nelze odeslat. Soubor s patchem však stále funguje."
+			],
+			"%1$s: %2$s%3$s": [
+				"%1$s: %2$s%3$s"
+			],
+			"This build has no GitHub application configured, so it cannot sign you in.": [
+				"V této sestavě není nakonfigurována žádná aplikace GitHub, takže vás nemůže přihlásit."
+			],
+			"GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke \"%1$s\" under %2$s, then sign in here again.": [
+				"GitHub tomuto přihlášení udělil menší oprávnění, než je nutné k otevření žádosti o začlenění – pravděpodobně bylo znovu použito starší oprávnění této aplikace. Zrušte oprávnění „%1$s“ v části %2$s a poté se zde znovu přihlaste."
+			],
+			"GitHub returned %s": [
+				"GitHub vrátil %s"
+			],
+			"That sign-in is no longer valid.": [
+				"Toto přihlašovací jméno již není platné."
+			],
+			"The authorization was declined on GitHub.": [
+				"Oprávnění bylo na GitHubu zamítnuto."
+			],
+			"The code expired before it was entered.": [
+				"Platnost kódu vypršela ještě před jeho zadáním."
+			],
+			"Sign-in was canceled.": [
+				"Přihlášení bylo zrušeno."
+			],
+			"GitHub does not recognise this application, or device flow is not enabled on it.": [
+				"GitHub tuto aplikaci nerozpoznává, nebo na ní není povoleno propojení se zařízením."
+			],
+			"Revert the patch you applied before opening a pull request from this checkout.": [
+				"Před otevřením žádosti o začlenění z tohoto checkoutu zrušte změnu, kterou jste provedli."
+			],
+			"Revert %s before opening a pull request from this checkout.": [
+				"Před otevřením žádosti o začlenění z tohoto checkoutu vraťte změny v %s."
+			],
+			"PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.": [
+				"Byl podán PR č. %d. Komity jeho autora tvoří historii tohoto checkoutu, takže jej nelze odeslat jako vaši práci. Nejprve tento PR zrušte."
+			],
+			"Unknown error": [
+				"Neznámá chyba"
+			],
+			"Trac ticket number or URL": [
+				"Číslo tiketu v systému Trac nebo URL adresa"
+			],
+			"Ticket number or URL, e.g. 62281": [
+				"Číslo tiketu nebo URL, např. 62281"
+			],
+			"No ticket is linked to this site, so there is nowhere to attach it yet.": [
+				"K této stránce není přiřazen žádný lístek, takže jej zatím není kam připojit."
+			],
+			"Save, then open #%d": [
+				"Uložte a poté otevřete #%d"
+			],
+			"No automated checks. Often followed by a request to open a pull request.": [
+				"Žádné automatické kontroly. Často následuje žádost o vytvoření pull requestu."
+			],
+			"A WordPress.org account — needed anyway, for props and to comment.": [
+				"Účet na WordPress.org – ten je stejně nutný, ať už pro přidávání lajků, nebo pro komentování."
+			],
+			"Attach to Trac": [
+				"Připojit k Tracu"
+			],
+			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
+				"Aplikace nedokáže spolehlivě oddělit změny autora od pozdějších úprav, proto nelze tuto sloučenou opravu odeslat jako vaši práci. Stále však můžete použít <strong>Uložit</strong>, abyste si uchovali kopii bez uvedení autora; před odesláním vraťte aplikovanou opravu zpět."
+			],
+			"<strong>The patch you applied is part of this checkout.</strong>": [
+				"<strong>Oprava, kterou jste aplikovali, je součástí tohoto checkoutu.</strong>"
+			],
+			"<strong><label /> is part of this checkout.</strong>": [
+				"<strong><label /> je součástí této objednávky.</strong>"
+			],
+			"You can still use <strong>Save</strong> to keep an unattributed copy of your edits.": [
+				"Stále můžete použít <strong>Uložit</strong>, abyste si uchovali kopii svých úprav bez uvedení autora."
+			],
+			"The pull request is the one the app sends for you. The others save a file for you to send.": [
+				"Tento pull request je ten, který aplikace odesílá za vás. Ostatní vám uloží soubor, který pak odešlete sami."
+			],
+			"Where this patch goes": [
+				"Kam se tato oprava umístí"
+			],
+			"Could not load your changes. Close this panel and try again. The error is shown below.": [
+				"Nepodařilo se načíst vaše změny. Zavřete tento panel a zkuste to znovu. Chyba je uvedena níže."
+			],
+			"This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.": [],
+			"Saved to %s": [
+				"Uloženo do %s"
+			],
+			"Discard all changes": [
+				"Zrušte všechny změny"
+			],
+			"(<discard />)": [
+				"(<discard />)"
+			],
+			"Failed to generate patch": [
+				"Vygenerování záplaty se nezdařilo"
+			],
+			"Error: %s": [
+				"Chyba: %s"
+			],
+			"No changes.": [
+				"Žádné změny."
+			],
+			"Generating patch…": [
+				"Vytváření opravy…"
+			],
+			"Could not save the patch: %s": [
+				"Nepodařilo se uložit opravu: %s"
+			],
+			"Change these": [
+				"Změňte tyto údaje"
+			],
+			"No event on the patch.": [
+				"Na této oblasti se nekoná žádná událost."
+			],
+			"The patch will say it was written at <strong><event /></strong>.": [
+				"V patchi bude uvedeno, že byl vytvořen na adrese <strong><event /></strong>."
+			],
+			"Save patch as %s": [
+				"Uložit opravu jako %s"
+			],
+			"Someone else pushes it; the props still land on you.": [
+				"I když to tlačí někdo jiný, vinu za to stejně nesete vy."
+			],
+			"No accounts at all. The patch carries your WordPress.org username, and the event you are at.": [
+				"Žádné účty. Na nášivce je uvedeno vaše uživatelské jméno z WordPress.org a název akce, na které se právě nacházíte."
+			],
+			"Hand it to a mentor": [
+				"Svěřte to svému mentorovi"
+			],
+			"Remember this": [
+				"Pamatujte si to"
+			],
+			"Event this patch was written at": [
+				"Událost, při které byl tento patch napsán, se odehrála"
+			],
+			"Event, e.g. WordCamp Europe 2026 (optional)": [
+				"Akce, např. WordCamp Europe 2026 (volitelné)"
+			],
+			"WordPress.org username, e.g. janedoe": [
+				"Uživatelské jméno na WordPress.org, např. janedoe"
+			],
+			"Asked once and remembered for every site — these are facts about you, not about this checkout.": [
+				"Zadáte je jednou a zapamatují se pro všechny weby – jde o údaje o vás, nikoli o tento nákupní košík."
+			],
+			"There is nothing to send yet — this site has no changes against its copy of trunk.": [
+				"Zatím není co odeslat – na této stránce nejsou žádné změny oproti její kopii z hlavního repozitáře."
+			],
+			"Everything this site has that its copy of trunk does not.": [
+				"Všechno, co tento web obsahuje a co jeho kopie z hlavního repozitáře neobsahuje."
+			],
+			"Your changes": [
+				"Vaše změny"
+			],
+			"There are no changes on top of PR #%d.": [
+				"K PR č. %d nedošlo k žádným změnám."
+			],
+			"Edits to this local copy, compared with the original PR commits.": [
+				"Změny v této lokální kopii ve srovnání s původními revizemi v pull requestu."
+			],
+			"Your changes on top of PR #%d": [
+				"Vaše změny nad rámec PR č. %d"
+			],
+			"Your changes for ticket #%d": [
+				"Vaše změny k lístku č. %d"
+			],
+			"Your changes for issue #%d": [
+				"Vaše změny k problému č. %d"
+			],
+			"Stop the dev server before discarding changes.": [
+				"Před zrušením změn zastavte vývojový server."
+			],
+			"Wait for the build to finish before discarding changes.": [
+				"Než změny zahodíte, počkejte, až se sestavení dokončí."
+			],
+			"Wait for the installation to finish before discarding changes.": [
+				"Než změny zrušíte, počkejte, až se instalace dokončí."
+			],
+			"Wait for the trunk update to finish before discarding changes.": [
+				"Než změny zahodíte, počkejte, až se aktualizace hlavního repozitáře dokončí."
+			],
+			"There are no changes to discard.": [
+				"Nedošlo k žádným změnám, které by bylo třeba zrušit."
+			],
+			"Changes could not be loaded.": [
+				"Změny se nepodařilo načíst."
+			],
+			"Wait for your changes to finish loading.": [
+				"Počkejte, až se změny dokončí načítání."
+			],
+			"Changes are already being discarded.": [
+				"Změny se již ruší."
+			],
+			"the window’s theme: the operating system’s\u0004System": [
+				"Systém"
+			],
+			"the window’s theme\u0004Dark": [
+				"Tmavá"
+			],
+			"the window’s theme\u0004Light": [
+				"Světlá"
+			],
+			"Theme": [
+				"Šablona"
+			],
+			"Choose what happens when the app quits.": [
+				"Vyberte, co se stane po ukončení aplikace."
+			],
+			"Stop them, and start them again next time": [
+				"Zastavte je a příště je spusťte znovu"
+			],
+			"Stop them": [
+				"Zastavte je"
+			],
+			"So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.": [
+				"Web i wp-admin jsou tedy připraveny bez použití nástroje Press. S tím začíná sledování sestavení jádra WordPressu."
+			],
+			"Start the server when I open a site": [
+				"Spustit server při otevření stránky"
+			],
+			"Opening and quitting": [
+				"Spuštění a ukončení"
+			],
+			"Quitting always stops them; they can be started again when the app next opens.": [
+				"Ukončení je vždy zastaví; při příštím spuštění aplikace se znovu spustí."
+			],
+			"When I quit, running servers and build watches": [
+				"Když jsem s tím přestal, provozování serverů a sestavování hodinek"
+			],
+			"So edits are compiled as they are saved.": [
+				"Úpravy se tedy kompilují hned při jejich uložení."
+			],
+			"Start the build watch when I open a site": [
+				"Spustit sledování sestavení při otevření webu"
+			],
+			"The app does not have that PHP version.": [
+				"Aplikace tuto verzi PHP nemá."
+			],
+			"Choose on or off.": [
+				"Vyberte možnost „zapnuto“ nebo „vypnuto“."
+			],
+			"Off": [
+				"Vypnout"
+			],
+			"Debugging": [
+				"Ladění"
+			],
+			"%1$s · PHP %2$s": [
+				"%1$s · PHP %2$s"
+			],
+			"PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.": [
+				"Bylo vybráno PHP %1$s, ale tato verze aplikace jej neobsahuje; servery běží na PHP %2$s."
+			],
+			"Sites": [
+				"Weby"
+			],
+			"Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.": [
+				"Core poskytuje soubory JavaScriptu a CSS v nezkomprimované podobě, aby je bylo možné v prohlížeči číst a procházet krok za krokem."
+			],
+			"Use unminified scripts (SCRIPT_DEBUG)": [
+				"Použít neminifikované skripty (SCRIPT_DEBUG)"
+			],
+			"Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.": [
+				"Výjimky, upozornění a zastaralé funkce se nezaznamenávají. Varování a chyby se i nadále zapisují do souboru debug.log a zobrazují se v prohlížeči, a volání funkce error_log() se i nadále zapisují do souboru debug.log."
+			],
+			"Report notices and deprecations (WP_DEBUG)": [
+				"Hlášení upozornění a zastaralých funkcí (WP_DEBUG)"
+			],
+			"PHP version": [
+				"Verze PHP"
+			],
+			"Applies the next time a site’s server starts. A server that is running keeps what it started with.": [
+				"Změna se projeví při příštím spuštění serveru daného webu. Během provozu si server zachovává původní nastavení."
+			],
+			"Development server": [
+				"Vývojový server"
+			],
+			"The PHP versions could not be read. Quit the app and open it again.": [
+				"Verze PHP se nepodařilo načíst. Ukončete aplikaci a spusťte ji znovu."
+			],
+			"Could not keep that.": [
+				"To jsem nemohl dodržet."
+			],
+			"The app has no translation for that language.": [
+				"Aplikace neobsahuje překlad do tohoto jazyka."
+			],
+			"Choose a language.": [
+				"Vyberte si jazyk."
+			],
+			"Your system’s language": [
+				"Jazyk vašeho systému"
+			],
+			"Relaunch now": [
+				"Spustit znovu nyní"
+			],
+			"The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.": [
+				"Aplikace zobrazí nový jazyk po svém opětovném spuštění. Běžící servery a sestavení se zastaví, stejně jako při ukončení aplikace."
+			],
+			"Which language the app is shown in. A change applies after a relaunch.": [
+				"V jakém jazyce se aplikace zobrazuje. Změna se projeví po restartu aplikace."
+			],
+			"Language": [
+				"Jazyk"
+			],
+			"The app could not relaunch. Quit it and open it again.": [
+				"Aplikaci se nepodařilo znovu spustit. Ukončete ji a spusťte ji znovu."
+			],
+			"Could not keep that language.": [
+				"To jsem nemohl nechat takhle."
+			],
+			"Appearance": [
+				"Vzhled"
+			],
+			"Enter your WordPress.org username.": [
+				"Zadejte své uživatelské jméno pro WordPress.org."
+			],
+			"Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.": [
+				"Zadejte své uživatelské jméno pro WordPress.org, například janedoe, nebo adresu URL svého profilu na profiles.wordpress.org."
+			],
+			"Only %s profile links are supported.": [
+				"Podporovány jsou pouze odkazy na profily ve formátu %s."
+			],
+			"There is no such setting.": [
+				"Takové nastavení neexistuje."
+			],
+			"That folder does not exist.": [
+				"Tato složka neexistuje."
+			],
+			"Choose a folder by its full path.": [
+				"Vyberte složku podle její úplné cesty."
+			],
+			"Choose a folder.": [
+				"Vyberte složku."
+			],
+			"Not set: the create-site dialog asks each time.": [
+				"Není nastaveno: dialogové okno pro vytvoření webu se zobrazí pokaždé."
+			],
+			"Reading…": [
+				"Čtu…"
+			],
+			"Not signed in. The app asks you to sign in when you open a pull request.": [
+				"Nejste přihlášeni. Aplikace vás při otevření žádosti o začlenění vyzve k přihlášení."
+			],
+			"Signed in as %s.": [
+				"Přihlášeno jako %s."
+			],
+			"Sign-in is not set up in this build.": [
+				"V této verzi není přihlášení nastaveno."
+			],
+			"Could not save that event.": [
+				"Tuto událost se nepodařilo uložit."
+			],
+			"Could not save that username.": [
+				"Toto uživatelské jméno se nepodařilo uložit."
+			],
+			"Forget this folder": [
+				"Tuto složku ignorovat"
+			],
+			"Each new site is created in a subfolder of this location.": [
+				"Každý nový web se vytváří v podsložce tohoto umístění."
+			],
+			"New sites go here": [
+				"Zde budou nové stránky"
+			],
+			"New sites": [
+				"Nové stránky"
+			],
+			"Could not keep that folder.": [
+				"Tuto složku se nepodařilo zachovat."
+			],
+			"Account": [
+				"Účet"
+			],
+			"General": [
+				"Obecné"
+			],
+			"Sign out": [
+				"Odhlásit"
+			],
+			"GitHub": [
+				"GitHub"
+			],
+			"Save": [
+				"Uložit"
+			],
+			"Saving": [
+				"Ukládám"
+			],
+			"Saved.": [
+				"Uloženo."
+			],
+			"Where you are contributing from, if you are at an event. Leave it empty otherwise.": [
+				"Místo, odkud přispíváte, pokud se nacházíte na nějaké akci. V opačném případě pole nechte prázdné."
+			],
+			"Event": [
+				"událost"
+			],
+			"Goes on a patch you hand to a mentor, so the props land on you.": [
+				"To se zapíše do záznamu, který předáš mentorovi, takže zásluhy připadnou tobě."
+			],
+			"WordPress.org username": [
+				"Uživatelské jméno na WordPress.org"
+			],
+			"How you contribute": [
+				"Jak můžete přispět"
+			],
+			"Settings": [
+				"Nastavení"
+			],
+			"The event name has to fit on one line.": [
+				"Název akce se musí vejít do jednoho řádku."
+			],
+			"Enter the event name, or leave it empty.": [
+				"Zadejte název události nebo pole nechte prázdné."
+			],
+			"Keep the event name under %d characters.": [
+				"Délka názvu události nesmí přesáhnout %d znaků."
+			],
+			"Settings…": [
+				"Nastavení…"
+			],
+			"Show Logs Folder": [
+				"Zobrazit složku s protokoly"
+			],
+			"Open App Log": [
+				"Otevřít protokol aplikace"
+			],
+			"Choose the application to open this folder in": [
+				"Vyberte aplikaci, ve které chcete tuto složku otevřít"
+			],
+			"Programs": [
+				"Programy"
+			],
+			"Applications": [
+				"Aplikace"
+			],
+			"All Files": [
+				"Všechny soubory"
+			],
+			"Patch Files": [
+				"Soubory oprav"
+			],
+			"Choose a patch file": [
+				"Vyberte soubor s opravou"
+			],
+			"Save Diff File": [
+				"Uložit soubor s rozdíly"
+			],
+			"Save Patch for Handoff": [
+				"Uložit opravu pro Handoff"
+			],
+			"Toggle Email": [
+				"Přepnout e-mail"
+			],
+			"Email": [
+				"Email"
+			],
+			"Toggle Logs": [
+				"Přepnout protokoly"
+			],
+			"Logs": [
+				"Záznamy protokolu"
+			],
+			"Toggle Terminal": [
+				"Přepnout terminál"
+			],
+			"Terminal": [
+				"Terminál"
+			],
+			"Closed": [
+				"Uzavřeno"
+			],
+			"Merged": [
+				"Sloučeno"
+			],
+			"Opened %s": [
+				"Otevřeno %s"
+			],
+			"Milestone: %s": [
+				"Milník: %s"
+			],
+			"Component: %s": [
+				"Komponenta: %s"
+			],
+			"No pull requests cite this ticket yet.": [
+				"Tento ticket zatím není uveden v žádném pull requestu."
+			],
+			"See the work that already exists on this ticket before adding your own.": [
+				"Než přidáte vlastní příspěvek, podívejte se, co již k tomuto tiketu existuje."
+			],
+			"Open in Trac": [
+				"Otevřít v Tracu"
+			],
+			"Browse good first bugs on Trac": [
+				"Prohlédněte si zajímavé „první chyby“ na Tracu"
+			],
+			"Linking ticket": [
+				"Propojovací jízdenka"
+			],
+			"Link ticket": [
+				"Odkaz na vstupenku"
+			],
+			"e.g. 62281": [
+				"např. 62281"
+			],
+			"Ticket number or URL": [
+				"Číslo lístku nebo URL adresa"
+			],
+			"Link the ticket you’re working on.": [
+				"Připojte ticket, na kterém právě pracujete."
+			],
+			"Trac ticket": [
+				"Žádost v systému Trac"
+			],
+			"No pull requests cite this issue yet.": [
+				"Tento problém zatím není uveden v žádném pull requestu."
+			],
+			"See the work that already exists on this issue before adding your own.": [
+				"Než přidáte vlastní příspěvek, podívejte se, co k tomuto tématu již bylo zveřejněno."
+			],
+			"Open on GitHub": [
+				"Otevřít na GitHubu"
+			],
+			"Browse good first issues on GitHub": [
+				"Prohlédněte si zajímavé první vydání na GitHubu"
+			],
+			"Linking issue": [
+				"Problém s odkazem"
+			],
+			"Link issue": [
+				"Problém s odkazem"
+			],
+			"e.g. 71234": [
+				"např. 71234"
+			],
+			"Issue number or URL": [
+				"Číslo vydání nebo URL"
+			],
+			"Link the issue you’re working on.": [
+				"Přidejte odkaz na úkol, na kterém právě pracujete."
+			],
+			"GitHub issue": [
+				"GitHub issue"
+			],
+			"Could not read the attachments from Trac. (%s)": [
+				"Nepodařilo se načíst přílohy z Tracu. (%s)"
+			],
+			"Could not read the attachments from Trac.": [
+				"Nepodařilo se načíst přílohy ze systému Trac."
+			],
+			"The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.": [
+				"Okno Trac bylo zavřeno ještě před dokončením načítání příloh. Klikněte na tlačítko „Obnovit“ a zkuste to znovu."
+			],
+			"Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.": [
+				"Kontrola, zda jste člověk, prováděná systémem Trac nebyla dokončena včas. Zkuste to znovu a klikněte na „Jsem člověk“, pokud se tato možnost zobrazí."
+			],
+			"by %s": [
+				"od %s"
+			],
+			"Showing what was last seen %s.": [
+				"Zobrazuje se to, co bylo naposledy zobrazeno: %s."
+			],
+			"No cached list to fall back on.": [
+				"Není k dispozici žádný seznam v mezipaměti, na který by se dalo spolehnout."
+			],
+			"Could not reach GitHub.": [
+				"Nepodařilo se navázat spojení s GitHubem."
+			],
+			"GitHub is rate-limiting this connection.": [
+				"GitHub omezuje rychlost tohoto připojení."
+			],
+			"Could not read the pull requests from GitHub.": [
+				"Nepodařilo se načíst žádosti o začlenění z GitHubu."
+			],
+			"Updated %s": [
+				"Aktualizováno %s"
+			],
+			"Last commit %s": [
+				"Poslední záznam %s"
+			],
+			"Open": [
+				"Otevřít"
+			],
+			"Edited on %s": [
+				"Upravováno dne %s"
+			],
+			"Edited %d day ago": [],
+			"Edited %d hour ago": [],
+			"Edited %d minute ago": [],
+			"Edited just now": [
+				"Právě upraveno"
+			],
+			"Delete this ticket’s work": [
+				"Odstranit úkoly tohoto lístku"
+			],
+			"This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.": [
+				"Tímto krokem trvale smažete všechny změny provedené u tohoto lístku na tomto webu, bez ohledu na to, zda byly odeslány či nikoli. Tento úkon nelze vrátit zpět."
+			],
+			"Delete all work on ticket #%d?": [
+				"Mám smazat veškerou práci na tiketu č. %d?"
+			],
+			"Delete this issue’s work": [
+				"Odstranit práci z tohoto čísla"
+			],
+			"This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.": [
+				"Tímto se trvale smažou všechny změny provedené v souvislosti s tímto problémem na tomto webu, bez ohledu na to, zda byly odeslány či nikoli. Tuto akci nelze vrátit zpět."
+			],
+			"Delete all work on issue #%d?": [
+				"Mám smazat veškerou práci související s problémem č. %d?"
+			],
+			"Your tickets on this site": [
+				"Vaše vstupenky na této stránce"
+			],
+			"Other tickets on this site": [
+				"Další vstupenky na této stránce"
+			],
+			"Your issues on this site": [
+				"Vaše problémy na této stránce"
+			],
+			"Other issues on this site": [
+				"Další témata na tomto webu"
+			],
+			"Deleting": [
+				"Odstranění"
+			],
+			"Continue working": [
+				"Pokračujte v práci"
+			],
+			"Switch": [
+				"Přepnout"
+			],
+			"Deleting site…": [
+				"Mazání stránky..."
+			],
+			"WordPress code is %d day old — update to latest trunk": [],
+			"Update incomplete — code is new, built assets are old": [
+				"Aktualizace není dokončena – kód je nový, ale sestavené soubory jsou staré"
+			],
+			"Build watching": [
+				"Sledování výstavby"
+			],
+			"Build compiling": [
+				"Kompilace sestavení"
+			],
+			"Edits in %s are compiled as they are saved.": [
+				"Změny v souboru %s se zkompilují při jejich uložení."
+			],
+			"Start build watch": [
+				"Spustit sledování sestavení"
+			],
+			"Start": [
+				"Začátek"
+			],
+			"Stop build watch": [
+				"Zastavit sledování sestavení"
+			],
+			"Stop": [
+				"Stop"
+			],
+			"The development server could not start. Its last lines are in the Logs.": [
+				"Vývojový server se nepodařilo spustit. Jeho poslední řádky jsou uvedeny v protokolech."
+			],
+			"The development server stopped by itself. Its last lines are in the Logs.": [
+				"Vývojový server se sám zastavil. Jeho poslední řádky jsou v protokolech."
+			],
+			"Start development server": [
+				"Spustit vývojový server"
+			],
+			"Server stopped": [
+				"Server se zastavil"
+			],
+			"Stop development server": [
+				"Zastavit vývojový server"
+			],
+			"Server running": [
+				"Server běží"
+			],
+			"Starting…": [
+				"Začínám..."
+			],
+			"Starting development server…": [
+				"Spouštím vývojový server…"
+			],
+			"Server starting…": [
+				"Spouštění serveru…"
+			],
+			"Dev server is starting… (%s)": [
+				"Spouští se vývojový server… (%s)"
+			],
+			"Database": [
+				"Databáze"
+			],
+			"wp-admin": [
+				"wp-admin"
+			],
+			"View site": [
+				"Zobrazit web"
+			],
+			"Build stopped": [
+				"Stavba byla zastavena"
+			],
+			"The build watch ended by itself, with exit code %d. Its last lines are in the Logs.": [
+				"Sledování sestavení se ukončilo samo s výstupním kódem %d. Jeho poslední řádky jsou v souborech protokolů."
+			],
+			"The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.": [
+				"Sestavení, které musí být dokončeno před spuštěním sledování, selhalo, a proto nebylo sledování spuštěno. Poslední řádky tohoto procesu jsou uvedeny v protokolech."
+			],
+			"The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.": [
+				"Sestavení, které musí být dokončeno před spuštěním sledování, selhalo s výstupním kódem %d, takže sledování nebylo spuštěno. Jeho poslední řádky jsou uvedeny v protokolech."
+			],
+			"The build watch ended by itself. Its last lines are in the Logs.": [
+				"Sledování sestavení se ukončilo samo. Jeho poslední řádky jsou v protokolech."
+			],
+			"Paused while another operation builds the site. It comes back by itself.": [
+				"Služba byla pozastavena, zatímco jiná operace vytváří web. Služba se obnoví sama."
+			],
+			"Build paused": [
+				"Stavba pozastavena"
+			],
+			"Building the site before watching it.": [
+				"Vytvoření stránky ještě před jejím prohlížením."
+			],
+			"Build building": [
+				"Postavit budovu"
+			],
+			"Wait for the build to finish.": [
+				"Počkejte, až se sestavení dokončí."
+			],
+			"Wait for the installation to finish.": [
+				"Počkejte, až se instalace dokončí."
+			],
+			"Wait for the trunk update to finish.": [
+				"Počkejte, až se aktualizace trunk dokončí."
+			],
+			"Looking for applications…": [
+				"Hledám aplikace…"
+			],
+			"Other application…": [
+				"Další použití…"
+			],
+			"Show in file manager": [
+				"Zobrazit ve správci souborů"
+			],
+			"Show in Explorer": [
+				"Zobrazit v Průzkumníku"
+			],
+			"Show in Finder": [
+				"Zobrazit ve Finderu"
+			],
+			"Deleting…": [
+				"Mazání…"
+			],
+			"Open in": [
+				"Otevřít v"
+			],
+			"Copy path": [
+				"Zkopírovat cestu"
+			],
+			"Rename…": [
+				"Přejmenovat…"
+			],
+			"Update to latest trunk": [
+				"Aktualizace na nejnovější verzi z hlavního repozitáře"
+			],
+			"(no subject)": [
+				"(bez předmětu)"
+			],
+			"No mail yet. WordPress transactional email will appear here once the site sends any.": [
+				"Zatím žádná pošta. Transakční e-maily z WordPressu se zde zobrazí, jakmile je web odešle."
+			],
+			"SMTP listening on 127.0.0.1:%d": [
+				"SMTP naslouchá na adrese 127.0.0.1:%d"
+			],
+			"SMTP will start with the dev server.": [
+				"SMTP se spustí společně s vývojovým serverem."
+			],
+			"Delete site": [
+				"Smazat web"
+			],
+			"This will permanently delete the site and all of its files from your computer. This can’t be undone.": [
+				"Tím dojde k trvalému odstranění webu a všech jeho souborů z vašeho počítače. Tento úkon nelze vrátit zpět."
+			],
+			"Delete %s?": [
+				"Smazat %s?"
+			],
+			"Site name cannot be empty.": [
+				"Název webu nesmí být prázdný."
+			],
+			"Checkout": [
+				"Zaplatit"
+			],
+			"Local path": [
+				"Místní cesta"
+			],
+			"%d day old": [],
+			"Trunk as of": [
+				"Kufr k datu"
+			],
+			"Created": [
+				"Vytvořeno"
+			],
+			"Uninitialized": [
+				"Neinicializováno"
+			],
+			"Initialized": [
+				"Inicializováno"
+			],
+			"Setup": [
+				"Nastavení"
+			],
+			"Show sites list": [
+				"Zobrazit seznam stránek"
+			],
+			"Hide sites list": [
+				"Skrýt seznam stránek"
+			],
+			"Site": [
+				"Web"
+			],
+			"Create your first site to begin contributing": [
+				"Vytvořte si svůj první web a začněte přispívat"
+			],
+			"No sites": [
+				"Na webových stránkách"
+			],
+			"All changes discarded.": [
+				"Všechny změny byly zrušeny."
+			],
+			"This site is ready to work on": [
+				"Tato stránka je připravena k provozu"
+			],
+			"Copied the path": [
+				"Zkopíroval jsem cestu"
+			],
+			"Updated to the latest trunk": [
+				"Aktualizováno na nejnovější verzi z hlavního repozitáře"
+			],
+			"Local changes discarded.": [
+				"Místní změny byly zrušeny."
+			],
+			"Already up to date with trunk": [
+				"Již je synchronizováno s kmenovým repozitářem"
+			],
+			"%d unseen line in Debug.log": [],
+			"A site’s project cannot be changed later.": [
+				"Projekt daného místa nelze později změnit."
+			],
+			"Opened pull request #%1$s on %2$s": [
+				"Otevřen pull request #%1$s dne %2$s"
+			],
+			"Dry run — branch created, no pull request opened": [
+				"Zkušební běh – pobočka byla vytvořena, nebyl otevřen žádný pull request"
+			],
+			"Saved your changes to %s and reset the working tree": [
+				"Změny byly uloženy do souboru %s a pracovní strom byl resetován"
+			],
+			"Patch saved to %s": [
+				"Oprava byla uložena do %s"
+			],
+			"Restored the saved work": [
+				"Obnovena uložená práce"
+			],
+			"Restored the previous branch": [
+				"Obnovena předchozí větev"
+			],
+			"Checked out the pull request": [
+				"Prohlédl jsem si pull request"
+			],
+			"Reverted the patch": [
+				"Zrušeno provedení opravy"
+			],
+			"Applied the patch": [
+				"Opravu jsem nainstaloval"
+			],
+			"The site could not be created. %s": [
+				"Stránku se nepodařilo vytvořit. %s"
+			],
+			"The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s": [
+				"Položka je stále uvedena v seznamu, protože se nepodařilo odstranit její složku. Zavřete všechny aplikace, které ji používají, a zkuste to znovu. Složka: %s"
+			],
+			"The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s": [
+				"Položka je stále uvedena v seznamu, protože se nepodařilo odstranit její složku (%1$s). Zavřete všechny aplikace, které ji používají, a zkuste to znovu. Složka: %2$s"
+			],
+			"Opened pull request #%s": [
+				"Byl otevřen pull request č. %s"
+			],
+			"Notifications": [
+				"Notifikace"
+			],
+			"Checking GitHub…": [
+				"Kontrola GitHubu…"
+			],
+			"Checking GitHub": [
+				"Kontrola GitHubu"
+			],
+			"Linked pull requests": [
+				"Propojené žádosti o začlenění"
+			],
+			"Keywords:": [
+				"Klíčová slova:"
+			],
+			"Apply…": [
+				"Přihlásit se…"
+			],
+			"The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.": [
+				"Nejnovější oprava k tomuto tiketu je přiložený soubor, nikoli žádost o začlenění (pull request) – viz přílohy v systému Trac níže."
+			],
+			"Read details from Trac": [
+				"Přečtěte si podrobnosti v systému Trac"
+			],
+			"Reading the ticket on Trac": [
+				"Čtení lístku v systému Trac"
+			],
+			"Unlink": [
+				"Odebrat odkaz"
+			],
+			"Refresh": [
+				"Aktualizovat"
+			],
+			"Not sure yet?": [
+				"Ještě si nejste jisti?"
+			],
+			"If you have edited anything already, you will be asked what should happen to those edits.": [
+				"Pokud jste již něco upravili, budete dotázáni, jak se s těmito úpravami naložit."
+			],
+			"Latest": [
+				"Nejnovější"
+			],
+			"No patch files attached to this ticket.": [
+				"K tomuto tiketu nejsou připojeny žádné soubory s opravami."
+			],
+			"Opening the ticket on Trac…": [
+				"Založení tiketu v systému Trac…"
+			],
+			"Show Trac attachments": [
+				"Zobrazit přílohy Trac"
+			],
+			"Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.": [
+				"Soubory s opravami se někdy na Tracu připojují namísto žádosti o změnu (PR). Jejich přečtením se otevře ticket, takže můžete jeho manuální kontrolu absolvovat najednou."
+			],
+			"Opening the ticket on Trac": [
+				"Založení tiketu v systému Trac"
+			],
+			"Trac attachments": [
+				"Příslušenství pro stroje Trac"
+			],
+			"Applied": [
+				"Použito"
+			],
+			"My sites": [
+				"Moje weby"
+			],
+			"Create new site": [
+				"Vytvořit nový web"
+			],
+			"(Deleting)": [
+				"(Odstranění)"
+			],
+			"(%s)": [
+				"(%s)"
+			],
+			"Name": [
+				"Název"
+			],
+			"Site actions": [
+				"Stránka akcí"
+			],
+			"Show details": [
+				"Zobrazit podrobnosti"
+			],
+			"Hide details": [
+				"Skrýt podrobnosti"
+			],
+			"Review & submit changes": [
+				"Zkontrolovat a odeslat změny"
+			],
+			"Review": [
+				"Přehled"
+			],
+			"Show password": [
+				"Zobrazit heslo"
+			],
+			"Hide password": [
+				"Skrýt heslo"
+			],
+			"Password": [
+				"Heslo"
+			],
+			"Username": [
+				"Přihlašovací jméno"
+			],
+			"Admin credentials": [
+				"Přihlašovací údaje správce"
+			],
+			"Server": [
+				"Server"
+			],
+			"Copied": [
+				"Zkopírováno"
+			],
+			"Copy": [
+				"Kopie"
+			],
+			"Details": [
+				"Podrobnosti"
+			],
+			"Details of %s": [
+				"Podrobnosti o %s"
+			],
+			"Build watch offline": [
+				"Vytvořit hodinky v režimu offline"
+			],
+			"Build watch": [
+				"Vytvořit hodinky"
+			],
+			"Development server offline": [
+				"Vývojový server je mimo provoz"
+			],
+			"Rename": [
+				"Přejmenovat"
+			],
+			"Renaming the site": [
+				"Přejmenování webu"
+			],
+			"Rename site": [
+				"Přejmenovat web"
+			],
+			"Clear emails": [
+				"Vymazat e-maily"
+			],
+			"Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.": [
+				"Vyberte nadřazenou složku, ve které chcete tento nový web vytvořit. Pro web bude vytvořen nový podadresář."
+			],
+			"Location": [
+				"Poloha:"
+			],
+			"Setting up a site": [
+				"Založení webové stránky"
+			],
+			"Project": [
+				"Projekt"
+			],
+			"Close": [
+				"Zavřít"
+			],
+			"Resize tray": [
+				"Změnit velikost panelu"
+			],
+			"This patch is applied to your current work. Removing it may require undoing overlapping edits.": [
+				"Tato změna byla aplikována na vaši aktuální práci. Její odstranění může vyžadovat vrácení překrývajících se úprav."
+			],
+			"Discard this ticket to its base": [
+				"Vrátit tento lístek na původní místo"
+			],
+			"Save a copy of your work": [
+				"Uložte si kopii své práce"
+			],
+			"Revert this PR before applying another PR or patch file.": [
+				"Tento PR vraťte do původního stavu, než aplikujete další PR nebo opravný soubor."
+			],
+			"Try another patch on this ticket": [
+				"Zkuste u tohoto tiketu jinou opravu"
+			],
+			"Revert this patch": [
+				"Zrušit tuto opravu"
+			],
+			"Give feedback": [
+				"Poskytnout zpětnou vazbu"
+			],
+			"It changes package-lock.json, so dependencies will be installed before the rebuild.": [
+				"Tím se změní soubor package-lock.json, takže se před opětovnou kompilací nainstalují závislosti."
+			],
+			"Apply and rebuild": [
+				"Použít a obnovit"
+			],
+			"%1$s changes %2$d file.": [],
+			"Apply %s": [
+				"Použít %s"
+			],
+			"%s is a binary file and will be skipped.": [],
+			"Apply PR #%d": [
+				"Použít PR č. %d"
+			],
+			"A .diff or .patch file is applied to the current branch as a removable layer.": [
+				"Soubor s příponou .diff nebo .patch se na aktuální větev aplikuje jako odstranitelná vrstva."
+			],
+			"Choose a .diff or .patch file…": [
+				"Vyberte soubor s příponou .diff nebo .patch…"
+			],
+			"Diff": [
+				"Rozdíl"
+			],
+			"Pull request": [
+				"Žádost o začlenění"
+			],
+			"Test changes in this checkout. Your own changes are preserved.": [
+				"Otestujte změny v tomto revizním stavu. Vaše vlastní změny zůstanou zachovány."
+			],
+			"Apply a patch or PR": [
+				"Odešlete opravu nebo PR"
+			],
+			"Test a pull request in this checkout. Your own changes are preserved.": [
+				"Otestujte pull request v tomto checkoutu. Vaše vlastní změny zůstanou zachovány."
+			],
+			"Check out a pull request": [
+				"Podívejte se na pull request"
+			],
+			"A pull request is checked out with its author’s commits.": [
+				"Pull request se zkontroluje spolu s revizemi jeho autora."
+			],
+			"Apply PR": [
+				"Použít PR"
+			],
+			"Pull request URL or number": [
+				"URL nebo číslo žádosti o začlenění"
+			],
+			"line %d of the patch": [
+				"řádek %d opravy"
+			],
+			"… %d more line": [],
+			"Near %s": [
+				"V okolí %s"
+			],
+			"%1$s — %2$d of %3$d change": [],
+			"The checkout was not changed.": [
+				"Proces platby se nezměnil."
+			],
+			"Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.": [
+				"Na tomto webu právě běží další příkaz. Počkejte, až se dokončí, nebo jej v terminálu zastavte stisknutím kláves Ctrl+C."
+			],
+			"text direction\u0004ltr": [
+				"ltr"
+			],
+			"Finish creating the current site first": [
+				"Nejprve dokončete vytváření aktuálního webu"
+			],
+			"Open the feedback form ↗": [
+				"Otevřít formulář pro zpětnou vazbu ↗"
+			],
+			"Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.": [
+				"Odpovědi se ukládají do sdíleného formuláře, který tým pravidelně kontroluje. Příspěvky jsou anonymní, pokud k nim nepřidáte svou e-mailovou adresu."
+			],
+			"Your feedback helps decide what to build next.": [
+				"Vaše zpětná vazba nám pomáhá rozhodnout, co vytvoříme jako další."
+			],
+			"WordPress Contributor Toolkit": [
+				"Sada nástrojů pro přispěvatele WordPressu"
+			],
+			"Please choose where to create the site.": [
+				"Vyberte prosím, kde chcete web vytvořit."
+			],
+			"Please provide a site name.": [
+				"Zadejte prosím název webu."
+			],
+			"Create site": [
+				"Vytvořit web"
+			],
+			"Cancel": [
+				"Zrušit"
+			],
+			"No folder selected yet.": [
+				"Zatím nebyla vybrána žádná složka."
+			],
+			"My WordPress site": [
+				"Můj web na WordPressu"
+			],
+			"Site name": [
+				"Název webu"
+			],
+			"The wordpress-develop repository: Trac tickets, patches and pull requests.": [
+				"Repozitář wordpress-develop: úkoly v systému Trac, opravy a žádosti o začlenění změn."
+			],
+			"The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.": [
+				"Blokový editor, vytvořený a provozovaný jako plugin ve standardním WordPressu: problémy na GitHubu a žádosti o začlenění (pull requesty) po stažení kódu."
+			]
+		}
+	}
+}
