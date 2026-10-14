@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { __, _x, sprintf } from '@wordpress/i18n';
-import { file as fileIcon, globe, offline, seen, table, unseen, wordpress } from '@wordpress/icons';
-import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, VisuallyHidden } from '@wordpress/ui';
+import { __, sprintf } from '@wordpress/i18n';
+import { file as fileIcon, globe, offline, pencil, plus, seen, table, undo, unseen, wordpress } from '@wordpress/icons';
+import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, Tooltip, VisuallyHidden } from '@wordpress/ui';
 import { siteDetailsRows } from '../site-details.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
 
@@ -115,29 +115,54 @@ function WatchSection({ watch }) {
   );
 }
 
-// One changed file: a file's icon, the path, and a mark after it. Drawn as a
-// link and built as a button, like the terminal's command links: a click opens
-// an application rather than going anywhere. The brand colour and an
-// underline, which a button does not get from the browser the way a link does:
-// without them the paths read as plain text. The mark is outside the button,
-// so the button's name stays the path.
-function ChangedFile({ path, mark, onOpenFile }) {
+// One changed file: a file's icon, the path, a mark after it, and its revert
+// button. The path is drawn as a link and built as a button, like the
+// terminal's command links: a click opens an application rather than going
+// anywhere. The brand colour and an underline, which a button does not get
+// from the browser the way a link does: without them the paths read as plain
+// text. The mark is an icon (#669), named for a screen reader and explained
+// in a tooltip for the eye; it is outside the button, so the button's name
+// stays the path.
+function ChangedFile({ path, mark, onOpenFile, onRevert, revertDisabled }) {
   return (
     <Stack direction="row" align="start" gap="xs">
       <Icon icon={fileIcon} size={16} className="affected-file-icon" />
       <Link render={<button type="button" />} className="link-button affected-file apply-break-all" tone="brand" onClick={() => onOpenFile(path)}>
         {path}
       </Link>
-      {mark ? <Text variant="body-sm" className="muted-label affected-file-mark">{mark}</Text> : null}
+      {mark ? (
+        <Tooltip.Root>
+          <Tooltip.Trigger render={<span role="img" aria-label={mark.label} className="affected-file-mark" />}>
+            <Icon icon={mark.icon} size={16} />
+          </Tooltip.Trigger>
+          <Tooltip.Popup>{mark.label}</Tooltip.Popup>
+        </Tooltip.Root>
+      ) : null}
+      {onRevert ? (
+        <IconButton
+          icon={undo}
+          // translators: %s: the path of a file in the site.
+          label={sprintf(__('Revert %s'), path)}
+          variant="minimal"
+          tone="neutral"
+          size="small"
+          className="affected-file-revert"
+          disabled={revertDisabled}
+          onClick={onRevert}
+        />
+      ) : null}
     </Stack>
   );
 }
 
 // "Changed files" (#669): the applied patch's or pull request's own files, and
 // the contributor's, each under a heading of its own. Which file is in which,
-// and the groups' names, are changedFileGroups' in affected-files.cjs.
+// the groups' names, and which can be reverted are changedFileGroups' in
+// affected-files.cjs.
 function ChangedFilesSection({ changed }) {
-  const { change, yours, onOpenFile } = changed;
+  const { change, yours, onOpenFile, onRevertFile, revertDisabled, revertError } = changed;
+  const edited = { icon: pencil, label: __('You edited this file') };
+  const created = { icon: plus, label: __('You created this file') };
   return (
     <Stack direction="column" gap="md">
       <Text variant="heading-lg" render={<h2 />}>{__('Changed files')}</Text>
@@ -145,8 +170,14 @@ function ChangedFilesSection({ changed }) {
         <Stack direction="column" gap="sm">
           <Text variant="heading-sm" render={<h3 />}>{change.label}</Text>
           {change.files.map((file) => (
-            // translators: after the path of a file a patch or pull request changed, which the contributor has changed since.
-            <ChangedFile key={file.path} path={file.path} mark={file.alsoEdited ? __('also edited') : ''} onOpenFile={onOpenFile} />
+            <ChangedFile
+              key={file.path}
+              path={file.path}
+              mark={file.alsoEdited ? edited : null}
+              onOpenFile={onOpenFile}
+              onRevert={file.canRevert && onRevertFile ? () => onRevertFile(file, { fromChange: true }) : null}
+              revertDisabled={revertDisabled}
+            />
           ))}
         </Stack>
       ) : null}
@@ -154,10 +185,18 @@ function ChangedFilesSection({ changed }) {
         <Stack direction="column" gap="sm">
           <Text variant="heading-sm" render={<h3 />}>{__('Your changes')}</Text>
           {yours.map((file) => (
-            <ChangedFile key={file.path} path={file.path} mark={file.added ? _x('new', 'a file the contributor created, after its path') : ''} onOpenFile={onOpenFile} />
+            <ChangedFile
+              key={file.path}
+              path={file.path}
+              mark={file.added ? created : null}
+              onOpenFile={onOpenFile}
+              onRevert={file.canRevert && onRevertFile ? () => onRevertFile(file, { fromChange: false }) : null}
+              revertDisabled={revertDisabled}
+            />
           ))}
         </Stack>
       ) : null}
+      {revertError ? <Text variant="body-sm" className="problem-text">{revertError}</Text> : null}
     </Stack>
   );
 }
@@ -210,7 +249,7 @@ function useStickyWhileItFits(active) {
  * @param {Function} props.onCopyPath
  * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
- * @param {Object}   [props.changed]  The changed files, from `changedFileGroups`, with `onOpenFile`: `{ change, yours, onOpenFile }`. No files, no section.
+ * @param {Object}   [props.changed]  The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertDisabled, revertError }`. No files, no section.
  */
 export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, changed = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);

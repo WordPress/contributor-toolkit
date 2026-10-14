@@ -76,7 +76,7 @@ import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
-import { changedFileGroups, fileOpenTarget } from './affected-files.cjs';
+import { changedFileGroups, fileOpenTarget, revertFileQuestion } from './affected-files.cjs';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
@@ -802,6 +802,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [unsubmitted, setUnsubmitted] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
+  const [revertError, setRevertError] = useState(null);
   // Opening a pull request (#167): the account, the sign-in, the form and the
   // attempt. Held here because all of it outlives the card that shows it.
   const prSubmission = usePullRequest({ sitePath, confirm });
@@ -1754,6 +1755,31 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     runDiscard(discardYourChangesQuestion({ editedCount: editedByYou, appliedPatch, pullRequest }), { keepChange: true });
   };
   const discardTicketToBase = () => runDiscard(discardQuestion(), {});
+  // One file of "Discard your changes" (#669), from its row under "Changed
+  // files". It holds the same guard as a discard while it runs, since it
+  // writes the tree the same way, and the list follows it as it follows a
+  // discard.
+  const revertFile = (file, { fromChange }) => askFirst(revertFileQuestion(file, { fromChange, pullRequest: fromChange ? pullRequest : null }), async () => {
+    setDiscarding(true);
+    setRevertError(null);
+    try {
+      let res;
+      try {
+        res = await window.api.revertFile(sitePath, file.path);
+      } catch (e) {
+        res = { ok: false, error: e && e.message ? e.message : String(e) };
+      }
+      if (!res || !res.ok) {
+        setRevertError(res && res.error ? res.error : __('Unknown error'));
+        return;
+      }
+      applyDiscardToNote(discardOutcome(res));
+      // translators: %s: the path of a file in the site.
+      confirm(file.added && !fromChange ? sprintf(__('%s deleted.'), file.path) : sprintf(__('%s reverted.'), file.path));
+    } finally {
+      setDiscarding(false);
+    }
+  });
   const runDiscard = (question, options) => askFirst(question, async () => {
     setDiscarding(true);
     setDiscardError(null);
@@ -2430,7 +2456,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
-        changed={{ ...changedGroups, onOpenFile: openAffectedFile }}
+        changed={{ ...changedGroups, onOpenFile: openAffectedFile, onRevertFile: revertFile, revertDisabled: layerExitBlocked, revertError }}
       />
       </div>
       {dirtyModalOpen ? (

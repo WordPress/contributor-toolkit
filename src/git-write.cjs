@@ -240,6 +240,32 @@ async function unstagePaths(dir, paths, { platform = process.platform, run = run
 }
 
 /**
+ * Puts `paths` in the worktree back as `source` has them (#669): one file's
+ * edits undone, or a file the contributor deleted brought back. The worktree
+ * only, so the index stays as the app always leaves it. Every path has to
+ * exist in `source`; one that does not is an error from Git, and a file the
+ * contributor added is removed by the caller instead. Fed on stdin like
+ * `stagePaths`, NUL-separated and literal.
+ *
+ * @param {string}   dir
+ * @param {string}   source             The commit to take the content from.
+ * @param {string[]} paths
+ * @param {Object}   [options]
+ * @param {string}   [options.platform]
+ * @param {Function} [options.run]
+ * @return {Promise<number>} How many paths were handed to Git.
+ */
+async function restoreWorktreePaths(dir, source, paths, { platform = process.platform, run = runGit } = {}) {
+	if (!paths.length) return 0;
+	const win = await windowsArgs(dir, { platform, run });
+	await run([...win, '--literal-pathspecs', 'restore', `--source=${source}`, '--worktree', '--pathspec-from-file=-', '--pathspec-file-nul'], {
+		cwd: dir,
+		input: Buffer.from(`${paths.join('\0')}\0`, 'utf8')
+	});
+	return paths.length;
+}
+
+/**
  * Removes every untracked file and directory that is not ignored. Without
  * `-x`, what `.gitignore` and `.git/info/exclude` name stays (`node_modules`,
  * `build`); without a second `-f`, a nested repository stays too.
@@ -292,6 +318,7 @@ async function applyPatch(dir, patchText, { check = false, reverse = false, plat
 module.exports = {
 	stagePaths,
 	unstagePaths,
+	restoreWorktreePaths,
 	writeTree,
 	commitTree,
 	updateBranch,

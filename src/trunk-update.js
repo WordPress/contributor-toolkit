@@ -29,7 +29,7 @@ const {
 	normalizeEolBuffer
 } = require('./git-update.cjs');
 const { readCommitInfo, resolveRef, currentBranch, isAncestor, statusRows, readBlobs, blobOid } = require('./git-read.cjs');
-const { fetchBranch, unstagePaths, updateBranch, checkoutBranch, cleanUntracked } = require('./git-write.cjs');
+const { fetchBranch, unstagePaths, updateBranch, checkoutBranch, cleanUntracked, restoreWorktreePaths } = require('./git-write.cjs');
 
 /**
  * The commit the site's `trunk` branch points at; its committer date is the age
@@ -179,6 +179,26 @@ async function discardToBase(dir, baseOid, { onChild = null } = {}) {
 }
 
 /**
+ * One file of `discardToBase` (#669): the file as `baseOid` has it, or gone
+ * when it is not there (`added`, a file the contributor created). Nothing
+ * else in the tree, the branch ref and the index are left alone; the file's
+ * difference from the base is what goes, parked or not.
+ *
+ * @param {string}  dir
+ * @param {string}  baseOid
+ * @param {string}  relPath     A path a status scan returned.
+ * @param {Object}  root3
+ * @param {boolean} root3.added Whether the base has no such file.
+ */
+async function discardFile(dir, baseOid, relPath, { added }) {
+	if (added) {
+		await fs.promises.rm(path.join(dir, relPath), { force: true });
+		return;
+	}
+	await restoreWorktreePaths(dir, baseOid, [relPath]);
+}
+
+/**
  * Step 1 of the update chain: fetch the latest remote trunk and hard-reset
  * the site to it. Returns { upToDate, oldOid, newOid, lockfileChanged,
  * trunkDate }; throws with `error.stage` set to 'fetch' (nothing moved —
@@ -263,5 +283,6 @@ module.exports = {
 	collectDirtyFiles,
 	discardChanges,
 	discardToBase,
+	discardFile,
 	updateToLatestTrunk
 };

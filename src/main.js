@@ -27,8 +27,8 @@ const {
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree, killTreeByPid, killChildTreeAndWait } = require('./kill-tree');
 const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs');
-const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
-const { applyPatchToDir } = require('./patch-apply');
+const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, discardFile, updateToLatestTrunk } = require('./trunk-update');
+const { applyPatchToDir, snapshotFiles, rollback } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { fetchLinkedPrs } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
@@ -2147,6 +2147,74 @@ ipcMain.handle('git:discard-to-base', async (_e, sitePath, options = {}) => {
         return files
             ? { ok: true, dirty: files.length > 0, changedCount: files.length, ...patch }
             : { ok: true, ...patch };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+// One file of "Discard your changes" (#669), from the list's revert button:
+// the file ends as that discard would leave it. A file of the contributor's
+// goes back to the base, or goes if they created it; an applied patch's file
+// goes back to the base and has its own part of the patch put back; a pull
+// request's file is the base already. Only a file the contributor changed: one
+// the list does not name is refused, which is also what keeps the path inside
+// the site, and so is a patch file they have not edited, since reverting it
+// would take the patch out of it. The file is snapshotted first, so a part of
+// the patch that will not go back on leaves it as it was.
+ipcMain.handle('git:revert-file', async (_e, sitePath, relPath) => {
+    try {
+        const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
+        if (blocked) return blocked;
+        const entries = await collectUnsubmittedEntries(sitePath);
+        const entry = entries.find((candidate) => candidate.path === relPath);
+        if (!entry) {
+            // translators: %s: the path of a file in the site.
+            return { ok: false, code: 'unchanged', error: sprintf(__('%s has no changes to revert.'), String(relPath)) };
+        }
+        const applied = (await readWorkMeta(sitePath)).appliedPatch || null;
+        const fromPatch = Boolean(applied && Array.isArray(applied.files) && applied.files.includes(relPath));
+        if (fromPatch) {
+            const edited = await editedSinceAppliedChange(sitePath, entries.map((candidate) => candidate.path));
+            if (!edited.includes(relPath)) {
+                // translators: %s: the path of a file in the site.
+                return { ok: false, code: 'not-yours', error: sprintf(__('%s is as the patch left it, so there is nothing of yours to revert.'), relPath) };
+            }
+            if (!applied.text) {
+                // translators: %s: the path of a file in the site.
+                return { ok: false, code: 'no-patch-text', error: sprintf(__('The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.'), relPath) };
+            }
+        }
+        const baseOid = await patchBaseOid(sitePath) || await resolveRef(sitePath, 'HEAD');
+        const snapshot = snapshotFiles(sitePath, [relPath]);
+        try {
+            await discardFile(sitePath, baseOid, relPath, { added: entry.added });
+            if (fromPatch) {
+                const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+                const reapplied = await applyPatchToDir({ dir: sitePath, patchText: applied.text, layout, paths: [relPath] });
+                if (!reapplied.ok) throw new Error(reapplied.error || 'the patch did not apply');
+            }
+        } catch (e) {
+            const undone = rollback(sitePath, snapshot);
+            logError('git:revert-file', `${relPath}: ${String(e && e.message || e)}${undone.length ? `; could not put back: ${undone.join('; ')}` : ''}`);
+            // translators: 1: the path of a file in the site. 2: why it could not be reverted.
+            return { ok: false, code: 'failed', error: sprintf(__('Could not revert %1$s: %2$s'), relPath, String(e && e.message || e)) };
+        }
+        if (fromPatch) {
+            // Its part of the patch is back, so it is the patch's again. Read
+            // before the store is, and written only over the same record (#172).
+            const { ref } = await activeBranch(sitePath);
+            const [now] = Object.values(await fingerprintsNow(sitePath, [relPath]));
+            await changeWorkMetaOn(sitePath, ref, (work) => (
+                work.appliedPatch && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
+                    ? { appliedPatch: { ...work.appliedPatch, fingerprints: { ...(work.appliedPatch.fingerprints || {}), [relPath]: now } } }
+                    : null
+            ));
+        }
+        let files = null;
+        try { files = await collectUnsubmittedFiles(sitePath); } catch {}
+        return files
+            ? { ok: true, dirty: files.length > 0, changedCount: files.length }
+            : { ok: true };
     } catch (e) {
         return { ok: false, error: String(e) };
     }

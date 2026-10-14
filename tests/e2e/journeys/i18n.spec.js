@@ -417,6 +417,13 @@ test( 'the apply card and its preview are fully translatable', async ( { session
 	const details = page.getByRole( 'complementary', { name: /e2e-site/ } ).filter( { visible: true } );
 	await expect( details.getByRole( 'heading', { name: pseudoLocalize( 'Changed files' ), exact: true } ) ).toBeVisible( { timeout: 60_000 } );
 	await expect( details.getByRole( 'button', { name: 'src/wp-login.php', exact: true } ) ).toBeVisible();
+
+	// Edited since, the file is marked and offers its revert, both by names a
+	// translator gave them (#669).
+	write( site.dir, LOGIN, '<?php // patched, then mine\n' );
+	await page.evaluate( () => window.dispatchEvent( new Event( 'focus' ) ) );
+	await expect( details.getByRole( 'img', { name: pseudoLocalize( 'You edited this file' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( details.getByRole( 'button', { name: filled( 'Revert %s', 'src/wp-login.php' ), exact: true } ) ).toBeVisible();
 } );
 
 test( 'the list of a site\'s tickets is fully translatable, with a ticket linked and with none', async ( { session } ) => {
