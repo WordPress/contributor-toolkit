@@ -147,9 +147,10 @@ async function discardChanges(dir, { onChild = null } = {}) {
  *
  * Kept separate from `discardChanges` on purpose: the trunk-update dirty flow
  * and the switch-off-trunk flow must reset only uncommitted edits and preserve
- * parked ticket work, so they stay on `discardChanges`. This one is the modal's
- * "Discard all changes", where the contributor has asked for the whole thing to
- * go. The branch is not deleted and the ticket stays linked — the substrate
+ * parked ticket work, so they stay on `discardChanges`. This one is "Discard
+ * your changes" and "Discard this ticket to its base", where the contributor
+ * has asked for the ticket's work to go (main.js puts an applied patch back
+ * afterwards for the first, #669). The branch is not deleted and the ticket stays linked — the substrate
  * survives, only its work is rewound; deleting the branch is what "Delete this
  * ticket's work" is for.
  *

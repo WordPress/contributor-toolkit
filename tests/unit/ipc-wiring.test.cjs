@@ -1120,7 +1120,7 @@ test('git:discard-changes reports the parked work that survives it (#239)', asyn
 	assert.equal(res.changedCount, 1);
 });
 
-// The submit modal's "Discard all changes" is the opposite promise (#270): it
+// "Discard your changes" in the submit modal is the opposite promise (#270): it
 // throws away the whole diff the modal shows — measured from the branch point,
 // so parked WIP included — by rewinding the branch ref to its base. The branch
 // survives and the ticket stays linked; only its work is gone, so the reply is
@@ -1244,6 +1244,75 @@ test('git:discard-to-base says so when the patch could not be put back (#669)', 
 	assert.equal(res.removedPatch, 'x.diff');
 	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n');
 	assert.equal(recorded(), null);
+});
+
+// A patch applied over edits the contributor already had is fingerprinted with
+// those edits in it. Put back onto the bare base, the file no longer matches,
+// so the discard has to fingerprint it again or the list would mark it "also
+// edited" over a file nobody touched since.
+test('git:discard-to-base fingerprints the patch again once it is put back (#669)', async (t) => {
+	const BASE = '<?php // base\n// 2\n// 3\n// 4\n// 5\n// tail\n';
+	const PATCHED = '<?php // base\n// the patch\n// 2\n// 3\n// 4\n// 5\n// tail\n';
+	const text = [
+		'diff --git a/src/a.php b/src/a.php',
+		'--- a/src/a.php',
+		'+++ b/src/a.php',
+		'@@ -1,4 +1,5 @@',
+		' <?php // base',
+		'+// the patch',
+		' // 2',
+		' // 3',
+		' // 4',
+		''
+	].join('\n');
+	const dir = adoptedRepo(t, 'ipc-wiring-discard-refingerprint-');
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), BASE);
+	const baseOid = commitFiles(dir, ['src/a.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'ticket/62281', 'trunk'], dir);
+	// The edit came first, then the patch on top of it.
+	const withEdit = PATCHED.replace('// tail', '// tail, mine');
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), withEdit);
+	const appliedPatch = { label: 'x.diff', appliedAt: '2026-10-14T00:00:00.000Z', files: ['src/a.php'], text, fingerprints: { 'src/a.php': fingerprint(Buffer.from(withEdit)) } };
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid, appliedPatch } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.keptPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), PATCHED);
+	const recorded = settings.values.siteMeta[dir].branches['ticket/62281'].appliedPatch;
+	assert.equal(recorded.fingerprints['src/a.php'], fingerprint(Buffer.from(PATCHED)));
+	assert.equal(recorded.appliedAt, '2026-10-14T00:00:00.000Z', 'the rest of the record is kept');
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, []);
+});
+
+// A pull request is its branch's base, so the rewind alone keeps it.
+test('git:discard-to-base keeping the change keeps a checked-out pull request (#669)', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-wiring-discard-keep-pr-');
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
+	commitFiles(dir, ['src/a.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'pr/7', 'trunk'], dir);
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // the pull request\n');
+	const headOid = commitFiles(dir, ['src/a.php'], 'the pull request');
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { branches: { 'pr/7': { pullRequest: 7, headOid, baseOid: headOid, files: ['src/a.php'] } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // the pull request\n');
+	assert.equal(fs.existsSync(path.join(dir, 'src', 'mine.php')), false);
+	assert.equal(revParse(dir, 'HEAD'), headOid);
+	assert.equal(res.changedCount, 0);
 });
 
 test('git:discard-to-base keeps a patch applied on trunk too (#669)', async (t) => {

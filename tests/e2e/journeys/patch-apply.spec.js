@@ -344,11 +344,52 @@ test( 'discarding your changes keeps the applied patch (#669)', async ( { sessio
 	await expect( group( page, 'Your changes' ) ).toHaveCount( 0 );
 	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toHaveCount( 0 );
 
+	// INVARIANT — with nothing of the contributor's left, the discard is off
+	// and says why, instead of resetting and re-applying to remove nothing.
+	await ui.reviewChangesButton( page ).click();
+	const again = review.getByRole( 'button', { name: 'Discard your changes', exact: true } );
+	await expect( again ).toBeDisabled( { timeout: 30_000 } );
+	await expect( again ).toHaveAccessibleDescription( 'There are no edits of yours to discard.' );
+	await ui.closeDialogButton( review ).click();
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+
 	// INVARIANT — and it still comes off cleanly.
 	await ui.revertPatchButton( page ).click();
 	await expect( ui.revertPatchButton( page ) ).toHaveCount( 0, { timeout: 60_000 } );
 	await expect( page.getByText( 'A patch is being applied or reverted.' ) ).toHaveCount( 0, { timeout: 60_000 } );
 	expect( read( site.dir, LOGIN ) ).toBe( `${ TRUNK_LOGIN }\n` );
+} );
+
+// The escape hatch is the other discard (#669): for a patch the app cannot
+// lift back out, "Discard this ticket to its base" has to take the patch too,
+// where "Discard your changes" would keep it.
+test( 'discarding a ticket to its base removes a patch too large to revert (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+
+	// Over the size the app keeps a copy of for an undo.
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: `${ PATCHED_LOGIN } ${ 'x'.repeat( 600 * 1024 ) }` },
+	] );
+	await applyPatchFile( session, patch );
+	const toBase = page.getByRole( 'button', { name: 'Discard this ticket to its base', exact: true } );
+	await expect( toBase ).toBeVisible( { timeout: 60_000 } );
+	write( site.dir, DOOMED, '<?php // my own work in progress\n' );
+
+	await toBase.click();
+
+	// INVARIANT — it asks the full-wipe question, not "Discard your changes?".
+	const question = ui.confirmDialog( page );
+	await expect( question ).toHaveAccessibleName( 'Discard all local changes?' );
+	await ui.confirmYesButton( page, 'Discard changes' ).click();
+
+	// INVARIANT — the patch is gone with the contributor's work, and so is its record.
+	await expect.poll( () => read( site.dir, LOGIN ), { timeout: 30_000 } ).toBe( `${ TRUNK_LOGIN }\n` );
+	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
+	await expect( toBase ).toHaveCount( 0, { timeout: 30_000 } );
+	const meta = session.readSettings().siteMeta[ site.dir ];
+	expect( meta.branches[ 'ticket/60001' ].appliedPatch ).toBeFalsy();
 } );
 
 test( 'a ticket with no patch lists only the contributor\'s own changes (#669)', async ( { session } ) => {

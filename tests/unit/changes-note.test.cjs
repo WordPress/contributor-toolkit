@@ -14,7 +14,9 @@ const {
 	discardBlocked,
 	discardDisabledReason,
 	discardQuestion,
-	discardYourChangesQuestion
+	discardYourChangesQuestion,
+	ownEditCount,
+	discardToast
 } = require('../../src/renderer/changes-note.cjs');
 const { WORK_ITEM_BRANCH_PREFIXES } = require('../../src/ticket-branches.js');
 
@@ -175,6 +177,39 @@ test('the question before discarding your changes leaves out a count it does not
 		discardYourChangesQuestion({ editedCount: null, appliedPatch: { label: '23602.diff', kept: true } }).description,
 		'The patch 23602.diff stays applied. This can’t be undone.'
 	);
+});
+
+// What "Your edits to N files" counts (#669): the files under "Your
+// changes", and the patch's or PR's own that were edited since. Unknown
+// while the list has not been walked.
+test('ownEditCount counts the contributor\'s files and the change\'s they edited', () => {
+	const groups = {
+		change: { label: 'From the patch', files: [{ path: 'a.php', alsoEdited: true }, { path: 'b.php', alsoEdited: false }] },
+		yours: [{ path: 'c.php', added: true }]
+	};
+	assert.equal(ownEditCount(groups, { entries: [] }), 2);
+	assert.equal(ownEditCount({ change: null, yours: [] }, { entries: [] }), 0);
+	assert.equal(ownEditCount(groups, null), null);
+});
+
+test('discardToast says only the contributor\'s changes went when the patch or PR stayed', () => {
+	assert.equal(discardToast({ ok: true, keptPatch: 'x.diff' }, {}), 'Your changes were discarded.');
+	assert.equal(discardToast({ ok: true }, { pullRequest: { number: 7 } }), 'Your changes were discarded.');
+	// The patch could not be put back: the red line says so, and "all" would
+	// read as if that was the plan.
+	assert.equal(discardToast({ ok: true, removedPatch: 'x.diff', patchLost: true }, {}), 'Your changes were discarded.');
+	assert.equal(discardToast({ ok: true, removedPatch: 'x.diff' }, {}), 'All changes discarded.');
+	assert.equal(discardToast({ ok: true }, {}), 'All changes discarded.');
+});
+
+// With the patch or PR staying and none of the contributor's work left, a
+// discard would reset and re-apply to remove nothing (#669).
+test('discardDisabledReason says when there is nothing of yours to discard', () => {
+	assert.equal(
+		discardDisabledReason({ patchHasChanges: true, nothingOfYours: true }),
+		'There are no edits of yours to discard.'
+	);
+	assert.equal(discardDisabledReason({ patchHasChanges: true, nothingOfYours: false }), null);
 });
 
 test('discardOutcome carries what happened to the applied patch (#669)', () => {
