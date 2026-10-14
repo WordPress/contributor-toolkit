@@ -33,7 +33,11 @@ function affectedFiles({ appliedPatch = null, pullRequest = null } = {}) {
  * @param {?Object} [root0.appliedPatch] From `site:status`.
  * @param {?Object} [root0.pullRequest]  From `site:status`.
  * @param {?Object} [root0.unsubmitted]  From `git:unsubmitted-work`: `{ entries, editedSinceChange }`.
- * @return {{change: ?{label: string, files: Array<{path: string, alsoEdited: boolean}>}, yours: Array<{path: string, added: boolean}>}}
+ *                                       Each file says whether its revert button is offered (#669): every file of
+ *                                       the contributor's, and the change's own files they edited, a patch's only
+ *                                       when its text was kept, since that is what the file goes back to.
+ *
+ * @return {{change: ?{label: string, files: Array<{path: string, alsoEdited: boolean, canRevert: boolean}>}, yours: Array<{path: string, added: boolean, canRevert: boolean}>}}
  */
 function changedFileGroups({ appliedPatch = null, pullRequest = null, unsubmitted = null } = {}) {
 	const changeFiles = affectedFiles({ appliedPatch, pullRequest });
@@ -45,13 +49,48 @@ function changedFileGroups({ appliedPatch = null, pullRequest = null, unsubmitte
 			// translators: %d: the number of a pull request on GitHub.
 			label = sprintf(__('From PR #%d'), pullRequest.number);
 		}
-		change = { label, files: changeFiles.map((path) => ({ path, alsoEdited: edited.has(path) })) };
+		const revertable = !Array.isArray(appliedPatch?.files) || Boolean(appliedPatch.kept);
+		change = { label, files: changeFiles.map((path) => ({ path, alsoEdited: edited.has(path), canRevert: revertable && edited.has(path) })) };
 	}
 	const theirs = new Set(changeFiles);
 	const yours = (unsubmitted?.entries || [])
 		.filter((entry) => !theirs.has(entry.path))
-		.map((entry) => ({ path: entry.path, added: Boolean(entry.added) }));
+		.map((entry) => ({ path: entry.path, added: Boolean(entry.added), canRevert: true }));
 	return { change, yours };
+}
+
+/**
+ * What a file's revert button asks first (#669): what the file goes back to,
+ * or, for a file the contributor created, that it goes.
+ *
+ * @param {{path: string, added?: boolean}} file
+ * @param {Object}                          [root1]
+ * @param {boolean}                         [root1.fromChange]  The file is the applied patch's or pull request's.
+ * @param {?Object}                         [root1.pullRequest] The checked-out pull request, `{ number }`.
+ * @return {{title: string, description: string, confirm: string}}
+ */
+function revertFileQuestion(file, { fromChange = false, pullRequest = null } = {}) {
+	if (file.added && !fromChange) {
+		return {
+			// translators: %s: the path of a file in the site.
+			title: sprintf(__('Delete %s?'), file.path),
+			description: `${__('You created this file.')} ${__('This can’t be undone.')}`,
+			confirm: __('Delete file')
+		};
+	}
+	let what = __('Your changes to it are removed.');
+	if (fromChange && pullRequest) {
+		// translators: %d: a pull request number.
+		what = sprintf(__('Your edits to it are removed, and it goes back to how PR #%d has it.'), pullRequest.number);
+	} else if (fromChange) {
+		what = __('Your edits to it are removed, and it goes back to how the patch left it.');
+	}
+	return {
+		// translators: %s: the path of a file in the site.
+		title: sprintf(__('Revert %s?'), file.path),
+		description: `${what} ${__('This can’t be undone.')}`,
+		confirm: __('Revert file')
+	};
 }
 
 /**
@@ -69,4 +108,4 @@ function fileOpenTarget({ editors = [] } = {}) {
 	return first ? { kind: 'editor', path: first.path } : { kind: 'reveal' };
 }
 
-module.exports = { affectedFiles, changedFileGroups, fileOpenTarget };
+module.exports = { affectedFiles, changedFileGroups, fileOpenTarget, revertFileQuestion };

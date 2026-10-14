@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { affectedFiles, changedFileGroups, fileOpenTarget } = require('../../src/renderer/affected-files.cjs');
+const { affectedFiles, changedFileGroups, fileOpenTarget, revertFileQuestion } = require('../../src/renderer/affected-files.cjs');
 
 const VSCODE = { id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' };
 const CURSOR = { id: 'cursor', name: 'Cursor', path: '/Applications/Cursor.app' };
@@ -53,15 +53,15 @@ const unsubmitted = (entries, editedSinceChange = []) => ({ entries, editedSince
 
 test('with a patch applied, its files are one group and everything else changed is the contributor\'s', () => {
 	const groups = changedFileGroups({
-		appliedPatch: { label: 'x.patch', files: ['src/a.php', 'src/b.php'] },
+		appliedPatch: { label: 'x.patch', files: ['src/a.php', 'src/b.php'], kept: true },
 		unsubmitted: unsubmitted(
 			[{ path: 'src/a.php', added: false }, { path: 'src/b.php', added: false }, { path: 'src/mine.php', added: true }, { path: 'src/edit.php', added: false }],
 			['src/b.php']
 		)
 	});
 	assert.deepEqual(groups, {
-		change: { label: 'From the patch', files: [{ path: 'src/a.php', alsoEdited: false }, { path: 'src/b.php', alsoEdited: true }] },
-		yours: [{ path: 'src/mine.php', added: true }, { path: 'src/edit.php', added: false }]
+		change: { label: 'From the patch', files: [{ path: 'src/a.php', alsoEdited: false, canRevert: false }, { path: 'src/b.php', alsoEdited: true, canRevert: true }] },
+		yours: [{ path: 'src/mine.php', added: true, canRevert: true }, { path: 'src/edit.php', added: false, canRevert: true }]
 	});
 });
 
@@ -70,20 +70,53 @@ test('with a pull request checked out, its group is named after it', () => {
 		pullRequest: { number: 7, files: ['src/a.php'] },
 		unsubmitted: unsubmitted([{ path: 'src/a.php', added: false }], ['src/a.php'])
 	});
-	assert.deepEqual(groups.change, { label: 'From PR #7', files: [{ path: 'src/a.php', alsoEdited: true }] });
+	assert.deepEqual(groups.change, { label: 'From PR #7', files: [{ path: 'src/a.php', alsoEdited: true, canRevert: true }] });
 	assert.deepEqual(groups.yours, []);
 });
 
 // A fresh ticket: no change applied, so the contributor's group alone.
 test('with nothing applied, there is only the contributor\'s group', () => {
 	const groups = changedFileGroups({ unsubmitted: unsubmitted([{ path: 'src/mine.php', added: true }]) });
-	assert.deepEqual(groups, { change: null, yours: [{ path: 'src/mine.php', added: true }] });
+	assert.deepEqual(groups, { change: null, yours: [{ path: 'src/mine.php', added: true, canRevert: true }] });
 });
 
 // Before the first answer about the tree arrives, the change's group still
 // shows; nothing is guessed about the rest.
 test('with no answer about the tree yet, the change is listed and nothing else', () => {
 	const groups = changedFileGroups({ appliedPatch: { label: 'x.patch', files: ['src/a.php'] }, unsubmitted: null });
-	assert.deepEqual(groups, { change: { label: 'From the patch', files: [{ path: 'src/a.php', alsoEdited: false }] }, yours: [] });
+	assert.deepEqual(groups, { change: { label: 'From the patch', files: [{ path: 'src/a.php', alsoEdited: false, canRevert: false }] }, yours: [] });
 	assert.deepEqual(changedFileGroups({}), { change: null, yours: [] });
+});
+
+// A patch file the contributor edited goes back to the patch's version, which
+// needs the patch's text (#669); without it there is nothing to go back to.
+test('an edited patch file cannot be reverted when the patch\'s text was not kept', () => {
+	const groups = changedFileGroups({
+		appliedPatch: { label: 'big.patch', files: ['src/a.php'], kept: false },
+		unsubmitted: unsubmitted([{ path: 'src/a.php', added: false }], ['src/a.php'])
+	});
+	assert.deepEqual(groups.change.files, [{ path: 'src/a.php', alsoEdited: true, canRevert: false }]);
+});
+
+// What the revert button asks first (#669): what the file goes back to, or
+// that it goes, for one the contributor created.
+test('the question before reverting a file says what it goes back to', () => {
+	assert.deepEqual(revertFileQuestion({ path: 'src/a.php', added: false }), {
+		title: 'Revert src/a.php?',
+		description: 'Your changes to it are removed. This can’t be undone.',
+		confirm: 'Revert file'
+	});
+	assert.deepEqual(revertFileQuestion({ path: 'src/new.php', added: true }), {
+		title: 'Delete src/new.php?',
+		description: 'You created this file. This can’t be undone.',
+		confirm: 'Delete file'
+	});
+	assert.equal(
+		revertFileQuestion({ path: 'src/a.php', alsoEdited: true }, { fromChange: true }).description,
+		'Your edits to it are removed, and it goes back to how the patch left it. This can’t be undone.'
+	);
+	assert.equal(
+		revertFileQuestion({ path: 'src/a.php', alsoEdited: true }, { fromChange: true, pullRequest: { number: 7 } }).description,
+		'Your edits to it are removed, and it goes back to how PR #7 has it. This can’t be undone.'
+	);
 });

@@ -264,6 +264,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	discardToBase: (sitePath, options) => ipcRenderer.invoke('git:discard-to-base', sitePath, options)
 ,
+	revertFile: (sitePath, relPath) => ipcRenderer.invoke('git:revert-file', sitePath, relPath)
+,
 	markUpdateComplete: (sitePath) => ipcRenderer.invoke('sites:mark-update-complete', sitePath)
 ,
 	choosePatchFile: () => ipcRenderer.invoke('dialog:choose-patch-file')

@@ -203,15 +203,27 @@ test( 'each file a checked-out pull request changed opens in the editor from the
 	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
 	await page.evaluate( () => window.dispatchEvent( new Event( 'focus' ) ) );
 	const details = page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } );
-	await expect( file.locator( '..' ).getByText( 'also edited', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( file.locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	const mine = details.getByRole( 'button', { name: 'src/new-helper.php', exact: true } );
-	await expect( mine.locator( '..' ).getByText( 'new', { exact: true } ) ).toBeVisible();
+	await expect( mine.locator( '..' ).getByRole( 'img', { name: 'You created this file', exact: true } ) ).toBeVisible();
 	expect( await ui.inDocumentOrder( page, [
 		details.getByRole( 'heading', { level: 3, name: `From PR #${ PR }`, exact: true } ),
 		file,
 		details.getByRole( 'heading', { level: 3, name: 'Your changes', exact: true } ),
 		mine,
 	] ) ).toBe( true );
+
+	// INVARIANT — the edited file's revert button puts it back as the pull
+	// request has it, after asking, and the mark goes with the edit (#669).
+	await details.getByRole( 'button', { name: 'Revert src/wp-login.php', exact: true } ).click();
+	const question = ui.confirmDialog( page );
+	await expect( question ).toHaveAccessibleName( 'Revert src/wp-login.php?' );
+	await expect( question.getByText( `Your edits to it are removed, and it goes back to how PR #${ PR } has it. This can’t be undone.`, { exact: true } ) ).toBeVisible();
+	await ui.confirmYesButton( page, 'Revert file' ).click();
+	await expect.poll( () => read( site.dir, LOGIN ), { timeout: 30_000 } ).toBe( PR_CONTENT );
+	await expect( file.locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toHaveCount( 0, { timeout: 30_000 } );
+	await expect( details.getByRole( 'button', { name: 'Revert src/wp-login.php', exact: true } ) ).toHaveCount( 0 );
+	await expect( mine ).toBeVisible();
 
 	// INVARIANT — and the list goes when the contributor leaves the pull
 	// request, from details that can be read rather than behind a dialog.
