@@ -2068,13 +2068,19 @@ ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
 //
 // `entries` and `editedSinceChange` are for "Changed files" (#669): which of
 // the files are new, and which of the applied change's own the contributor
-// has changed since.
+// has changed since. `renamedByChange` names the paths the applied patch
+// renames, which have no revert button of their own.
 ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
     try {
         const entries = await collectUnsubmittedEntries(sitePath);
         const files = entries.map((entry) => entry.path);
         const editedSince = await editedSinceAppliedChange(sitePath, files);
-        return { ok: true, dirty: files.length > 0, changedCount: files.length, files, entries, editedSinceChange: editedSince };
+        let renamed = [];
+        try {
+            const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+            renamed = renamedByPatch((await readWorkMeta(sitePath)).appliedPatch, layout);
+        } catch {}
+        return { ok: true, dirty: files.length > 0, changedCount: files.length, files, entries, editedSinceChange: editedSince, renamedByChange: renamed };
     } catch (e) {
         return { ok: false, error: String(e) };
     }
@@ -2152,27 +2158,48 @@ ipcMain.handle('git:discard-to-base', async (_e, sitePath, options = {}) => {
     }
 });
 
+// Both ends of every rename in the applied patch (#669). A renamed file is
+// one change spread over two paths, and neither end can be put back alone:
+// the rename's section needs the old path present and the new one absent,
+// and putting back the old one alone half-undoes the rename and leaves a
+// patch that cannot be reverted either way. They go back with the whole
+// patch, through "Discard your changes". None when no text was kept, since
+// nothing is put back from it then.
+function renamedByPatch(appliedPatch, layout) {
+    if (!appliedPatch || !appliedPatch.text) return [];
+    const parsed = parsePatchFiles(appliedPatch.text, { layout });
+    if (!parsed.ok) return [];
+    return parsed.files.filter((file) => file.kind === 'rename').flatMap((file) => [file.oldPath, file.newPath]);
+}
+
 // One file of "Discard your changes" (#669), from the list's revert button:
 // the file ends as that discard would leave it. A file of the contributor's
 // goes back to the base, or goes if they created it; an applied patch's file
 // goes back to the base and has its own part of the patch put back; a pull
-// request's file is the base already. Only a file the contributor changed: one
-// the list does not name is refused, which is also what keeps the path inside
-// the site, and so is a patch file they have not edited, since reverting it
-// would take the patch out of it. The file is snapshotted first, so a part of
-// the patch that will not go back on leaves it as it was.
+// request's file is the base already.
+//
+// Only a file the contributor changed. A patch's file is the contributor's
+// when they edited it since (the answer the list marks it by); any other file
+// when the walk names it. A path that is neither is refused, which is also
+// what keeps it inside the site: both lists hold only paths Git reported.
+// An untouched patch file is refused, since reverting it would take the patch
+// out of it, and so is either end of a rename (see `renamedByPatch`).
+//
+// The file is snapshotted first, so a part of the patch that will not go back
+// on leaves it as it was.
 ipcMain.handle('git:revert-file', async (_e, sitePath, relPath) => {
     try {
         const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
         if (blocked) return blocked;
         const entries = await collectUnsubmittedEntries(sitePath);
         const entry = entries.find((candidate) => candidate.path === relPath);
-        if (!entry) {
-            // translators: %s: the path of a file in the site.
-            return { ok: false, code: 'unchanged', error: sprintf(__('%s has no changes to revert.'), String(relPath)) };
-        }
         const applied = (await readWorkMeta(sitePath)).appliedPatch || null;
+        const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
         const fromPatch = Boolean(applied && Array.isArray(applied.files) && applied.files.includes(relPath));
+        if (renamedByPatch(applied, layout).includes(relPath)) {
+            // translators: %s: the path of a file in the site.
+            return { ok: false, code: 'renamed', error: sprintf(__('The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.'), relPath) };
+        }
         if (fromPatch) {
             const edited = await editedSinceAppliedChange(sitePath, entries.map((candidate) => candidate.path));
             if (!edited.includes(relPath)) {
@@ -2183,32 +2210,49 @@ ipcMain.handle('git:revert-file', async (_e, sitePath, relPath) => {
                 // translators: %s: the path of a file in the site.
                 return { ok: false, code: 'no-patch-text', error: sprintf(__('The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.'), relPath) };
             }
+        } else if (!entry) {
+            // translators: %s: the path of a file in the site.
+            return { ok: false, code: 'unchanged', error: sprintf(__('%s has no changes to revert.'), String(relPath)) };
         }
         const baseOid = await patchBaseOid(sitePath) || await resolveRef(sitePath, 'HEAD');
+        // A patch's file may not be in the walk at all (deleted since, or
+        // edited back to the base), so whether the base has it is asked.
+        const added = entry ? entry.added : (await treeEntryMode(sitePath, baseOid, relPath)) === null;
         const snapshot = snapshotFiles(sitePath, [relPath]);
         try {
-            await discardFile(sitePath, baseOid, relPath, { added: entry.added });
+            await discardFile(sitePath, baseOid, relPath, { added });
             if (fromPatch) {
-                const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
                 const reapplied = await applyPatchToDir({ dir: sitePath, patchText: applied.text, layout, paths: [relPath] });
                 if (!reapplied.ok) throw new Error(reapplied.error || 'the patch did not apply');
             }
         } catch (e) {
+            const why = String(e && e.message || e);
             const undone = rollback(sitePath, snapshot);
-            logError('git:revert-file', `${relPath}: ${String(e && e.message || e)}${undone.length ? `; could not put back: ${undone.join('; ')}` : ''}`);
+            if (undone.length) {
+                logError('git:revert-file', `${relPath}: ${why}; could not put back: ${undone.join('; ')}`);
+                // translators: 1: the path of a file in the site. 2: why it could not be reverted. 3: why it could not be put back as it was.
+                return { ok: false, code: 'failed', error: sprintf(__('Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s'), relPath, why, undone.join('; ')) };
+            }
+            logError('git:revert-file', `${relPath}: ${why}`);
             // translators: 1: the path of a file in the site. 2: why it could not be reverted.
-            return { ok: false, code: 'failed', error: sprintf(__('Could not revert %1$s: %2$s'), relPath, String(e && e.message || e)) };
+            return { ok: false, code: 'failed', error: sprintf(__('Could not revert %1$s, so it was left as it was: %2$s'), relPath, why) };
         }
         if (fromPatch) {
             // Its part of the patch is back, so it is the patch's again. Read
             // before the store is, and written only over the same record (#172).
-            const { ref } = await activeBranch(sitePath);
-            const [now] = Object.values(await fingerprintsNow(sitePath, [relPath]));
-            await changeWorkMetaOn(sitePath, ref, (work) => (
-                work.appliedPatch && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
-                    ? { appliedPatch: { ...work.appliedPatch, fingerprints: { ...(work.appliedPatch.fingerprints || {}), [relPath]: now } } }
-                    : null
-            ));
+            // The file is reverted whatever happens here: a record that could
+            // not be written only means the list may still mark it.
+            try {
+                const { ref } = await activeBranch(sitePath);
+                const [now] = Object.values(await fingerprintsNow(sitePath, [relPath]));
+                await changeWorkMetaOn(sitePath, ref, (work) => (
+                    work.appliedPatch && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
+                        ? { appliedPatch: { ...work.appliedPatch, fingerprints: { ...(work.appliedPatch.fingerprints || {}), [relPath]: now } } }
+                        : null
+                ));
+            } catch (e) {
+                logError('git:revert-file', `${relPath} reverted, but its fingerprint was not recorded: ${String(e && e.message || e)}`);
+            }
         }
         let files = null;
         try { files = await collectUnsubmittedFiles(sitePath); } catch {}
