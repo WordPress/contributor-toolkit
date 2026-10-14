@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { __, sprintf } from '@wordpress/i18n';
 import { file as fileIcon, globe, offline, pencil, plus, seen, table, undo, unseen, wordpress } from '@wordpress/icons';
 import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, Tooltip, VisuallyHidden } from '@wordpress/ui';
@@ -115,15 +115,48 @@ function WatchSection({ watch }) {
   );
 }
 
+// A file's revert button (#669). Held by the same guard as the discard, so
+// it says why when it is held, as the discard link does (#409): the reason is
+// its tooltip and, hidden, its description. The tooltip is always rendered,
+// naming the button when nothing holds it, so the button is never remounted
+// as the guard flips; see ReasonedUiButton.
+function RevertButton({ path, reason, onClick }) {
+  const reasonId = useId();
+  // translators: %s: the path of a file in the site.
+  const label = sprintf(__('Revert %s'), path);
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger
+        render={
+          <Button
+            variant="minimal"
+            tone="neutral"
+            size="small"
+            className="affected-file-revert"
+            aria-label={label}
+            aria-describedby={reason ? reasonId : undefined}
+            disabled={Boolean(reason)}
+            onClick={onClick}
+          />
+        }
+      >
+        <Icon icon={undo} size={16} />
+      </Tooltip.Trigger>
+      <Tooltip.Popup>{reason || label}</Tooltip.Popup>
+      <span id={reasonId} hidden>{reason || ''}</span>
+    </Tooltip.Root>
+  );
+}
+
 // One changed file: a file's icon, the path, a mark after it, and its revert
 // button. The path is drawn as a link and built as a button, like the
 // terminal's command links: a click opens an application rather than going
 // anywhere. The brand colour and an underline, which a button does not get
 // from the browser the way a link does: without them the paths read as plain
 // text. The mark is an icon (#669), named for a screen reader and explained
-// in a tooltip for the eye; it is outside the button, so the button's name
-// stays the path.
-function ChangedFile({ path, mark, onOpenFile, onRevert, revertDisabled }) {
+// in a tooltip, which a keyboard reaches too; it is outside the button, so
+// the button's name stays the path.
+function ChangedFile({ path, mark, onOpenFile, onRevert, revertReason }) {
   return (
     <Stack direction="row" align="start" gap="xs">
       <Icon icon={fileIcon} size={16} className="affected-file-icon" />
@@ -132,25 +165,13 @@ function ChangedFile({ path, mark, onOpenFile, onRevert, revertDisabled }) {
       </Link>
       {mark ? (
         <Tooltip.Root>
-          <Tooltip.Trigger render={<span role="img" aria-label={mark.label} className="affected-file-mark" />}>
+          <Tooltip.Trigger render={<span role="img" aria-label={mark.label} tabIndex={0} className="affected-file-mark" />}>
             <Icon icon={mark.icon} size={16} />
           </Tooltip.Trigger>
           <Tooltip.Popup>{mark.label}</Tooltip.Popup>
         </Tooltip.Root>
       ) : null}
-      {onRevert ? (
-        <IconButton
-          icon={undo}
-          // translators: %s: the path of a file in the site.
-          label={sprintf(__('Revert %s'), path)}
-          variant="minimal"
-          tone="neutral"
-          size="small"
-          className="affected-file-revert"
-          disabled={revertDisabled}
-          onClick={onRevert}
-        />
-      ) : null}
+      {onRevert ? <RevertButton path={path} reason={revertReason} onClick={onRevert} /> : null}
     </Stack>
   );
 }
@@ -160,7 +181,7 @@ function ChangedFile({ path, mark, onOpenFile, onRevert, revertDisabled }) {
 // the groups' names, and which can be reverted are changedFileGroups' in
 // affected-files.cjs.
 function ChangedFilesSection({ changed }) {
-  const { change, yours, onOpenFile, onRevertFile, revertDisabled, revertError } = changed;
+  const { change, yours, onOpenFile, onRevertFile, revertReason, revertError } = changed;
   const edited = { icon: pencil, label: __('You edited this file') };
   const created = { icon: plus, label: __('You created this file') };
   return (
@@ -176,7 +197,7 @@ function ChangedFilesSection({ changed }) {
               mark={file.alsoEdited ? edited : null}
               onOpenFile={onOpenFile}
               onRevert={file.canRevert && onRevertFile ? () => onRevertFile(file, { fromChange: true }) : null}
-              revertDisabled={revertDisabled}
+              revertReason={revertReason}
             />
           ))}
         </Stack>
@@ -191,7 +212,7 @@ function ChangedFilesSection({ changed }) {
               mark={file.added ? created : null}
               onOpenFile={onOpenFile}
               onRevert={file.canRevert && onRevertFile ? () => onRevertFile(file, { fromChange: false }) : null}
-              revertDisabled={revertDisabled}
+              revertReason={revertReason}
             />
           ))}
         </Stack>
@@ -249,7 +270,7 @@ function useStickyWhileItFits(active) {
  * @param {Function} props.onCopyPath
  * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
- * @param {Object}   [props.changed]  The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertDisabled, revertError }`. No files, no section.
+ * @param {Object}   [props.changed]  The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertReason, revertError }`. No files, no section.
  */
 export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, changed = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);

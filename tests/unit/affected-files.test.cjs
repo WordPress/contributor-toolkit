@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { affectedFiles, changedFileGroups, fileOpenTarget, revertFileQuestion } = require('../../src/renderer/affected-files.cjs');
+const { affectedFiles, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome } = require('../../src/renderer/affected-files.cjs');
 
 const VSCODE = { id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' };
 const CURSOR = { id: 'cursor', name: 'Cursor', path: '/Applications/Cursor.app' };
@@ -104,12 +104,14 @@ test('the question before reverting a file says what it goes back to', () => {
 	assert.deepEqual(revertFileQuestion({ path: 'src/a.php', added: false }), {
 		title: 'Revert src/a.php?',
 		description: 'Your changes to it are removed. This can’t be undone.',
-		confirm: 'Revert file'
+		confirm: 'Revert file',
+		done: 'src/a.php reverted.'
 	});
 	assert.deepEqual(revertFileQuestion({ path: 'src/new.php', added: true }), {
 		title: 'Delete src/new.php?',
 		description: 'You created this file. This can’t be undone.',
-		confirm: 'Delete file'
+		confirm: 'Delete file',
+		done: 'src/new.php deleted.'
 	});
 	assert.equal(
 		revertFileQuestion({ path: 'src/a.php', alsoEdited: true }, { fromChange: true }).description,
@@ -119,4 +121,22 @@ test('the question before reverting a file says what it goes back to', () => {
 		revertFileQuestion({ path: 'src/a.php', alsoEdited: true }, { fromChange: true, pullRequest: { number: 7 } }).description,
 		'Your edits to it are removed, and it goes back to how PR #7 has it. This can’t be undone.'
 	);
+});
+
+// Either end of a file the patch renames goes back only with the whole patch
+// (#669), so neither has a button, whichever group it lands in.
+test('neither end of a renamed file can be reverted on its own', () => {
+	const groups = changedFileGroups({
+		appliedPatch: { label: 'x.patch', files: ['src/b.php'], kept: true },
+		unsubmitted: { entries: [{ path: 'src/a.php', added: false }, { path: 'src/b.php', added: true }], editedSinceChange: ['src/b.php'], renamedByChange: ['src/a.php', 'src/b.php'] }
+	});
+	assert.deepEqual(groups.change.files, [{ path: 'src/b.php', alsoEdited: true, canRevert: false }]);
+	assert.deepEqual(groups.yours, [{ path: 'src/a.php', added: false, canRevert: false }]);
+});
+
+test('revertOutcome carries the recount, and the handler\'s own sentence on failure', () => {
+	assert.deepEqual(revertOutcome({ ok: true, dirty: true, changedCount: 1 }), { ok: true, dirty: true, changedCount: 1 });
+	assert.deepEqual(revertOutcome({ ok: true }), { ok: true });
+	assert.deepEqual(revertOutcome({ ok: false, code: 'failed', error: 'Could not revert src/a.php, so it was left as it was: x' }), { ok: false, message: 'Could not revert src/a.php, so it was left as it was: x' });
+	assert.deepEqual(revertOutcome(null), { ok: false, message: 'Could not revert the file: Unknown error' });
 });
