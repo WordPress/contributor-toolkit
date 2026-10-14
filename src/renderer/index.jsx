@@ -47,7 +47,7 @@ import { mergeInProgressNotice } from './merge-in-progress.cjs';
 import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
-import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion, discardYourChangesQuestion } from './changes-note.cjs';
+import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion, discardYourChangesQuestion, ownEditCount, discardToast } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
@@ -1526,6 +1526,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
+  // What "Discard your changes" would take (#669), and whether that is
+  // nothing: a patch or PR that stays, with no work of the contributor's on it.
+  const changedGroups = changedFileGroups({ appliedPatch, pullRequest, unsubmitted });
+  const editedByYou = ownEditCount(changedGroups, unsubmitted);
+  const nothingOfYours = editedByYou === 0 && Boolean(appliedPatch?.kept || pullRequest);
   const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket, pullRequest, workItemNoun: workItem.noun });
   const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
   const legacyNotice = legacySiteNotice({ legacy });
@@ -1746,9 +1751,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // nothing the contributor can press starts what discardBlocked names while
   // it is up.
   const discardYourChanges = () => {
-    const { change, yours } = changedFileGroups({ appliedPatch, pullRequest, unsubmitted });
-    const editedCount = unsubmitted ? yours.length + (change ? change.files.filter((file) => file.alsoEdited).length : 0) : null;
-    runDiscard(discardYourChangesQuestion({ editedCount, appliedPatch, pullRequest }), { keepChange: true });
+    runDiscard(discardYourChangesQuestion({ editedCount: editedByYou, appliedPatch, pullRequest }), { keepChange: true });
   };
   const discardTicketToBase = () => runDiscard(discardQuestion(), {});
   const runDiscard = (question, options) => askFirst(question, async () => {
@@ -1774,7 +1777,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       setApplyConflict(feedback.applyConflict);
       setApplyNotice(feedback.applyNotice);
       writeToTerminal(`\n${__('Discarded local changes.')}\n`);
-      confirm(outcome.keptPatch || pullRequest ? __('Your changes were discarded.') : __('All changes discarded.'));
+      confirm(discardToast(outcome, { pullRequest }));
       if (isPatchOpen) await loadPatchText();
     } finally {
       setDiscarding(false);
@@ -1793,6 +1796,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               onClick={discardYourChanges}
               reason={discardDisabledReason({
                 patchHasChanges: true,
+                nothingOfYours,
                 isUpdating,
                 installing,
                 building,
@@ -1842,6 +1846,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     patchLoading,
     patchLoadFailed,
     patchHasChanges,
+    nothingOfYours,
     isUpdating,
     installing,
     building,
@@ -2420,7 +2425,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
-        changed={{ ...changedFileGroups({ appliedPatch, pullRequest, unsubmitted }), onOpenFile: openAffectedFile }}
+        changed={{ ...changedGroups, onOpenFile: openAffectedFile }}
       />
       </div>
       {dirtyModalOpen ? (

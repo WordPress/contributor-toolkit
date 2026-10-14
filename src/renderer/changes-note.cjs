@@ -209,6 +209,36 @@ function unassignedChangesSentence({ count, issue }) {
 }
 
 /**
+ * How many files "Discard your changes" takes (#669): those under "Your
+ * changes", and the applied patch's or pull request's own the contributor
+ * edited since. Null while the list has not been walked.
+ *
+ * @param {{change: ?Object, yours: Array}} groups      From `changedFileGroups`.
+ * @param {?Object}                         unsubmitted The `git:unsubmitted-work` reply the groups were made from.
+ * @return {?number}
+ */
+function ownEditCount({ change, yours }, unsubmitted) {
+	if (!unsubmitted) return null;
+	return yours.length + (change ? change.files.filter((file) => file.alsoEdited).length : 0);
+}
+
+/**
+ * What the toast says after a discard. "All" only when everything went as
+ * asked: not when the patch or PR stayed, and not when a patch the
+ * contributor asked to keep could not be put back, which the apply line
+ * reports on its own.
+ *
+ * @param {Object}  outcome             A successful `discardOutcome`.
+ * @param {Object}  root1
+ * @param {?Object} [root1.pullRequest] The checked-out pull request.
+ * @return {string}
+ */
+function discardToast(outcome, { pullRequest = null } = {}) {
+	if (outcome.keptPatch || outcome.patchLost || pullRequest) return __('Your changes were discarded.');
+	return __('All changes discarded.');
+}
+
+/**
  * A `git:discard-changes` reply turned into something the card can render.
  * Failure always carries a message — a discard that silently did nothing
  * would leave the contributor believing their tree is clean.
@@ -326,16 +356,20 @@ function discardBlocked({ isUpdating, installing, building, devServerActive, dis
  * action already underway first, then the transient patch state, and finally
  * the process the contributor can stop or wait for.
  *
+ * `nothingOfYours` is a kept patch or pull request with none of the
+ * contributor's work on top (#669): the discard would remove nothing.
+ *
  * @param {{patchLoading?: boolean, patchLoadFailed?: boolean, patchHasChanges?: boolean,
- *          isUpdating?: boolean, installing?: boolean, building?: boolean,
+ *          nothingOfYours?: boolean, isUpdating?: boolean, installing?: boolean, building?: boolean,
  *          devServerActive?: boolean, discarding?: boolean}} state
  * @return {string|null}
  */
-function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges, isUpdating, installing, building, devServerActive, discarding } = {}) {
+function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges, nothingOfYours, isUpdating, installing, building, devServerActive, discarding } = {}) {
 	if (discarding) return __('Changes are already being discarded.');
 	if (patchLoading) return __('Wait for your changes to finish loading.');
 	if (patchLoadFailed) return __('Changes could not be loaded.');
 	if (!patchHasChanges) return __('There are no changes to discard.');
+	if (nothingOfYours) return __('There are no edits of yours to discard.');
 	if (isUpdating) return __('Wait for the trunk update to finish before discarding changes.');
 	if (installing) return __('Wait for the installation to finish before discarding changes.');
 	if (building) return __('Wait for the build to finish before discarding changes.');
@@ -368,4 +402,4 @@ function patchReviewContext({ pullRequest, tracTicket, workItemNoun = 'ticket' }
 	};
 }
 
-module.exports = { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion, discardYourChangesQuestion };
+module.exports = { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion, discardYourChangesQuestion, ownEditCount, discardToast };
