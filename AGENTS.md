@@ -92,7 +92,7 @@ See `package.json` scripts. To run a single test file (not exposed as a script):
 
 Do not run Electron or E2E tests from a worktree without its own `node_modules`. Install dependencies in that worktree first, and do not rely on `NODE_PATH` from another worktree for Electron tests.
 
-Run the E2E journeys locally with `TOOLKIT_HIDE_WINDOWS=1` set, so the app does not take the screen and the focus from the person at the machine. [TESTING.md](TESTING.md) says what a hidden run cannot see.
+Run the E2E journeys locally with `npm run test:e2e:hidden`, which sets `TOOLKIT_HIDE_WINDOWS=1` on every platform, so the app does not take the screen and the focus from the person at the machine. [TESTING.md](TESTING.md) says what a hidden run cannot see.
 
 Prefer the simplest fix for reproducible user-facing failures. Do not add defensive state or branches for hypothetical edge cases unless a test demonstrates a realistic path.
 
