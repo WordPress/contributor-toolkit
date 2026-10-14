@@ -36,8 +36,10 @@ function until(check, ms) {
 test('a runner whose orphan holds the pipes exits without closing, and closes once the pipes are destroyed', { ...posixOnly, timeout: 30000 }, async (t) => {
 	// runner (sh) -> orphan (node) that inherits stdout and keeps it open past
 	// the runner's own exit 3, the way wp-build outlives npm (#498). `& exit`
-	// backgrounds it so the shell itself ends at once.
-	const runner = spawn('sh', ['-c', `"$0" -e "$1" & exit 3`, process.execPath, 'console.log(process.pid); setInterval(() => {}, 1000);'], {
+	// backgrounds it so the shell itself ends at once. The pid goes out as a
+	// string: console.log colours a number when the test runner sets
+	// FORCE_COLOR for a terminal, and Number() cannot read it back.
+	const runner = spawn('sh', ['-c', `"$0" -e "$1" & exit 3`, process.execPath, 'process.stdout.write(process.pid + "\\n"); setInterval(() => {}, 1000);'], {
 		detached: true,
 		stdio: ['pipe', 'pipe', 'pipe']
 	});
