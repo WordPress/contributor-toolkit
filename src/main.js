@@ -2092,22 +2092,45 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
 // reset is not a safe stand-in for it: it looks like a discard, leaves the
 // parked WIP commit untouched, and the modal would come back still listing the
 // work it just promised to throw away.
-ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
+//
+// `keepChange` is "Discard your changes" (#669): only the contributor's own
+// work goes. A pull request is its branch's base, so the rewind already keeps
+// it. An applied patch is put back from its stored text, which applies cleanly
+// because the base is the one it was applied to (a move onto trunk drops the
+// text). Without the text the patch goes too, as the question warned. Without
+// `keepChange` it is "Discard this ticket to its base", which removes the patch
+// as well: that is what it is for.
+ipcMain.handle('git:discard-to-base', async (_e, sitePath, options = {}) => {
     try {
         const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
         if (blocked) return blocked;
+        const applied = (await readWorkMeta(sitePath)).appliedPatch || null;
         const baseOid = await patchBaseOid(sitePath);
         if (baseOid) {
             await discardToBase(sitePath, baseOid, { onChild: trackGitChild(sitePath) });
         } else {
             await discardChanges(sitePath, { onChild: trackGitChild(sitePath) });
         }
-        await writeWorkMeta(sitePath, { appliedPatch: null });
+        let kept = false;
+        let patchLost = false;
+        if (options && options.keepChange && applied && applied.text) {
+            const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+            const reapplied = await applyPatchToDir({ dir: sitePath, patchText: applied.text, reverse: false, onLog: () => {}, layout });
+            kept = reapplied.ok;
+            if (!kept) {
+                patchLost = true;
+                logError('git:discard-to-base', `could not put ${applied.label} back: ${reapplied.error || 'unknown error'}`);
+            }
+        }
+        if (!kept) await writeWorkMeta(sitePath, { appliedPatch: null });
+        let patch = {};
+        if (kept) patch = { keptPatch: applied.label };
+        else if (applied) patch = patchLost ? { removedPatch: applied.label, patchLost } : { removedPatch: applied.label };
         let files = null;
         try { files = await collectUnsubmittedFiles(sitePath); } catch {}
         return files
-            ? { ok: true, dirty: files.length > 0, changedCount: files.length }
-            : { ok: true };
+            ? { ok: true, dirty: files.length > 0, changedCount: files.length, ...patch }
+            : { ok: true, ...patch };
     } catch (e) {
         return { ok: false, error: String(e) };
     }

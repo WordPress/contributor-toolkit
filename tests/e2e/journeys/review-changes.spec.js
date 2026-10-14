@@ -143,9 +143,9 @@ test( 'the review pane shows the tree\'s diff, saves it to the file chosen, says
 
 	// INVARIANT — discarding asks first, in the app's own dialog over this
 	// one, and touches nothing while it asks.
-	await dialog.getByRole( 'button', { name: 'Discard all changes', exact: true } ).click();
+	await dialog.getByRole( 'button', { name: 'Discard your changes', exact: true } ).click();
 	const question = ui.confirmDialog( page );
-	await expect( question ).toHaveAccessibleName( 'Discard all local changes?' );
+	await expect( question ).toHaveAccessibleName( 'Discard your changes?' );
 	expect( read( site.dir, LOGIN ) ).toBe( MY_EDIT );
 
 	// INVARIANT — the answer that says so puts the file back, and the pane
@@ -160,7 +160,7 @@ test( 'the review pane shows the tree\'s diff, saves it to the file chosen, says
 
 	// INVARIANT — with nothing to discard, the control is off and says why,
 	// instead of offering to do it again.
-	const discard = dialog.getByRole( 'button', { name: 'Discard all changes', exact: true } );
+	const discard = dialog.getByRole( 'button', { name: 'Discard your changes', exact: true } );
 	await expect( discard ).toBeDisabled();
 	await expect( discard ).toHaveAccessibleDescription( discardDisabledReason( { patchHasChanges: false } ) );
 } );

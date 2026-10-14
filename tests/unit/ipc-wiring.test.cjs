@@ -1149,6 +1149,125 @@ test('git:discard-to-base rewinds the branch to its base, parked work included (
 	assert.equal(res.changedCount, 0);
 });
 
+// "Discard your changes" keeps the applied patch (#669): the ticket goes back
+// to its base and the patch is put back from its stored text, so the
+// contributor's edits go and the patch's own stay. A ticket with a patch on
+// it, as the apply leaves it: the patch's change uncommitted, its record on
+// the branch.
+const KEPT_PATCH = [
+	'diff --git a/src/a.php b/src/a.php',
+	'--- a/src/a.php',
+	'+++ b/src/a.php',
+	'@@ -1 +1,2 @@',
+	' <?php // base',
+	'+// the patch',
+	''
+].join('\n');
+
+function patchedTicket(t, { text = KEPT_PATCH } = {}) {
+	const dir = adoptedRepo(t, 'ipc-wiring-discard-keep-');
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
+	const baseOid = commitFiles(dir, ['src/a.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'ticket/62281', 'trunk'], dir);
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n// the patch\n');
+	const appliedPatch = { label: 'x.diff', files: ['src/a.php'], text };
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid, appliedPatch } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	const recorded = () => settings.values.siteMeta[dir].branches['ticket/62281'].appliedPatch;
+	return { dir, baseOid, main, recorded };
+}
+
+// Edits on top of the patch's file and a new file of the contributor's own.
+function editOnTop(dir) {
+	fs.appendFileSync(path.join(dir, 'src', 'a.php'), '// mine\n');
+	fs.writeFileSync(path.join(dir, 'src', 'mine.php'), '<?php // mine\n');
+}
+
+test('git:discard-to-base keeping the change puts the patch back without the contributor\'s edits (#669)', async (t) => {
+	const { dir, main, recorded } = patchedTicket(t);
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(res.keptPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n// the patch\n', 'the patch\'s file is as the patch left it');
+	assert.equal(fs.existsSync(path.join(dir, 'src', 'mine.php')), false, 'the contributor\'s new file is gone');
+	assert.equal(recorded().text, KEPT_PATCH, 'the record stays, so Revert this patch still works');
+	assert.equal(res.changedCount, 1, 'the patch\'s file is still a change on the branch');
+});
+
+// A patch too large to keep, or one whose text a move onto trunk dropped,
+// cannot be put back: it goes with the edits, as the dialog said it would.
+test('git:discard-to-base keeping the change removes a patch it has no text for (#669)', async (t) => {
+	const { dir, main, recorded } = patchedTicket(t, { text: null });
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(res.keptPatch, undefined);
+	assert.equal(res.removedPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n');
+	assert.equal(recorded(), null);
+});
+
+// The escape hatch, "Discard this ticket to its base", asks for no such thing:
+// the patch is what it exists to remove.
+test('git:discard-to-base without keeping the change removes the patch too (#669)', async (t) => {
+	const { dir, main, recorded } = patchedTicket(t);
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir);
+
+	assert.equal(res.ok, true);
+	assert.equal(res.keptPatch, undefined);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n');
+	assert.equal(recorded(), null);
+});
+
+// The base has not moved since the patch went on, so this should not happen;
+// if it does, the edits are already gone and the record must not claim a
+// patch the checkout no longer has.
+test('git:discard-to-base says so when the patch could not be put back (#669)', async (t) => {
+	const { dir, main, recorded } = patchedTicket(t, { text: KEPT_PATCH.replace('<?php // base', '<?php // elsewhere') });
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(res.patchLost, true);
+	assert.equal(res.removedPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n');
+	assert.equal(recorded(), null);
+});
+
+test('git:discard-to-base keeps a patch applied on trunk too (#669)', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-wiring-discard-keep-trunk-');
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
+	commitFiles(dir, ['src/a.php'], 'trunk snapshot');
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n// the patch\n');
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { appliedPatch: { label: 'x.diff', files: ['src/a.php'], text: KEPT_PATCH } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(res.keptPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n// the patch\n');
+	assert.equal(fs.existsSync(path.join(dir, 'src', 'mine.php')), false);
+	assert.equal(settings.values.siteMeta[dir].appliedPatch.text, KEPT_PATCH);
+});
+
 test('git:update-trunk hands the update to trunk-update and streams its log back', async () => {
 	let called;
 	const started = new Promise((resolve) => { called = resolve; });

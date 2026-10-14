@@ -29,6 +29,42 @@ function discardQuestion() {
 	};
 }
 
+/**
+ * What "Discard your changes" asks first (#669). It removes only the
+ * contributor's own work, so the question says what stays: the applied patch,
+ * or the checked-out pull request. A patch whose text was not kept cannot be
+ * put back, and goes too; the question says that instead.
+ *
+ * @param {Object}  root0
+ * @param {?number} [root0.editedCount]  The files the contributor changed, or null while unknown.
+ * @param {?Object} [root0.appliedPatch] The applied patch, as site:status describes it: `{ label, kept }`.
+ * @param {?Object} [root0.pullRequest]  The checked-out pull request, `{ number }`.
+ * @return {{title: string, description: string, confirm: string}}
+ */
+function discardYourChangesQuestion({ editedCount = null, appliedPatch = null, pullRequest = null } = {}) {
+	const sentences = [];
+	if (Number.isInteger(editedCount) && editedCount > 0) {
+		// translators: %d: how many files the contributor changed.
+		sentences.push(sprintf(_n('Your edits to %d file are removed.', 'Your edits to %d files are removed.', editedCount), editedCount));
+	}
+	if (appliedPatch && appliedPatch.kept) {
+		// translators: %s: the name of the applied patch, such as a file name.
+		sentences.push(sprintf(__('The patch %s stays applied.'), appliedPatch.label));
+	} else if (appliedPatch) {
+		// translators: %s: the name of the applied patch, such as a file name.
+		sentences.push(sprintf(__('The applied patch %s is removed too, because the app can’t put it back.'), appliedPatch.label));
+	} else if (pullRequest) {
+		// translators: %d: a pull request number.
+		sentences.push(sprintf(__('PR #%d stays checked out.'), pullRequest.number));
+	}
+	sentences.push(__('This can’t be undone.'));
+	return {
+		title: __('Discard your changes?'),
+		description: sentences.join(' '),
+		confirm: __('Discard changes')
+	};
+}
+
 // The branch namespaces a work item gets (#251): `ticket/` on a Core site,
 // `issue/` on a Gutenberg one. Spelled out here rather than imported because
 // ticket-branches.js, which owns the list, reaches for Git and cannot be
@@ -188,9 +224,14 @@ function unassignedChangesSentence({ count, issue }) {
  */
 function discardOutcome(res) {
 	if (res && res.ok) {
+		// What happened to the applied patch (#669), when there was one.
+		const patch = {};
+		for (const key of ['keptPatch', 'removedPatch', 'patchLost']) {
+			if (res[key] !== undefined) patch[key] = res[key];
+		}
 		return typeof res.dirty === 'boolean'
-			? { ok: true, dirty: res.dirty, changedCount: res.changedCount }
-			: { ok: true };
+			? { ok: true, dirty: res.dirty, changedCount: res.changedCount, ...patch }
+			: { ok: true, ...patch };
 	}
 	return {
 		ok: false,
@@ -205,7 +246,9 @@ function discardOutcome(res) {
 /**
  * Apply-related feedback after attempting the destructive exit from a ticket.
  * A failure preserves the layer and the error that explains why it remains;
- * success clears both because the ticket is back at its base.
+ * success clears both because the ticket is back at its base, unless the
+ * discard kept the patch (#669), whose banner then stays. A patch that could
+ * not be put back is said, since the contributor asked for it to stay.
  *
  * @param {{ok?: boolean}} outcome The discard result.
  * @param {*}              current The apply feedback currently on screen.
@@ -213,7 +256,13 @@ function discardOutcome(res) {
  */
 function applyFeedbackAfterDiscard(outcome, current) {
 	if (!outcome || !outcome.ok) return current;
-	return { appliedPatch: null, applyError: '', applyConflict: null, applyNotice: '' };
+	let applyError = '';
+	if (outcome.patchLost) {
+		// translators: %s: the name of the patch, such as a file name.
+		applyError = sprintf(__('Your changes were discarded, but %s could not be put back, so it is no longer applied.'), outcome.removedPatch);
+	}
+	const appliedPatch = outcome.keptPatch && current ? current.appliedPatch : null;
+	return { appliedPatch, applyError, applyConflict: null, applyNotice: '' };
 }
 
 /**
@@ -319,4 +368,4 @@ function patchReviewContext({ pullRequest, tracTicket, workItemNoun = 'ticket' }
 	};
 }
 
-module.exports = { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion };
+module.exports = { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion, discardYourChangesQuestion };

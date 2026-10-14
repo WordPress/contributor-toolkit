@@ -11,7 +11,8 @@ const {
 	noteAfterProbe,
 	discardBlocked,
 	discardDisabledReason,
-	discardQuestion
+	discardQuestion,
+	discardYourChangesQuestion
 } = require('../../src/renderer/changes-note.cjs');
 const { WORK_ITEM_BRANCH_PREFIXES } = require('../../src/ticket-branches.js');
 
@@ -136,6 +137,52 @@ test('the question before a discard asks it, and its button says what it does', 
 		description: 'This can’t be undone.',
 		confirm: 'Discard changes'
 	});
+});
+
+// "Discard your changes" (#669) says what goes and what stays: the
+// contributor's edits go, the applied patch or checked-out PR stays, and a
+// patch the app cannot put back is named as going too.
+test('the question before discarding your changes names what stays', () => {
+	assert.deepEqual(discardYourChangesQuestion({ editedCount: 3, appliedPatch: { label: '23602.diff', kept: true } }), {
+		title: 'Discard your changes?',
+		description: 'Your edits to 3 files are removed. The patch 23602.diff stays applied. This can’t be undone.',
+		confirm: 'Discard changes'
+	});
+	assert.equal(
+		discardYourChangesQuestion({ editedCount: 1, pullRequest: { number: 7 } }).description,
+		'Your edits to 1 file are removed. PR #7 stays checked out. This can’t be undone.'
+	);
+	assert.equal(
+		discardYourChangesQuestion({ editedCount: 2 }).description,
+		'Your edits to 2 files are removed. This can’t be undone.'
+	);
+});
+
+test('the question before discarding your changes warns when the patch cannot be put back', () => {
+	assert.equal(
+		discardYourChangesQuestion({ editedCount: 1, appliedPatch: { label: 'big.diff', kept: false } }).description,
+		'Your edits to 1 file are removed. The applied patch big.diff is removed too, because the app can’t put it back. This can’t be undone.'
+	);
+});
+
+// The list may still be loading when the link is pressed; the question goes
+// without a count rather than guessing one.
+test('the question before discarding your changes leaves out a count it does not have', () => {
+	assert.equal(
+		discardYourChangesQuestion({ editedCount: null, appliedPatch: { label: '23602.diff', kept: true } }).description,
+		'The patch 23602.diff stays applied. This can’t be undone.'
+	);
+});
+
+test('discardOutcome carries what happened to the applied patch (#669)', () => {
+	assert.deepEqual(
+		discardOutcome({ ok: true, dirty: true, changedCount: 1, keptPatch: 'x.diff' }),
+		{ ok: true, dirty: true, changedCount: 1, keptPatch: 'x.diff' }
+	);
+	assert.deepEqual(
+		discardOutcome({ ok: true, removedPatch: 'x.diff', patchLost: true }),
+		{ ok: true, removedPatch: 'x.diff', patchLost: true }
+	);
 });
 
 test('discardOutcome passes a success through', () => {
