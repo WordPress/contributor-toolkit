@@ -167,6 +167,13 @@ const affectedFile = ( page, file ) => page
 	.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } )
 	.getByRole( 'button', { name: file, exact: true } );
 
+// The open site's details, and a file in them by its path.
+const details = ( page ) => page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } );
+const group = ( page, name ) => details( page ).getByRole( 'heading', { level: 3, name, exact: true } );
+// Asks for the answer the app asks for when its window gets focus back,
+// which is when a contributor returns from their editor.
+const refocus = ( page ) => page.evaluate( () => window.dispatchEvent( new Event( 'focus' ) ) );
+
 test( 'each file the applied patch changed opens in the editor from the details (#669)', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
@@ -188,7 +195,7 @@ test( 'each file the applied patch changed opens in the editor from the details 
 	// change is applied, its files are what the contributor came for.
 	await expect(
 		page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } ).getByRole( 'heading', { level: 2 } ).first()
-	).toHaveText( 'Affected files' );
+	).toHaveText( 'Changed files' );
 	await expect( file.locator( '..' ).locator( 'svg' ) ).toHaveCount( 1 );
 
 	// INVARIANT — the file is listed once the patch is applied, and one click
@@ -199,9 +206,15 @@ test( 'each file the applied patch changed opens in the editor from the details 
 		{ sitePath: site.dir, editorPath: EDITOR.path, relPath: 'src/wp-login.php' },
 	] );
 
-	// INVARIANT — the list goes with the patch.
+	// INVARIANT — the list goes with the patch: not hidden behind a dialog,
+	// gone from details that can be read.
 	await ui.revertPatchButton( page ).click();
-	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveCount( 0, { timeout: 60_000 } );
+	await expect( ui.revertPatchButton( page ) ).toHaveCount( 0, { timeout: 60_000 } );
+	await expect( page.getByText( 'A patch is being applied or reverted.' ) ).toHaveCount( 0, { timeout: 60_000 } );
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+	await expect( ui.confirmDialog( page ) ).toHaveCount( 0 );
+	await expect( details( page ).getByRole( 'heading', { level: 2, name: 'Details', exact: true } ) ).toBeVisible();
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveCount( 0 );
 } );
 
 test( 'choosing another application after a file would not open opens that file in it (#669)', async ( { session } ) => {
@@ -248,6 +261,107 @@ test( 'with no editor on the machine, an applied file is shown in the file manag
 	expect( ( await asked() ).opens ).toEqual( [] );
 } );
 
+test( 'files edited or added after a patch are told apart from the patch\'s own (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+
+	// INVARIANT — straight after the apply, everything changed is the patch's:
+	// nothing under "Your changes", and the patched file is not "also edited".
+	await expect( group( page, 'From the patch' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( group( page, 'Your changes' ) ).toHaveCount( 0 );
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toHaveCount( 0 );
+
+	// The contributor works on top: an edit to the patched file, and a file
+	// of their own.
+	write( site.dir, LOGIN, '<?php // fixed by the patch, then by me\n' );
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	await refocus( page );
+
+	// INVARIANT — the patched file stays the patch's, marked as edited since;
+	// the new file is the contributor's, marked new. Each is listed once.
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( affectedFile( page, 'src/new-helper.php' ).locator( '..' ).getByText( 'new', { exact: true } ) ).toBeVisible();
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveCount( 1 );
+	expect( await ui.inDocumentOrder( page, [
+		group( page, 'From the patch' ),
+		affectedFile( page, 'src/wp-login.php' ),
+		group( page, 'Your changes' ),
+		affectedFile( page, 'src/new-helper.php' ),
+	] ) ).toBe( true );
+} );
+
+test( 'a ticket with no patch lists only the contributor\'s own changes (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+
+	write( site.dir, LOGIN, '<?php // my fix\n' );
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	await refocus( page );
+
+	// INVARIANT — the section is there for work with nothing applied, with the
+	// one group, and the new file marked new and the edited one not.
+	await expect( group( page, 'Your changes' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( details( page ).getByRole( 'heading', { level: 3 } ) ).toHaveCount( 1 );
+	await expect( affectedFile( page, 'src/new-helper.php' ).locator( '..' ).getByText( 'new', { exact: true } ) ).toBeVisible();
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'new', { exact: true } ) ).toHaveCount( 0 );
+} );
+
+test( 'discarding the contributor\'s changes takes them out of the list, with no refocus (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	// Counts the walks the list is measured by, so the discard below happens
+	// with none in flight. One still running when it lands would answer after
+	// it and clear the list by luck, and this would pass without the fix.
+	await app.evaluate( ( { ipcMain } ) => {
+		global.__e2eProbes = 0;
+		const handler = ipcMain._invokeHandlers.get( 'git:unsubmitted-work' );
+		ipcMain.removeHandler( 'git:unsubmitted-work' );
+		ipcMain.handle( 'git:unsubmitted-work', ( ...args ) => {
+			global.__e2eProbes += 1;
+			return handler( ...args );
+		} );
+	} );
+	const probes = () => app.evaluate( () => global.__e2eProbes );
+	await ui.linkTicket( page, '60001' );
+
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	await refocus( page );
+	await expect( affectedFile( page, 'src/new-helper.php' ) ).toBeVisible( { timeout: 30_000 } );
+	// Settled: the count holds still across a second.
+	await expect.poll( async () => {
+		const before = await probes();
+		await page.waitForTimeout( 1000 );
+		return ( await probes() ) === before;
+	}, { timeout: 30_000 } ).toBe( true );
+
+	await ui.reviewChangesButton( page ).click();
+	const review = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	await review.getByRole( 'button', { name: 'Discard all changes', exact: true } ).click();
+	await ui.confirmYesButton( page, 'Discard changes' ).click();
+	await expect.poll( () => fs.existsSync( path.join( site.dir, 'src/new-helper.php' ) ), { timeout: 30_000 } ).toBe( false );
+	await ui.closeDialogButton( review ).click();
+	// With every dialog gone and the details readable: while a modal is up the
+	// page behind it is hidden from the accessibility tree, and the counts
+	// below would be 0 whatever the list said.
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+	await expect( ui.confirmDialog( page ) ).toHaveCount( 0 );
+	await expect( details( page ).getByRole( 'heading', { level: 2, name: 'Details', exact: true } ) ).toBeVisible();
+
+	// INVARIANT — the list follows the discard itself. The window never lost
+	// focus, so a list that waited for the next focus would go on naming a
+	// file that is gone.
+	await expect( group( page, 'Your changes' ) ).toHaveCount( 0, { timeout: 30_000 } );
+	await expect( affectedFile( page, 'src/new-helper.php' ) ).toHaveCount( 0 );
+} );
+
 test( 'a patch that does not fit is refused, and writes nothing', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
@@ -288,6 +402,52 @@ test( 'a patch that does not fit is refused, and writes nothing', async ( { sess
 
 	// INVARIANT — and nothing is offered to undo, because nothing was done.
 	await expect( ui.revertPatchButton( page ) ).toHaveCount( 0 );
+} );
+
+test( 'a refused patch leaves the contributor\'s changes listed (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	// Holds the walks the list is measured by once the apply starts, so a list
+	// emptied by the refusal stays empty long enough to be seen. A walk that
+	// answered at once would put it back before any assertion could look.
+	await app.evaluate( ( { ipcMain } ) => {
+		global.__e2eHold = null;
+		const handler = ipcMain._invokeHandlers.get( 'git:unsubmitted-work' );
+		ipcMain.removeHandler( 'git:unsubmitted-work' );
+		ipcMain.handle( 'git:unsubmitted-work', async ( ...args ) => {
+			if ( global.__e2eHold ) await global.__e2eHold.promise;
+			return handler( ...args );
+		} );
+	} );
+	await ui.linkTicket( page, '60001' );
+
+	write( site.dir, LOGIN, '<?php // I got here first\n' );
+	await refocus( page );
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toBeVisible( { timeout: 30_000 } );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await session.answerFileDialog( [ patch ] );
+	await ui.choosePatchFile( page );
+	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await app.evaluate( () => {
+		let release;
+		const promise = new Promise( ( resolve ) => { release = resolve; } );
+		global.__e2eHold = { promise, release };
+	} );
+	await ui.applyAndRebuildButton( page ).click();
+	await expect( page.getByRole( 'alert' ).filter( { hasText: 'The checkout was not changed' } ) ).toBeVisible( { timeout: 60_000 } );
+	// With every dialog gone and the details readable, so the count below is
+	// the list's and not a modal hiding it.
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+	await expect( details( page ).getByRole( 'heading', { level: 2, name: 'Details', exact: true } ) ).toBeVisible();
+
+	// INVARIANT — a refusal writes nothing, so the list it leaves is the list
+	// from before it. Clearing it would empty the section until the next walk
+	// answered, moving the sidebar just as the refusal is shown.
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toBeVisible();
+	await app.evaluate( () => global.__e2eHold.release() );
 } );
 
 
