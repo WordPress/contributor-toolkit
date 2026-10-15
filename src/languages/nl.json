@@ -1,0 +1,3263 @@
+{
+	"translation-revision-date": "2026-10-08 15:10:14+0000",
+	"generator": "GlotPress/4.1.0",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": {
+				"domain": "messages",
+				"plural-forms": "nplurals=2; plural=n != 1;",
+				"lang": "nl"
+			},
+			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
+				"Zoomen"
+			],
+			"Discard edits": [
+				"Wijzigingen verwerpen"
+			],
+			"Discard the uncommitted edits on trunk?": [
+				"Niet opgeslagen bewerkingen op trunk verwijderen?"
+			],
+			"Discard changes": [
+				"Wijzigingen negeren"
+			],
+			"This can’t be undone.": [
+				"Dit kan niet ongedaan worden gemaakt."
+			],
+			"Discard all local changes?": [
+				"Alle lokale wijzigingen negeren?"
+			],
+			"Stop Speaking": [
+				"Stop met spreken"
+			],
+			"Start Speaking": [
+				"Begin met spreken"
+			],
+			"Speech": [
+				"Spraak"
+			],
+			"Text Replacement": [
+				"Tekstvervanging"
+			],
+			"Smart Dashes": [
+				"Slimme streepjes"
+			],
+			"Smart Quotes": [
+				"Slimme aanhalingstekens"
+			],
+			"Show Substitutions": [
+				"Vervangingen weergeven"
+			],
+			"Substitutions": [
+				"Vervangingen"
+			],
+			"Paste and Match Style": [
+				"Stijl plakken en matchen"
+			],
+			"Paste": [
+				"Plakken"
+			],
+			"Cut": [
+				"Knippen"
+			],
+			"Redo": [
+				"Opnieuw doen"
+			],
+			"Undo": [
+				"Ongedaan maken"
+			],
+			"Edit": [
+				"Bewerken"
+			],
+			"Quit": [
+				"Beëindigen"
+			],
+			"Exit": [
+				"Verlaten"
+			],
+			"Close Window": [
+				"Venster sluiten"
+			],
+			"File": [
+				"Bestand"
+			],
+			"Quit %s": [
+				"%s beëindigen"
+			],
+			"Show All": [
+				"Alles weergeven"
+			],
+			"Hide Others": [
+				"Andere verbergen"
+			],
+			"Hide %s": [
+				"%s verbergen"
+			],
+			"Services": [
+				"Diensten"
+			],
+			"About %s": [
+				"Over %s"
+			],
+			"Toggle Developer Tools": [
+				"Ontwikkelaartools toggelen"
+			],
+			"Help": [
+				"Hulp"
+			],
+			"Bring All to Front": [
+				"Alles naar voren brengen"
+			],
+			"Minimize": [
+				"Verkleinen"
+			],
+			"Window": [
+				"Venster"
+			],
+			"Toggle Full Screen": [
+				"Volledig scherm toggelen"
+			],
+			"Zoom Out": [
+				"Uitzoomen"
+			],
+			"Zoom In": [
+				"Inzoomen"
+			],
+			"Actual Size": [
+				"Werkelijke grootte"
+			],
+			"Force Reload": [
+				"Forceer opnieuw laden"
+			],
+			"Reload": [
+				"Opnieuw laden"
+			],
+			"View": [
+				"Bekijken"
+			],
+			"Select All": [
+				"Alles selecteren"
+			],
+			"Delete": [
+				"Verwijderen"
+			],
+			"Choose folder…": [
+				"Map kiezen…"
+			],
+			"Mail": [
+				"E-mail"
+			],
+			"ends a sentence that lacks a full stop\u0004%s.": [
+				"%s."
+			],
+			"Too much output to announce, navigate to rows manually to read": [
+				"Te veel uitvoer om aan te kondigen, navigeer handmatig naar rijen om te lezen"
+			],
+			"Terminal input": [
+				"Terminalinvoer"
+			],
+			"Timed out starting web server": [
+				"Time-out bij starten van webserver"
+			],
+			"Server exited before becoming ready": [
+				"Server is gestopt voordat deze gereed was"
+			],
+			"%s directory not found.": [
+				"Folder %s niet gevonden."
+			],
+			"The patch you applied is applied. Revert it before submitting this checkout as your own work.": [
+				"De patch die je hebt toegepast, is toegepast. Draai deze terug voordat je deze checkout als je eigen werk indient."
+			],
+			"%s is applied. Revert it before submitting this checkout as your own work.": [
+				"%s is toegepast. Draai het terug voordat je deze checkout als je eigen werk indient."
+			],
+			"an action that finished\u0004Done": [
+				"Gereed"
+			],
+			"No such branch: %s": [
+				"Deze branch bestaat niet: %s"
+			],
+			"Refusing to delete a branch the app did not create": [
+				"Weigert een branch te verwijderen die de app niet heeft gemaakt"
+			],
+			"Refusing to delete trunk": [
+				"Weigert trunk te verwijderen"
+			],
+			"Trunk and this ticket's work disagree": [
+				"Trunk en het werk aan dit ticket komen niet overeen"
+			],
+			"Trunk and this ticket's work disagree in %d file": [
+				"Trunk en het werk aan dit ticket komen niet overeen in %d bestand",
+				"Trunk en het werk aan dit ticket komen niet overeen in %d bestanden"
+			],
+			"Already working on ticket #%s in this site": [
+				"Er wordt al gewerkt aan ticket #%s op deze site"
+			],
+			"Already working on issue #%s in this site": [
+				"Er wordt al aan issue #%s gewerkt op deze site"
+			],
+			"This site has no trunk branch": [
+				"Deze site heeft geen trunk branch"
+			],
+			"Enter a ticket number or URL.": [
+				"Een ticketnummer of URL invoeren."
+			],
+			"Enter a ticket number like 62281, or a %s ticket URL.": [
+				"Voer een ticketnummer in, zoals 62281, of een ticket-URL van %s."
+			],
+			"Only %s tickets are supported.": [
+				"Alleen %s tickets worden ondersteund."
+			],
+			"Trunk and your work disagree in: %s.": [
+				"Trunk en je werk komen niet overeen in: %s."
+			],
+			"Trunk added a file your work also adds, with different content: %s.": [
+				"Trunk heeft een bestand toegevoegd dat je werk ook toevoegt, met andere content: %s.",
+				"Trunk heeft bestanden toegevoegd die je werk ook toevoegt, met andere content: %s."
+			],
+			"Deleted on one side and changed on the other: %s.": [
+				"Aan de ene kant verwijderd en aan de andere gewijzigd: %s."
+			],
+			"Trunk changed the same lines as your work in: %s.": [
+				"Trunk heeft dezelfde regels gewijzigd als je werk in: %s."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.": [
+				"Sla een kopie van je werk op, ontkoppel het ticket, verwijder het werk ervan van de site, koppel daarna #%s opnieuw en pas de kopie toe."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.": [
+				"Sla een kopie van je werk op, ontkoppel het ticket, verwijder het werk ervan van de site, koppel daarna het ticket opnieuw en pas de kopie toe."
+			],
+			"Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.": [
+				"Behoud de branch van dit issue en sla een kopie op via Beoordeling & wijzigingen indienen. Vraag een mentor om het werk naar de huidige trunk te verplaatsen; deze app kan het conflict niet oplossen of de opgeslagen kopie importeren."
+			],
+			"Update this ticket to the current trunk": [
+				"Dit ticket updaten naar de huidige trunk"
+			],
+			"Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.": [
+				"Nieuwere patches kunnen mogelijk niet probleemloos worden toegepast. Verplaats je werk hier naar de huidige trunk, of sla een kopie op en start het ticket opnieuw."
+			],
+			"Trunk has moved since this ticket started.": [
+				"Trunk is gewijzigd sinds dit ticket is gestart."
+			],
+			"Update this issue to the current trunk": [
+				"Dit issue updaten naar de huidige trunk"
+			],
+			"Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.": [
+				"Verplaats je werk hier naar de huidige trunk. Als de wijzigingen conflicteren, blijft je branch intact zodat je hulp kunt krijgen bij het oplossen ervan."
+			],
+			"Trunk has moved since this issue started.": [
+				"Trunk is gewijzigd sinds dit issue is gestart."
+			],
+			"Could not move the ticket onto the current trunk.": [
+				"Kon het ticket niet naar de huidige trunk verplaatsen."
+			],
+			"Could not move the issue onto the current trunk.": [
+				"Kon het issue niet naar de huidige trunk verplaatsen."
+			],
+			"Only an issue branch can be moved onto the current trunk.": [
+				"Alleen een issue branch kan naar de huidige trunk worden verplaatst."
+			],
+			"Link a ticket first: trunk is what tickets are measured against.": [
+				"Link eerst een ticket: tickets worden gemeten ten opzichte van trunk."
+			],
+			"Link an issue first: trunk is what issues are measured against.": [
+				"Link eerst een issue: issues worden gemeten ten opzichte van trunk."
+			],
+			"The app does not know which trunk the ticket started from, so it cannot move the work safely.": [
+				"De app weet niet vanaf welke trunk het ticket is gestart, dus kan het werk niet veilig worden verplaatst."
+			],
+			"The app does not know which trunk the issue started from, so it cannot move the work safely.": [
+				"De app weet niet vanaf welke trunk het issue is gestart, dus kan het werk niet veilig worden verplaatst."
+			],
+			"The app does not know which trunk #%s started from, so it cannot move the work safely.": [
+				"De app weet niet vanaf welke trunk #%s is gestart, dus kan het werk niet veilig worden verplaatst."
+			],
+			"Nothing was moved.": [
+				"Er is niets verplaatst."
+			],
+			"Trunk and your work disagree.": [
+				"Trunk en je werk komen niet overeen."
+			],
+			"You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?": [
+				"Je hebt %d niet-gecommitteerde wijziging op deze site, nog niet aan een ticket gekoppeld. Wat moet ermee gebeuren?",
+				"Je hebt %d niet-gecommitteerde wijzigingen op deze site, nog niet aan een ticket gekoppeld. Wat moet ermee gebeuren?"
+			],
+			"You have %d uncommitted change on this site, not on any issue yet. What should happen to them?": [
+				"Je hebt %d niet-gecommitteerde wijziging op deze site, nog niet aan een issue gekoppeld. Wat moet ermee gebeuren?",
+				"Je hebt %d niet-gecommitteerde wijzigingen op deze site, nog niet aan een issue gekoppeld. Wat moet ermee gebeuren?"
+			],
+			"Stop the dev server before updating the ticket.": [
+				"Stop de devserver voordat je het ticket updatet."
+			],
+			"Stop the dev server before updating the issue.": [
+				"Stop de devserver voordat je het issue updatet."
+			],
+			"Wait for the discard to finish before updating the ticket.": [
+				"Wacht tot het verwijderen is afgerond voordat je het ticket updatet."
+			],
+			"Wait for the discard to finish before updating the issue.": [
+				"Wacht tot het verwijderen is afgerond voordat je het issue updatet."
+			],
+			"Wait for the PR or patch operation to finish.": [
+				"Wacht tot de PR- of patchbewerking is afgerond."
+			],
+			"Wait for the ticket's work to finish deleting.": [
+				"Wacht tot het verwijderen van het ticket is afgerond."
+			],
+			"Wait for the issue's work to finish deleting.": [
+				"Wacht tot het werk van het issue klaar is met verwijderen."
+			],
+			"Wait for the current ticket change to finish.": [
+				"Wacht tot de huidige ticketwijziging is afgerond."
+			],
+			"Wait for the current issue change to finish.": [
+				"Wacht tot de huidige issuewijziging is afgerond."
+			],
+			"This ticket already has its own work here, so these edits cannot come along into it.": [
+				"Dit ticket heeft hier al eigen werk, dus deze bewerkingen kunnen er niet in worden meegenomen."
+			],
+			"This issue already has its own work here, so these edits cannot come along into it.": [
+				"Dit issue heeft hier al eigen werk, dus deze bewerkingen kunnen er niet in worden opgenomen."
+			],
+			"Discard them and continue on the ticket": [
+				"Negeer ze en ga verder met het ticket"
+			],
+			"Save them as a patch, then continue on the ticket…": [
+				"Als patch opslaan en daarna doorgaan met het ticket…"
+			],
+			"Discard them and continue on the issue": [
+				"Negeer ze en ga verder met het issue"
+			],
+			"Save them as a patch, then continue on the issue…": [
+				"Als patch opslaan en daarna doorgaan met het issue…"
+			],
+			"Discard them and continue on #%s": [
+				"Negeren en doorgaan op #%s"
+			],
+			"Save them as a patch, then continue on #%s…": [
+				"Als patch opslaan en daarna doorgaan op #%s…"
+			],
+			"Discard them and start clean": [
+				"Negeer ze en begin opnieuw"
+			],
+			"Save them as a patch, then start clean…": [
+				"Als patch opslaan en daarna opnieuw beginnen…"
+			],
+			"Take these edits into the ticket": [
+				"Neem deze bewerkingen op in het ticket"
+			],
+			"Take these edits into the issue": [
+				"Neem deze bewerkingen op in het issue"
+			],
+			"Take these edits into #%s": [
+				"Deze bewerkingen meenemen naar #%s"
+			],
+			"Discard them and check out PR #%d": [
+				"Negeren en PR #%d uitchecken"
+			],
+			"Save them as a patch, then check out PR #%d…": [
+				"Als patch opslaan en daarna PR #%d… uitchecken"
+			],
+			"PR #%d is a separate checkout, so these edits cannot come along into it.": [
+				"PR #%d is een aparte afrekenen, dus deze bewerkingen kunnen niet worden meegenomen."
+			],
+			"You have uncommitted changes on this site, not on any ticket yet. What should happen to them?": [
+				"Je hebt niet-gecommitteerde wijzigingen op deze site, nog niet aan een ticket gekoppeld. Wat moet ermee gebeuren?"
+			],
+			"You have uncommitted changes on this site, not on any issue yet. What should happen to them?": [
+				"Je hebt niet-gecommitteerde wijzigingen op deze site, nog niet aan een issue gekoppeld. Wat moet ermee gebeuren?"
+			],
+			"Could not open the folder.": [
+				"Kon de map niet openen."
+			],
+			"Could not reach the app's main process: %s": [
+				"Kon het hoofdproces van de app niet bereiken: %s"
+			],
+			"This app has no record of that folder, so it will not open it.": [
+				"Deze app heeft geen registratie van die map en opent deze dus niet."
+			],
+			"The file manager would not open the folder: %s": [
+				"De bestandsbeheerder kon de map niet openen: %s"
+			],
+			"The application would not start: %s": [
+				"De applicatie kon niet starten: %s"
+			],
+			"That application is no longer where it was. Choose another.": [
+				"Die applicatie staat niet meer waar die stond. Kies een andere."
+			],
+			"That is not an application this app can open a folder in.": [
+				"Dat is geen toepassing waarin deze app een map kan openen."
+			],
+			"A merge started outside the app is in progress.": [
+				"Een merge die buiten de app is gestart, is bezig."
+			],
+			"every file the patch touched, not only the ones in conflict": [
+				"elk bestand dat de patch heeft geraakt, niet alleen de bestanden met conflicten"
+			],
+			"git add the files": [
+				"bestanden toevoegen met Git"
+			],
+			"resolve the files, then git add them": [
+				"los de bestanden op en voeg ze daarna toe met git toevoegen"
+			],
+			"A three-way patch apply started outside the app is in progress.": [
+				"Een driewegpatch die buiten de app is gestart, is bezig."
+			],
+			"A revert started outside the app is in progress.": [
+				"Een terugzetting die buiten de app is gestart, is bezig."
+			],
+			"A cherry-pick started outside the app is in progress.": [
+				"Een cherry-pick die buiten de app is gestart, is bezig."
+			],
+			"A rebase started outside the app is in progress.": [
+				"Een rebase die buiten de app is gestart, is bezig."
+			],
+			"resolve the files, then git add them and run %s": [
+				"los de bestanden op, voeg ze daarna toe met git toevoegen en voer %s uit"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)": [
+				"De app kon niet controleren of er een merge bezig is in deze afrekenen, dus er is niets gewijzigd. Als er vanuit een terminal een Git-opdracht in wordt uitgevoerd, laat die dan voltooien en probeer het daarna opnieuw. (%s)"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again.": [
+				"De app kon niet controleren of er een merge bezig is in deze afrekenen, dus er is niets gewijzigd. Als er vanuit een terminal een Git-opdracht in wordt uitgevoerd, laat die dan voltooien en probeer het daarna opnieuw."
+			],
+			"Its conflicts are resolved but it is not finished. Finish it from a terminal (%1$s) or abandon it (%2$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"De conflicten zijn opgelost, maar het is niet afgerond. Voltooi het vanaf een terminal (%1$s) of verlaat het (%2$s) voordat je de app op deze site gebruikt. Tot die tijd worden tickets linken, patches toepassen, wijzigingen verwijderen en trunk updaten hier geweigerd."
+			],
+			"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"Het heeft conflicten in %1$s. Rond dit af via een terminal (%2$s) of annuleer het (%3$s) voordat je de app op deze site gebruikt. Tot die tijd kun je hier geen tickets koppelen, patches toepassen, wijzigingen negeren of trunk updaten."
+			],
+			"The app now runs on a different Git engine, so linking tickets, applying patches, discarding changes and updating trunk are refused here. Export your work as a patch, create a new site, apply the patch there, then delete this one.": [
+				"De app draait nu op een andere Git-engine, dus tickets koppelen, patches toepassen, wijzigingen verwijderen en trunk updaten worden hier geweigerd. Exporteer je werk als een patch, maak een nieuwe site, pas de patch daar toe en verwijder deze daarna."
+			],
+			"This site was created by an earlier version of the app.": [
+				"Deze site is gemaakt door een eerdere versie van de app."
+			],
+			"This site was created by an earlier version of the app and cannot be changed by this one. Create a new site to keep working; you can still export a patch of what is here, and delete this site.": [
+				"Deze site is gemaakt door een eerdere versie van de app en kan niet worden gewijzigd met deze versie. Maak een nieuwe site om verder te werken; je kunt nog steeds een patch exporteren van wat hier staat en deze site verwijderen."
+			],
+			"Unable to copy path: %s": [
+				"Kan pad niet kopiëren: %s"
+			],
+			"Clipboard access is not available in this environment": [
+				"Toegang tot het klembord is niet beschikbaar in deze omgeving"
+			],
+			"Dismiss": [
+				"Negeren"
+			],
+			"Stopped": [
+				"Gestopt"
+			],
+			"Playground web server": [
+				"Playground-webserver"
+			],
+			"Start Playground web server": [
+				"Playground webserver starten"
+			],
+			"Stop Playground web server": [
+				"Playground webserver stoppen"
+			],
+			"Starting the Playground web server": [
+				"Playground webserver starten"
+			],
+			"Server exited with code %d": [
+				"Server is gestopt met code %d"
+			],
+			"Choose application…": [
+				"Applicatie kiezen…"
+			],
+			"Saved to %s. The edits are still in the working tree.": [
+				"Opgeslagen in %s. De bewerkingen staan nog in de werkboom."
+			],
+			"Your edits were saved to %s and are no longer in the working tree.": [
+				"Je bewerkingen zijn opgeslagen in %s en staan niet langer in de working tree."
+			],
+			"Your %1$d uncommitted change came along into #%2$s, and will go into its patch.": [
+				"Je %1$d niet-gecommitte wijziging is meegekomen naar #%2$s en komt in de patch ervan.",
+				"Je %1$d niet-gecommitte wijzigingen zijn meegekomen naar #%2$s en komen in de patch ervan."
+			],
+			"Could not delete the branch.": [
+				"Kon de branch niet verwijderen."
+			],
+			"Could not save the patch.": [
+				"Kon de patch niet opslaan."
+			],
+			"Could not discard the changes.": [
+				"Kon de wijzigingen niet negeren."
+			],
+			"Could not save the ticket.": [
+				"Kon het ticket niet opslaan."
+			],
+			"Only %s issues are supported.": [
+				"Alleen %s issues worden ondersteund."
+			],
+			"Enter an issue number or URL.": [
+				"Een issuenummer of URL invoeren."
+			],
+			"Enter an issue number like 1234, or a %s issue URL.": [
+				"Voer een issuenummer in, zoals 1234, of een issue-URL van %s."
+			],
+			"Only %s issues can be linked here.": [
+				"Hier kunnen alleen %s issues worden gekoppeld."
+			],
+			"That is a pull request. Link the issue it fixes instead.": [
+				"Dat is een pull request. Link in plaats daarvan het issue met de oplossingen."
+			],
+			"There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.": [
+				"Er is nog geen site om eraan te werken. Maak er een vanuit de zijbalk en de app biedt dit ticket aan zodra het klaar is."
+			],
+			"Ticket #%s is ready to link.": [
+				"Ticket #%s kan worden gekoppeld."
+			],
+			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
+				"Het ticketnummer kwam via een link. Door het te linken wordt de huidige staat van de site geparkeerd en wordt de branch van dit ticket’ uitgecheckt, dus vraagt de app eerst om bevestiging."
+			],
+			"Link ticket #%1$s to %2$s?": [
+				"Link ticket #%1$s aan %2$s?"
+			],
+			"A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.": [
+				"Een Trac ticket hoort op een WordPress core site. Open er een en de app biedt het ticket daar aan."
+			],
+			"Ticket #%1$s cannot be linked to %2$s.": [
+				"Ticket #%1$s kan niet worden gekoppeld aan %2$s."
+			],
+			"Raw": [
+				"Ruw"
+			],
+			"Rendered": [
+				"Gerenderd"
+			],
+			"Date:": [
+				"Datum:"
+			],
+			"CC:": [
+				"CC:"
+			],
+			"To:": [
+				"Aan:"
+			],
+			"From:": [
+				"Van:"
+			],
+			"You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"Je hebt niet-ingediende wijzigingen voor issue #%s. Je kunt <review>beoordelen en indienen</review> of <discard>je wijzigingen verwijderen</discard>."
+			],
+			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"Je hebt %1$d wijziging boven op PR #%2$d. Je kunt <review>deze beoordelen</review> of <discard>je wijzigingen verwerpen</discard>. Deze blijft bij de lokale kopie van deze pull request wanneer je deze PR terugdraait.",
+				"Je hebt %1$d wijzigingen boven op PR #%2$d. Je kunt <review>ze beoordelen</review> of <discard>je wijzigingen verwerpen</discard>. Ze blijven bij de lokale kopie van deze pull request wanneer je deze PR terugdraait."
+			],
+			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"Je hebt wijzigingen boven op PR #%d. Je kunt <review>ze beoordelen</review> of <discard>je wijzigingen verwerpen</discard>. Ze blijven bij de lokale kopie van deze pull request wanneer je deze PR terugdraait."
+			],
+			"Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.": [
+				"Als je dit ticket ontkoppelt, heeft dat geen invloed op je lokale wijzigingen voor dit ticket - ze blijven eraan gekoppeld op deze site, klaar voor wanneer je het opnieuw linkt."
+			],
+			"Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.": [
+				"Als je dit issue ontkoppelt, heeft dat geen invloed op je lokale wijzigingen voor dit issue - ze blijven eraan gekoppeld op deze site, klaar voor wanneer je het opnieuw linkt."
+			],
+			"You have %d change not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Je hebt %d wijziging die aan geen enkel ticket is toegewezen. Je kunt <review>een patch maken en opslaan</review> of <discard>je wijzigingen verwerpen</discard>.",
+				"Je hebt %d wijzigingen die aan geen enkel ticket zijn toegewezen. Je kunt <review>een patch maken en opslaan</review> of <discard>je wijzigingen verwerpen</discard>."
+			],
+			"You have %d change not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Je hebt %d wijziging die aan geen enkel issue is toegewezen. Je kunt <review>een patch maken en opslaan</review> of <discard>je wijzigingen verwerpen</discard>.",
+				"Je hebt %d wijzigingen die aan geen enkel issue zijn toegewezen. Je kunt <review>een patch maken en opslaan</review> of <discard>je wijzigingen verwerpen</discard>."
+			],
+			"You have changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Je hebt wijzigingen die aan geen enkel ticket zijn toegewezen. Je kunt <review>een patch maken en opslaan</review> of <discard>je wijzigingen verwerpen</discard>."
+			],
+			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Je hebt wijzigingen die aan geen enkel issue zijn toegewezen. Je kunt <review>een patch maken en opslaan</review> of <discard>je wijzigingen verwerpen</discard>."
+			],
+			"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"Je hebt %1$d niet-ingediende wijziging voor ticket #%2$s. Je kunt <review>deze beoordelen en indienen</review> of <discard>je wijzigingen verwerpen</discard>.",
+				"Je hebt %1$d niet-ingediende wijzigingen voor ticket #%2$s. Je kunt <review>ze beoordelen en indienen</review> of <discard>je wijzigingen verwerpen</discard>."
+			],
+			"You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"Je hebt %1$d niet-ingediende wijziging voor issue #%2$s. Je kunt <review>deze beoordelen en indienen</review> of <discard>je wijzigingen verwerpen</discard>.",
+				"Je hebt %1$d niet-ingediende wijzigingen voor issue #%2$s. Je kunt <review>ze beoordelen en indienen</review> of <discard>je wijzigingen verwerpen</discard>."
+			],
+			"You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
+				"Je hebt niet-ingediende wijzigingen voor ticket #%s. Je kunt <review>beoordelen en indienen</review> of <discard>je wijzigingen verwijderen</discard>."
+			],
+			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
+				"Dit ticket heeft geen geregistreerd beginpunt, dus de app kan het werk niet naar de huidige trunk verplaatsen."
+			],
+			"Only a ticket branch can be moved onto the current trunk.": [
+				"Alleen een ticket branch kan naar de huidige trunk worden verplaatst."
+			],
+			"Link a ticket first: trunk is what tickets are measured against, not a ticket.": [
+				"Link eerst een ticket: tickets worden gemeten ten opzichte van trunk, niet ten opzichte van een ticket."
+			],
+			"There is uncommitted work on trunk — decide what happens to it before starting the ticket": [
+				"Er is niet-gecommit werk op trunk - beslis wat ermee gebeurt voordat je met het ticket begint"
+			],
+			"the editor could not be opened (exit code %s)": [
+				"de editor kon niet worden geopend (afsluitcode %s)"
+			],
+			"the saved work\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Teruggezet - de build watch heeft opnieuw gebouwd. Open de site om deze uit te proberen."
+			],
+			"the saved work\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Teruggezet - de build watch compileert deze wijzig nog. Wacht tot deze stil is voordat je de site probeert."
+			],
+			"the saved work\u0004Restored.": [
+				"Teruggezet."
+			],
+			"the saved work\u0004Restored — open the site to try it out.": [
+				"Teruggezet - open de site om deze uit te proberen."
+			],
+			"the previous branch\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Teruggezet - de build watch heeft opnieuw gebouwd. Open de site om deze uit te proberen."
+			],
+			"the previous branch\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Teruggezet - de build watch compileert deze wijzig nog. Wacht tot deze stil is voordat je de site probeert."
+			],
+			"the previous branch\u0004Restored.": [
+				"Teruggezet."
+			],
+			"the previous branch\u0004Restored — open the site to try it out.": [
+				"Teruggezet - open de site om deze uit te proberen."
+			],
+			"Now on trunk as of %s.": [
+				"Nu op trunk sinds %s."
+			],
+			"Resetting to latest trunk (%s)…": [
+				"Aan het resetten naar nieuwste trunk (%s)…"
+			],
+			"Already up to date.": [
+				"Al up-to-date."
+			],
+			"Fetching latest trunk…": [
+				"Nieuwste trunk ophalen…"
+			],
+			"Trac returned %s — try opening the ticket again to pass the check.": [
+				"Trac gaf %s terug - probeer het ticket opnieuw te openen om de controle te doorstaan."
+			],
+			"Only https core.trac.wordpress.org attachments are allowed": [
+				"Alleen bijlagen van https core.trac.wordpress.org zijn toegestaan"
+			],
+			"%s file": [
+				"%s bestand",
+				"%s bestanden"
+			],
+			"Ready to work on %s": [
+				"Klaar om aan %s te werken"
+			],
+			"Ready to try %s": [
+				"Klaar om %s te proberen"
+			],
+			"Checking which files change…": [
+				"Controleren welke bestanden wijzigen…"
+			],
+			"Swapping files for %s…": [
+				"Bestanden wisselen voor %s…"
+			],
+			"Swapping files…": [
+				"Bestanden wisselen…"
+			],
+			"Moving your work on %s onto the current trunk…": [
+				"Je werk op %s naar de huidige trunk verplaatsen…"
+			],
+			"Moving your edits on %s onto the current trunk…": [
+				"Je bewerkingen op %s naar de huidige trunk verplaatsen…"
+			],
+			"Moving your work onto the current trunk…": [
+				"Je werk naar de huidige trunk verplaatsen…"
+			],
+			"Saving your work on %s…": [
+				"Je werk wordt opgeslagen op %s…"
+			],
+			"Saving your edits on %s…": [
+				"Je bewerkingen opslaan op %s…"
+			],
+			"Saving your work…": [
+				"Je werk wordt opgeslagen…"
+			],
+			"The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.": [
+				"De build watch bouwt opnieuw na deze wijziging. Wacht tot deze weer wijzigingen volgt voordat je de site probeert."
+			],
+			"Start the build watch, or run %s in the Terminal.": [
+				"Build watch starten of %s uitvoeren in de Terminal."
+			],
+			"The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"De build watch compileert deze wijziging nog steeds. Wacht tot deze stil is voordat je de site probeert."
+			],
+			"PR #%s is applied.": [
+				"PR #%s is toegepast."
+			],
+			"The build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"De build watch stopte voordat deze klaar was met opnieuw bouwen, dus de site gebruikt nog steeds de oude assets."
+			],
+			"PR #%s is applied but not built.": [
+				"PR #%s is toegepast, maar niet gebouwd."
+			],
+			"PR #%s is applied. The site is rebuilding.": [
+				"PR #%s is toegepast. De site wordt opnieuw gebouwd."
+			],
+			"Update incomplete — the build watch stopped before it finished rebuilding.": [
+				"Updaten onvolledig - de buildwatch stopte voordat deze klaar was met opnieuw bouwen."
+			],
+			"Update complete — the build watch has rebuilt, and this site is now on the latest trunk.": [
+				"Updaten afgerond - de build watch heeft opnieuw gebouwd en deze site gebruikt nu de nieuwste trunk."
+			],
+			"Update incomplete — the build watch was stopped, so nothing rebuilt.": [
+				"Updaten onvolledig - de buildwatch is gestopt, dus er is niets opnieuw gebouwd."
+			],
+			"The code is new but the built assets are old; retry install & build from the banner above.": [
+				"De code is nieuw, maar de gebouwde assets zijn oud; probeer installatie & build opnieuw via de banner hierboven."
+			],
+			"The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"De patch is toegepast, maar de build watch is gestopt voordat het opnieuw bouwen was afgerond, dus de site gebruikt nog steeds de oude assets."
+			],
+			"The patch is applied but the build watch was stopped, so the site still runs the old assets.": [
+				"De patch is toegepast, maar de build watch is gestopt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"%s failed, so the build was skipped. The patch is applied but dependencies are stale.": [
+				"%s is mislukt, dus de build is overgeslagen. De patch is toegepast, maar de afhankelijkheden zijn verouderd."
+			],
+			"The patch is applied but the build failed, so the site still runs the old assets.": [
+				"De patch is toegepast, maar de build is mislukt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"The patch changes %1$s — running %2$s…": [
+				"De patch wijzigt %1$s - %2$s- uitgevoerd"
+			],
+			"Applied — the build watch has rebuilt. Open the site to try it out.": [
+				"Toegepast — de build watch is opnieuw opgebouwd. Open de site om het uit te proberen."
+			],
+			"Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Toegepast — De build watch compileert deze wijziging nog steeds. Wacht tot het stil is voordat je de site probeert."
+			],
+			"Applied.": [
+				"Toegepast."
+			],
+			"Applied — open the site to try it out.": [
+				"Toegepast — open de site om het uit te proberen."
+			],
+			"The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Het opgeslagen werk is teruggezet, maar de build watch stopte voordat het opnieuw bouwen klaar was, dus de site gebruikt nog steeds de oude assets."
+			],
+			"The saved work is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Het opgeslagen werk is teruggezet, maar de build watch is gestopt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"%s failed, so the build was skipped. The saved work is restored but dependencies are stale.": [
+				"%s mislukt, dus de build is overgeslagen. Het opgeslagen werk is teruggezet maar afhankelijkheden zijn verouderd."
+			],
+			"The saved work is restored but the build failed, so the site still runs the old assets.": [
+				"Het opgeslagen werk is teruggezet, maar de build is mislukt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"The saved work changes %1$s — running %2$s…": [
+				"Het opgeslagen werk wijzigt %1$s - %2$s wordt uitgevoerd-"
+			],
+			"The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"De vorige branch is teruggezet, maar de build watch stopte voordat deze klaar was met opnieuw bouwen, dus de site gebruikt nog steeds de oude assets."
+			],
+			"The previous branch is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"De vorige branch is teruggezet, maar de build watch is gestopt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.": [
+				"%s is mislukt, dus de build is overgeslagen. De vorige branch is teruggezet, maar de afhankelijkheden zijn verouderd."
+			],
+			"The previous branch is restored but the build failed, so the site still runs the old assets.": [
+				"De vorige branch is teruggezet, maar de build is mislukt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"The previous branch changes %1$s — running %2$s…": [
+				"De vorige branch wijzigt %1$s - %2$s wordt uitgevoerd-"
+			],
+			"The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"De pull request is uitgecheckt, maar de build watch stopte voordat deze klaar was met opnieuw bouwen, dus de site gebruikt nog steeds de oude assets."
+			],
+			"The pull request is checked out but the build watch was stopped, so the site still runs the old assets.": [
+				"De pull request is uitgecheckt, maar de build watch is gestopt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.": [
+				"%s is mislukt, dus de build is overgeslagen. De pull request is uitgecheckt, maar de afhankelijkheden zijn verouderd."
+			],
+			"The pull request is checked out but the build failed, so the site still runs the old assets.": [
+				"De pull request is uitgecheckt, maar de build is mislukt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"The pull request changes %1$s — running %2$s…": [
+				"De pull request wijzigt %1$s - %2$s wordt uitgevoerd-"
+			],
+			"Checked out — the build watch has rebuilt. Open the site to try it out.": [
+				"Uitgecheckt - de build watch heeft opnieuw gebouwd. Open de site om het te proberen."
+			],
+			"Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Uitgecheckt - de build watch compileert deze wijzig nog. Wacht tot deze klaar is voordat je de site probeert."
+			],
+			"Checked out.": [
+				"Uitgecheckt."
+			],
+			"Checked out — open the site to try it out.": [
+				"Uitgecheckt - open de site om het te proberen."
+			],
+			"The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"De patch is teruggedraaid, maar de build watch is gestopt voordat het opnieuw bouwen was afgerond, dus de site gebruikt nog steeds de oude assets."
+			],
+			"The patch is reverted but the build watch was stopped, so the site still runs the old assets.": [
+				"De patch is teruggedraaid, maar de build watch is gestopt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"%s failed, so the build was skipped. The patch is reverted but dependencies are stale.": [
+				"%s is mislukt, dus de build is overgeslagen. De patch is teruggedraaid, maar de afhankelijkheden zijn verouderd."
+			],
+			"The patch is reverted but the build failed, so the site still runs the old assets.": [
+				"De patch is teruggedraaid, maar de build is mislukt, dus de site gebruikt nog steeds de oude assets."
+			],
+			"Reverted — the build watch has rebuilt. Open the site to try it out.": [
+				"Teruggedraaid - de build watch heeft opnieuw gebouwd. Open de site om het uit te proberen."
+			],
+			"Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Teruggedraaid - de build watch compileert deze wijzig nog. Wacht tot deze stil is voordat je de site probeert."
+			],
+			"Reverted.": [
+				"Teruggedraaid."
+			],
+			"Reverted — open the site to try it out.": [
+				"Teruggedraaid - open de site om het uit te proberen."
+			],
+			"The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.": [
+				"De build watch bouwt %s vanaf nul opnieuw op wanneer deze wordt hervat - uitvoer in Logs, onder Build watch. Het updaten is afgerond wanneer deze weer wijzigingen volgt."
+			],
+			"This pull request is closed. You can still check out its last head to investigate it.": [
+				"Deze pull request is gesloten. Je kunt de laatste head nog steeds uitchecken om deze te onderzoeken."
+			],
+			"Return to saved copy": [
+				"Terugkeren naar opgeslagen kopie"
+			],
+			"PR #%d is already on this site; you will switch to your local copy.": [
+				"PR #%d staat al op deze site; je schakelt over naar je lokale kopie."
+			],
+			"PR #%d has moved on GitHub; your local copy will be updated.": [
+				"PR #%d is verplaatst op GitHub; je lokale kopie wordt geüpdatet."
+			],
+			"PR #%d has moved on GitHub, but your copy has edits on top.": [
+				"PR #%d is verplaatst op GitHub, maar je kopie bevat aanvullende bewerkingen."
+			],
+			"PR #%1$d changes %2$d file.": [
+				"PR #%1$d wijzigt %2$d bestand.",
+				"PR #%1$d wijzigt %2$d bestanden."
+			],
+			"Could not switch this pull request. Check the log and try again.": [
+				"Kon niet naar deze pull request schakelen. Controleer het log en probeer het opnieuw."
+			],
+			"This pull request has no recorded starting point, so the app cannot safely save its edits. Save a patch before changing branches.": [
+				"Deze pull request heeft geen geregistreerd beginpunt, dus de app kan de bewerkingen niet veilig opslaan. Sla een patch op voordat je van branch wisselt."
+			],
+			"No pull request is checked out on this site.": [
+				"Er is geen pull request uitgecheckt op deze site."
+			],
+			"Enter a positive whole pull request number.": [
+				"Voer een positief geheel nummer van een pull request in."
+			],
+			"PR #%d is already checked out. Revert it before applying it again.": [
+				"PR #%d is al uitgecheckt. Draai deze terug voordat je deze opnieuw toepast."
+			],
+			"This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.": [
+				"Deze site heeft al een branch met de naam pr/%d die niet door de app is gemaakt. Hernoem of verwijder die branch vanuit een terminal voordat je het opnieuw probeert."
+			],
+			"PR #%d has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.": [
+				"PR #%d is verplaatst op GitHub en je kopie bevat aanvullende bewerkingen. Verwijder die bewerkingen voordat je deze updatet, of behoud de kopie die je hebt."
+			],
+			"Revert this PR": [
+				"Deze PR terugdraaien"
+			],
+			"Edits you make here stay with your local copy of the PR.": [
+				"Bewerkingen die je hier maakt, blijven bij je lokale kopie van de PR."
+			],
+			"Your edits here stay with your local copy of the PR.": [
+				"Je bewerkingen hier blijven bij je lokale kopie van de PR."
+			],
+			"Your ticket changes are saved separately and return when you revert this PR.": [
+				"Je ticketwijzigingen worden afzonderlijk opgeslagen en komen terug wanneer je deze PR terugdraait."
+			],
+			"Your issue changes are saved separately and return when you revert this PR.": [
+				"Je issuewijzigingen worden afzonderlijk opgeslagen en komen terug wanneer je deze PR terugdraait."
+			],
+			"Reverting this PR returns to trunk.": [
+				"Door deze PR terug te draaien, keer je terug naar trunk."
+			],
+			"Setup failed: %s": [
+				"Setup is mislukt: %s"
+			],
+			"Site setup request completed.": [
+				"Aanvraag voor de site-setup afgerond."
+			],
+			"Starting site setup…": [
+				"Site-setup starten…"
+			],
+			"Cloning repository…": [
+				"Repository aan het klonen…"
+			],
+			"Setup finished.": [
+				"Setup afgerond."
+			],
+			"Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.": [
+				"Typ <code><command /></code> om ondersteunde opdrachten weer te geven. Druk op <code><keys /></code> om de huidige opdracht te stoppen."
+			],
+			"Added a dependency to <code><file /></code>? Run <command />.": [
+				"Is ls afhankelijkheid toegevoegd <code><file /></code>? Voer uit <command />."
+			],
+			"Edited files in <code><folder /></code>? Run <command /> so the site picks them up.": [
+				"Bestanden bewerkt in <code><folder /></code>? Voer <command /> uit zodat de site ze oppakt."
+			],
+			"Setting this site up — running %s…": [
+				"Deze site wordt ingesteld - %s wordt uitgevoerd-"
+			],
+			"Stopping setup…": [
+				"Setup stoppen…"
+			],
+			"Debug.log": [
+				"Debug.log"
+			],
+			"Debug.log (%d)": [
+				"Debug.log (%d)"
+			],
+			"Discarded local changes.": [
+				"Lokale wijzigingen genegeerd."
+			],
+			"Saved your changes to %s and reset the working tree.": [
+				"Je wijzigingen zijn opgeslagen in %s en de werkboom is gereset."
+			],
+			"Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.": [
+				"Updaten onvolledig - %s is mislukt. De code is nieuw, maar afhankelijkheden en gebouwde assets zijn oud; probeer installeren en bouwen opnieuw via de banner hierboven."
+			],
+			"%1$s changed — running %2$s (only the changed packages are downloaded)…": [
+				"%1$s gewijzigd - %2$s wordt uitgevoerd (alleen de gewijzigde pakketten worden gedownload)-"
+			],
+			"Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.": [
+				"Updaten onvolledig - de build is mislukt. De code is nieuw, maar de gebouwde assets zijn oud; probeer installeren en bouwen opnieuw via de banner hierboven."
+			],
+			"Update complete — this site is now on the latest trunk.": [
+				"Updaten afgerond - deze site gebruikt nu de nieuwste trunk."
+			],
+			"WordPress npm helper terminal.": [
+				"WordPress npm hulpterminal."
+			],
+			"A command is already running. Press %s to stop it.": [
+				"Een opdracht wordt al uitgevoerd. Druk op %s om het te stoppen."
+			],
+			"Try \"%s\" for the list of supported commands.": [
+				"Probeer \"%s\" voor de lijst met ondersteunde opdrachten."
+			],
+			"Unsupported command: %s": [
+				"Niet-ondersteunde opdracht: %s"
+			],
+			"Unsupported script \"%1$s\". Allowed scripts: %2$s": [
+				"Niet-ondersteund script \"%1$s\". Toegestane scripts: %2$s"
+			],
+			"Missing script name. Example: %s": [
+				"Scriptnaam ontbreekt. Voorbeeld: %s"
+			],
+			"Run them here whenever you change files or add a dependency afterwards.": [
+				"Voer ze hier uit wanneer je bestanden wijzig of daarna een afhankelijkheid toevoeg."
+			],
+			"The setup checklist runs %1$s and %2$s once.": [
+				"De setupchecklist voert %1$s en %2$s eenmaal uit."
+			],
+			"%1$s Run one of: %2$s": [
+				"%1$s Voer een van de volgende uit: %2$s"
+			],
+			"%1$s Run %2$s in the site directory": [
+				"%1$s Voer %2$s uit in de sitefolder"
+			],
+			"%s Show this help text": [
+				"%s deze helptekst weergeven"
+			],
+			"Available commands:": [
+				"Beschikbare opdrachten:"
+			],
+			"Could not show the log file: %s": [
+				"Kon het logbestand niet weergeven: %s"
+			],
+			"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was not.": [
+				"Kon debug.log van %1$s niet wissen: %2$s. Het paneel is gewist; het bestand niet."
+			],
+			"Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.": [
+				"Starten van de ontwikkelserver geannuleerd: de build-watcher stopte voordat %s was afgerond. Start opnieuw zodra de watcher wordt uitgevoerd."
+			],
+			"%s is complete: starting the server without the build watch. Start build watch to compile edits on save.": [
+				"%s is voltooid: de server starten zonder de build watch. Start build watch om bewerkingen te compileren bij opslaan."
+			],
+			"Failed to start PHP server: %s": [
+				"PHP server starten is mislukt: %s"
+			],
+			"unknown error": [
+				"onbekende fout"
+			],
+			"Dev server failed to start: %s": [
+				"Ontwikkelserver kan niet starten: %s"
+			],
+			"Dev server stopped unexpectedly (see Help → %s for details).": [
+				"Ontwikkelserver is onverwacht gestopt (zie Help → %s voor details)."
+			],
+			"Resumed.": [
+				"Hervat."
+			],
+			"Paused while another operation uses the build.": [
+				"Gepauzeerd terwijl een andere bewerking de build gebruikt."
+			],
+			"%1$s failed with code %2$s — build watch not started.": [
+				"%1$s is mislukt met code %2$s - build watch niet gestart."
+			],
+			"%s was stopped — build watch not started.": [
+				"%s is gestopt — build watch niet gestart."
+			],
+			"No completed build found — running %s first…": [
+				"Geen afgeronde build gevonden - %s wordt eerst uitgevoerd-"
+			],
+			"A command is already running in the terminal — stop it before starting the build watch.": [
+				"Een opdracht wordt al uitgevoerd in de terminal — stop die voordat je de build watch start."
+			],
+			"%1$s exited with code %2$s": [
+				"%1$s is afgesloten met code %2$s"
+			],
+			"%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for \"%3$s\".": [
+				"%1$s bouwt %2$s opnieuw op voordat het dit controleert. De dev server wacht, als je die hebt gestart, op \"%3$s\"."
+			],
+			"The patch could not be applied.": [
+				"De patch kon niet worden toegepast."
+			],
+			"%s The record of it could not be cleared, so this site still thinks it is applied.": [
+				"%s Het record ervan kon niet worden gewist, dus deze site denkt nog steeds dat het is toegepast."
+			],
+			"%s The applied-patch record has been cleared.": [
+				"%s De registratie van de toegepaste patch is gewist."
+			],
+			"A command is already running. Stop it before switching tickets.": [
+				"Een opdracht wordt al uitgevoerd. Stop die voordat je van tickets wisselt."
+			],
+			"Could not read that patch.": [
+				"Kon die patch niet lezen."
+			],
+			"Could not download %s.": [
+				"Kon %s niet downloaden."
+			],
+			"Could not read that file: %s": [
+				"Kon dat bestand niet lezen: %s"
+			],
+			"Running %s…": [
+				"Uitgevoerd %s…"
+			],
+			"Build watch (exited %d)": [
+				"Build watch (afgesloten %d)"
+			],
+			"Build watch (stopped)": [
+				"Build watch (gestopt)"
+			],
+			"Build watch (paused)": [
+				"Build watch (gepauzeerd)"
+			],
+			"Build watch (building)": [
+				"Build watch (bouwen)"
+			],
+			"Build watch (watching)": [
+				"Build watch (aan het kijken)"
+			],
+			"Build watch (compiling)": [
+				"Build watch (compileren)"
+			],
+			"Could not copy": [
+				"Kon niet kopiëren"
+			],
+			"The build failed — dependencies are installed. Its output is above; retry the build from the checklist.": [
+				"De build is mislukt - afhankelijkheden zijn geïnstalleerd. De uitvoer staat hierboven; probeer de build opnieuw vanuit de checklist."
+			],
+			"%s failed — setup stopped here. Its output is above; retry the install from the checklist.": [
+				"%s is mislukt - de setup is hier gestopt. De uitvoer staat hierboven; probeer de installatie opnieuw via de checklist."
+			],
+			"Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.": [
+				"De setup is gestopt. De resterende stappen staan in de checklist hierboven - voer ze uit wanneer je er klaar voor bent."
+			],
+			"Setup complete — start the dev server when you are ready.": [
+				"Setup afgerond - start de dev-server wanneer je klaar bent."
+			],
+			"Status update": [
+				"Status updaten"
+			],
+			"Status: done": [
+				"Status: klaar"
+			],
+			"Status: cloning": [
+				"Status: klonen"
+			],
+			"Clear": [
+				"Wissen"
+			],
+			"Show in folder": [
+				"Weergeven in map"
+			],
+			"The log file appears once the dev server has run.": [
+				"Het logbestand verschijnt zodra de dev-server is uitgevoerd."
+			],
+			"No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.": [
+				"Nog geen PHP berichten of -fouten. Alles wat WordPress of je code schrijft - <code><function /></code>, berichten, verouderingsmeldingen, fatale fouten - verschijnt hier terwijl de dev-server draait."
+			],
+			"The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.": [
+				"De build watch compileert <code><source /></code>-bewerkingen naar <code><build /></code>. Deze draait onafhankelijk van de dev server - de uitvoer en of deze wijzigingen volgt, is gepauzeerd of gestopt, verschijnt hier."
+			],
+			"it no longer fits": [
+				"het past niet meer"
+			],
+			"Open the pull request": [
+				"De pull request openen"
+			],
+			"the code around it has changed": [
+				"de code eromheen is gewijzigd"
+			],
+			"looks like that change is not in your checkout any more": [
+				"lijkt erop dat die wijziging niet meer in je checkout zit"
+			],
+			"It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Het maakt nu deel uit van je wijzigingen. Als je je bewerkingen op die regels ongedaan maakt, komt Terugdraaien terug; anders sla je een kopie van je werk op en negeer je het ticket naar de basis - in dit project is dat een normale manier om verder te gaan, geen verloren middag."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.": [
+				"Deze patch kan niet zelfstandig worden teruggedraaid: je eigen bewerkingen staan op %1$d van de %2$d wijziging, verspreid over %3$d bestanden.",
+				"Deze patch kan niet zelfstandig worden teruggedraaid: je eigen bewerkingen staan op %1$d van de %2$d wijzigingen, verspreid over %3$d bestanden."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.": [
+				"Deze patch kan niet zelfstandig worden teruggedraaid: je eigen bewerkingen staan op %1$d van de %2$d wijziging.",
+				"Deze patch kan niet zelfstandig worden teruggedraaid: je eigen bewerkingen staan op %1$d van de %2$d wijzigingen."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.": [
+				"%1$s kan niet zelfstandig weer worden verwijderd: je eigen bewerkingen zitten in %2$d van de %3$d wijzig, verspreid over %4$d bestanden.",
+				"%1$s kan niet zelfstandig weer worden verwijderd: je eigen bewerkingen zitten in %2$d van de %3$d wijzigingen, verspreid over %4$d bestanden."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.": [
+				"%1$s kan niet zelfstandig weer worden verwijderd: je eigen bewerkingen zitten in %2$d van de %3$d wijzig.",
+				"%1$s kan niet zelfstandig weer worden verwijderd: je eigen bewerkingen zitten in %2$d van de %3$d wijzigingen."
+			],
+			"Ask its author for a rebase": [
+				"Vraag de auteur om een rebase uit te voeren"
+			],
+			"Bringing it up to date is its author's work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.": [
+				"Het up-to-date brengen is het werk van de auteur — een rebase, of trunk samenvoegen. Een reactie achterlaten op de pull request om het diegene te laten weten is op zichzelf al een echte bijdrage."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Deze pull request is gemaakt voor een oudere trunk en past er niet meer bij: %1$d van de %2$d wijziging in %3$d bestanden moet opnieuw worden bewerkt.",
+				"Deze pull request is gemaakt voor een oudere trunk en past er niet meer bij: %1$d van de %2$d wijzigingen in %3$d bestanden moet opnieuw worden bewerkt."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Deze pull request is gemaakt voor een oudere trunk en past er niet meer bij: %1$d van de %2$d wijziging in %3$d bestand moet opnieuw worden bewerkt.",
+				"Deze pull request is gemaakt voor een oudere trunk en past er niet meer bij: %1$d van de %2$d wijzigingen in %3$d bestand moet opnieuw worden bewerkt."
+			],
+			"looks like it is already in your checkout": [
+				"lijkt erop dat het al in je checkout zit"
+			],
+			"Your own work is also in %s, so it may be part of why the pull request does not fit.": [
+				"Je eigen werk staat ook in %s, dus het kan deel uitmaken van waarom de pull request niet past."
+			],
+			"%s includes changes from the patch you applied and may also contain your own edits.": [
+				"%s bevat wijzigingen van de patch die je hebt toegepast en kan ook je eigen bewerkingen bevatten.",
+				"%s bevatten wijzigingen van de patch die je hebt toegepast en kunnen ook je eigen bewerkingen bevatten."
+			],
+			"%1$s includes changes from %2$s and may also contain your own edits.": [
+				"%1$s bevat wijzigingen van %2$s en kan ook je eigen bewerkingen bevatten.",
+				"%1$s bevatten wijzigingen van %2$s en kunnen ook je eigen bewerkingen bevatten."
+			],
+			"Other failures are in %s.": [
+				"Andere fouten staan in %s."
+			],
+			"Your own work is also in %s and may be part of the failure.": [
+				"Je eigen werk staat ook in %s en kan deel uitmaken van de fout."
+			],
+			"Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.": [
+				"Sla eerst een patch van je werk op om een kopie te bewaren en probeer deze pull request daarna op een schoon ticket. Als deze daar nog steeds niet past, open je de pull request en laat je de auteur weten dat deze mogelijk moet worden geüpdatet."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Deze pull request past niet bij je checkout: %1$d van de %2$d wijziging, in %3$d bestanden, zou opnieuw moeten worden bewerkt.",
+				"Deze pull request past niet bij je checkout: %1$d van de %2$d wijzigingen, in %3$d bestanden, zouden opnieuw moeten worden bewerkt."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Deze pull request past niet bij je checkout: %1$d van de %2$d wijziging, in %3$d bestand, zou opnieuw moeten worden bewerkt.",
+				"Deze pull request past niet bij je checkout: %1$d van de %2$d wijzigingen, in %3$d bestand, zouden opnieuw moeten worden bewerkt."
+			],
+			"See why it was closed": [
+				"Waarom het is gesloten bekijken"
+			],
+			"Nobody is coming back to update a closed pull request — its discussion may say why it ended.": [
+				"Niemand komt terug om een gesloten pull request te updaten - in de discussie staat mogelijk waarom die is beëindigd."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Deze pull request is gesloten en gebaseerd op een oudere trunk - hij past niet meer: %1$d van de %2$d wijziging, in %3$d bestanden, zou opnieuw moeten worden bewerkt.",
+				"Deze pull request is gesloten en gebaseerd op een oudere trunk - hij past niet meer: %1$d van de %2$d wijzigingen, in %3$d bestanden, zouden opnieuw moeten worden bewerkt."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Deze pull request is gesloten en gebaseerd op een oudere trunk - hij past niet meer: %1$d van de %2$d wijziging, in %3$d bestand, zou opnieuw moeten worden bewerkt.",
+				"Deze pull request is gesloten en gebaseerd op een oudere trunk - hij past niet meer: %1$d van de %2$d wijzigingen, in %3$d bestand, zouden opnieuw moeten worden bewerkt."
+			],
+			"All %d of this pull request's change look like they are already in trunk — there is nothing left to apply.": [
+				"Alle %d wijzigingen van deze pull request lijken al in trunk te staan - er is niets meer om toe te passen.",
+				"Alle %d wijzigingen van deze pull request lijken al in trunk te staan - er is niets meer om toe te passen."
+			],
+			"All %d of this pull request's change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.": [
+				"Alle %d wijzigingen van deze pull request lijken al in trunk te staan - ze zijn waarschijnlijk naar core gecommit, daarom is deze gesloten. Er is niets meer om toe te passen.",
+				"Alle %d wijzigingen van deze pull request lijken al in trunk te staan - ze zijn waarschijnlijk naar core gecommit, daarom is deze gesloten. Er is niets meer om toe te passen."
+			],
+			"All %d of this pull request's change look like they are already in your checkout — there is nothing left to apply.": [
+				"Alle %d wijzigingen van deze pull request lijken al in je checkout te staan - er is niets meer om toe te passen.",
+				"Alle %d wijzigingen van deze pull request lijken al in je checkout te staan - er is niets meer om toe te passen."
+			],
+			"%1$s and %2$d more file": [
+				"%1$s en nog %2$d bestand",
+				"%1$s en nog %2$d bestanden"
+			],
+			"%1$d of this patch's %2$d change across %3$d files no longer fit — the other %4$d do.": [
+				"%1$d van de %2$d wijziging van deze patch in %3$d bestanden passen niet meer - de andere %4$d wel.",
+				"%1$d van de %2$d wijzigingen van deze patch in %3$d bestanden passen niet meer - de andere %4$d wel."
+			],
+			"%1$d of this patch's %2$d change no longer fit — the other %3$d do.": [
+				"%1$d van de %2$d wijziging van deze patch past niet meer - de andere %3$d wel.",
+				"%1$d van de %2$d wijzigingen van deze patch passen niet meer - de andere %3$d wel."
+			],
+			"None of this patch's %1$d change across %2$d files still fit your checkout.": [
+				"%1$d wijziging van deze patch in %2$d bestanden past niet meer bij je afrekenen.",
+				"%1$d wijzigingen van deze patch in %2$d bestanden passen niet meer bij je afrekenen."
+			],
+			"None of this patch's %d change still fit your checkout.": [
+				"%d wijziging van deze patch past niet meer bij je afrekenen.",
+				"%d wijzigingen van deze patch passen niet meer bij je afrekenen."
+			],
+			"%1$d of this patch's %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.": [
+				"%1$d van de %2$d wijziging van deze patch in %3$d bestanden lijken al in je checkout te staan - de andere %4$d passen nog steeds.",
+				"%1$d van de %2$d wijzigingen van deze patch in %3$d bestanden lijken al in je chekout te staan - de andere %4$d passen nog steeds."
+			],
+			"%1$d of this patch's %2$d change look like they are already in your checkout — the other %3$d still fit.": [
+				"%1$d van de %2$d wijziging van deze patch lijken al in je checkout te staan - de andere %3$d passen nog steeds.",
+				"%1$d van de %2$d wijzigingen van deze patch lijken al in je checkout te staan - de andere %3$d passen nog steeds."
+			],
+			"All %1$d of this patch's change across %2$d files look like they are already in your checkout.": [
+				"Alle %1$d wijzigingen van deze patch in %2$d bestanden lijken al in je checkout te staan.",
+				"Alle %1$d wijzigingen van deze patch in %2$d bestanden lijken al in je checkout te staan."
+			],
+			"All %d of this patch's change look like they are already in your checkout.": [
+				"Alle %d wijzigingen van deze patch lijken al in je checkout te staan.",
+				"Alle %d wijzigingen van deze patch lijken al in je checkout te staan."
+			],
+			"The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.": [
+				"De patch wordt boven op die wijzigingen toegepast: dit lukt als ze niet overlappen en mislukt zonder iets te wijzigen als ze dat wel doen."
+			],
+			"%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.": [
+				"%s bevat wijzigingen van de patch die je hebt toegepast, die je hebt toegepast. Het bestand kan ook je eigen bewerkingen bevatten.",
+				"%s bevatten wijzigingen van de patch die je hebt toegepast, die je hebt toegepast. De bestanden kunnen ook je eigen bewerkingen bevatten."
+			],
+			"%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.": [
+				"%1$s bevat wijzigingen uit %2$s die je hebt toegepast. Het bestand kan ook je eigen bewerkingen bevatten.",
+				"%1$s bevat wijzigingen uit %2$s die je hebt toegepast. De bestanden kunnen ook je eigen bewerkingen bevatten."
+			],
+			"You have your own edits to %s. Save a patch of your work first if you want a copy.": [
+				"Je hebt eigen bewerkingen in %s. Sla eerst een patch van je werk op als je een kopie wilt."
+			],
+			"%1$s and %2$s": [
+				"%1$s en %2$s"
+			],
+			"It still counts as this ticket's one applied patch, so another cannot be applied until this ticket is reverted or discarded.": [
+				"Het geldt nog steeds als de ene toegepaste patch van dit ticket, dus er kan geen andere worden toegepast totdat dit ticket is teruggedraaid of verwijderd."
+			],
+			"Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Sla eerst een kopie van je werk op; het ticket kun je veilig terugzetten naar de basis - in dit project is dat een normale volgende stap, geen verloren middag."
+			],
+			"The copy could not be saved: %s": [
+				"De kopie kon niet worden opgeslagen: %s"
+			],
+			"%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"%s was te groot om een kopie van te bewaren voor ongedaan maken, dus het kan niet vanzelf weer eruit gehaald worden."
+			],
+			"A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"Een patch was te groot om er een kopie van te bewaren voor ongedaan maken, dus die kan niet zelfstandig terug eruit gehaald worden."
+			],
+			"A patch is applied — %d file.": [
+				"Er is een patch toegepast - %d bestand.",
+				"Er is een patch toegepast - %d bestanden."
+			],
+			"A patch is applied — %1$d file, %2$s.": [
+				"Er is een patch toegepast - %1$d bestand, %2$s.",
+				"Er is een patch toegepast - %1$d bestanden, %2$s."
+			],
+			"%1$s is applied — %2$d file.": [
+				"%1$s is toegepast - %2$d bestand.",
+				"%1$s is toegepast - %2$d bestanden."
+			],
+			"%1$s is applied — %2$d file, %3$s.": [
+				"%1$s is toegepast - %2$d bestand, %3$s.",
+				"%1$s is toegepast - %2$d bestanden, %3$s."
+			],
+			"Only %s pull requests can be applied here.": [
+				"Hier kunnen alleen %s pull-aanvragen worden toegepast."
+			],
+			"That does not look like a pull request URL.": [
+				"Dat lijkt geen pull request URL te zijn."
+			],
+			"Only github.com pull requests are supported.": [
+				"Alleen pull-aanvragen van github.com worden ondersteund."
+			],
+			"That is not a pull request URL or number.": [
+				"Dat is geen pull request URL of nummer."
+			],
+			"Enter a pull request URL or number.": [
+				"Voer een URL of nummer van een pull request in."
+			],
+			"That does not look like a patch — no file changes found.": [
+				"Dat lijkt geen patch te zijn - geen bestandswijzigingen gevonden."
+			],
+			"No file changes found in the patch.": [
+				"Geen bestandswijzigingen gevonden in de patch."
+			],
+			"The patch is empty.": [
+				"De patch is leeg."
+			],
+			"The empty file path is quoted or ambiguous.": [
+				"Het lege bestandspad staat tussen aanhalingstekens of is dubbelzinnig."
+			],
+			"Applied %d file.": [
+				"%d bestand toegepast.",
+				"%d bestanden toegepast."
+			],
+			"Reverted %d file.": [
+				"%d bestand teruggedraaid.",
+				"%d bestanden teruggedraaid."
+			],
+			"The patch could not be written, so the checkout was put back as it was: %s": [
+				"De patch kon niet worden geschreven, dus de afrekenen is hersteld zoals deze was: %s"
+			],
+			"The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s": [
+				"De patch kon niet worden geschreven en de afrekenen kon niet volledig worden hersteld - de status is onbekend. Kon niet ongedaan worden gemaakt: %s"
+			],
+			"writing could not verify %1$s after git apply: %2$s": [
+				"schrijven kon %1$s niet verifiëren na git toepassen: %2$s"
+			],
+			"writing git apply exited %s": [
+				"het schrijven van git toepassen is afgesloten met %s"
+			],
+			"writing %s": [
+				"schrijven %s"
+			],
+			"Could not snapshot the checkout before applying the patch: %s": [
+				"Kon geen snapshot van de afrekenen maken voordat de patch werd toegepast: %s"
+			],
+			"The patch was not applied — the checkout is unchanged.": [
+				"De patch is niet toegepast - de checkout is ongewijzigd."
+			],
+			"That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.": [
+				"Deze patch staat niet meer in deze checkout - iets heeft hem gereset, waarschijnlijk een trunk updaten of een verwijdering. Er is niets teruggedraaid."
+			],
+			"The patch does not apply.": [
+				"De patch kan niet worden toegepast."
+			],
+			"a file has moved on since the patch was written, so it no longer applies": [
+				"een bestand is inmiddels gewijzigd sinds de patch is geschreven, dus die is niet langer van toepassing"
+			],
+			"%s has moved on since the patch was written, so it no longer applies": [
+				"%s is verdergegaan sinds de patch is geschreven, dus die is niet langer van toepassing"
+			],
+			"%d more file was not checked one by one": [
+				"%d extra bestand is niet afzonderlijk gecontroleerd",
+				"%d extra bestanden zijn niet afzonderlijk gecontroleerd"
+			],
+			"The patch does not change any files.": [
+				"De patch wijzigt geen bestanden."
+			],
+			"(unnamed binary file)": [
+				"(naamloos binair bestand)"
+			],
+			"Could not read the patch: %s": [
+				"Kon de patch niet lezen: %s"
+			],
+			"Skipped %1$d binary file the app cannot apply: %2$s": [
+				"%1$d binair bestand overgeslagen dat de app niet kan toepassen: %2$s",
+				"%1$d binaire bestanden overgeslagen die de app niet kan toepassen: %2$s"
+			],
+			"%s is not in this checkout, so the patch does not fit it": [
+				"%s zit niet in deze checkout, dus de patch past er niet bij"
+			],
+			"%1$s already exists, so the patch cannot move %2$s onto it": [
+				"%1$s bestaat al, dus de patch kan %2$s er niet naartoe verplaatsen"
+			],
+			"%s is not in this checkout, so the patch cannot move it": [
+				"%s zit niet in deze checkout, dus de patch kan het niet verplaatsen"
+			],
+			"%s could not be created from the patch": [
+				"%s kon niet uit de patch worden aangemaakt"
+			],
+			"%s already exists, so the patch cannot add it": [
+				"%s bestaat al, dus de patch kan het niet toevoegen"
+			],
+			"%s is already gone, so the patch cannot remove it": [
+				"%s is al weg, dus de patch kan het niet verwijderen"
+			],
+			"%s points outside the site folder": [
+				"%s wijst buiten de sitemap"
+			],
+			"%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do": [
+				"%1$s is veranderd sinds de patch is geschreven: %2$d van de %3$d wijziging passen niet meer en de andere %4$d wel",
+				"%1$s is veranderd sinds de patch is geschreven: %2$d van de %3$d wijzigingen passen niet meer en de andere %4$d wel"
+			],
+			"%1$s has moved on since the patch was written, so none of its %2$d change still fits": [
+				"%1$s is veranderd sinds de patch is geschreven, dus geen van de %2$d wijziging past nog",
+				"%1$s is veranderd sinds de patch is geschreven, dus geen van de %2$d wijzigingen past nog"
+			],
+			"Server did not start within %d second": [
+				"Server is niet gestart binnen %d seconde",
+				"Server is niet gestart binnen %d seconden"
+			],
+			"Server exited with code %s before reporting a URL": [
+				"Server is gestopt met code %s voordat deze een URL kon doorgeven"
+			],
+			"Server exited with code %1$s (signal %2$s) before reporting a URL": [
+				"Server is gestopt met code %1$s (signaal %2$s) voordat deze een URL kon doorgeven"
+			],
+			"Failed to start: %s": [
+				"Starten is mislukt: %s"
+			],
+			"Retrying with engine checks relaxed…": [
+				"Opnieuw proberen met minder strenge enginecontroles…"
+			],
+			"This site requires a newer Node.js than this app bundles.": [
+				"Deze site vereist een nieuwere Node.js dan deze app meelevert."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm is afgesloten met code %s, maar iets dat het heeft gestart, wordt nog uitgevoerd en houdt de uitvoer opgelost. Loslaten en beëindigen."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm is afgesloten met code %1$s (signaal %2$s), maar iets dat het heeft gestart, wordt nog uitgevoerd en houdt de uitvoer opgelost. Loslaten en beëindigen."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm is afgesloten met code %s, maar iets dat het heeft gestart, wordt nog uitgevoerd en houdt de uitvoer opgelost. Loslaten; dat proces wordt uitgevoerd totdat het vanzelf klaar is."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm is afgesloten met code %1$s (signaal %2$s), maar iets dat het heeft gestart, wordt nog uitgevoerd en houdt de uitvoer opgelost. Loslaten; dat proces wordt uitgevoerd totdat het vanzelf klaar is."
+			],
+			"Applying the patch failed: %s": [
+				"De patch toepassen is mislukt: %s"
+			],
+			"The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s": [
+				"De patch is toegepast, maar het record voor terugdraaien kon niet worden opgeslagen en de patch kon niet ongedaan worden gemaakt - de afrekenen bevat de patch en de app kan deze niet terugdraaien. %s"
+			],
+			"The patch applied but its revert record could not be saved, so it was undone. %s": [
+				"De patch is toegepast, maar het record voor terugdraaien kon niet worden opgeslagen, dus is de patch ongedaan gemaakt. %s"
+			],
+			"This patch is too large to keep for an undo, so Revert will not be offered.": [
+				"Deze patch is te groot om te bewaren voor ongedaan maken, dus Revert wordt niet aangeboden."
+			],
+			"Applying %s…": [
+				"%s aan het toepassen…"
+			],
+			"Reverting %s…": [
+				"%s… terugdraaien"
+			],
+			"%s is already applied. Revert it before applying another patch.": [
+				"%s is al toegepast. Draai dit terug voordat je een andere patch toepast."
+			],
+			"There is no stored patch to revert.": [
+				"Er is geen opgeslagen patch om terug te draaien."
+			],
+			"Could not check your work for conflicts, so the preview was not shown.": [
+				"Je werk kon niet op conflicten worden gecontroleerd, daarom werd het voorbeeld niet getoond."
+			],
+			"Restoring the files of your previous branch…": [
+				"Bestanden van je vorige branch terugzetten…"
+			],
+			"Could not remove the unused branch: %s": [
+				"Kon de ongebruikte branch niet verwijderen: %s"
+			],
+			"Downloading the pull request's files and switching to its branch…": [
+				"Bestanden van de pull request downloaden en overschakelen naar de bijbehorende branch…"
+			],
+			"Returning to your saved copy of the pull request…": [
+				"Terugkeren naar je opgeslagen kopie van de pull request…"
+			],
+			"Your work is safe — it is committed on %s. Apply that pull request again to return to it.": [
+				"Je werk is veilig - het is gecommit op %s. Pas die pull request opnieuw toe om ernaar terug te keren."
+			],
+			"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.": [
+				"Je werk aan #%1$s is veilig - het is gecommit op %2$s. Link dat ticket opnieuw om ernaar terug te keren."
+			],
+			"Update failed during fetch: %s": [
+				"Updaten is mislukt tijdens fetch: %s"
+			],
+			"Update failed during checkout: %s": [
+				"Updaten is mislukt tijdens afrekenen: %s"
+			],
+			"Returning to your work on %s…": [
+				"Terugkeren naar je werk aan %s…"
+			],
+			"Parking your work on %s before updating…": [
+				"Je werk op %s parkeren vóór het updaten…"
+			],
+			"Fetch latest trunk": [
+				"Nieuwste trunk ophalen"
+			],
+			"The build watch is rebuilding — output in the Logs, under Build watch": [
+				"De build watch bouwt opnieuw - uitvoer in Logs, onder Build watch"
+			],
+			"Dependencies unchanged — skipping %s": [
+				"Afhankelijkheden ongewijzigd - %s overslaan"
+			],
+			"Dependencies unchanged, rebuilt.": [
+				"Afhankelijkheden ongewijzigd, opnieuw gebouwd."
+			],
+			"Dependencies updated, rebuilt.": [
+				"Afhankelijkheden geüpdatet, opnieuw gebouwd."
+			],
+			"Dependencies unchanged, rebuilt in %s.": [
+				"Afhankelijkheden ongewijzigd, opnieuw gebouwd in %s."
+			],
+			"Dependencies updated, rebuilt in %s.": [
+				"Afhankelijkheden geüpdatet, opnieuw gebouwd in %s."
+			],
+			"Install dependencies": [
+				"Afhankelijkheden installeren"
+			],
+			"Download WordPress": [
+				"Download WordPress"
+			],
+			"Rebuild": [
+				"Opnieuw bouwen"
+			],
+			"Apply the patch": [
+				"De patch toepassen"
+			],
+			"Revert the pull request": [
+				"De pull request terugdraaien"
+			],
+			"Apply the pull request": [
+				"De pull request toepassen"
+			],
+			"The build watch rebuilds when it resumes": [
+				"De build watch bouwt opnieuw wanneer deze wordt hervat"
+			],
+			"The build watch will recompile the change": [
+				"De build watch zal de wijziging opnieuw compileren"
+			],
+			"Rebuilt": [
+				"Opnieuw gebouwd"
+			],
+			"Rebuilding — output in the Terminal": [
+				"Opnieuw bouwen - uitvoer in de Terminal"
+			],
+			"Dependencies changed — installing the difference…": [
+				"Afhankelijkheden gewijzigd - verschil aan het installeren…"
+			],
+			"Fetched and reset to trunk": [
+				"Opgehaald en gereset naar trunk"
+			],
+			"Fetching and resetting to trunk…": [
+				"Ophalen en resetten naar trunk…"
+			],
+			"Fetch and reset to trunk": [
+				"Ophalen en resetten naar trunk"
+			],
+			"The build did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"De build is niet afgerond. De uitvoer staat in Terminal - probeer het opnieuw nadat je die hebt gelezen."
+			],
+			"Retry the build": [
+				"Build opnieuw proberen"
+			],
+			"Build complete": [
+				"Build afgerond"
+			],
+			"The install did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"De installatie is niet afgerond. De uitvoer staat in de Terminal - probeer het opnieuw nadat je deze hebt gelezen."
+			],
+			"Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.": [
+				"Geïnstalleerd. Sindsdien een afhankelijkheid aan %1$s toegevoegd? Voer %2$s uit in de terminal."
+			],
+			"Install npm packages so commands can run.": [
+				"Npm-pakketten installeren zodat opdrachten kunnen worden uitgevoerd."
+			],
+			"Retry %s": [
+				"Opnieuw proberen %s"
+			],
+			"Dependencies installed": [
+				"Afhankelijkheden geïnstalleerd"
+			],
+			"Ready": [
+				"Klaar"
+			],
+			"In progress": [
+				"Bezig"
+			],
+			"Locked": [
+				"Vergrendeld"
+			],
+			"Pending": [
+				"In afwachting"
+			],
+			"Failed": [
+				"Mislukt"
+			],
+			"Completed": [
+				"Afgerond"
+			],
+			"The trunk snapshot is old; update before making a patch.": [
+				"De trunk-snapshot is oud; updaten voordat je een patch maakt."
+			],
+			"The update left the build stale; install and build to recover.": [
+				"De update heeft de build verouderd achtergelaten; installeer en build om te herstellen."
+			],
+			"A patch is staged — apply and rebuild, or cancel.": [
+				"Een patch is klaargezet — toepassen en opnieuw opbouwen, of annuleren."
+			],
+			"The trunk update in progress.": [
+				"De trunk wordt geüpdatet."
+			],
+			"A patch is being applied or reverted.": [
+				"Er wordt een patch toegepast of teruggedraaid."
+			],
+			"The next step in the setup checklist.": [
+				"De volgende stap in de setup checklist."
+			],
+			"Link a Trac ticket to give your work a home.": [
+				"Link een Trac ticket zodat je werk een plek heeft."
+			],
+			"Link a GitHub issue to give your work a home.": [
+				"Link een GitHub issue zodat je werk een plek heeft."
+			],
+			"You have uncommitted changes ready to review and submit.": [
+				"Je hebt niet-gecommitte wijzigingen klaar voor beoordeling en indiening."
+			],
+			"PR #%d is applied; revert it before applying another change.": [
+				"PR #%d is toegepast; draai deze terug voordat je een andere wijziging toepast."
+			],
+			"Start the dev server to work on the site.": [
+				"Devserver starten om aan de site te werken."
+			],
+			"Setting up new site…": [
+				"Nieuwe site instellen…"
+			],
+			"Finish setting this site up first.": [
+				"Rond eerst het instellen van deze site af."
+			],
+			"Hide": [
+				"Verbergen"
+			],
+			"Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.": [
+				"De volledige build wordt uitgevoerd. Dit kan op Windows tot een half uur duren; de Terminal toont wat er gebeurt."
+			],
+			"Installing dependencies. You can leave this running — the build follows on its own.": [
+				"Afhankelijkheden worden geïnstalleerd. Je kunt dit laten uitvoeren - de build volgt vanzelf."
+			],
+			"Setting this site up for you — step %1$d of %2$d": [
+				"Deze site voor je instellen - stap %1$d van %2$d"
+			],
+			"Your changes were saved to %s before the reset.": [
+				"Je wijzigingen zijn vóór de reset opgeslagen in %s."
+			],
+			"Up to date with trunk as of today.": [
+				"Vanaf vandaag up-to-date met trunk."
+			],
+			"Most packages are already cached, so this is a download of the difference — not the whole tree.": [
+				"De meeste pakketten zijn al in de cache opgeslagen, dus dit is een download van het verschil — niet de hele boom."
+			],
+			"step %1$d of %2$d": [
+				"stap %1$d van %2$d"
+			],
+			"Patches you create now may not apply on Trac. Updating takes a few minutes.": [
+				"Patches die je nu maakt, kunnen niet worden toegepast op Trac. Updaten duurt een paar minuten."
+			],
+			"This site's WordPress code is %d day old": [
+				"De WordPresscode van deze site is %d dag oud",
+				"De WordPresscode van deze site is %d dagen oud"
+			],
+			"Retry install & build": [
+				"Installatie en build opnieuw proberen"
+			],
+			"The code is new but the built assets are old. The site may not run correctly until install and build succeed.": [
+				"De code is nieuw, maar de gebouwde assets zijn oud. De site wordt mogelijk niet correct uitgevoerd totdat de installatie en build zijn geslaagd."
+			],
+			"Update incomplete": [
+				"Updaten onvolledig"
+			],
+			"Next step: %s": [
+				"Volgende stap: %s"
+			],
+			"Starting… (%s)": [
+				"Starten… (%s)"
+			],
+			"Start dev server and finish the wizard": [
+				"Devserver starten en de wizard voltooien"
+			],
+			"Stop dev server": [
+				"Devserver stoppen"
+			],
+			"Start dev server & finish wizard": [
+				"Devserver starten en wizard voltooien"
+			],
+			"Run full build": [
+				"Volledige build uitvoeren"
+			],
+			"Install npm dependencies": [
+				"Npm-afhankelijkheden installeren"
+			],
+			"Cloning the repository… install and build start on their own when it finishes.": [
+				"De installatie en build starten vanzelf zodra het klonen van de repository… is afgerond."
+			],
+			"Failed to discard changes: %s": [
+				"Wijzigingen verwijderen is mislukt: %s"
+			],
+			"Saved your changes to %1$s, but resetting the working tree failed: %2$s": [
+				"Je wijzigingen zijn opgeslagen in %1$s, maar het resetten van de werkboom is mislukt: %2$s"
+			],
+			"Error saving diff: %s": [
+				"Fout bij opslaan van diff: %s"
+			],
+			"Please complete the full build before starting the dev server. You can also skip the wizard.": [
+				"Voltooi de volledige build voordat je de dev server start. Je kunt de wizard ook overslaan."
+			],
+			"Updating to latest trunk": [
+				"Updaten naar de nieuwste trunk"
+			],
+			"Skip initialization wizard": [
+				"Initialisatiewizard overslaan"
+			],
+			"Nothing was lost — pick it back up with the buttons below whenever you want.": [
+				"Er is niets verloren gegaan - pak het weer op met de knoppen hieronder wanneer je wilt."
+			],
+			"Setup stopped.": [
+				"Setup gestopt."
+			],
+			"Stop setup": [
+				"Setup stoppen"
+			],
+			"Complete each step to prepare this site for development.": [
+				"Voltooi elke stap om deze site voor ontwikkeling voor te bereiden."
+			],
+			"Initial setup checklist": [
+				"Checklist voor de eerste setup"
+			],
+			"Save patch & update": [
+				"Patch opslaan & updaten"
+			],
+			"Discard & update": [
+				"Negeren en updaten"
+			],
+			"— your changes are lost; this cannot be undone": [
+				"— je wijzigingen zijn verloren; dit kan niet ongedaan worden gemaakt"
+			],
+			"Discard them": [
+				"Negeren"
+			],
+			"— a .diff on your machine — nothing is sent to Trac": [
+				"— een .diff op je machine — er wordt niets naar Trac verzonden"
+			],
+			"Save them as a patch first (as a local file)": [
+				"Eerst als patch opslaan (als lokaal bestand)"
+			],
+			"You've changed %d file in this site. Resetting to trunk would throw them away.": [
+				"Je hebt %d bestand gewijzigd op deze site. Resetten naar trunk zou het verloren laten gaan.",
+				"Je hebt %d bestanden gewijzigd op deze site. Resetten naar trunk zou ze verloren laten gaan."
+			],
+			"Update to latest trunk?": [
+				"Updaten naar de nieuwste trunk?"
+			],
+			"Launch the development server once to complete the WordPress setup wizard.": [
+				"Start de ontwikkelserver één keer om de WordPress setupwizard te voltooien."
+			],
+			"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.": [
+				"Gebouwd. Sindsdien bestanden in %1$s bewerkt? Voer %2$s uit in de Terminal zodat de site ze oppikt - updates en toegepaste patches worden vanzelf opnieuw gebouwd."
+			],
+			"Compile WordPress Core to generate the dist files. Later updates rebuild automatically.": [
+				"Compileer WordPress core om de dist-bestanden te genereren. Latere updates bouwen automatisch opnieuw."
+			],
+			"Clone the WordPress develop repository.": [
+				"De WordPress ontwikkelrepository klonen."
+			],
+			"Download WordPress development version": [
+				"Download ontwikkelversie van WordPress"
+			],
+			"Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.": [
+				"Start één keer WordPress met deze afrekenen als Gutenberg plugin om de setup te voltooien."
+			],
+			"Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.": [
+				"Gebouwd. Sindsdien een pakket bewerkt? Voer %s uit in de Terminal zodat de site het oppikt; updates worden vanzelf opnieuw gebouwd."
+			],
+			"Compile the Gutenberg packages. Later updates rebuild automatically.": [
+				"Compileer de Gutenberg pakketten. Latere updates bouwen automatisch opnieuw."
+			],
+			"Clone the Gutenberg repository.": [
+				"De repository van Gutenberg klonen."
+			],
+			"Download Gutenberg": [
+				"Download Gutenberg"
+			],
+			"the window’s theme: two colours of one’s own\u0004Custom": [
+				"Aangepast"
+			],
+			"Choose a colour as six hex digits, like #3858e9.": [
+				"Kies een kleur van zes hex-cijfers, zoals #3858e9."
+			],
+			"Choose light, dark, your system’s theme, or custom.": [
+				"Kies licht, donker, het thema van je systeem of een aangepast thema."
+			],
+			"Some text may be hard to read with these colours. They are kept as they are; choose others if it is.": [
+				"Sommige tekst kan met deze kleuren moeilijk leesbaar zijn. Ze blijven zoals ze zijn; kies andere als dat zo is."
+			],
+			"Primary": [
+				"Primair"
+			],
+			"Background": [
+				"Achtergrond"
+			],
+			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
+				"Systeem volgt de lichte of donkere instelling van je besturingssysteem’. Aangepaste instelling bouwt het thema op uit twee kleuren naar keuze."
+			],
+			"%s colour picker": [
+				"%s kleurenkiezer"
+			],
+			"Working…": [
+				"Aan het werk…"
+			],
+			"Opening the pull request…": [
+				"Pull request openen…"
+			],
+			"Uploading your changes…": [
+				"Je wijzigingen aan het uploaden…"
+			],
+			"Bringing your fork up to date…": [
+				"Je fork updaten…"
+			],
+			"Creating your fork of %s…": [
+				"Je fork van %s aan het maken…"
+			],
+			"Could not start sign-in.": [
+				"Kon aanmelden niet starten."
+			],
+			"Sign-in did not complete.": [
+				"Aanmelden is niet afgerond."
+			],
+			"The authorization was declined on GitHub. Nothing was changed.": [
+				"De autorisatie is geweigerd op GitHub. Er is niets gewijzigd."
+			],
+			"The pull request could not be opened.": [
+				"De pull request kon niet worden geopend."
+			],
+			"Your checkout was behind trunk, so the branch was based on today's trunk. None of your files were changed upstream in between — the pull request shows only your work.": [
+				"Je checkout liep achter op trunk, dus de branch was gebaseerd op de trunk van vandaag. Geen van je bestanden is tussendoor upstream gewijzigd - de pull request toont alleen je werk."
+			],
+			"Opened <link>pull request #%s</link> from <branch />.": [
+				"Pull request <link>%s</link> geopend vanuit <branch />."
+			],
+			"Dry run — branch <branch /> was created on your fork; no pull request was opened.": [
+				"Proefuitvoering — branch <branch /> - is gemaakt op je fork; er is geen pull request geopend."
+			],
+			"Save the patch file instead": [
+				"Patchbestand opslaan"
+			],
+			"Pull requests go to <target />, not to <upstream />.": [
+				"Pull-aanvragen gaan naar <target />, niet naar <upstream />."
+			],
+			"Dry run — a branch is pushed to your fork, no pull request is opened.": [
+				"Proefuitvoering - een branch wordt naar je fork gepusht, er wordt geen pull request geopend."
+			],
+			"Test mode": [
+				"Testmodus"
+			],
+			"Open a pull request": [
+				"Een pull request openen"
+			],
+			"Not now": [
+				"Niet nu"
+			],
+			"Sign in with GitHub": [
+				"Aanmelden met GitHub"
+			],
+			"Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.": [
+				"Door je aan te melden kan de app %s naar je account forken, deze patch naar een branch daar pushen en de pull request openen. Je meldt je aan via je browser, de app vraagt nooit om je wachtwoord en vergeet de autorisatie wanneer je afsluit."
+			],
+			"Show this again": [
+				"Dit opnieuw weergeven"
+			],
+			"Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.": [
+				"Er is niets ondertekend en niets verzonden. Je kunt het patchbestand nog steeds opslaan en de andere bestemmingen zijn ongewijzigd."
+			],
+			"Signed in as <login /> — the fork and branch go to <fork />.": [
+				"Aangemeld als <login /> - de fork en branch gaan naar <fork />."
+			],
+			"Open pull request": [
+				"Pull request openen"
+			],
+			"Push branch (dry run)": [
+				"Branch pushen (droge uitvoering)"
+			],
+			"Anything you are unsure about.": [
+				"Iets waar je niet zeker over bent."
+			],
+			"How to see it working — the steps you used.": [
+				"Zo zie je het werken - de stappen die je hebt gebruikt."
+			],
+			"What the change does, and why.": [
+				"Wat de wijzig doet, en waarom."
+			],
+			"Notes for reviewers (optional)": [
+				"Reacties voor beoordelaars (optioneel)"
+			],
+			"Left empty, it will be titled <strong><title /></strong>.": [
+				"Als je dit leeg laat, krijgt het als titel <strong><title /></strong>."
+			],
+			"What the change does, in one line. Reviewers scan these.": [
+				"Wat de wijzig doet, in één regel. Reviewers scannen deze."
+			],
+			"Title": [
+				"Titel"
+			],
+			"Reject a theme zip in the plugin installer": [
+				"Een thema-zipbestand weigeren in het installatieprogramma voor plugins"
+			],
+			"No connection to GitHub.": [
+				"Geen verbinding met GitHub."
+			],
+			"GitHub is rate-limiting this connection. It usually clears within the hour.": [
+				"GitHub beperkt deze verbinding vanwege te veel aanvragen. Dit wordt meestal binnen een uur opgeheven."
+			],
+			"Waiting for you to finish in the browser…": [
+				"Wachten tot je klaar bent in de browser…"
+			],
+			"That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.": [
+				"Die GitHub-aanmelding is niet meer geldig. Meld je opnieuw aan of sla in plaats daarvan het patchbestand op."
+			],
+			"Copy the code": [
+				"Kopieer de code"
+			],
+			"Code copied": [
+				"Code gekopieerd"
+			],
+			"Enter this code at <strong><address /></strong>, which has been opened in your browser.": [
+				"Voer deze code in op <strong><address /></strong>, die in je browser is geopend."
+			],
+			"This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.": [
+				"Deze build heeft geen GitHub-applicatie geconfigureerd en kan dus geen pull request openen. De andere bestemmingen werken nog steeds."
+			],
+			"Checking…": [
+				"Aan het controleren…"
+			],
+			"Open #%s to comment": [
+				"#%s openen om een reactie te plaatsen"
+			],
+			"Copy the link": [
+				"Kopieer de link"
+			],
+			"Link copied": [
+				"Link gekopieerd"
+			],
+			"Triage and props live on the ticket, so the link belongs there too.": [
+				"Triage en props staan op het ticket, dus de link hoort daar ook."
+			],
+			"Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.": [
+				"Komt bovenaan de beschrijving. De ticketlink en je WordPress.org gebruikersnaam worden eronder toegevoegd."
+			],
+			"It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.": [
+				"Het kan het GitHub account niet voor je maken en kan niet namens je een bericht op Trac plaatsen."
+			],
+			"Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.": [
+				"Geautomatiseerde controles worden erop uitgevoerd. Niemand houdt GitHub in de gaten, maar — de link op het ticket plaatsen is wat ervoor zorgt dat het gezien wordt."
+			],
+			"No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.": [
+				"Er is geen ticket gekoppeld aan deze site. Een pull request moet ernaar verwijzen - link deze op de Trac-kaart."
+			],
+			"Link a GitHub issue to this site first. A pull request has to cite one.": [
+				"Link eerst een GitHub issue aan deze site. Een pull request moet er een vermelden."
+			],
+			"The Gutenberg contributing guide": [
+				"De bijdragegids voor Gutenberg"
+			],
+			"Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.": [
+				"Beoordelaars vragen om teststappen. Zet ze in de notities: wat je moet openen, waarop je moet klikken, wat er moet gebeuren."
+			],
+			"The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.": [
+				"De pull request is waar de wijziging wordt beoordeeld en, zodra deze is toegestaan, samengevoegd. Niets hoeft ergens anders te worden geplaatst om deze te kunnen zien."
+			],
+			"How pull requests work in Gutenberg": [
+				"Hoe pull requests in Gutenberg werken"
+			],
+			"The Fixes line already lists it on the issue. A comment there still tells the people watching it.": [
+				"De regel Oplossingen vermeldt dit al bij het issue. Een reactie daar informeert de mensen die het volgen nog steeds."
+			],
+			"Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.": [
+				"Komt bovenaan de beschrijving. De regel Oplossingen die het issue koppelt en je WordPress.org gebruikersnaam worden eronder toegevoegd."
+			],
+			"It cannot create the GitHub account for you.": [
+				"Het kan het GitHub account niet voor je maken."
+			],
+			"Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.": [
+				"Geautomatiseerde controles worden erop uitgevoerd en het wordt daar beoordeeld en samengevoegd: op Gutenberg is de pull request de opbrengst."
+			],
+			"A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.": [
+				"Een GitHub account. De fork wordt voor je gemaakt; er wordt geen wachtwoord in deze app getypt en er worden geen referenties naar schijf geschreven."
+			],
+			"No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.": [
+				"Er is geen issue gekoppeld aan deze site. Een pull request moet ernaar verwijzen: link deze op de GitHub issuekaart."
+			],
+			"Link a Trac ticket to this site first. A pull request has to cite one.": [
+				"Link eerst een Trac ticket aan deze site. Een pull request moet er een vermelden."
+			],
+			"The handbook page on pull requests": [
+				"De handboekpagina over pull requests"
+			],
+			"Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.": [
+				"Ook op GitHub is niets samengevoegd. Een committer past de wijziging zelf toe, en op het ticket besluiten ze dat."
+			],
+			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
+				"Niemand bekijkt de lijst met pull-aanvragen. Je aanvraag wordt gezien omdat de link ervan op het ticket staat - daarom eindigt deze stroom met je daarheen terug te sturen."
+			],
+			"How pull requests work in core": [
+				"Hoe pull requests in core werken"
+			],
+			"Sign in to GitHub first.": [
+				"Meld je eerst aan bij GitHub."
+			],
+			"Could not read the base commit": [
+				"Kon de basiscommit niet lezen"
+			],
+			"Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.": [
+				"Trunk is gewijzigd in een bestand dat je hebt bewerkt (%s). Updaten deze site naar de nieuwste trunk, controleer of je wijzigingen nog steeds kunnen worden toegepast en probeer het opnieuw.",
+				"Trunk is gewijzigd in bestanden die je hebt bewerkt (%s). Updaten deze site naar de nieuwste trunk, controleer of je wijzigingen nog steeds kunnen worden toegepast en probeer het opnieuw."
+			],
+			"There are no changes to open a pull request with.": [
+				"Er zijn geen wijzigingen om een pull request mee te openen."
+			],
+			"Could not open the pull request": [
+				"Kon de pull request niet openen"
+			],
+			"Could not find an unused branch name": [
+				"Kon geen ongebruikte branch naam vinden"
+			],
+			"Could not create the branch": [
+				"Kon de branch niet aanmaken"
+			],
+			"Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s": [
+				"Je fork wordt nog ingesteld op GitHub. Probeer het over een minuut opnieuw - het patchbestand werkt nog steeds.%s"
+			],
+			"Could not create the commit": [
+				"Kon de commit niet aanmaken"
+			],
+			"Could not assemble the change": [
+				"Kon de wijziging niet samenstellen"
+			],
+			"Could not upload %s": [
+				"Kon %s niet uploaden"
+			],
+			"Could not read your fork’s %s": [
+				"Kon je fork’s %s niet lezen"
+			],
+			"Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.": [
+				"Je fork wordt nog ingesteld op GitHub - voor een repository van deze omvang kan dat enkele minuten duren. Probeer het binnenkort opnieuw; het patchbestand werkt nog steeds."
+			],
+			"Could not read your fork": [
+				"Kon je fork niet lezen"
+			],
+			"Could not fork %s": [
+				"Kon %s niet forken"
+			],
+			"Could not check for your fork": [
+				"Kon je fork niet controleren"
+			],
+			"You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.": [
+				"Je hebt al een repository met de naam %1$s die geen fork is van %2$s, dus er is niets om hiernaartoe te pushen. Het patchbestand werkt nog steeds."
+			],
+			"%1$s: %2$s%3$s": [
+				"%1$s: %2$s%3$s"
+			],
+			"This build has no GitHub application configured, so it cannot sign you in.": [
+				"Deze build heeft geen GitHub-applicatie geconfigureerd en kan je dus niet aanmelden."
+			],
+			"GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke \"%1$s\" under %2$s, then sign in here again.": [
+				"GitHub heeft deze aanmelding minder toegang gegeven dan nodig is om een pull request te openen - waarschijnlijk is een oudere autorisatie van deze app hergebruikt. Trek \"%1$s\" in onder %2$s en meld je hier opnieuw aan."
+			],
+			"GitHub returned %s": [
+				"GitHub retourneerde %s"
+			],
+			"That sign-in is no longer valid.": [
+				"Die aanmelding is niet meer geldig."
+			],
+			"The authorization was declined on GitHub.": [
+				"De autorisatie is geweigerd op GitHub."
+			],
+			"The code expired before it was entered.": [
+				"De code is verlopen voordat deze werd ingevoerd."
+			],
+			"Sign-in was canceled.": [
+				"Aanmelden is geannuleerd."
+			],
+			"GitHub does not recognise this application, or device flow is not enabled on it.": [
+				"GitHub herkent deze applicatie niet of de apparaatstroom is niet ingeschakeld."
+			],
+			"Revert the patch you applied before opening a pull request from this checkout.": [
+				"Draai de patch die je hebt toegepast terug voordat je een pull request opent vanuit deze afrekenen."
+			],
+			"Revert %s before opening a pull request from this checkout.": [
+				"Draai %s terug voordat je een pull request opent vanuit deze checkout."
+			],
+			"PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.": [
+				"PR #%d is toegepast. De commits van de auteur maken deel uit van de geschiedenis van deze afrekenen, dus deze kan niet als je werk worden ingediend. Draai deze PR eerst terug."
+			],
+			"Unknown error": [
+				"Onbekende fout"
+			],
+			"Trac ticket number or URL": [
+				"Trac ticketnummer of URL"
+			],
+			"Ticket number or URL, e.g. 62281": [
+				"Ticketnummer of URL, bijv. 62281"
+			],
+			"No ticket is linked to this site, so there is nowhere to attach it yet.": [
+				"Er is geen ticket gekoppeld aan deze site, dus er is nog niets om het aan te koppelen."
+			],
+			"Save, then open #%d": [
+				"Opslaan en daarna #%d openen"
+			],
+			"No automated checks. Often followed by a request to open a pull request.": [
+				"Geen geautomatiseerde controles. Vaak gevolgd door een aanvraag om een pull request te openen."
+			],
+			"A WordPress.org account — needed anyway, for props and to comment.": [
+				"Een WordPress.org account — toch al nodig, voor props en om een reactie te plaatsen."
+			],
+			"Attach to Trac": [
+				"Aan Trac koppelen"
+			],
+			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
+				"De app kan de wijzigingen van de auteur’s niet veilig scheiden van later aangebrachte bewerkingen, dus deze gecombineerde patch kan niet als je werk worden ingediend. Je kunt <strong>Opslaan</strong> nog steeds gebruiken om een niet-toegeschreven kopie te behouden; draai de toegepaste patch terug voordat je indient."
+			],
+			"<strong>The patch you applied is part of this checkout.</strong>": [
+				"<strong>De patch die je hebt toegepast maakt deel uit van deze checkout.</strong>"
+			],
+			"<strong><label /> is part of this checkout.</strong>": [
+				"<strong><label /> maakt deel uit van deze checkout.</strong>"
+			],
+			"You can still use <strong>Save</strong> to keep an unattributed copy of your edits.": [
+				"Je kunt <strong>Opslaan</strong> nog steeds gebruiken om een niet-toegeschreven kopie van je bewerkingen te bewaren."
+			],
+			"The pull request is the one the app sends for you. The others save a file for you to send.": [
+				"De pull request is degene die de app voor je verzendt. De andere slaan een bestand op dat je kunt verzenden."
+			],
+			"Where this patch goes": [
+				"Waar deze patch terechtkomt"
+			],
+			"Could not load your changes. Close this panel and try again. The error is shown below.": [
+				"Je wijzigingen konden niet worden geladen. Sluit dit paneel en probeer het opnieuw. De fout wordt hieronder weergegeven."
+			],
+			"This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.": [
+				"De WordPresscode van deze site is %d dag oud - deze patch kan mogelijk niet worden toegepast in Trac. Overweeg eerst te updaten naar de nieuwste trunk.",
+				"De WordPresscode van deze site is %d dagen oud - deze patch kan mogelijk niet worden toegepast in Trac. Overweeg eerst te updaten naar de nieuwste trunk."
+			],
+			"Saved to %s": [
+				"Opgeslagen in %s"
+			],
+			"Discard all changes": [
+				"Alle wijzigingen negeren"
+			],
+			"(<discard />)": [
+				"(<discard />)"
+			],
+			"Failed to generate patch": [
+				"Patch genereren is mislukt"
+			],
+			"Error: %s": [
+				"Fout: %s"
+			],
+			"No changes.": [
+				"Geen wijzigingen."
+			],
+			"Generating patch…": [
+				"Patch genereren…"
+			],
+			"Could not save the patch: %s": [
+				"Kon de patch niet opslaan: %s"
+			],
+			"Change these": [
+				"Wijzig deze"
+			],
+			"No event on the patch.": [
+				"Geen gebeurtenis voor de patch."
+			],
+			"The patch will say it was written at <strong><event /></strong>.": [
+				"De patch vermeldt dat deze is geschreven op <strong><event /></strong>."
+			],
+			"Save patch as %s": [
+				"Patch opslaan als %s"
+			],
+			"Someone else pushes it; the props still land on you.": [
+				"Iemand anders pusht het; de props komen nog steeds bij je terecht."
+			],
+			"No accounts at all. The patch carries your WordPress.org username, and the event you are at.": [
+				"Helemaal geen accounts. De patch bevat je WordPress.org gebruikersnaam en het evenement waar je bent."
+			],
+			"Hand it to a mentor": [
+				"Geef het aan een mentor"
+			],
+			"Remember this": [
+				"Dit onthouden"
+			],
+			"Event this patch was written at": [
+				"Evenement waar deze patch is geschreven"
+			],
+			"Event, e.g. WordCamp Europe 2026 (optional)": [
+				"Evenement, bijvoorbeeld WordCamp Europe 2026 (optioneel)"
+			],
+			"WordPress.org username, e.g. janedoe": [
+				"WordPress.org gebruikersnaam, bijv. Janedoe"
+			],
+			"Asked once and remembered for every site — these are facts about you, not about this checkout.": [
+				"Eén keer gevraagd en onthouden voor elke site — dit zijn feiten over jezelf, niet over deze checkout."
+			],
+			"There is nothing to send yet — this site has no changes against its copy of trunk.": [
+				"Er is nog niets om te verzenden - deze site heeft geen wijzigingen ten opzichte van zijn kopie van trunk."
+			],
+			"Everything this site has that its copy of trunk does not.": [
+				"Alles wat deze site heeft en wat in de kopie van trunk ontbreekt."
+			],
+			"Your changes": [
+				"Je wijzigingen"
+			],
+			"There are no changes on top of PR #%d.": [
+				"Er zijn geen wijzigingen boven op PR #%d."
+			],
+			"Edits to this local copy, compared with the original PR commits.": [
+				"Bewerkingen in deze lokale kopie, vergeleken met de oorspronkelijke PR-commits."
+			],
+			"Your changes on top of PR #%d": [
+				"Je wijzigingen bovenop PR #%d"
+			],
+			"Your changes for ticket #%d": [
+				"Je wijzigingen voor ticket #%d"
+			],
+			"Your changes for issue #%d": [
+				"Je wijzigingen voor issue #%d"
+			],
+			"Stop the dev server before discarding changes.": [
+				"Stop de devserver voordat je wijzigingen verwerpt."
+			],
+			"Wait for the build to finish before discarding changes.": [
+				"Wacht tot de build is afgerond voordat je wijzigingen verwijdert."
+			],
+			"Wait for the installation to finish before discarding changes.": [
+				"Wacht tot de installatie is afgerond voordat je wijzigingen verwijdert."
+			],
+			"Wait for the trunk update to finish before discarding changes.": [
+				"Wacht tot het updaten van de trunk is afgerond voordat je wijzigingen weggooit."
+			],
+			"There are no changes to discard.": [
+				"Er zijn geen wijzigingen om te verwijderen."
+			],
+			"Changes could not be loaded.": [
+				"Wijzigingen konden niet worden geladen."
+			],
+			"Wait for your changes to finish loading.": [
+				"Wacht tot je wijzigingen zijn geladen."
+			],
+			"Changes are already being discarded.": [
+				"Wijzigingen worden al verwijderd."
+			],
+			"the window’s theme: the operating system’s\u0004System": [
+				"Systeem"
+			],
+			"the window’s theme\u0004Dark": [
+				"Donker"
+			],
+			"the window’s theme\u0004Light": [
+				"Licht"
+			],
+			"Theme": [
+				"Thema"
+			],
+			"Choose what happens when the app quits.": [
+				"Kies wat er gebeurt wanneer de app wordt afgesloten."
+			],
+			"Stop them, and start them again next time": [
+				"Stop ze en start ze de volgende keer opnieuw"
+			],
+			"Stop them": [
+				"Stop ze"
+			],
+			"So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.": [
+				"Zodat de site en wp-beheer klaar zijn zonder op een knop te drukken. Bij WordPress core start de build watch ermee."
+			],
+			"Start the server when I open a site": [
+				"Server starten wanneer ik een site open"
+			],
+			"Opening and quitting": [
+				"Openen en afsluiten"
+			],
+			"Quitting always stops them; they can be started again when the app next opens.": [
+				"Afsluiten stopt ze altijd; ze kunnen weer worden gestart wanneer de app opnieuw wordt geopend."
+			],
+			"When I quit, running servers and build watches": [
+				"Als ik stop met het draaien van servers en build watches"
+			],
+			"So edits are compiled as they are saved.": [
+				"Zodat bewerkingen worden gecompileerd wanneer ze worden opgeslagen."
+			],
+			"Start the build watch when I open a site": [
+				"Build watch starten wanneer ik een site open"
+			],
+			"The app does not have that PHP version.": [
+				"De app heeft die PHP versie niet."
+			],
+			"Choose on or off.": [
+				"Kies aan of uit."
+			],
+			"Off": [
+				"Uit"
+			],
+			"Debugging": [
+				"Foutopsporing"
+			],
+			"%1$s · PHP %2$s": [
+				"%1$s · PHP %2$s"
+			],
+			"PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.": [
+				"PHP %1$s is gekozen, maar deze versie van de app heeft die niet; servers starten met PHP %2$s."
+			],
+			"Sites": [
+				"Sites"
+			],
+			"Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.": [
+				"Core levert zijn JavaScript en CSS niet geminimaliseerd, zodat ze gelezen en stap voor stap gevolgd kunnen worden in de browser."
+			],
+			"Use unminified scripts (SCRIPT_DEBUG)": [
+				"Niet-geminimaliseerde scripts gebruiken (SCRIPT_DEBUG)"
+			],
+			"Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.": [
+				"Uit: berichten en verouderingsmeldingen worden niet gemeld. Waarschuwingen en fouten bereiken nog steeds debug.log en de browser, en error_log()-aanroepen bereiken nog steeds debug.log."
+			],
+			"Report notices and deprecations (WP_DEBUG)": [
+				"Berichten en verouderingen rapporteren (WP_DEBUG)"
+			],
+			"PHP version": [
+				"PHP versie"
+			],
+			"Applies the next time a site’s server starts. A server that is running keeps what it started with.": [
+				"Is de volgende keer van toepassing wanneer de server van een site start. Een server die wordt uitgevoerd behoudt waarmee hij is gestart."
+			],
+			"Development server": [
+				"Ontwikkelserver"
+			],
+			"The PHP versions could not be read. Quit the app and open it again.": [
+				"De PHP versies konden niet worden gelezen. Sluit de app af en open deze opnieuw."
+			],
+			"Could not keep that.": [
+				"Kon dat niet behouden."
+			],
+			"The app has no translation for that language.": [
+				"De app heeft geen vertaling voor die taal."
+			],
+			"Choose a language.": [
+				"Kies een taal."
+			],
+			"Your system’s language": [
+				"De taal van je systeem’s"
+			],
+			"Relaunch now": [
+				"Nu opnieuw starten"
+			],
+			"The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.": [
+				"De app toont de nieuwe taal zodra deze opnieuw is gestart. Servers en builds die worden uitgevoerd, stoppen, zoals wanneer de app wordt afgesloten."
+			],
+			"Which language the app is shown in. A change applies after a relaunch.": [
+				"In welke taal de app wordt weergegeven. Een wijziging geldt na opnieuw starten."
+			],
+			"Language": [
+				"Taal"
+			],
+			"The app could not relaunch. Quit it and open it again.": [
+				"De app kon niet opnieuw worden gestart. Sluit hem af en open hem opnieuw."
+			],
+			"Could not keep that language.": [
+				"Kon die taal niet behouden."
+			],
+			"Appearance": [
+				"Weergave"
+			],
+			"Enter your WordPress.org username.": [
+				"Je WordPress.org gebruikersnaam invoeren."
+			],
+			"Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.": [
+				"Je WordPress.org gebruikersnaam invoeren, zoals janedoe, of je profiles.wordpress.org URL."
+			],
+			"Only %s profile links are supported.": [
+				"Alleen profiel links van %s worden ondersteund."
+			],
+			"There is no such setting.": [
+				"Er is geen dergelijke instelling."
+			],
+			"That folder does not exist.": [
+				"Die map bestaat niet."
+			],
+			"Choose a folder by its full path.": [
+				"Kies een map aan de hand van het volledige pad."
+			],
+			"Choose a folder.": [
+				"Kies een map."
+			],
+			"Not set: the create-site dialog asks each time.": [
+				"Niet ingesteld: de site aanmaken dialoog vraagt het elke keer."
+			],
+			"Reading…": [
+				"Aan het lezen…"
+			],
+			"Not signed in. The app asks you to sign in when you open a pull request.": [
+				"Niet aangemeld. De app vraagt je om aan te melden wanneer je een pull request opent."
+			],
+			"Signed in as %s.": [
+				"Aangemeld als %s."
+			],
+			"Sign-in is not set up in this build.": [
+				"Aanmelden is niet ingesteld in deze build."
+			],
+			"Could not save that event.": [
+				"Kon dat evenement niet opslaan."
+			],
+			"Could not save that username.": [
+				"Kon die gebruikersnaam niet opslaan."
+			],
+			"Forget this folder": [
+				"Deze map vergeten"
+			],
+			"Each new site is created in a subfolder of this location.": [
+				"Iedere nieuwe site wordt aangemaakt in een submap van deze locatie."
+			],
+			"New sites go here": [
+				"Nieuwe sites komen hier"
+			],
+			"New sites": [
+				"Nieuwe sites"
+			],
+			"Could not keep that folder.": [
+				"Kon die map niet behouden."
+			],
+			"Account": [
+				"Account"
+			],
+			"General": [
+				"Algemeen"
+			],
+			"Sign out": [
+				"Uitloggen"
+			],
+			"GitHub": [
+				"GitHub"
+			],
+			"Save": [
+				"Opslaan"
+			],
+			"Saving": [
+				"Aan het opslaan"
+			],
+			"Saved.": [
+				"Opgeslagen."
+			],
+			"Where you are contributing from, if you are at an event. Leave it empty otherwise.": [
+				"Vanwaar je bijdraagt, als je op een evenement bent. Laat het anders leeg."
+			],
+			"Event": [
+				"Evenement"
+			],
+			"Goes on a patch you hand to a mentor, so the props land on you.": [
+				"Gaat op een patch die je aan een mentor geeft, zodat de waardering bij jezelf terechtkomt."
+			],
+			"WordPress.org username": [
+				"WordPress.org gebruikersnaam"
+			],
+			"How you contribute": [
+				"Hoe je bijdraagt"
+			],
+			"Settings": [
+				"Instellingen"
+			],
+			"The event name has to fit on one line.": [
+				"De naam van het evenement moet op één regel passen."
+			],
+			"Enter the event name, or leave it empty.": [
+				"Voer de naam van het evenement in, of laat het leeg."
+			],
+			"Keep the event name under %d characters.": [
+				"Houd de naam van het evenement onder %d karakters."
+			],
+			"Settings…": [
+				"Instellingen..."
+			],
+			"Show Logs Folder": [
+				"Logs map weergeven"
+			],
+			"Open App Log": [
+				"App log openen"
+			],
+			"Choose the application to open this folder in": [
+				"Kies de applicatie om deze map in te openen"
+			],
+			"Programs": [
+				"Programma's"
+			],
+			"Applications": [
+				"Applicaties"
+			],
+			"All Files": [
+				"Alle bestanden"
+			],
+			"Patch Files": [
+				"Patch bestanden"
+			],
+			"Choose a patch file": [
+				"Kies een patchbestand"
+			],
+			"Save Diff File": [
+				"Diff bestand opslaan"
+			],
+			"Save Patch for Handoff": [
+				"Patch voor Handoff opslaan"
+			],
+			"Toggle Email": [
+				"Toggle e-mail"
+			],
+			"Email": [
+				"E-mail"
+			],
+			"Toggle Logs": [
+				"Toggle logs"
+			],
+			"Logs": [
+				"Logs"
+			],
+			"Toggle Terminal": [
+				"Toggle terminal"
+			],
+			"Terminal": [
+				"Terminal"
+			],
+			"Closed": [
+				"Gesloten"
+			],
+			"Merged": [
+				"Samengevoegd"
+			],
+			"Opened %s": [
+				"Geopend %s"
+			],
+			"Milestone: %s": [
+				"Mijlpaal: %s"
+			],
+			"Component: %s": [
+				"Component: %s"
+			],
+			"No pull requests cite this ticket yet.": [
+				"Er verwijzen nog geen pull requests naar dit ticket."
+			],
+			"See the work that already exists on this ticket before adding your own.": [
+				"Bekijk het werk dat al bestaat voor dit ticket voordat je je eigen werk toevoegt."
+			],
+			"Open in Trac": [
+				"Openen in Trac"
+			],
+			"Browse good first bugs on Trac": [
+				"Blader door goede eerste bugs op Trac"
+			],
+			"Linking ticket": [
+				"Ticket linken"
+			],
+			"Link ticket": [
+				"Ticket linken"
+			],
+			"e.g. 62281": [
+				"bijv. 62281"
+			],
+			"Ticket number or URL": [
+				"Ticketnummer of URL"
+			],
+			"Link the ticket you’re working on.": [
+				"Link het ticket waaraan je aan werkt."
+			],
+			"Trac ticket": [
+				"Trac ticket"
+			],
+			"No pull requests cite this issue yet.": [
+				"Er verwijzen nog geen pull requests naar dit issue."
+			],
+			"See the work that already exists on this issue before adding your own.": [
+				"Bekijk het werk dat al bestaat voor dit issue voordat je je eigen werk toevoegt."
+			],
+			"Open on GitHub": [
+				"Openen op GitHub"
+			],
+			"Browse good first issues on GitHub": [
+				"Blader door goede eerste problemen op GitHub"
+			],
+			"Linking issue": [
+				"Issue linken"
+			],
+			"Link issue": [
+				"Issue linken"
+			],
+			"e.g. 71234": [
+				"bijv. 71234"
+			],
+			"Issue number or URL": [
+				"Issuenummer of URL"
+			],
+			"Link the issue you’re working on.": [
+				"Link het issue waaraan je aan werkt."
+			],
+			"GitHub issue": [
+				"GitHub probleem"
+			],
+			"Could not read the attachments from Trac. (%s)": [
+				"Kon de bijlagen van Trac niet lezen. (%s)"
+			],
+			"Could not read the attachments from Trac.": [
+				"Kon de bijlagen van Trac niet lezen."
+			],
+			"The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.": [
+				"Het Trac venster is gesloten voordat de bijlagen volledig waren geladen. Klik op “Ververs” om het opnieuw te proberen."
+			],
+			"Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.": [
+				"De menscontrole van Trac is niet op tijd afgerond. Probeer het opnieuw en klik op “Ik ben een mens” als dit verschijnt."
+			],
+			"by %s": [
+				"door %s"
+			],
+			"Showing what was last seen %s.": [
+				"Weergeven wat %s het laatst heeft gezien."
+			],
+			"No cached list to fall back on.": [
+				"Geen gecachte lijst om op terug te vallen."
+			],
+			"Could not reach GitHub.": [
+				"Kon GitHub niet bereiken."
+			],
+			"GitHub is rate-limiting this connection.": [
+				"GitHub beperkt deze verbinding."
+			],
+			"Could not read the pull requests from GitHub.": [
+				"Kon de pull requests niet van GitHub lezen."
+			],
+			"Updated %s": [
+				"Geüpdatet %s"
+			],
+			"Last commit %s": [
+				"Laatste commit %s"
+			],
+			"Open": [
+				"Openen"
+			],
+			"Edited on %s": [
+				"Bewerkt op %s"
+			],
+			"Edited %d day ago": [
+				"%d dag geleden bewerkt",
+				"%d dagen geleden bewerkt"
+			],
+			"Edited %d hour ago": [
+				"%d uur geleden bewerkt",
+				"%d uur geleden bewerkt"
+			],
+			"Edited %d minute ago": [
+				"%d minuut geleden bewerkt",
+				"%d minuten geleden bewerkt"
+			],
+			"Edited just now": [
+				"Zojuist bewerkt"
+			],
+			"Delete this ticket’s work": [
+				"Werk aan dit ticket verwijderen"
+			],
+			"This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.": [
+				"Hiermee verwijder je permanent elke wijziging voor dit ticket op deze site, ongeacht of deze is ingediend. Dit kan niet ongedaan worden gemaakt."
+			],
+			"Delete all work on ticket #%d?": [
+				"Alle werk aan ticket #%d verwijderen?"
+			],
+			"Delete this issue’s work": [
+				"Werk aan dit issue verwijderen"
+			],
+			"This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.": [
+				"Hiermee verwijder je permanent elke wijziging voor dit issue op deze site, ongeacht of deze is ingediend. Dit kan niet ongedaan worden gemaakt."
+			],
+			"Delete all work on issue #%d?": [
+				"Alle werk aan issue #%d verwijderen?"
+			],
+			"Your tickets on this site": [
+				"Je tickets op deze site"
+			],
+			"Other tickets on this site": [
+				"Andere tickets op deze site"
+			],
+			"Your issues on this site": [
+				"Je issues op deze site"
+			],
+			"Other issues on this site": [
+				"Andere issues op deze site"
+			],
+			"Deleting": [
+				"Aan het verwijderen"
+			],
+			"Continue working": [
+				"Doorgaan met werken"
+			],
+			"Switch": [
+				"Wisselen"
+			],
+			"Deleting site…": [
+				"Site aan het verwijderen..."
+			],
+			"WordPress code is %d day old — update to latest trunk": [
+				"WordPress code is %d dag oud - updaten naar de nieuwste trunk",
+				"WordPress code is %d dagen oud - updaten naar de nieuwste trunk"
+			],
+			"Update incomplete — code is new, built assets are old": [
+				"Update onvolledig - code is nieuw, gebouwde assets zijn oud"
+			],
+			"Build watching": [
+				"Build aan het bekijken"
+			],
+			"Build compiling": [
+				"Build aan het compileren"
+			],
+			"Edits in %s are compiled as they are saved.": [
+				"Bewerkingen in %s worden gecompileerd wanneer ze worden opgeslagen."
+			],
+			"Start build watch": [
+				"Buildwatch starten"
+			],
+			"Start": [
+				"Starten"
+			],
+			"Stop build watch": [
+				"Buildwatch stoppen"
+			],
+			"Stop": [
+				"Stoppen"
+			],
+			"The development server could not start. Its last lines are in the Logs.": [
+				"De ontwikkelingsserver kon niet starten. De laatste regels staan in de logs."
+			],
+			"The development server stopped by itself. Its last lines are in the Logs.": [
+				"De ontwikkelingsserver is vanzelf gestopt. De laatste regels staan in de logs."
+			],
+			"Start development server": [
+				"Ontwikkelserver starten"
+			],
+			"Server stopped": [
+				"Server gestopt"
+			],
+			"Stop development server": [
+				"Ontwikkelserver stoppen"
+			],
+			"Server running": [
+				"Server draait"
+			],
+			"Starting…": [
+				"Aan het starten…"
+			],
+			"Starting development server…": [
+				"Ontwikkelserver aan het starten…"
+			],
+			"Server starting…": [
+				"Server wordt gestart…"
+			],
+			"Dev server is starting… (%s)": [
+				"Ontw. server wordt gestart… (%s)"
+			],
+			"Database": [
+				"Database"
+			],
+			"wp-admin": [
+				"wp-admin"
+			],
+			"View site": [
+				"Siteweergave"
+			],
+			"Build stopped": [
+				"Build gestopt"
+			],
+			"The build watch ended by itself, with exit code %d. Its last lines are in the Logs.": [
+				"De build watch is vanzelf gestopt met exitcode %d. De laatste regels staan in de logs."
+			],
+			"The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.": [
+				"De build die moet voltooien voordat de watch kan starten, is mislukt, dus de watch is niet gestart. De laatste regels staan in de logs."
+			],
+			"The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.": [
+				"De build die moet voltooien voordat de watch kan starten, is mislukt met exitcode %d, dus de watch is niet gestart. De laatste regels staan in de logs."
+			],
+			"The build watch ended by itself. Its last lines are in the Logs.": [
+				"De build watch is vanzelf gestopt. De laatste regels staan in de logs."
+			],
+			"Paused while another operation builds the site. It comes back by itself.": [
+				"Gepauzeerd terwijl een andere bewerking de site bouwt. Komt vanzelf terug."
+			],
+			"Build paused": [
+				"Build gepauzeerd"
+			],
+			"Building the site before watching it.": [
+				"De site bouwen voordat je ernaar kijkt."
+			],
+			"Build building": [
+				"Build aan het maken"
+			],
+			"Wait for the build to finish.": [
+				"Wacht tot de build is afgerond."
+			],
+			"Wait for the installation to finish.": [
+				"Wacht tot de installatie is afgerond."
+			],
+			"Wait for the trunk update to finish.": [
+				"Wacht tot het updaten van trunk is afgerond."
+			],
+			"Looking for applications…": [
+				"Zoeken naar toepassingen…"
+			],
+			"Other application…": [
+				"Andere applicatie…"
+			],
+			"Show in file manager": [
+				"Weergeven in bestandsbeheer"
+			],
+			"Show in Explorer": [
+				"Weergeven in Explorer"
+			],
+			"Show in Finder": [
+				"Weergeven in Finder"
+			],
+			"Deleting…": [
+				"Aan het verwijderen…"
+			],
+			"Open in": [
+				"Openen in"
+			],
+			"Copy path": [
+				"Pad kopiëren"
+			],
+			"Rename…": [
+				"Hernoemen…"
+			],
+			"Update to latest trunk": [
+				"Update naar de nieuwste trunk"
+			],
+			"(no subject)": [
+				"(geen onderwerp)"
+			],
+			"No mail yet. WordPress transactional email will appear here once the site sends any.": [
+				"Nog geen e-mail. Transactionele WordPress e-mail verschijnt hier zodra de site er verstuurt."
+			],
+			"SMTP listening on 127.0.0.1:%d": [
+				"SMTP luistert op 127.0.0.1:%d"
+			],
+			"SMTP will start with the dev server.": [
+				"SMTP start met de ontwikkelserver."
+			],
+			"Delete site": [
+				"Site verwijderen"
+			],
+			"This will permanently delete the site and all of its files from your computer. This can’t be undone.": [
+				"Hiermee verwijder je de site en alle bijbehorende bestanden permanent van je computer. Dit kan niet ongedaan worden gemaakt."
+			],
+			"Delete %s?": [
+				"%s verwijderen?"
+			],
+			"Site name cannot be empty.": [
+				"Sitenaam mag niet leeg zijn."
+			],
+			"Checkout": [
+				"Uitchecken"
+			],
+			"Local path": [
+				"Lokaal pad"
+			],
+			"%d day old": [
+				"%d dag oud",
+				"%d dagen oud"
+			],
+			"Trunk as of": [
+				"Trunk van"
+			],
+			"Created": [
+				"Gemaakt"
+			],
+			"Uninitialized": [
+				"Niet geïnitialiseerd"
+			],
+			"Initialized": [
+				"Geïnitialiseerd"
+			],
+			"Setup": [
+				"Setup"
+			],
+			"Show sites list": [
+				"Sitelijst weergeven"
+			],
+			"Hide sites list": [
+				"Siteslijst verbergen"
+			],
+			"Site": [
+				"Site"
+			],
+			"Create your first site to begin contributing": [
+				"Je eerste site aanmaken om te beginnen met bijdragen"
+			],
+			"No sites": [
+				"Geen sites"
+			],
+			"All changes discarded.": [
+				"Alle wijzigingen verwijderd."
+			],
+			"This site is ready to work on": [
+				"Deze site is klaar om eraan te werken"
+			],
+			"Copied the path": [
+				"Het pad gekopieerd"
+			],
+			"Updated to the latest trunk": [
+				"Geüpdatet naar de nieuwste trunk"
+			],
+			"Local changes discarded.": [
+				"Lokale wijzigingen verwijderd."
+			],
+			"Already up to date with trunk": [
+				"Al up-to-date met trunk"
+			],
+			"%d unseen line in Debug.log": [
+				"%d ongeziene regel in Debug.log",
+				"%d ongeziene regels in Debug.log"
+			],
+			"A site’s project cannot be changed later.": [
+				"Het project van een site kan later niet gewijzigd worden."
+			],
+			"Opened pull request #%1$s on %2$s": [
+				"Pull request #%1$s geopend op %2$s"
+			],
+			"Dry run — branch created, no pull request opened": [
+				"Proefuitvoering — branch aangemaakt, geen pull request geopend"
+			],
+			"Saved your changes to %s and reset the working tree": [
+				"Je wijzigingen in %s opgeslagen en de werkboom gereset"
+			],
+			"Patch saved to %s": [
+				"Patch opgeslagen in %s"
+			],
+			"Restored the saved work": [
+				"Opgeslagen werk teruggezet"
+			],
+			"Restored the previous branch": [
+				"Vorige branch teruggezet"
+			],
+			"Checked out the pull request": [
+				"De pull request uitgechecked"
+			],
+			"Reverted the patch": [
+				"Patch teruggedraaid"
+			],
+			"Applied the patch": [
+				"Patch toegepast"
+			],
+			"The site could not be created. %s": [
+				"De site kon niet worden gemaakt. %s"
+			],
+			"The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s": [
+				"De site staat nog steeds in de lijst omdat de map niet kon worden verwijderd. Sluit alles wat deze gebruikt en probeer het opnieuw. Map: %s"
+			],
+			"The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s": [
+				"De site staat nog steeds in de lijst omdat de map niet kon worden verwijderd (%1$s). Sluit alles wat deze gebruikt en probeer het opnieuw. Map: %2$s"
+			],
+			"Opened pull request #%s": [
+				"Pull request #%s geopend"
+			],
+			"Notifications": [
+				"Meldingen"
+			],
+			"Checking GitHub…": [
+				"GitHub aan het controleren…"
+			],
+			"Checking GitHub": [
+				"Github controleren"
+			],
+			"Linked pull requests": [
+				"Gekoppelde pull aanvragen"
+			],
+			"Keywords:": [
+				"Keywords:"
+			],
+			"Apply…": [
+				"Toepassen…"
+			],
+			"The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.": [
+				"De meest recente patch op dit ticket is een bestandsbijlage, geen pull request - zie de Trac bijlagen hieronder."
+			],
+			"Read details from Trac": [
+				"Details van Trac lezen"
+			],
+			"Reading the ticket on Trac": [
+				"Ticket op Trac lezen"
+			],
+			"Unlink": [
+				"Ontkoppelen"
+			],
+			"Refresh": [
+				"Verversen"
+			],
+			"Not sure yet?": [
+				"Nog niet zeker?"
+			],
+			"If you have edited anything already, you will be asked what should happen to those edits.": [
+				"Als je al iets hebt bewerkt, wordt je gevraagd wat er met die bewerkingen moet gebeuren."
+			],
+			"Latest": [
+				"Nieuwste"
+			],
+			"No patch files attached to this ticket.": [
+				"Geen patchbestanden gekoppeld aan dit ticket."
+			],
+			"Opening the ticket on Trac…": [
+				"Ticket aan het openen in Trac…"
+			],
+			"Show Trac attachments": [
+				"Trac bijlagen weergeven"
+			],
+			"Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.": [
+				"Patchbestanden worden soms op Trac bijgevoegd in plaats van aan een PR. Door ze te lezen open je het ticket, zodat je de menselijke controle kunt doorstaan."
+			],
+			"Opening the ticket on Trac": [
+				"Ticket aan het openen in Trac"
+			],
+			"Trac attachments": [
+				"Trac bijlagen"
+			],
+			"Applied": [
+				"Toegepast"
+			],
+			"My sites": [
+				"Mijn sites"
+			],
+			"Create new site": [
+				"Nieuwe site aanmaken"
+			],
+			"(Deleting)": [
+				"(Aan het verwijderen)"
+			],
+			"(%s)": [
+				"(%s)"
+			],
+			"Name": [
+				"Naam"
+			],
+			"Site actions": [
+				"Siteacties"
+			],
+			"Show details": [
+				"Details weergeven"
+			],
+			"Hide details": [
+				"Details verbergen"
+			],
+			"Review & submit changes": [
+				"Beoordeling en wijzigingen indienen"
+			],
+			"Review": [
+				"Beoordeling"
+			],
+			"Show password": [
+				"Wachtwoord weergeven"
+			],
+			"Hide password": [
+				"Wachtwoord verbergen"
+			],
+			"Password": [
+				"Wachtwoord"
+			],
+			"Username": [
+				"Gebruikersnaam"
+			],
+			"Admin credentials": [
+				"Beheerder referenties"
+			],
+			"Server": [
+				"Server"
+			],
+			"Copied": [
+				"Gekopieerd"
+			],
+			"Copy": [
+				"Kopiëren"
+			],
+			"Details": [
+				"Details"
+			],
+			"Details of %s": [
+				"Details van %s"
+			],
+			"Build watch offline": [
+				"Build watch offline"
+			],
+			"Build watch": [
+				"Build watch"
+			],
+			"Development server offline": [
+				"Ontwikkelserver offline"
+			],
+			"Rename": [
+				"Hernoemen"
+			],
+			"Renaming the site": [
+				"Site aan het hernoemen"
+			],
+			"Rename site": [
+				"Site hernoemen"
+			],
+			"Clear emails": [
+				"E-mails wissen"
+			],
+			"Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.": [
+				"Kies de hoofdmap waar je deze nieuwe site wilt laten maken. Er wordt een nieuwe subfolder voor de site gemaakt."
+			],
+			"Location": [
+				"Locatie"
+			],
+			"Setting up a site": [
+				"Een site opzetten"
+			],
+			"Project": [
+				"Project"
+			],
+			"Close": [
+				"Sluiten"
+			],
+			"Resize tray": [
+				"Formaat van lade aanpassen"
+			],
+			"This patch is applied to your current work. Removing it may require undoing overlapping edits.": [
+				"Deze patch is toegepast op je huidige werk. Als je deze verwijdert, moet je mogelijk overlappende bewerkingen ongedaan maken."
+			],
+			"Discard this ticket to its base": [
+				"Deze ticket naar de basis verplaatsen"
+			],
+			"Save a copy of your work": [
+				"Een kopie van je werk opslaan"
+			],
+			"Revert this PR before applying another PR or patch file.": [
+				"Deze PR terugdraaien voordat je een andere PR of patchbestand toepast."
+			],
+			"Try another patch on this ticket": [
+				"Een andere patch voor dit ticket proberen"
+			],
+			"Revert this patch": [
+				"Deze patch terugdraaien"
+			],
+			"Give feedback": [
+				"Feedback geven"
+			],
+			"It changes package-lock.json, so dependencies will be installed before the rebuild.": [
+				"Het wijzigt package-lock.json, dus afhankelijkheden worden vóór de rebuild geïnstalleerd."
+			],
+			"Apply and rebuild": [
+				"Toepassen en opnieuw opbouwen"
+			],
+			"%1$s changes %2$d file.": [
+				"%1$s wijzigt %2$d bestand.",
+				"%1$s wijzigt %2$d bestanden."
+			],
+			"Apply %s": [
+				"%s toepassen"
+			],
+			"%s is a binary file and will be skipped.": [
+				"%s is een binair bestand en wordt overgeslagen.",
+				"%s zijn binaire bestanden en worden overgeslagen."
+			],
+			"Apply PR #%d": [
+				"PR #%d toepassen"
+			],
+			"A .diff or .patch file is applied to the current branch as a removable layer.": [
+				"Een .diff of .patch bestand wordt op de huidige branch toegepast als een verwijderbare laag."
+			],
+			"Choose a .diff or .patch file…": [
+				"Kies een .diff of .patch bestand…"
+			],
+			"Diff": [
+				"Diff"
+			],
+			"Pull request": [
+				"Pull request"
+			],
+			"Test changes in this checkout. Your own changes are preserved.": [
+				"Wijzigingen testen in deze checkout. Je eigen wijzigingen blijven behouden."
+			],
+			"Apply a patch or PR": [
+				"Een patch of PR toepassen"
+			],
+			"Test a pull request in this checkout. Your own changes are preserved.": [
+				"Een pull request testen in deze checkout. Je eigen wijzigingen blijven behouden."
+			],
+			"Check out a pull request": [
+				"Een pull request uitchecken"
+			],
+			"A pull request is checked out with its author’s commits.": [
+				"Een pull request wordt uitgecheckt met de commits van de auteur."
+			],
+			"Apply PR": [
+				"PR toepassen"
+			],
+			"Pull request URL or number": [
+				"URL of nummer van pull request"
+			],
+			"line %d of the patch": [
+				"regel %d van de patch"
+			],
+			"… %d more line": [
+				"… %d regel meer",
+				"… %d regels meer"
+			],
+			"Near %s": [
+				"In de buurt van %s"
+			],
+			"%1$s — %2$d of %3$d change": [
+				"%1$s - %2$d van %3$d wijziging",
+				"%1$s - %2$d van %3$d wijzigingen"
+			],
+			"The checkout was not changed.": [
+				"De checkout is niet gewijzigd."
+			],
+			"Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.": [
+				"Een andere opdracht wordt uitgevoerd op deze site. Wacht tot die klaar is, of stop die met Ctrl+C in de terminal."
+			],
+			"text direction\u0004ltr": [
+				"ltr"
+			],
+			"Finish creating the current site first": [
+				"Maak eerst de huidige site af"
+			],
+			"Open the feedback form ↗": [
+				"Open het feedbackformulier ↗"
+			],
+			"Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.": [
+				"Reacties komen in een gedeeld formulier dat het team regelmatig beoordeelt. Inzendingen zijn anoniem tenzij je je e-mail toevoegt."
+			],
+			"Your feedback helps decide what to build next.": [
+				"Je feedback helpt bepalen wat er hierna gebouwd wordt."
+			],
+			"WordPress Contributor Toolkit": [
+				"WordPress Contributor Toolkit"
+			],
+			"Please choose where to create the site.": [
+				"Kies waar je de site wilt maken."
+			],
+			"Please provide a site name.": [
+				"Een site naam opgeven."
+			],
+			"Create site": [
+				"Site maken"
+			],
+			"Cancel": [
+				"Annuleren"
+			],
+			"No folder selected yet.": [
+				"Nog geen map geselecteerd."
+			],
+			"My WordPress site": [
+				"Mijn WordPress site"
+			],
+			"Site name": [
+				"Site naam"
+			],
+			"The wordpress-develop repository: Trac tickets, patches and pull requests.": [
+				"De wordpress-develop repository: trac tickets, patches en pull aanvragen."
+			],
+			"The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.": [
+				"De blok-editor, gebouwd en uitgevoerd als een plugin in een standaard WordPress: GitHub issues en pull aanvragen via checkout."
+			]
+		}
+	}
+}
