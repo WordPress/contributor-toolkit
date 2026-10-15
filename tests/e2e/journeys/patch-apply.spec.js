@@ -50,7 +50,7 @@ async function applyPatchFile( session, patchFile ) {
 	// about to write, before anything is written. It names `src/wp-login.php`
 	// though the patch says `wp-login.php`, because the app rewrites paths
 	// written against core's pre-`src/` layout — see src/patch-plan.cjs.
-	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByRole( 'dialog' ).getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.applyAndRebuildButton( page ).click();
 }
 
@@ -525,7 +525,7 @@ test( 'a patch that does not fit is refused, and writes nothing', async ( { sess
 	] );
 	await session.answerFileDialog( [ patch ] );
 	await ui.choosePatchFile( page );
-	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByRole( 'dialog' ).getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 
 	// INVARIANT — the app warns before writing, not after. A contributor about
 	// to drop somebody else's patch onto their own edits is told so while they
@@ -579,7 +579,7 @@ test( 'a refused patch leaves the contributor\'s changes listed (#669)', async (
 	] );
 	await session.answerFileDialog( [ patch ] );
 	await ui.choosePatchFile( page );
-	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByRole( 'dialog' ).getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await app.evaluate( () => {
 		let release;
 		const promise = new Promise( ( resolve ) => { release = resolve; } );
