@@ -2080,7 +2080,8 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
     }
 });
 
-// "Discard all changes" in the review-and-submit modal: throws away everything
+// "Discard this ticket to its base", and "Discard your changes" with
+// `keepChange` below: throws away everything
 // the modal shows, which on a ticket branch is measured from the branch point
 // (#108/#239) and so includes the parked WIP commit. Rewinds to `patchBaseOid`
 // — the same base the diff was taken against — so the modal ends on "No
@@ -2092,22 +2093,60 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
 // reset is not a safe stand-in for it: it looks like a discard, leaves the
 // parked WIP commit untouched, and the modal would come back still listing the
 // work it just promised to throw away.
-ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
+//
+// `keepChange` is "Discard your changes" (#669): only the contributor's own
+// work goes. A pull request is its branch's base, so the rewind already keeps
+// it. An applied patch is put back from its stored text onto the base it was
+// applied over (a move onto trunk drops the text). That usually applies, but
+// not always: a patch applied over edits the contributor already had may have
+// needed them, and then it goes, and the reply says so. Put back, its files
+// are fingerprinted again, since the ones taken at apply included any such
+// edits. Without the text the patch goes too, as the question warned. Without
+// `keepChange` it is "Discard this ticket to its base", which removes the
+// patch as well: that is what it is for.
+ipcMain.handle('git:discard-to-base', async (_e, sitePath, options = {}) => {
     try {
         const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
         if (blocked) return blocked;
+        const applied = (await readWorkMeta(sitePath)).appliedPatch || null;
         const baseOid = await patchBaseOid(sitePath);
         if (baseOid) {
             await discardToBase(sitePath, baseOid, { onChild: trackGitChild(sitePath) });
         } else {
             await discardChanges(sitePath, { onChild: trackGitChild(sitePath) });
         }
-        await writeWorkMeta(sitePath, { appliedPatch: null });
+        let kept = false;
+        let patchLost = false;
+        if (options && options.keepChange && applied && applied.text) {
+            const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+            const reapplied = await applyPatchToDir({ dir: sitePath, patchText: applied.text, reverse: false, onLog: () => {}, layout });
+            kept = reapplied.ok;
+            if (!kept) {
+                patchLost = true;
+                logError('git:discard-to-base', `could not put ${applied.label} back: ${reapplied.error || 'unknown error'}`);
+            }
+        }
+        if (kept) {
+            // Read before the store is, and written only over the same record,
+            // so nothing yields between the read and the write (#172).
+            const { ref } = await activeBranch(sitePath);
+            const fingerprints = await fingerprintsNow(sitePath, applied.files || []);
+            await changeWorkMetaOn(sitePath, ref, (work) => (
+                work.appliedPatch && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
+                    ? { appliedPatch: { ...work.appliedPatch, fingerprints } }
+                    : null
+            ));
+        } else {
+            await writeWorkMeta(sitePath, { appliedPatch: null });
+        }
+        let patch = {};
+        if (kept) patch = { keptPatch: applied.label };
+        else if (applied) patch = patchLost ? { removedPatch: applied.label, patchLost } : { removedPatch: applied.label };
         let files = null;
         try { files = await collectUnsubmittedFiles(sitePath); } catch {}
         return files
-            ? { ok: true, dirty: files.length > 0, changedCount: files.length }
-            : { ok: true };
+            ? { ok: true, dirty: files.length > 0, changedCount: files.length, ...patch }
+            : { ok: true, ...patch };
     } catch (e) {
         return { ok: false, error: String(e) };
     }

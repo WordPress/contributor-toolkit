@@ -46,12 +46,12 @@ export function PatchDiffPane({
             <Text variant="heading-md">{heading}</Text>
             <Text variant="body-sm">
               {createInterpolateElement(
-                // translators: <discard /> is the "Discard all changes" link, beside the heading.
+                // translators: <discard /> is the "Discard your changes" link, beside the heading.
                 __('(<discard />)'),
                 {
                   discard: (
                     <DiscardChangesLink
-                      label={__('Discard all changes')}
+                      label={__('Discard your changes')}
                       onClick={onDiscard}
                       reason={discardReason}
                     />

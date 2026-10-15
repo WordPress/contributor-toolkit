@@ -1240,7 +1240,7 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 	await expect( card.getByText( pseudoLocalize( 'Unlinking this ticket doesn\'t affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.' ), { exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
 	await discard.click();
-	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Discard all local changes?' ) );
+	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Discard your changes?' ) );
 	await expect( question.getByRole( 'button', { name: pseudoLocalize( 'Discard changes' ), exact: true } ) ).toBeVisible();
 	expect( await unwrapped( question ) ).toEqual( [] );
 	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();

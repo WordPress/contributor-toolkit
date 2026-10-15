@@ -47,7 +47,7 @@ import { mergeInProgressNotice } from './merge-in-progress.cjs';
 import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
-import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion } from './changes-note.cjs';
+import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion, discardYourChangesQuestion, ownEditCount, discardToast } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
@@ -1526,6 +1526,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
+  // What "Discard your changes" would take (#669), and whether that is
+  // nothing: a patch or PR that stays, with no work of the contributor's on it.
+  const changedGroups = changedFileGroups({ appliedPatch, pullRequest, unsubmitted });
+  const editedByYou = ownEditCount(changedGroups, unsubmitted);
+  const nothingOfYours = editedByYou === 0 && Boolean(appliedPatch?.kept || pullRequest);
   const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket, pullRequest, workItemNoun: workItem.noun });
   const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
   const legacyNotice = legacySiteNotice({ legacy });
@@ -1737,19 +1742,25 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     await loadPatchText();
   };
 
-  // One discard for both entry points — the note's link and the modal's. The
-  // question is the same one the dirty-update modal asks; the user has
-  // already chosen, this is the last chance to notice they chose wrong.
-  // Both links disable through discardBlocked; no re-check in here. The
-  // question's dialog is modal, so nothing the contributor can press starts
-  // what discardBlocked names while it is up.
-  const discardAllChanges = () => askFirst(discardQuestion(), async () => {
+  // Two discards, one flow. "Discard your changes" (the note's link and the
+  // modal's) keeps the applied patch or checked-out PR (#669), so its question
+  // says what stays. "Discard this ticket to its base" (the layer exits) is
+  // for when the patch itself is the problem, and takes it too; its question
+  // is the one the dirty-update modal asks. All three links disable through
+  // discardBlocked; no re-check in here. The question's dialog is modal, so
+  // nothing the contributor can press starts what discardBlocked names while
+  // it is up.
+  const discardYourChanges = () => {
+    runDiscard(discardYourChangesQuestion({ editedCount: editedByYou, appliedPatch, pullRequest }), { keepChange: true });
+  };
+  const discardTicketToBase = () => runDiscard(discardQuestion(), {});
+  const runDiscard = (question, options) => askFirst(question, async () => {
     setDiscarding(true);
     setDiscardError(null);
     try {
       let outcome;
       try {
-        outcome = discardOutcome(await window.api.discardToBase(sitePath));
+        outcome = discardOutcome(await window.api.discardToBase(sitePath, options));
       } catch (e) {
         // A rejected invoke never returns a reply object; shape it into one so
         // the failure reaches the same red line instead of vanishing.
@@ -1760,13 +1771,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         return;
       }
       applyDiscardToNote(outcome);
-      const feedback = applyFeedbackAfterDiscard(outcome);
+      const feedback = applyFeedbackAfterDiscard(outcome, { appliedPatch, applyError, applyConflict, applyNotice });
       setAppliedPatch(feedback.appliedPatch);
       setApplyError(feedback.applyError);
       setApplyConflict(feedback.applyConflict);
       setApplyNotice(feedback.applyNotice);
       writeToTerminal(`\n${__('Discarded local changes.')}\n`);
-      confirm(__('All changes discarded.'));
+      confirm(discardToast(outcome, { pullRequest }));
       if (isPatchOpen) await loadPatchText();
     } finally {
       setDiscarding(false);
@@ -1782,9 +1793,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           review: <Button variant="link" onClick={openPatchModal} disabled={isUpdating} />,
           discard: (
             <DiscardChangesLink
-              onClick={discardAllChanges}
+              onClick={discardYourChanges}
               reason={discardDisabledReason({
                 patchHasChanges: true,
+                nothingOfYours,
                 isUpdating,
                 installing,
                 building,
@@ -1834,6 +1846,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     patchLoading,
     patchLoadFailed,
     patchHasChanges,
+    nothingOfYours,
     isUpdating,
     installing,
     building,
@@ -2038,7 +2051,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The two ways out the apply card offers of a patch that cannot be lifted
   // back out, or that would not go on: the same two the changes note has,
   // behind the same guard, with what either said when it failed.
-  const layerExits = { blocked: layerExitBlocked, onSaveCopy: savePatch, onDiscard: discardAllChanges, message: layerExit.message };
+  const layerExits = { blocked: layerExitBlocked, onSaveCopy: savePatch, onDiscard: discardTicketToBase, message: layerExit.message };
   // Choosing another patch is walking away from this one, so everything
   // about it goes: the preview, whose presence holds the lists' Apply
   // buttons, and the failure itself, which would otherwise sit above the new
@@ -2412,7 +2425,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
-        changed={{ ...changedFileGroups({ appliedPatch, pullRequest, unsubmitted }), onOpenFile: openAffectedFile }}
+        changed={{ ...changedGroups, onOpenFile: openAffectedFile }}
       />
       </div>
       {dirtyModalOpen ? (
@@ -2453,7 +2466,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               discardError={discardError}
               onSave={savePatch}
               onCopy={copyPatch}
-              onDiscard={discardAllChanges}
+              onDiscard={discardYourChanges}
             />
           }
         >

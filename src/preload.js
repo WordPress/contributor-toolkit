@@ -262,7 +262,7 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	discardChanges: (sitePath) => ipcRenderer.invoke('git:discard-changes', sitePath)
 ,
-	discardToBase: (sitePath) => ipcRenderer.invoke('git:discard-to-base', sitePath)
+	discardToBase: (sitePath, options) => ipcRenderer.invoke('git:discard-to-base', sitePath, options)
 ,
 	markUpdateComplete: (sitePath) => ipcRenderer.invoke('sites:mark-update-complete', sitePath)
 ,

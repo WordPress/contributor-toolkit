@@ -297,6 +297,101 @@ test( 'files edited or added after a patch are told apart from the patch\'s own 
 	] ) ).toBe( true );
 } );
 
+// "Discard your changes" takes the contributor's work and leaves the patch
+// (#669): the patched file goes back to what the patch wrote, their own file
+// goes, and the patch can still be reverted afterwards.
+test( 'discarding your changes keeps the applied patch (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+
+	write( site.dir, LOGIN, '<?php // fixed by the patch, then by me\n' );
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	await refocus( page );
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( affectedFile( page, 'src/new-helper.php' ) ).toBeVisible();
+
+	await ui.reviewChangesButton( page ).click();
+	const review = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	await review.getByRole( 'button', { name: 'Discard your changes', exact: true } ).click();
+
+	// INVARIANT — the question says what goes and what stays, before anything goes.
+	const question = ui.confirmDialog( page );
+	await expect( question ).toHaveAccessibleName( 'Discard your changes?' );
+	await expect( question.getByText( 'Your edits to 2 files are removed. The patch ticket-60001.patch stays applied. This can’t be undone.', { exact: true } ) ).toBeVisible();
+	expect( fs.existsSync( path.join( site.dir, 'src/new-helper.php' ) ) ).toBe( true );
+
+	await ui.confirmYesButton( page, 'Discard changes' ).click();
+	await expect.poll( () => fs.existsSync( path.join( site.dir, 'src/new-helper.php' ) ), { timeout: 30_000 } ).toBe( false );
+	await ui.closeDialogButton( review ).click();
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+	await expect( ui.confirmDialog( page ) ).toHaveCount( 0 );
+
+	// INVARIANT — the patched file is as the patch left it, not as trunk had it.
+	expect( read( site.dir, LOGIN ) ).toBe( `${ PATCHED_LOGIN }\n` );
+	expect( read( site.dir, SUBSTRATE ) ).toBe( SUBSTRATE_CONTENT );
+
+	// INVARIANT — the patch is still applied, and the list says the file is the
+	// patch's alone again.
+	await expect( ui.revertPatchButton( page ) ).toBeVisible();
+	await expect( group( page, 'From the patch' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( group( page, 'Your changes' ) ).toHaveCount( 0 );
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toHaveCount( 0 );
+
+	// INVARIANT — with nothing of the contributor's left, the discard is off
+	// and says why, instead of resetting and re-applying to remove nothing.
+	await ui.reviewChangesButton( page ).click();
+	const again = review.getByRole( 'button', { name: 'Discard your changes', exact: true } );
+	await expect( again ).toBeDisabled( { timeout: 30_000 } );
+	await expect( again ).toHaveAccessibleDescription( 'There are no edits of yours to discard.' );
+	await ui.closeDialogButton( review ).click();
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+
+	// INVARIANT — and it still comes off cleanly.
+	await ui.revertPatchButton( page ).click();
+	await expect( ui.revertPatchButton( page ) ).toHaveCount( 0, { timeout: 60_000 } );
+	await expect( page.getByText( 'A patch is being applied or reverted.' ) ).toHaveCount( 0, { timeout: 60_000 } );
+	expect( read( site.dir, LOGIN ) ).toBe( `${ TRUNK_LOGIN }\n` );
+} );
+
+// The escape hatch is the other discard (#669): for a patch the app cannot
+// lift back out, "Discard this ticket to its base" has to take the patch too,
+// where "Discard your changes" would keep it.
+test( 'discarding a ticket to its base removes a patch too large to revert (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+
+	// Over the size the app keeps a copy of for an undo.
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: `${ PATCHED_LOGIN } ${ 'x'.repeat( 600 * 1024 ) }` },
+	] );
+	await applyPatchFile( session, patch );
+	const toBase = page.getByRole( 'button', { name: 'Discard this ticket to its base', exact: true } );
+	await expect( toBase ).toBeVisible( { timeout: 60_000 } );
+	write( site.dir, DOOMED, '<?php // my own work in progress\n' );
+
+	await toBase.click();
+
+	// INVARIANT — it asks the full-wipe question, not "Discard your changes?".
+	const question = ui.confirmDialog( page );
+	await expect( question ).toHaveAccessibleName( 'Discard all local changes?' );
+	await ui.confirmYesButton( page, 'Discard changes' ).click();
+
+	// INVARIANT — the patch is gone with the contributor's work, and so is its record.
+	await expect.poll( () => read( site.dir, LOGIN ), { timeout: 30_000 } ).toBe( `${ TRUNK_LOGIN }\n` );
+	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
+	await expect( toBase ).toHaveCount( 0, { timeout: 30_000 } );
+	const meta = session.readSettings().siteMeta[ site.dir ];
+	expect( meta.branches[ 'ticket/60001' ].appliedPatch ).toBeFalsy();
+} );
+
 test( 'a ticket with no patch lists only the contributor\'s own changes (#669)', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
@@ -344,7 +439,7 @@ test( 'discarding the contributor\'s changes takes them out of the list, with no
 
 	await ui.reviewChangesButton( page ).click();
 	const review = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
-	await review.getByRole( 'button', { name: 'Discard all changes', exact: true } ).click();
+	await review.getByRole( 'button', { name: 'Discard your changes', exact: true } ).click();
 	await ui.confirmYesButton( page, 'Discard changes' ).click();
 	await expect.poll( () => fs.existsSync( path.join( site.dir, 'src/new-helper.php' ) ), { timeout: 30_000 } ).toBe( false );
 	await ui.closeDialogButton( review ).click();
