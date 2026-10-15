@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { __, sprintf } from '@wordpress/i18n';
-import { globe, offline, seen, table, unseen, wordpress } from '@wordpress/icons';
+import { file as fileIcon, globe, offline, seen, table, unseen, wordpress } from '@wordpress/icons';
 import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 import { siteDetailsRows } from '../site-details.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
@@ -115,6 +115,30 @@ function WatchSection({ watch }) {
   );
 }
 
+// The files the applied change touched (#669), each opening in the editor
+// with one click. Drawn as links and built as buttons, like the terminal's
+// command links: a click opens an application rather than going anywhere. A
+// file's icon beside each, like the server's links, and the brand colour and
+// an underline, which a button does not get from the browser the way a link
+// does: without them the paths read as plain text.
+function AffectedFilesSection({ affected }) {
+  return (
+    <Stack direction="column" gap="md">
+      <Text variant="heading-lg" render={<h2 />}>{__('Affected files')}</Text>
+      <Stack direction="column" gap="sm">
+        {affected.files.map((file) => (
+          <Stack key={file} direction="row" align="start" gap="xs">
+            <Icon icon={fileIcon} size={16} className="affected-file-icon" />
+            <Link render={<button type="button" />} className="link-button affected-file apply-break-all" tone="brand" onClick={() => affected.onOpenFile(file)}>
+              {file}
+            </Link>
+          </Stack>
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+
 // The details stay in view while the cards scroll past them, for as long as
 // they fit in what is in view. Taller than that, a column that stayed put
 // would keep its own end out of reach until the page's end, so it is let go
@@ -147,7 +171,8 @@ function useStickyWhileItFits(active) {
 }
 
 /**
- * The details of the open site (#556), beside the cards: the facts about the
+ * The details of the open site (#556), beside the cards: the files the
+ * applied change touched when there is one (#669), the facts about the
  * checkout, and under them its two processes (#557). What the facts say is
  * decided in site-details.cjs, and what is said of the processes in
  * site-processes.cjs; this draws them. They can be put away; hidden, they are
@@ -162,8 +187,9 @@ function useStickyWhileItFits(active) {
  * @param {Function} props.onCopyPath
  * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
+ * @param {Object}   [props.affected] The files the applied change touched: `{ files, onOpenFile }`. No files, no section.
  */
-export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null }) {
+export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, affected = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);
   return (
     <div id={id} className="dashboard-sidebar-slot" inert={open ? undefined : ''}>
@@ -175,6 +201,14 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
         aria-label={sprintf(__('Details of %s'), siteName)}
       >
         <Stack direction="column" gap="xl">
+          {/* First while a change is applied: its files are what the
+              contributor came for, and the facts below do not change. */}
+          {affected?.files.length ? (
+            <>
+              <AffectedFilesSection affected={affected} />
+              <hr className="card-divider" />
+            </>
+          ) : null}
           <Stack direction="column" gap="md">
             <Text variant="heading-lg" render={<h2 />}>{__('Details')}</Text>
             <Stack direction="column" gap="md">
