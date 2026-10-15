@@ -1165,7 +1165,7 @@ const KEPT_PATCH = [
 ].join('\n');
 
 function patchedTicket(t, { text = KEPT_PATCH } = {}) {
-	const dir = adoptedRepo(t, 'ipc-wiring-discard-keep-');
+	const dir = initRepo(tempDir(t, 'ipc-wiring-discard-keep-'));
 	fs.mkdirSync(path.join(dir, 'src'));
 	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
 	const baseOid = commitFiles(dir, ['src/a.php'], 'trunk snapshot');
@@ -1265,7 +1265,7 @@ test('git:discard-to-base fingerprints the patch again once it is put back (#669
 		' // 4',
 		''
 	].join('\n');
-	const dir = adoptedRepo(t, 'ipc-wiring-discard-refingerprint-');
+	const dir = initRepo(tempDir(t, 'ipc-wiring-discard-refingerprint-'));
 	fs.mkdirSync(path.join(dir, 'src'));
 	fs.writeFileSync(path.join(dir, 'src', 'a.php'), BASE);
 	const baseOid = commitFiles(dir, ['src/a.php'], 'trunk snapshot');
@@ -1292,7 +1292,7 @@ test('git:discard-to-base fingerprints the patch again once it is put back (#669
 
 // A pull request is its branch's base, so the rewind alone keeps it.
 test('git:discard-to-base keeping the change keeps a checked-out pull request (#669)', async (t) => {
-	const dir = adoptedRepo(t, 'ipc-wiring-discard-keep-pr-');
+	const dir = initRepo(tempDir(t, 'ipc-wiring-discard-keep-pr-'));
 	fs.mkdirSync(path.join(dir, 'src'));
 	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
 	commitFiles(dir, ['src/a.php'], 'trunk snapshot');
@@ -1316,7 +1316,7 @@ test('git:discard-to-base keeping the change keeps a checked-out pull request (#
 });
 
 test('git:discard-to-base keeps a patch applied on trunk too (#669)', async (t) => {
-	const dir = adoptedRepo(t, 'ipc-wiring-discard-keep-trunk-');
+	const dir = initRepo(tempDir(t, 'ipc-wiring-discard-keep-trunk-'));
 	fs.mkdirSync(path.join(dir, 'src'));
 	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
 	commitFiles(dir, ['src/a.php'], 'trunk snapshot');
