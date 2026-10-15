@@ -2393,7 +2393,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         tests={skipInit && projectBuild.phpUnit ? {
           onRunTicket: tracTicket ? runTicketTests : null,
           onRunAllPhp: runAllPhpTests,
-          lastRun: phpunitRun ? { command: phpunitRun.command, ...phpunitResult(phpunitRun) } : { command: '', ...phpunitResult(null) },
+          lastRun: phpunitRun ? { command: phpunitRun.command, ...phpunitResult(phpunitRun, { onTicket: Boolean(tracTicket) }) } : { command: '', ...phpunitResult(null) },
           reason: testsDisabledReason({ terminalRunning, discarding, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })
         } : null}
       />

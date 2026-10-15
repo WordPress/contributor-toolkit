@@ -58,10 +58,12 @@ function phpunitSummary(output) {
  * incomplete, or warned about. A run that never started, or was stopped, says
  * so rather than reading as a result.
  *
- * @param {?{running: boolean, code?: ?number, stopped?: boolean, notStarted?: boolean, output?: string}} run The last run on this site, null before the first.
+ * @param {?{running: boolean, code?: ?number, stopped?: boolean, notStarted?: boolean, output?: string}} run                The last run on this site, null before the first.
+ * @param {Object}                                                                                        [options]
+ * @param {boolean}                                                                                       [options.onTicket] Whether the checkout is a ticket's branch, where a failure may be the change's or the setup's. On trunk there is no change to compare with.
  * @return {{status: string, text: string}} `status` is the dot's: offline, busy, online or failed.
  */
-function phpunitResult(run) {
+function phpunitResult(run, { onTicket = false } = {}) {
 	if (!run) return { status: 'offline', text: __('Not run yet.') };
 	if (run.running) return { status: 'busy', text: __('Running…') };
 	if (run.notStarted) return { status: 'failed', text: __('The tests could not be started.') };
@@ -74,16 +76,13 @@ function phpunitResult(run) {
 	if (summary.tests === 0) return { status: 'offline', text: __('No tests matched.') };
 	const failed = summary.failures + summary.errors;
 	if (failed > 0) {
-		// A red result reads as "your change broke it", but this setup is not
-		// core's: some tests fail here on trunk (SQLite, the bundled PHP).
-		return {
-			status: 'failed',
-			text: [
-				// translators: 1: how many tests failed. 2: how many tests ran.
-				sprintf(_n('%1$d of %2$d test failed.', '%1$d of %2$d tests failed.', summary.tests), failed, summary.tests),
-				__('Some tests fail on this setup even without your change. Run a failing test on trunk to compare.')
-			].join(' ')
-		};
+		// translators: 1: how many tests failed. 2: how many tests ran.
+		const sentences = [sprintf(_n('%1$d of %2$d test failed.', '%1$d of %2$d tests failed.', summary.tests), failed, summary.tests)];
+		// On a ticket's branch a red result reads as "your change broke it", but
+		// this setup is not core's: some tests fail here on trunk (SQLite, the
+		// bundled PHP).
+		if (onTicket) sentences.push(__('Some tests fail on this setup even without your change. Run a failing test on trunk to compare.'));
+		return { status: 'failed', text: sentences.join(' ') };
 	}
 	const notRun = summary.skipped + summary.incomplete;
 	const passed = summary.tests - notRun - summary.warnings;

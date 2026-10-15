@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 
 const { phpunitSummary, phpunitResult } = require('../../src/renderer/phpunit-result.cjs');
 
-// What every red result adds after its count.
+// What a red result adds after its count on a ticket's branch.
 const TRUNK_HINT = 'Some tests fail on this setup even without your change. Run a failing test on trunk to compare.';
 
 const PASSED = 'PHPUnit 9.6.38 by Sebastian Bergmann and contributors.\n\n.....  21 / 21 (100%)\n\nTime: 00:00.725, Memory: 217.00 MB\n\n\u001b[30;42mOK (21 tests, 115 assertions)\u001b[0m\n';
@@ -41,12 +41,19 @@ test('phpunitResult gives each kind of run its dot and its sentence', () => {
 	assert.deepEqual(phpunitResult({ running: false, code: 0, output: SKIPPED }), { status: 'online', text: '8 of 10 tests passed. 2 skipped.' });
 	// PHPUnit exits 1 over a warning, but nothing failed: every test ran.
 	assert.deepEqual(phpunitResult({ running: false, code: 1, output: WARNED }), { status: 'online', text: '11 of 12 tests passed. 1 had a warning.' });
-	assert.deepEqual(phpunitResult({ running: false, code: 1, output: FAILED }), { status: 'failed', text: `4 of 2133 tests failed. ${TRUNK_HINT}` });
-	assert.deepEqual(phpunitResult({ running: false, code: 2, output: ERRORS }), { status: 'failed', text: `136 of 25948 tests failed. ${TRUNK_HINT}` });
+	assert.deepEqual(phpunitResult({ running: false, code: 1, output: FAILED }), { status: 'failed', text: '4 of 2133 tests failed.' });
+	assert.deepEqual(phpunitResult({ running: false, code: 2, output: ERRORS }), { status: 'failed', text: '136 of 25948 tests failed.' });
 	// The plural follows the tests that ran, as the passing sentence's does: a
 	// run filtered down to one test is "1 of 1 test".
-	assert.deepEqual(phpunitResult({ running: false, code: 1, output: ONE_FAILED }), { status: 'failed', text: `1 of 1 test failed. ${TRUNK_HINT}` });
+	assert.deepEqual(phpunitResult({ running: false, code: 1, output: ONE_FAILED }), { status: 'failed', text: '1 of 1 test failed.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 1, output: NONE }), { status: 'offline', text: 'No tests matched.' });
+});
+
+test('a red result on a ticket\'s branch says some tests fail here even on trunk, and on trunk says only the count', () => {
+	assert.deepEqual(phpunitResult({ running: false, code: 1, output: FAILED }, { onTicket: true }), { status: 'failed', text: `4 of 2133 tests failed. ${TRUNK_HINT}` });
+	assert.deepEqual(phpunitResult({ running: false, code: 1, output: FAILED }, { onTicket: false }), { status: 'failed', text: '4 of 2133 tests failed.' });
+	// A passing run says nothing about trunk either way.
+	assert.deepEqual(phpunitResult({ running: false, code: 0, output: PASSED }, { onTicket: true }), { status: 'online', text: '21 tests passed.' });
 });
 
 test('a run stopped with Ctrl+C, one that never started, or one that never printed a summary, is not a pass', () => {

@@ -408,11 +408,12 @@ test( 'phpunit runs the arguments it is given, and the Tests section runs the su
 	await expect( screen ).toContainText( 'Running phpunit…' );
 	expect( ( await asked() ).runs[ 1 ] ).toEqual( { dir: site.dir, args: [] } );
 	// INVARIANT — a run with failures says how many of how many, from
-	// PHPUnit's own summary, and that some fail here even on trunk.
+	// PHPUnit's own summary. On trunk that is all it says: there is no
+	// change to compare with.
 	await tell( 'npm:run-script:log', { runId: 'e2e-php-2', type: 'stdout', data: 'FAILURES!\nTests: 2133, Assertions: 1118406, Failures: 4.\n' } );
 	await tell( 'npm:run-script:done', { runId: 'e2e-php-2', code: 1 } );
 	await expect( screen ).toContainText( 'phpunit exited with code 1' );
-	await expect( lastRun ).toHaveText( '4 of 2133 tests failed. Some tests fail on this setup even without your change. Run a failing test on trunk to compare.' );
+	await expect( lastRun ).toHaveText( '4 of 2133 tests failed.' );
 
 	// INVARIANT — with a ticket linked, the section also runs the tests
 	// tagged with it, as the terminal command, in the terminal.
@@ -432,6 +433,13 @@ test( 'phpunit runs the arguments it is given, and the Tests section runs the su
 	// INVARIANT — a run stopped part-way is not reported as a pass or a fail.
 	await expect( lastRun ).toHaveText( 'Stopped before it finished.' );
 	await expect( runTests ).not.toHaveAttribute( 'aria-disabled', 'true' );
+
+	// INVARIANT — on a ticket's branch, a run with failures also says some
+	// tests fail on this setup without the change, and how to tell.
+	await runTests.click();
+	await tell( 'npm:run-script:log', { runId: 'e2e-php-4', type: 'stdout', data: 'FAILURES!\nTests: 21, Assertions: 115, Failures: 1.\n' } );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-4', code: 1 } );
+	await expect( lastRun ).toHaveText( '1 of 21 tests failed. Some tests fail on this setup even without your change. Run a failing test on trunk to compare.' );
 } );
 
 test( 'a Gutenberg site has no phpunit command and no Tests section', async ( { session } ) => {
