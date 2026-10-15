@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { stagePaths, unstagePaths, writeTree, commitTree, updateBranch, createBranchAt, pointHeadAt, deleteBranch, checkoutBranch, fetchBranch, cleanUntracked, applyPatch } = require('../../src/git-write.cjs');
+const { stagePaths, unstagePaths, writeTree, commitTree, updateBranch, createBranchAt, pointHeadAt, deleteBranch, checkoutBranch, fetchBranch, cleanUntracked, applyPatch, restoreWorktreePaths } = require('../../src/git-write.cjs');
 const { pathToFileURL } = require('node:url');
 const { git, tempDir } = require('./helpers/git.cjs');
 
@@ -149,6 +149,23 @@ test('unstagePaths takes a staged file out of the index and leaves it on disk; c
 	assert.equal(fs.existsSync(path.join(dir, 'loose-dir')), false);
 	assert.equal(fs.readFileSync(path.join(dir, 'node_modules', 'expensive.js'), 'utf8'), 'expensive\n', 'ignored survives');
 	assert.equal(fs.readFileSync(path.join(dir, 'excluded.txt'), 'utf8'), 'excluded\n', 'excluded survives');
+});
+
+// A file put back as an older commit had it (#669): an edit undone, a
+// deletion undone, from a commit that is not HEAD, and the index left alone.
+test('restoreWorktreePaths puts files back as a commit had them and leaves the index alone', async (t) => {
+	const { dir, base } = makeRepo(t);
+	fs.writeFileSync(path.join(dir, 'kept.txt'), 'kept, then committed\n');
+	git(['add', 'kept.txt'], dir);
+	git([...IDENTITY, 'commit', '-q', '-m', 'second'], dir);
+	fs.writeFileSync(path.join(dir, 'kept.txt'), 'kept, then edited\n');
+	fs.rmSync(path.join(dir, 'doomed.txt'));
+
+	assert.equal(await restoreWorktreePaths(dir, base, ['kept.txt', 'doomed.txt']), 2);
+
+	assert.equal(fs.readFileSync(path.join(dir, 'kept.txt'), 'utf8'), 'kept\n', 'as the older commit had it, not HEAD');
+	assert.equal(fs.readFileSync(path.join(dir, 'doomed.txt'), 'utf8'), 'doomed\n');
+	assert.equal(git(['diff', '--cached', '--name-only'], dir).stdout, '', 'nothing staged');
 });
 
 test('fetchBranch brings one branch down from a file:// remote and answers with its tip', async (t) => {

@@ -76,7 +76,7 @@ import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
-import { changedFileGroups, fileOpenTarget } from './affected-files.cjs';
+import { changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome } from './affected-files.cjs';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
@@ -802,6 +802,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [unsubmitted, setUnsubmitted] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
+  const [revertError, setRevertError] = useState(null);
   // Opening a pull request (#167): the account, the sign-in, the form and the
   // attempt. Held here because all of it outlives the card that shows it.
   const prSubmission = usePullRequest({ sitePath, confirm });
@@ -1055,7 +1056,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // the ticket hook lists it among a callback's dependencies, and a new
   // function here on every render would give that callback a new identity
   // each time.
+  // A revert's failure is about the list it was shown under (#669), and goes
+  // with it: here, and on a branch change below.
   const applyDiscardToNote = useCallback((outcome) => {
+    setRevertError(null);
     forgetChangedFiles();
     setWorktreeDirty(noteAfterDiscard(outcome));
   }, [forgetChangedFiles]);
@@ -1068,6 +1072,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // discard link — so the note is cleared while the new walk runs, and the
   // generation bump keeps the outgoing branch's answer from landing on it.
   const reprobeAfterBranchChange = useCallback(() => {
+    setRevertError(null);
     setWorktreeDirty(null);
     forgetChangedFiles();
   }, [forgetChangedFiles]);
@@ -1570,6 +1575,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // they go through the same guard: a discard is a force checkout, and running
   // it under a live dev server or a half-finished install rewrites the tree
   // from under it. Not re-derived here — that is how a second answer starts.
+  // Why a file's revert button is held, if it is (#669): the guard and the
+  // sentences the discard link has, since it writes the tree the same way.
+  const revertReason = discardDisabledReason({ patchHasChanges: true, isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
   const layerExitBlocked = discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
   const layerExit = layerExitFailure({ patchSaveError, discardError });
 
@@ -1754,6 +1762,33 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     runDiscard(discardYourChangesQuestion({ editedCount: editedByYou, appliedPatch, pullRequest }), { keepChange: true });
   };
   const discardTicketToBase = () => runDiscard(discardQuestion(), {});
+  // One file of "Discard your changes" (#669), from its row under "Changed
+  // files". It holds the same guard as a discard while it runs, since it
+  // writes the tree the same way, and the list follows it as it follows a
+  // discard.
+  const revertFile = (file, { fromChange }) => {
+    const question = revertFileQuestion(file, { fromChange, pullRequest: fromChange ? pullRequest : null });
+    askFirst(question, async () => {
+      setDiscarding(true);
+      setRevertError(null);
+      try {
+        let outcome;
+        try {
+          outcome = revertOutcome(await window.api.revertFile(sitePath, file.path));
+        } catch (e) {
+          outcome = revertOutcome({ ok: false, error: e && e.message ? e.message : String(e) });
+        }
+        if (!outcome.ok) {
+          setRevertError(outcome.message);
+          return;
+        }
+        applyDiscardToNote(outcome);
+        confirm(question.done);
+      } finally {
+        setDiscarding(false);
+      }
+    });
+  };
   const runDiscard = (question, options) => askFirst(question, async () => {
     setDiscarding(true);
     setDiscardError(null);
@@ -2425,7 +2460,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
-        changed={{ ...changedGroups, onOpenFile: openAffectedFile }}
+        changed={{ ...changedGroups, onOpenFile: openAffectedFile, onRevertFile: revertFile, revertReason, revertError }}
       />
       </div>
       {dirtyModalOpen ? (

@@ -50,7 +50,7 @@ async function applyPatchFile( session, patchFile ) {
 	// about to write, before anything is written. It names `src/wp-login.php`
 	// though the patch says `wp-login.php`, because the app rewrites paths
 	// written against core's pre-`src/` layout — see src/patch-plan.cjs.
-	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByRole( 'dialog' ).getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.applyAndRebuildButton( page ).click();
 }
 
@@ -276,7 +276,7 @@ test( 'files edited or added after a patch are told apart from the patch\'s own 
 	// nothing under "Your changes", and the patched file is not "also edited".
 	await expect( group( page, 'From the patch' ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( group( page, 'Your changes' ) ).toHaveCount( 0 );
-	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toHaveCount( 0 );
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toHaveCount( 0 );
 
 	// The contributor works on top: an edit to the patched file, and a file
 	// of their own.
@@ -286,8 +286,8 @@ test( 'files edited or added after a patch are told apart from the patch\'s own 
 
 	// INVARIANT — the patched file stays the patch's, marked as edited since;
 	// the new file is the contributor's, marked new. Each is listed once.
-	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( affectedFile( page, 'src/new-helper.php' ).locator( '..' ).getByText( 'new', { exact: true } ) ).toBeVisible();
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( affectedFile( page, 'src/new-helper.php' ).locator( '..' ).getByRole( 'img', { name: 'You created this file', exact: true } ) ).toBeVisible();
 	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveCount( 1 );
 	expect( await ui.inDocumentOrder( page, [
 		group( page, 'From the patch' ),
@@ -314,7 +314,7 @@ test( 'discarding your changes keeps the applied patch (#669)', async ( { sessio
 	write( site.dir, LOGIN, '<?php // fixed by the patch, then by me\n' );
 	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
 	await refocus( page );
-	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( affectedFile( page, 'src/new-helper.php' ) ).toBeVisible();
 
 	await ui.reviewChangesButton( page ).click();
@@ -342,7 +342,7 @@ test( 'discarding your changes keeps the applied patch (#669)', async ( { sessio
 	await expect( ui.revertPatchButton( page ) ).toBeVisible();
 	await expect( group( page, 'From the patch' ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( group( page, 'Your changes' ) ).toHaveCount( 0 );
-	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toHaveCount( 0 );
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toHaveCount( 0 );
 
 	// INVARIANT — with nothing of the contributor's left, the discard is off
 	// and says why, instead of resetting and re-applying to remove nothing.
@@ -392,6 +392,60 @@ test( 'discarding a ticket to its base removes a patch too large to revert (#669
 	expect( meta.branches[ 'ticket/60001' ].appliedPatch ).toBeFalsy();
 } );
 
+// One file at a time, as "Discard your changes" would leave it (#669): a new
+// file goes, a file of the contributor's goes back to the base, and the
+// patch's own file goes back to what the patch wrote, with the patch still
+// applied. A patch file nobody touched offers no revert.
+test( 'each file the contributor changed can be reverted on its own (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+	const revertButton = ( file ) => details( page ).getByRole( 'button', { name: `Revert ${ file }`, exact: true } );
+
+	// INVARIANT — the patch's own file, untouched, has nothing to revert.
+	await expect( group( page, 'From the patch' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( revertButton( 'src/wp-login.php' ) ).toHaveCount( 0 );
+
+	write( site.dir, LOGIN, '<?php // fixed by the patch, then by me\n' );
+	write( site.dir, DOOMED, '<?php // my own work in progress\n' );
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	await refocus( page );
+	await expect( revertButton( 'src/new-helper.php' ) ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — a file the contributor created is deleted, after asking so.
+	await revertButton( 'src/new-helper.php' ).click();
+	await expect( ui.confirmDialog( page ) ).toHaveAccessibleName( 'Delete src/new-helper.php?' );
+	await ui.confirmYesButton( page, 'Delete file' ).click();
+	await expect.poll( () => fs.existsSync( path.join( site.dir, 'src/new-helper.php' ) ), { timeout: 30_000 } ).toBe( false );
+	await expect( affectedFile( page, 'src/new-helper.php' ) ).toHaveCount( 0, { timeout: 30_000 } );
+
+	// INVARIANT — a file of the contributor's goes back to the base, and
+	// nothing else moves.
+	await revertButton( 'src/doomed.php' ).click();
+	await expect( ui.confirmDialog( page ) ).toHaveAccessibleName( 'Revert src/doomed.php?' );
+	await ui.confirmYesButton( page, 'Revert file' ).click();
+	await expect.poll( () => read( site.dir, DOOMED ), { timeout: 30_000 } ).toBe( '<?php // to be deleted\n' );
+	expect( read( site.dir, LOGIN ) ).toBe( '<?php // fixed by the patch, then by me\n' );
+
+	// INVARIANT — the patch's file goes back to what the patch wrote, and the
+	// patch is still applied.
+	await revertButton( 'src/wp-login.php' ).click();
+	await expect( ui.confirmDialog( page ).getByText( 'Your edits to it are removed, and it goes back to how the patch left it. This can’t be undone.', { exact: true } ) ).toBeVisible();
+	await ui.confirmYesButton( page, 'Revert file' ).click();
+	await expect.poll( () => read( site.dir, LOGIN ), { timeout: 30_000 } ).toBe( `${ PATCHED_LOGIN }\n` );
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toHaveCount( 0, { timeout: 30_000 } );
+	await expect( revertButton( 'src/wp-login.php' ) ).toHaveCount( 0 );
+	await expect( group( page, 'Your changes' ) ).toHaveCount( 0 );
+	await expect( ui.revertPatchButton( page ) ).toBeVisible();
+	expect( read( site.dir, SUBSTRATE ) ).toBe( SUBSTRATE_CONTENT );
+} );
+
 test( 'a ticket with no patch lists only the contributor\'s own changes (#669)', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
@@ -405,8 +459,8 @@ test( 'a ticket with no patch lists only the contributor\'s own changes (#669)',
 	// one group, and the new file marked new and the edited one not.
 	await expect( group( page, 'Your changes' ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( details( page ).getByRole( 'heading', { level: 3 } ) ).toHaveCount( 1 );
-	await expect( affectedFile( page, 'src/new-helper.php' ).locator( '..' ).getByText( 'new', { exact: true } ) ).toBeVisible();
-	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'new', { exact: true } ) ).toHaveCount( 0 );
+	await expect( affectedFile( page, 'src/new-helper.php' ).locator( '..' ).getByRole( 'img', { name: 'You created this file', exact: true } ) ).toBeVisible();
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByRole( 'img', { name: 'You created this file', exact: true } ) ).toHaveCount( 0 );
 } );
 
 test( 'discarding the contributor\'s changes takes them out of the list, with no refocus (#669)', async ( { session } ) => {
@@ -471,7 +525,7 @@ test( 'a patch that does not fit is refused, and writes nothing', async ( { sess
 	] );
 	await session.answerFileDialog( [ patch ] );
 	await ui.choosePatchFile( page );
-	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByRole( 'dialog' ).getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 
 	// INVARIANT — the app warns before writing, not after. A contributor about
 	// to drop somebody else's patch onto their own edits is told so while they
@@ -525,7 +579,7 @@ test( 'a refused patch leaves the contributor\'s changes listed (#669)', async (
 	] );
 	await session.answerFileDialog( [ patch ] );
 	await ui.choosePatchFile( page );
-	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByRole( 'dialog' ).getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await app.evaluate( () => {
 		let release;
 		const promise = new Promise( ( resolve ) => { release = resolve; } );
