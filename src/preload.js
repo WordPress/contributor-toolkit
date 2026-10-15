@@ -80,6 +80,28 @@ contextBridge.exposeInMainWorld('api', {
 		return { runId };
 	}
 ,
+	// Core's PHP unit tests. Streams on the script channels, so it is listened
+	// to the way runNpmScript is; a refusal (`ok: false`) starts nothing and
+	// subscribes to nothing.
+	runPhpUnit: async (dir, args, onLog, onDone) => {
+		const result = await ipcRenderer.invoke('phpunit:run', dir, args || []);
+		if (!result || !result.ok) return result;
+		const { runId } = result;
+		const logHandler = (_e, payload) => {
+			if (payload.runId === runId && onLog) onLog(payload);
+		};
+		const doneHandler = (_e, payload) => {
+			if (payload.runId === runId) {
+				ipcRenderer.removeListener('npm:run-script:log', logHandler);
+				ipcRenderer.removeListener('npm:run-script:done', doneHandler);
+				if (onDone) onDone(payload);
+			}
+		};
+		ipcRenderer.on('npm:run-script:log', logHandler);
+		ipcRenderer.on('npm:run-script:done', doneHandler);
+		return result;
+	}
+,
 	npmKill: (params) => ipcRenderer.invoke('npm:kill', params)
 ,
 	openExternal: (url) => ipcRenderer.invoke('url:open', url)
