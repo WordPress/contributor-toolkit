@@ -1353,7 +1353,7 @@ test('git:revert-file removes a file the contributor created (#669)', async (t) 
 });
 
 test('git:revert-file puts a file of the contributor\'s back as the base had it, parked or deleted (#669)', async (t) => {
-	const dir = adoptedRepo(t, 'ipc-wiring-revert-file-');
+	const dir = initRepo(tempDir(t, 'ipc-wiring-revert-file-'));
 	fs.mkdirSync(path.join(dir, 'src'));
 	fs.writeFileSync(path.join(dir, 'src', 'b.php'), '<?php // b\n');
 	fs.writeFileSync(path.join(dir, 'src', 'c.php'), '<?php // c\n');
@@ -1413,7 +1413,7 @@ test('git:revert-file refuses a path that is not one of the changes (#669)', asy
 // the worktree's (null to remove one), and the patch's record. Fingerprints
 // default to what the patch wrote: each record file as it is on disk now.
 function patchSite(t, { base, worktree, text, files, fingerprints = null, getStoreHook = null }) {
-	const dir = adoptedRepo(t, 'ipc-wiring-revert-patch-');
+	const dir = initRepo(tempDir(t, 'ipc-wiring-revert-patch-'));
 	for (const [rel, content] of Object.entries(base)) {
 		fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
 		fs.writeFileSync(path.join(dir, rel), content);
@@ -1567,7 +1567,7 @@ test('git:revert-file does not write a fingerprint over a record replaced while 
 });
 
 test('git:revert-file puts an edited pull request file back as the pull request has it (#669)', async (t) => {
-	const dir = adoptedRepo(t, 'ipc-wiring-revert-pr-');
+	const dir = initRepo(tempDir(t, 'ipc-wiring-revert-pr-'));
 	fs.mkdirSync(path.join(dir, 'src'));
 	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
 	commitFiles(dir, ['src/a.php'], 'trunk snapshot');
