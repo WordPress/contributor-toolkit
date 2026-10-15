@@ -3,9 +3,9 @@
 // The app previously set no menu at all and inherited Electron's default one.
 // Setting a menu replaces that default wholesale, so the template below rebuilds
 // it out of Electron's built-in roles — anything dropped here is a feature the
-// user silently loses. The only real additions are Settings… and the Help
-// submenu, which is how a contributor gets at the log file without knowing
-// where their OS keeps it.
+// user silently loses. The only real additions are Create New Site…, Settings…
+// and the Help submenu, which is how a contributor gets at the log file without
+// knowing where their OS keeps it.
 //
 // Kept free of Electron imports and of the log module: the caller supplies the
 // click handlers and the app's name, so this file is a plain data structure.
@@ -21,18 +21,27 @@
 //
 // "Settings…" (#559) is where each platform keeps it: in the app menu on
 // macOS and under File elsewhere, with the shortcut each has for it.
+//
+// "Create New Site…" (#661) opens the same dialog as the sidebar's button, at
+// the top of File on every platform. It has no shortcut: Ctrl+N would be taken
+// from the site's terminal, where it moves through the shell's history.
 
 const { __, _x, sprintf } = require('@wordpress/i18n');
 
 const isMac = (platform = process.platform) => platform === 'darwin';
 
-function buildMenuTemplate({ onOpenLog, onShowLogsFolder, onOpenSettings, appName = '', platform = process.platform } = {}) {
+function buildMenuTemplate({ onOpenLog, onShowLogsFolder, onOpenSettings, onCreateSite, appName = '', platform = process.platform } = {}) {
 	const mac = isMac(platform);
 	const settings = {
 		id: 'settings',
 		label: __('Settings…'),
 		accelerator: 'CmdOrCtrl+,',
 		click: () => onOpenSettings?.()
+	};
+	const createSite = {
+		id: 'create-site',
+		label: __('Create New Site…'),
+		click: () => onCreateSite?.()
 	};
 	const toggleDevTools = { role: 'toggleDevTools', label: __('Toggle Developer Tools') };
 	return [
@@ -63,9 +72,9 @@ function buildMenuTemplate({ onOpenLog, onShowLogsFolder, onOpenSettings, appNam
 			role: 'fileMenu',
 			label: __('File'),
 			submenu: mac
-				? [{ role: 'close', label: __('Close Window') }]
+				? [createSite, { type: 'separator' }, { role: 'close', label: __('Close Window') }]
 				// Exit on Windows, as Electron words it there.
-				: [settings, { type: 'separator' }, { role: 'quit', label: platform === 'win32' ? __('Exit') : __('Quit') }]
+				: [createSite, { type: 'separator' }, settings, { type: 'separator' }, { role: 'quit', label: platform === 'win32' ? __('Exit') : __('Quit') }]
 		},
 		{
 			role: 'editMenu',

@@ -131,6 +131,12 @@ test( 'the create-site dialog refuses a missing name or location, starts clean e
 	// dialog's other door, which opens it with nothing in it to press.
 	await expect( page.getByText( 'Setting up new site…', { exact: true } ) ).toBeVisible();
 	await expect( ui.createSiteButton( page ) ).toBeDisabled();
+	// Nor from the menu's Create New Site… (#661), which is refused as the
+	// sidebar's button is: a dialog opened now could not be closed until the
+	// setup ended. A round trip shows the request was handled.
+	await app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().getMenuItemById( 'create-site' ).click() );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await expect( dialog ).toHaveCount( 0 );
 	await ui.sidebarEntry( page, 'old-engine-site' ).click();
 	await page.getByRole( 'button', { name: 'Create site', exact: true } ).click();
 	await expect( create ).toBeDisabled();
@@ -198,4 +204,47 @@ test( 'the create-site dialog refuses a missing name or location, starts clean e
 	await expect.poll( setupCalls ).toHaveLength( 2 );
 	await failSetup( 'the disk is full' );
 	await expect( ui.toast( page, /^The site could not be created\. .*the disk is full$/ ) ).toBeVisible();
+} );
+
+// That it is refused while a setup runs is asserted in the test above, where
+// the setup is seen to be running.
+test( 'the menu\'s Create New Site… opens the same dialog as the sidebar, and the setup asked for from it is the same one (#661)', async ( { session } ) => {
+	const parent = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-parent-' ) ) );
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'wordpress:setup' );
+		ipcMain.handle( 'wordpress:setup', ( event, dir, options ) => {
+			global.__e2eSetupCalls = ( global.__e2eSetupCalls || [] ).concat( [ { dir, options } ] );
+			return new Promise( () => {} );
+		} );
+	} );
+	const setupCalls = () => app.evaluate( () => global.__e2eSetupCalls || [] );
+	const fromMenu = () => app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().getMenuItemById( 'create-site' ).click() );
+
+	const dialog = ui.createSiteDialog( page );
+	const name = dialog.getByLabel( 'Site name', { exact: true } );
+
+	// INVARIANT — the menu item opens the create-site dialog, empty and on the
+	// name, as the sidebar's button does. It is pressed once the window is drawn
+	// and a round trip has let its effects subscribe: a press that arrives while
+	// the page is still loading is not kept, as for Settings….
+	await expect( ui.createSiteButton( page ) ).toBeEnabled();
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await fromMenu();
+	await expect( dialog ).toBeVisible();
+	await expect( name ).toBeFocused();
+	await expect( name ).toHaveValue( '' );
+
+	// INVARIANT — a setup asked for from it is the one the sidebar's would
+	// start: once, for exactly what was chosen.
+	await session.answerFileDialog( [ parent ] );
+	await name.fill( 'From the menu' );
+	await dialog.getByRole( 'button', { name: 'Location Choose folder…', exact: true } ).press( 'Enter' );
+	await dialog.getByRole( 'button', { name: 'Create site', exact: true } ).click();
+	await expect( dialog ).toHaveCount( 0 );
+	await expect.poll( setupCalls ).toEqual( [ {
+		dir: parent,
+		options: { siteName: 'From-the-menu', siteLabel: 'From the menu', projectType: 'core' },
+	} ] );
 } );
