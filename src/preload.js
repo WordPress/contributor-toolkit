@@ -125,6 +125,13 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('settings:open', h);
 	}
 ,
+	// The menu's "Create New Site…" asked for the create-site dialog.
+	subscribeCreateSiteOpen: (handler) => {
+		const h = () => handler && handler();
+		ipcRenderer.on('create-site:open', h);
+		return () => ipcRenderer.removeListener('create-site:open', h);
+	}
+,
 	showSiteInFileManager: (sitePath) => ipcRenderer.invoke('dir:show', sitePath)
 ,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)

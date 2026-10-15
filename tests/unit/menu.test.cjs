@@ -35,11 +35,11 @@ test('Settings… is in the app menu on macOS and under File elsewhere, with the
 	const appMenu = mac.find((item) => item.role === 'appMenu').submenu;
 	assert.deepEqual(appMenu.filter((i) => i.id).map((i) => i.label), ['Settings…']);
 	assert.deepEqual(appMenu.filter((i) => i.role).map((i) => i.role), ['about', 'services', 'hide', 'hideOthers', 'unhide', 'quit']);
-	assert.deepEqual(mac.find((item) => item.role === 'fileMenu').submenu.map((i) => i.role), ['close'], 'File keeps its default items on macOS');
+	assert.deepEqual(mac.find((item) => item.role === 'fileMenu').submenu.filter((i) => i.role).map((i) => i.role), ['close'], 'File keeps its default items on macOS');
 
 	for (const platform of ['win32', 'linux']) {
 		const file = buildMenuTemplate({ platform }).find((item) => item.role === 'fileMenu').submenu;
-		assert.deepEqual(file.filter((i) => i.id).map((i) => i.label), ['Settings…'], platform);
+		assert.deepEqual(file.filter((i) => i.id).map((i) => i.label), ['Create New Site…', 'Settings…'], platform);
 		assert.deepEqual(file.filter((i) => i.role).map((i) => i.role), ['quit'], platform);
 	}
 
@@ -54,6 +54,32 @@ test('Settings… invokes the handler it was given, and does not throw without o
 	item.click();
 	assert.equal(opened, 1);
 	assert.doesNotThrow(() => buildMenuTemplate({ platform: 'darwin' }).find((i) => i.role === 'appMenu').submenu.find((i) => i.id === 'settings').click());
+});
+
+// Creating a site from the menu (#661): first under File on every platform,
+// macOS included, where File otherwise only closes the window. No shortcut,
+// since Ctrl+N belongs to the site's terminal.
+test('Create New Site… is the first item under File on every platform, without a shortcut', () => {
+	for (const platform of ['darwin', 'win32', 'linux']) {
+		const file = buildMenuTemplate({ platform }).find((item) => item.role === 'fileMenu').submenu;
+		assert.equal(file[0].id, 'create-site', platform);
+		assert.equal(file[0].label, 'Create New Site…', platform);
+		assert.equal(file[0].accelerator, undefined, platform);
+		assert.equal(file[1].type, 'separator', platform);
+	}
+	const elsewhere = buildMenuTemplate({ platform: 'darwin' }).filter((item) => item.role !== 'fileMenu');
+	assert.ok(!JSON.stringify(elsewhere).includes('create-site'), 'it is under File only');
+});
+
+test('Create New Site… invokes the handler it was given, and does not throw without one', () => {
+	for (const platform of ['darwin', 'win32', 'linux']) {
+		let requested = 0;
+		const item = buildMenuTemplate({ platform, onCreateSite: () => { requested++; } })
+			.find((i) => i.role === 'fileMenu').submenu.find((i) => i.id === 'create-site');
+		item.click();
+		assert.equal(requested, 1, platform);
+	}
+	assert.doesNotThrow(() => buildMenuTemplate({ platform: 'win32' }).find((i) => i.role === 'fileMenu').submenu.find((i) => i.id === 'create-site').click());
 });
 
 test('Help exposes both log entries plus DevTools', () => {
@@ -106,7 +132,8 @@ test('Help labels are translated when the template is built, not when the module
 test('every menu holds the items Electron\'s default menu has on that platform', () => {
 	const items = (template, role) => template.find((i) => i.role === role).submenu.map((i) => i.role || i.type || i.label);
 	const mac = buildMenuTemplate({ platform: 'darwin' });
-	assert.deepEqual(items(mac, 'fileMenu'), ['close']);
+	// Create New Site… (#661) and its separator are ours; Close Window is the default.
+	assert.deepEqual(items(mac, 'fileMenu'), ['Create New Site…', 'separator', 'close']);
 	assert.deepEqual(items(mac, 'editMenu'), ['undo', 'redo', 'separator', 'cut', 'copy', 'paste', 'pasteAndMatchStyle', 'delete', 'selectAll', 'separator', 'Substitutions', 'Speech']);
 	const edit = mac.find((i) => i.role === 'editMenu').submenu;
 	assert.deepEqual(edit.find((i) => i.label === 'Substitutions').submenu.map((i) => i.role || i.type), ['showSubstitutions', 'separator', 'toggleSmartQuotes', 'toggleSmartDashes', 'toggleTextReplacement']);
