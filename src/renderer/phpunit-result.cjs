@@ -74,10 +74,15 @@ function phpunitResult(run) {
 	if (summary.tests === 0) return { status: 'offline', text: __('No tests matched.') };
 	const failed = summary.failures + summary.errors;
 	if (failed > 0) {
+		// A red result reads as "your change broke it", but this setup is not
+		// core's: some tests fail here on trunk (SQLite, the bundled PHP).
 		return {
 			status: 'failed',
-			// translators: 1: how many tests failed. 2: how many tests ran.
-			text: sprintf(_n('%1$d of %2$d test failed.', '%1$d of %2$d tests failed.', summary.tests), failed, summary.tests)
+			text: [
+				// translators: 1: how many tests failed. 2: how many tests ran.
+				sprintf(_n('%1$d of %2$d test failed.', '%1$d of %2$d tests failed.', summary.tests), failed, summary.tests),
+				__('Some tests fail on this setup even without your change. Run a failing test on trunk to compare.')
+			].join(' ')
 		};
 	}
 	const notRun = summary.skipped + summary.incomplete;

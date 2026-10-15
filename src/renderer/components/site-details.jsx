@@ -149,6 +149,7 @@ function TestsSection({ tests }) {
           </ReasonedUiButton>
         </Stack>
         <Text variant="body-sm" className="muted-label">{__('The first run installs PHPUnit, which takes a few minutes. All of them take about 10 minutes.')}</Text>
+        <Text variant="body-sm" className="muted-label">{__('These run on SQLite and the app\'s own PHP, not MySQL, so some of core\'s tests fail here even on trunk.')}</Text>
       </Stack>
     </Stack>
   );

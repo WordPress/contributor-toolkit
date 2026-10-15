@@ -408,11 +408,11 @@ test( 'phpunit runs the arguments it is given, and the Tests section runs the su
 	await expect( screen ).toContainText( 'Running phpunit…' );
 	expect( ( await asked() ).runs[ 1 ] ).toEqual( { dir: site.dir, args: [] } );
 	// INVARIANT — a run with failures says how many of how many, from
-	// PHPUnit's own summary.
+	// PHPUnit's own summary, and that some fail here even on trunk.
 	await tell( 'npm:run-script:log', { runId: 'e2e-php-2', type: 'stdout', data: 'FAILURES!\nTests: 2133, Assertions: 1118406, Failures: 4.\n' } );
 	await tell( 'npm:run-script:done', { runId: 'e2e-php-2', code: 1 } );
 	await expect( screen ).toContainText( 'phpunit exited with code 1' );
-	await expect( lastRun ).toHaveText( '4 of 2133 tests failed.' );
+	await expect( lastRun ).toHaveText( '4 of 2133 tests failed. Some tests fail on this setup even without your change. Run a failing test on trunk to compare.' );
 
 	// INVARIANT — with a ticket linked, the section also runs the tests
 	// tagged with it, as the terminal command, in the terminal.
