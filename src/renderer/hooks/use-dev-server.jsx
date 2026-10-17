@@ -161,6 +161,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       setStarting(false);
       serverStartRequestedRef.current = false;
       runningRef.current = false;
+      devServerActiveRef.current = false;
       // This way out does not go through stopDevServer, which is what ends
       // the tail and the mail subscription everywhere else.
       stopDebugTail();
