@@ -13,25 +13,30 @@
  * People arrive from a browser, so the input is as likely to be a pasted
  * profile URL or an `@handle` copied out of Slack as it is the bare handle.
  *
- * Kept as a pure, dependency-free module so it can be unit tested without a
- * DOM or an Electron process: the renderer bundle imports it, main.js requires
- * it, `node --test` requires it directly (same convention as trac-ticket.cjs).
+ * Kept as a pure module, with nothing but the translation functions behind
+ * it, so it can be unit tested without a DOM or an Electron process: the
+ * renderer bundle imports it, main.js requires it, `node --test` requires it
+ * directly (same convention as trac-ticket.cjs).
  */
+
+const { __, sprintf } = require('@wordpress/i18n');
 
 const PROFILES_HOST = 'profiles.wordpress.org';
 
 // WordPress.org sanitizes a username down to this before it becomes the
 // profile slug: letters, digits, and the three separators, never leading or
-// trailing. Matched case-insensitively and stored lowercase, because that is
-// the form profiles.wordpress.org serves and the form props are written in.
-const HANDLE = /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/i;
+// trailing. Lowercase only, because that is the form profiles.wordpress.org
+// serves and the form props are written in; the parser lowercases before it
+// asks, so the stored form and the accepted form are the same rule.
+const HANDLE = /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/;
 
 // Longer than any real handle, short enough that the value stays a plausible
 // filename component and a single header line.
 const MAX_HANDLE_LENGTH = 60;
 
-const NOT_A_HANDLE =
-	'Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.';
+// Said when the string is shown and not when the module loads, so that the
+// locale applied before the first render is the one it comes out in.
+const notAHandle = () => __('Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.');
 
 /**
  * Whether a value is already a stored handle — the canonical form `parseHandle`
@@ -43,7 +48,6 @@ const NOT_A_HANDLE =
 function isHandle(value) {
 	return typeof value === 'string'
 		&& value.length <= MAX_HANDLE_LENGTH
-		&& value === value.toLowerCase()
 		&& HANDLE.test(value);
 }
 
@@ -60,10 +64,11 @@ function profileUrl(handle) {
  * @param {string} candidate
  */
 function fromHandle(candidate) {
-	if (candidate.length > MAX_HANDLE_LENGTH || !HANDLE.test(candidate)) {
-		return { ok: false, error: NOT_A_HANDLE };
-	}
-	const handle = candidate.toLowerCase();
+	// ASCII-only fold. String#toLowerCase also maps U+212A KELVIN SIGN to 'k',
+	// which would turn a homoglyph paste into somebody else's handle instead of
+	// refusing it; this module refuses, it does not repair.
+	const handle = candidate.replace(/[A-Z]/g, (c) => c.toLowerCase());
+	if (!isHandle(handle)) return { ok: false, error: notAHandle() };
 	return { ok: true, handle, url: profileUrl(handle) };
 }
 
@@ -77,7 +82,7 @@ function fromHandle(candidate) {
  */
 function parseHandle(input) {
 	const raw = typeof input === 'string' ? input.trim() : '';
-	if (!raw) return { ok: false, error: 'Enter your WordPress.org username.' };
+	if (!raw) return { ok: false, error: __('Enter your WordPress.org username.') };
 
 	const bare = raw.replace(/^@/, '');
 
@@ -93,16 +98,17 @@ function parseHandle(input) {
 	try {
 		parsed = new URL(hasScheme ? raw : `https://${raw}`);
 	} catch {
-		return { ok: false, error: NOT_A_HANDLE };
+		return { ok: false, error: notAHandle() };
 	}
 
 	if (parsed.hostname.toLowerCase() !== PROFILES_HOST) {
-		return { ok: false, error: `Only ${PROFILES_HOST} profile links are supported.` };
+		// translators: %s: the host of WordPress.org profiles, profiles.wordpress.org.
+		return { ok: false, error: sprintf(__('Only %s profile links are supported.'), PROFILES_HOST) };
 	}
 
 	// Reading the handle off the path drops any query or fragment for free.
 	const match = /^\/([^/]+)\/?$/.exec(parsed.pathname);
-	if (!match) return { ok: false, error: NOT_A_HANDLE };
+	if (!match) return { ok: false, error: notAHandle() };
 
 	// A percent-escape the URL parser left in place — the handle charset has
 	// none, so an undecodable one is simply not a handle.
@@ -110,7 +116,7 @@ function parseHandle(input) {
 	try {
 		slug = decodeURIComponent(match[1]);
 	} catch {
-		return { ok: false, error: NOT_A_HANDLE };
+		return { ok: false, error: notAHandle() };
 	}
 	return fromHandle(slug);
 }

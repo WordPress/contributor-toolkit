@@ -25,6 +25,8 @@ const {
 	resolveLaunch,
 	openSiteInEditor
 } = require('../../src/editor-launch.js');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 // A filesystem of exactly the paths named, and a record of everything asked
 // about — the record is what lets a test assert that detection looked only at
@@ -521,4 +523,18 @@ test('no pending list at all behaves exactly as before', async () => {
 
 	assert.deepEqual(await openSiteInEditor(SITE, EDITOR, options), { ok: true });
 	assert.equal((await openSiteInEditor(CLONING, EDITOR, options)).reason, REFUSAL_REASONS.UNREGISTERED_SITE);
+});
+
+// The exit code reaches the window inside its sentence, so main says it in
+// the locale it applied.
+test('the exit code of a failed launch is said in the locale applied (#629)', async (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+
+	const failed = await openSiteInEditor(SITE, EDITOR, launchDeps({}, { event: 'ok', code: 1 }).options);
+	assert.equal(failed.error, pseudoLocalize('the editor could not be opened (exit code %s)').replace('%s', '1'));
 });

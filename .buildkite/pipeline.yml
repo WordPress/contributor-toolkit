@@ -37,7 +37,8 @@ steps:
       IMAGE_ID: $IMAGE_ID
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
-      echo "~~~ Setup code signing"
+      set -eu
+
       source .buildkite/commands/setup_macos_code_signing.sh
 
       echo "~~~ Install dependencies"
@@ -79,7 +80,5 @@ steps:
           always-pull: true
     artifact_paths:
       - dist/*.AppImage
-      - dist/*.deb
-      - dist/*.snap
     notify:
       - github_commit_status: { context: "Linux Build" }

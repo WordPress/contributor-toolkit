@@ -8,8 +8,10 @@ const {
 	setupStepStatuses,
 	setupStepCopy,
 	setupAutoStartDecision,
-	setupStepLabel
+	setupStepLabel,
+	setupStepBadge
 } = require('../../src/renderer/setup-steps.cjs');
+const { getProjectType } = require('../../src/project-type.cjs');
 
 // The four checklist rows, in order, as the renderer builds them — so the ladder
 // tests below read as the screen the contributor is looking at.
@@ -61,6 +63,32 @@ test('an install in flight disables its own button', () => {
 
 	assert.strictEqual(steps.install.disabled, true);
 	assert.strictEqual(steps.install.done, false);
+});
+
+// A status refresh mid-install sees a half-written node_modules. That is not
+// "installed", and the build must stay locked until npm exits (#495).
+test('a half-written node_modules during an install does not complete the step', () => {
+	const steps = computeSetupStepState({ hasNodeModules: true, installing: true });
+
+	assert.strictEqual(steps.install.done, false);
+	assert.strictEqual(steps.install.disabled, true);
+	assert.strictEqual(steps.build.ready, false);
+	assert.strictEqual(steps.build.disabled, true);
+});
+
+// The build's marker file (block-library's bundle on Gutenberg) lands mid-way
+// through `npm run build`, so a status refresh during the build reads the
+// site as built while later phases are still writing build/. That is not
+// "built": the step stays in progress and the server stays locked until the
+// build exits (#502), the same rule the install step got in #495.
+test('a marker written mid-build does not complete the build step', () => {
+	const steps = computeSetupStepState({ hasNodeModules: true, hasBuilt: true, building: true });
+
+	assert.strictEqual(steps.build.done, false);
+	assert.strictEqual(steps.build.disabled, true);
+	assert.strictEqual(steps.dev.ready, false);
+	assert.strictEqual(steps.dev.disabled, true);
+	assert.strictEqual(setupStepCopy({ hasNodeModules: true, hasBuilt: true, building: true }).buildLabel, 'Run full build');
 });
 
 test('installed dependencies complete the install step and unlock the build', () => {
@@ -211,10 +239,19 @@ test('after a failed build the step reads failed, and the dev server stays locke
 	});
 });
 
-test('a build that succeeded after failing earlier reads complete, not failed', () => {
-	// hasBuilt is the ground truth; a stale buildFailed flag must not outrank it.
+test('a build that failed over an existing marker reads failed, not complete', () => {
+	// The marker is not ground truth (#502): a build stopped or failed late may
+	// have cleaned build/ and rewritten only part of it. buildFailed is never
+	// stale within a session, every build path clears it on success, so a flag
+	// still set outranks the marker and the dev server stays locked.
 	assert.deepStrictEqual(statuses({ hasNodeModules: true, hasBuilt: true, buildFailed: true }), {
-		download: 'complete', install: 'complete', build: 'complete', dev: 'current'
+		download: 'complete', install: 'complete', build: 'failed', dev: 'locked'
+	});
+});
+
+test('a build still running reads in progress, whatever the marker says (#502)', () => {
+	assert.deepStrictEqual(statuses({ hasNodeModules: true, hasBuilt: true, building: true }), {
+		download: 'complete', install: 'complete', build: 'current', dev: 'locked'
 	});
 });
 
@@ -245,17 +282,17 @@ test('a failed step points at the terminal, since nobody clicked to start it (#2
 	// The chain runs install and build unattended, so a bare "Failed" would be
 	// the first a contributor heard of it with nowhere to look.
 	const install = setupStepCopy({ hasNodeModules: true, installFailed: true });
-	assert.match(install.installDescription, /Terminal below/);
+	assert.match(install.installDescription, /in the Terminal(?! below)/);
 	const build = setupStepCopy({ hasNodeModules: true, buildFailed: true });
 	assert.strictEqual(build.buildLabel, 'Retry the build');
-	assert.match(build.buildDescription, /Terminal below/);
+	assert.match(build.buildDescription, /in the Terminal(?! below)/);
 });
 
 test('a completed step says where a later install or build lives (#182)', () => {
 	const copy = setupStepCopy({ hasNodeModules: true, hasBuilt: true });
 	assert.strictEqual(copy.buildLabel, 'Build complete');
-	assert.match(copy.installDescription, /Terminal below/);
-	assert.match(copy.buildDescription, /Terminal below/);
+	assert.match(copy.installDescription, /in the Terminal(?! below)/);
+	assert.match(copy.buildDescription, /in the Terminal(?! below)/);
 });
 
 test('the copy and the button state cannot disagree about a failed install', () => {
@@ -328,4 +365,30 @@ test('a status read that failed refuses rather than assuming the site is fresh',
 		setupAutoStartDecision({ wasPending: true, isPending: false, status: null }),
 		'skip'
 	);
+});
+
+// The build step's words are the target's (#251); a caller that passes none
+// reads Core's, which is what every site read before.
+test('the build step describes the target it builds', () => {
+	const core = setupStepCopy({ hasNodeModules: true });
+	assert.strictEqual(core.buildDescription, 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.');
+	assert.deepStrictEqual(setupStepCopy({ hasNodeModules: true }, getProjectType('core').setup), core);
+
+	const gutenberg = setupStepCopy({ hasNodeModules: true }, getProjectType('gutenberg').setup);
+	assert.match(gutenberg.buildDescription, /Gutenberg packages/);
+	assert.doesNotMatch(gutenberg.buildDescription, /WordPress Core/);
+	const built = setupStepCopy({ hasNodeModules: true, hasBuilt: true }, getProjectType('gutenberg').setup);
+	assert.match(built.buildDescription, /^Built\./);
+	assert.doesNotMatch(built.buildDescription, /src\//);
+});
+
+test('a step\'s state has the colour of what it means: done, failed, next or under way, and not yet (#557)', () => {
+	assert.strictEqual(setupStepBadge('complete'), 'stable');
+	assert.strictEqual(setupStepBadge('failed'), 'high');
+	assert.strictEqual(setupStepBadge('current'), 'informational');
+	// One still waiting its turn, and one that cannot be started yet, are
+	// said without a colour of their own.
+	assert.strictEqual(setupStepBadge('pending'), 'draft');
+	assert.strictEqual(setupStepBadge('locked'), 'draft');
+	assert.strictEqual(setupStepBadge(undefined), 'draft');
 });

@@ -3,6 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { TRAC_HOST, MAX_TICKET_ID, ticketUrl, attachUrl, parseTicketRef } = require('../../src/renderer/trac-ticket.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 test('parseTicketRef: a bare number is a ticket (issue #109)', () => {
 	const res = parseTicketRef('62281');
@@ -123,4 +125,19 @@ test('attachUrl: stays https on the Trac host (issue #166)', () => {
 	const parsed = new URL(attachUrl(62281));
 	assert.strictEqual(parsed.protocol, 'https:');
 	assert.strictEqual(parsed.hostname, TRAC_HOST);
+});
+
+// Main parses what was typed and returns the refusal, so it is said in the
+// locale main applied, with the host name as it is.
+test('parseTicketRef refuses in the locale applied (#629)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+
+	assert.equal(parseTicketRef('').error, pseudoLocalize('Enter a ticket number or URL.'));
+	assert.equal(parseTicketRef('abc').error, pseudoLocalize('Enter a ticket number like 62281, or a %s ticket URL.').replace('%s', 'core.trac.wordpress.org'));
+	assert.equal(parseTicketRef('https://example.com/ticket/1').error, pseudoLocalize('Only %s tickets are supported.').replace('%s', 'core.trac.wordpress.org'));
 });

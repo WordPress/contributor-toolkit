@@ -1,7 +1,9 @@
 'use strict';
 
 /**
- * Opening a pull request against wordpress-develop from the working tree (#167).
+ * Opening a pull request against the site's upstream from the working tree
+ * (#167): wordpress-develop for a Core site, WordPress/gutenberg for a
+ * Gutenberg one (#251).
  *
  * Nothing here shells out to git and nothing here writes a credential to disk.
  * The whole sequence is GitHub's own API: fork the repository, bring the fork's
@@ -30,6 +32,7 @@
  * patch file, which is always still there — but not the same explanation.
  */
 
+const { __, _n, sprintf } = require('@wordpress/i18n');
 const { getJson, postJson } = require('./github-http.cjs');
 const { classifyHttpFailure } = require('./patch-sources.cjs');
 const { ticketUrl } = require('./renderer/trac-ticket.cjs');
@@ -46,13 +49,32 @@ const UPSTREAM_REPO = 'wordpress-develop';
  * sandbox needs a `trunk` branch and must not be owned by the signed-in
  * account, since an account cannot fork its own repository.
  *
+ * The site's project type supplies the repository for everything that is not a
+ * sandbox run (#251), so a Gutenberg site forks and targets WordPress/gutenberg.
+ * The environment override still wins, because its whole purpose is to redirect
+ * a real run away from a real upstream, whichever one it is.
+ *
+ * @param {{owner: string, repo: string}} [project] The project type's `upstream`.
  * @return {{owner: string, repo: string}}
  */
-function upstream() {
+function upstream(project) {
 	const raw = process.env.WP_DEV_ENV_GITHUB_UPSTREAM;
 	const match = typeof raw === 'string' && /^([^/\s]+)\/([^/\s]+)$/.exec(raw.trim());
 	if (match) return { owner: match[1], repo: match[2] };
+	if (project && project.owner && project.repo) return { owner: project.owner, repo: project.repo };
 	return { owner: UPSTREAM_OWNER, repo: UPSTREAM_REPO };
+}
+
+/**
+ * The branch a pull request targets. Both projects call it `trunk` today;
+ * reading it from the project type rather than a constant is what keeps a
+ * third project from needing a second code path.
+ *
+ * @param {{base?: string}} [project] The project type's `upstream`.
+ * @return {string}
+ */
+function baseBranchFor(project) {
+	return (project && project.base) || BASE_BRANCH;
 }
 
 /**
@@ -77,6 +99,10 @@ function isDryRun() {
  * @return {{dryRun: boolean, target: string}|null}
  */
 function testMode() {
+	// Deliberately without a project: this answers "is the environment
+	// redirecting a real run somewhere else", which is an env-override question.
+	// Reading a project's own upstream here would report every Gutenberg site as
+	// sandboxed, and the badge would be a lie on exactly the sites it is not.
 	const up = upstream();
 	const target = `${up.owner}/${up.repo}`;
 	const sandboxed = target !== `${UPSTREAM_OWNER}/${UPSTREAM_REPO}`;
@@ -134,8 +160,22 @@ function classifyFailure(res) {
  * @return {{ok: false, reason: string, error: string}}
  */
 function failure(res, what) {
-	const detail = res.json && res.json.message ? res.json.message : `GitHub returned ${res.status}`;
-	return { ok: false, reason: classifyFailure(res), error: `${what}: ${detail}${describeResponse(res)}` };
+	let detail = res.json && res.json.message;
+	if (!detail) {
+		// translators: %s: an HTTP status code, such as 500.
+		detail = sprintf(__('GitHub returned %s'), res.status);
+	}
+	return {
+		ok: false,
+		reason: classifyFailure(res),
+		error: sprintf(
+			// translators: 1: what failed, such as "Could not create the branch". 2: GitHub's reason, which is in English. 3: technical details in square brackets, for GitHub support.
+			__('%1$s: %2$s%3$s'),
+			what,
+			detail,
+			describeResponse(res)
+		)
+	};
 }
 
 /**
@@ -158,14 +198,16 @@ function describeResponse(res) {
 const MAX_NOTES_LENGTH = 20000;
 
 /**
- * The pull request body, in the form core's Trac↔GitHub convention expects.
+ * The pull request body, in the form the project's convention expects.
  *
- * The ticket line is not decoration. The core handbook is blunt about why:
- * pull requests on GitHub are not monitored, and one that is not attached to a
- * Trac ticket is not considered for inclusion. It is also what Trac's own bot
- * reads and — pleasingly — what this app's `bodyCitesTicket` in
+ * The work-item line is not decoration. For Core, the handbook is blunt about
+ * why: pull requests on GitHub are not monitored, and one that is not attached
+ * to a Trac ticket is not considered for inclusion. It is also what Trac's own
+ * bot reads and — pleasingly — what this app's `bodyCitesTicket` in
  * patch-sources.cjs looks for, so a pull request opened here shows up in the
- * site's "patches on this ticket" list afterwards.
+ * site's "patches on this ticket" list afterwards. For Gutenberg the line is
+ * `Fixes #N`: GitHub's own linking rule (#251), which is what makes the pull
+ * request appear under the issue, and what `bodyCitesIssue` reads back.
  *
  * The contributor's own notes go first, above the ticket line: a reviewer
  * opening this wants to know what the change is before they want its
@@ -176,16 +218,22 @@ const MAX_NOTES_LENGTH = 20000;
  * @param {number|string} root0.ticketId
  * @param {string}        [root0.handle]
  * @param {string}        [root0.event]
- * @param {string}        [root0.notes]  Free text from the contributor.
+ * @param {string}        [root0.notes]   Free text from the contributor.
+ * @param {Object}        [root0.project] `{ bodyLine(id, url), workItemUrl }` from the project type; Core's when absent.
  * @return {string}
  */
-function buildPullRequestBody({ ticketId, handle, event, notes } = {}) {
+function buildPullRequestBody({ ticketId, handle, event, notes, project } = {}) {
 	const lines = [];
 
 	const written = typeof notes === 'string' ? notes.trim().slice(0, MAX_NOTES_LENGTH) : '';
 	if (written) lines.push(written, '');
 
-	lines.push(`Trac ticket: ${ticketUrl(ticketId)}`);
+	// How a pull request names its work item is the project's own convention
+	// (#251): Core cites the Trac URL, Gutenberg closes the issue. Defaults to
+	// Core's when no project is supplied, so every existing caller reads as before.
+	lines.push(project && typeof project.bodyLine === 'function'
+		? project.bodyLine(ticketId, project.workItemUrl || ticketUrl(ticketId))
+		: `Trac ticket: ${ticketUrl(ticketId)}`);
 	// The same two facts the mentor-handoff header carries (#166), for the same
 	// reason: props follow whoever wrote the patch, and a contributor-day room
 	// is worth naming while it is still happening.
@@ -196,14 +244,19 @@ function buildPullRequestBody({ ticketId, handle, event, notes } = {}) {
 }
 
 /**
- * A branch name for a ticket, and the alternatives to try if it is taken.
+ * A branch name for a work item, and the alternatives to try if it is taken.
+ *
+ * The prefix comes from the project type (#251): `trac-` for a Core ticket,
+ * `fix/issue-` for a Gutenberg issue, so the branch reads correctly in the
+ * repository it is pushed to.
  *
  * @param {number|string} ticketId
  * @param {number}        attempt  Zero for the first try.
+ * @param {string}        [prefix] Defaults to Core's.
  * @return {string}
  */
-function branchNameFor(ticketId, attempt = 0) {
-	const base = `trac-${String(ticketId).replace(/[^0-9]/g, '')}`;
+function branchNameFor(ticketId, attempt = 0, prefix = 'trac-') {
+	const base = `${prefix}${String(ticketId).replace(/[^0-9]/g, '')}`;
 	return attempt === 0 ? base : `${base}-${attempt + 1}`;
 }
 
@@ -224,20 +277,26 @@ async function ensureFork({ token, login }, deps = {}) {
 	const post = deps.post || postJson;
 	const wait = deps.sleep || sleep;
 	const attempts = deps.forkPollAttempts || FORK_POLL_ATTEMPTS;
-	const up = upstream();
+	const up = upstream(deps.project);
+	const base = baseBranchFor(deps.project);
 	const forkUrl = `${API}/repos/${login}/${up.repo}`;
 
 	// A repository under the fork's name is only usable if it actually is a
 	// fork of upstream. A contributor who happens to own an unrelated
-	// repository called wordpress-develop must be told at step one — the
-	// alternative is writing a branch and a commit into their project and
-	// failing at the very end with an opaque 422.
+	// repository called wordpress-develop or gutenberg must be told at step
+	// one. The alternative is writing a branch and a commit into their project
+	// and failing at the very end with an opaque 422.
 	const isOurFork = (json) => Boolean(json && json.fork)
 		&& [json.parent, json.source].some((repo) => repo && repo.full_name === `${up.owner}/${up.repo}`);
 	const notAFork = () => ({
 		ok: false,
 		reason: 'error',
-		error: `You already have a repository named ${up.repo} that is not a fork of ${up.owner}/${up.repo}, so there is nowhere to push this. The patch file still works.`
+		error: sprintf(
+			// translators: 1: a repository name, such as wordpress-develop. 2: the repository it should be a fork of, such as WordPress/wordpress-develop.
+			__('You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.'),
+			up.repo,
+			`${up.owner}/${up.repo}`
+		)
 	});
 
 	// Ready means the fork's own trunk ref answers — not that the repo
@@ -247,7 +306,7 @@ async function ensureFork({ token, login }, deps = {}) {
 	// surfaces at the very last write — the branch — as an opaque 404. Found
 	// by hand on the first real run against this repository, which is big
 	// enough for that window to be minutes wide.
-	const readRefs = () => get(`${forkUrl}/git/ref/heads/${BASE_BRANCH}`, { token });
+	const readRefs = () => get(`${forkUrl}/git/ref/heads/${base}`, { token });
 
 	let existing;
 	try {
@@ -256,7 +315,7 @@ async function ensureFork({ token, login }, deps = {}) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 	}
 	if (existing.status === 200 && !isOurFork(existing.json)) return notAFork();
-	if (existing.status !== 200 && existing.status !== 404) return failure(existing, 'Could not check for your fork');
+	if (existing.status !== 200 && existing.status !== 404) return failure(existing, __('Could not check for your fork'));
 
 	let created = false;
 	if (existing.status === 404) {
@@ -266,7 +325,11 @@ async function ensureFork({ token, login }, deps = {}) {
 		} catch (e) {
 			return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 		}
-		if (forked.status !== 202 && forked.status !== 200) return failure(forked, 'Could not fork wordpress-develop');
+		if (forked.status !== 202 && forked.status !== 200) return failure(forked, sprintf(
+			// translators: %s: a repository name, such as wordpress-develop.
+			__('Could not fork %s'),
+			up.repo
+		));
 		created = true;
 	}
 
@@ -280,7 +343,7 @@ async function ensureFork({ token, login }, deps = {}) {
 			// 404 is the fork still initialising, the state this loop exists to
 			// wait out. Anything else — a token revoked mid-wait, a spent rate
 			// limit — will not resolve by waiting, so it is reported as itself.
-			if (ref.status !== 404) return failure(ref, 'Could not read your fork');
+			if (ref.status !== 404) return failure(ref, __('Could not read your fork'));
 			await wait(FORK_POLL_INTERVAL_MS);
 		}
 	} catch (e) {
@@ -290,7 +353,7 @@ async function ensureFork({ token, login }, deps = {}) {
 	return {
 		ok: false,
 		reason: 'error',
-		error: 'Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.'
+		error: __('Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.')
 	};
 }
 
@@ -323,18 +386,23 @@ async function ensureFork({ token, login }, deps = {}) {
 async function resolveBase({ token, login, baseSha }, deps = {}) {
 	const get = deps.get || getJson;
 	const post = deps.post || postJson;
-	const repo = `${API}/repos/${login}/${upstream().repo}`;
+	const repo = `${API}/repos/${login}/${upstream(deps.project).repo}`;
+	const base = baseBranchFor(deps.project);
 
 	try {
 		// Always fast-forward first, so "the tip" means today's trunk and not
 		// wherever the fork was left. 409 here is a diverged fork, which is a
 		// normal state for someone who has contributed before — not a failure
 		// to report; the branch then bases on the fork's own tip.
-		await post(`${repo}/merge-upstream`, { branch: BASE_BRANCH }, { token });
+		await post(`${repo}/merge-upstream`, { branch: base }, { token });
 
-		const ref = await get(`${repo}/git/ref/heads/${BASE_BRANCH}`, { token });
+		const ref = await get(`${repo}/git/ref/heads/${base}`, { token });
 		if (ref.status !== 200 || !ref.json || !ref.json.object || !ref.json.object.sha) {
-			return failure(ref, 'Could not read your fork’s trunk');
+			return failure(ref, sprintf(
+				// translators: %s: a branch name, such as trunk.
+				__('Could not read your fork’s %s'),
+				base
+			));
 		}
 		const tip = String(ref.json.object.sha);
 		return { ok: true, sha: tip, exact: tip === baseSha };
@@ -374,7 +442,7 @@ async function resolveBase({ token, login, baseSha }, deps = {}) {
  */
 async function staleTouchedPaths({ token, login, tipSha, files }, deps = {}) {
 	const get = deps.get || getJson;
-	const repo = `${API}/repos/${login}/${upstream().repo}`;
+	const repo = `${API}/repos/${login}/${upstream(deps.project).repo}`;
 
 	const clashes = [];
 	try {
@@ -418,7 +486,7 @@ async function staleTouchedPaths({ token, login, tipSha, files }, deps = {}) {
  */
 async function createTree({ token, login, baseTreeSha, files }, deps = {}) {
 	const post = deps.post || postJson;
-	const repo = `${API}/repos/${login}/${upstream().repo}`;
+	const repo = `${API}/repos/${login}/${upstream(deps.project).repo}`;
 	const entries = [];
 
 	try {
@@ -435,13 +503,17 @@ async function createTree({ token, login, baseTreeSha, files }, deps = {}) {
 				encoding: 'base64'
 			}, { token });
 			if (blob.status !== 201 || !blob.json || !blob.json.sha) {
-				return failure(blob, `Could not upload ${file.path}`);
+				return failure(blob, sprintf(
+					// translators: %s: the path of a file in the change.
+					__('Could not upload %s'),
+					file.path
+				));
 			}
 			entries.push({ path: file.path, mode: file.mode || DEFAULT_MODE, type: 'blob', sha: blob.json.sha });
 		}
 
 		const tree = await post(`${repo}/git/trees`, { base_tree: baseTreeSha, tree: entries }, { token });
-		if (tree.status !== 201 || !tree.json || !tree.json.sha) return failure(tree, 'Could not assemble the change');
+		if (tree.status !== 201 || !tree.json || !tree.json.sha) return failure(tree, __('Could not assemble the change'));
 		return { ok: true, sha: String(tree.json.sha) };
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
@@ -466,7 +538,7 @@ async function createTree({ token, login, baseTreeSha, files }, deps = {}) {
  */
 async function commitAndBranch({ token, login, ticketId, message, treeSha, parentSha }, deps = {}) {
 	const post = deps.post || postJson;
-	const repo = `${API}/repos/${login}/${upstream().repo}`;
+	const repo = `${API}/repos/${login}/${upstream(deps.project).repo}`;
 
 	try {
 		const commit = await post(`${repo}/git/commits`, {
@@ -474,12 +546,12 @@ async function commitAndBranch({ token, login, ticketId, message, treeSha, paren
 			tree: treeSha,
 			parents: [parentSha]
 		}, { token });
-		if (commit.status !== 201 || !commit.json || !commit.json.sha) return failure(commit, 'Could not create the commit');
+		if (commit.status !== 201 || !commit.json || !commit.json.sha) return failure(commit, __('Could not create the commit'));
 		const sha = String(commit.json.sha);
 
 		let lastRes = null;
 		for (let attempt = 0; attempt < MAX_BRANCH_ATTEMPTS; attempt++) {
-			const branch = branchNameFor(ticketId, attempt);
+			const branch = branchNameFor(ticketId, attempt, deps.branchPrefix);
 			const ref = await post(`${repo}/git/refs`, { ref: `refs/heads/${branch}`, sha }, { token });
 			if (ref.status === 201) return { ok: true, branch, sha };
 			// A 404 here is the fork's ref database still initialising — the
@@ -490,16 +562,20 @@ async function commitAndBranch({ token, login, ticketId, message, treeSha, paren
 				return {
 					ok: false,
 					reason: 'error',
-					error: `Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.${describeResponse(ref)}`
+					error: sprintf(
+						// translators: %s: technical details in square brackets, for GitHub support.
+						__('Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s'),
+						describeResponse(ref)
+					)
 				};
 			}
 			// 422 is how GitHub says the reference already exists — the only
 			// status worth another name. Anything else is a real failure and
 			// retrying it nine more times would only slow down the report.
-			if (ref.status !== 422) return failure(ref, 'Could not create the branch');
+			if (ref.status !== 422) return failure(ref, __('Could not create the branch'));
 			lastRes = ref;
 		}
-		return failure(lastRes, 'Could not find an unused branch name');
+		return failure(lastRes, __('Could not find an unused branch name'));
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 	}
@@ -520,15 +596,15 @@ async function commitAndBranch({ token, login, ticketId, message, treeSha, paren
 async function createPullRequest({ token, login, branch, title, body }, deps = {}) {
 	const post = deps.post || postJson;
 	try {
-		const up = upstream();
+		const up = upstream(deps.project);
 		const res = await post(`${API}/repos/${up.owner}/${up.repo}/pulls`, {
 			title,
 			body,
 			head: `${login}:${branch}`,
-			base: BASE_BRANCH,
+			base: baseBranchFor(deps.project),
 			maintainer_can_modify: true
 		}, { token });
-		if (res.status !== 201 || !res.json || !res.json.html_url) return failure(res, 'Could not open the pull request');
+		if (res.status !== 201 || !res.json || !res.json.html_url) return failure(res, __('Could not open the pull request'));
 		return { ok: true, url: String(res.json.html_url), number: Number(res.json.number) };
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
@@ -551,17 +627,25 @@ async function createPullRequest({ token, login, branch, title, body }, deps = {
  * @param {Array}         root0.files
  * @param {string}        root0.title
  * @param {string}        root0.body
+ * @param {Object}        [root0.project]    The project type: `upstream` and `pr.branchPrefix` are read.
  * @param {Function}      [root0.onProgress]
  * @param {Object}        [deps]
  * @return {Promise<{ok: true, url: string, number: number, branch: string, exactBase: boolean}|{ok: false, reason: string, error: string, stage: string}>}
  */
-async function openPullRequest({ token, login, ticketId, baseSha, files, title, body, onProgress }, deps = {}) {
+async function openPullRequest({ token, login, ticketId, baseSha, files, title, body, project, onProgress }, deps = {}) {
+	// The project rides in `deps` so every helper below (fork, sync, tree,
+	// branch, pull request) targets the same repository and base branch without
+	// each one growing its own parameter (#251). Absent, they all default to
+	// wordpress-develop, which is what a site with no project type is.
+	if (project) {
+		deps = { ...deps, project: project.upstream, branchPrefix: project.pr && project.pr.branchPrefix };
+	}
 	const get = deps.get || getJson;
 	const report = typeof onProgress === 'function' ? onProgress : () => {};
 	const at = (stage, result) => ({ ...result, stage });
 
 	if (!files || files.length === 0) {
-		return { ok: false, reason: 'empty', error: 'There are no changes to open a pull request with.', stage: 'collect' };
+		return { ok: false, reason: 'empty', error: __('There are no changes to open a pull request with.'), stage: 'collect' };
 	}
 
 	report('forking');
@@ -585,7 +669,15 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 			return {
 				ok: false,
 				reason: 'stale',
-				error: `Trunk has moved under ${stale.clashes.length === 1 ? 'a file you edited' : 'files you edited'} (${stale.clashes.slice(0, 3).join(', ')}${stale.clashes.length > 3 ? ', …' : ''}). Update this site to the latest trunk, check your changes still apply, and try again.`,
+				error: sprintf(
+					// translators: %s: up to three file paths, separated by commas.
+					_n(
+						'Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.',
+						'Trunk has moved under files you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.',
+						stale.clashes.length
+					),
+					stale.clashes.slice(0, 3).join(', ') + (stale.clashes.length > 3 ? ', …' : '')
+				),
 				stage: 'syncing'
 			};
 		}
@@ -596,12 +688,12 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 	// the wrong one silently produces a tree with no history behind it.
 	let baseCommit;
 	try {
-		baseCommit = await get(`${API}/repos/${login}/${upstream().repo}/git/commits/${base.sha}`, { token });
+		baseCommit = await get(`${API}/repos/${login}/${upstream(deps.project).repo}/git/commits/${base.sha}`, { token });
 	} catch (e) {
 		return at('syncing', { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) });
 	}
 	if (baseCommit.status !== 200 || !baseCommit.json || !baseCommit.json.tree) {
-		return at('syncing', failure(baseCommit, 'Could not read the base commit'));
+		return at('syncing', failure(baseCommit, __('Could not read the base commit')));
 	}
 
 	report('committing');
@@ -627,7 +719,7 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 		return {
 			ok: true,
 			dryRun: true,
-			url: `https://github.com/${login}/${upstream().repo}/tree/${branched.branch}`,
+			url: `https://github.com/${login}/${upstream(deps.project).repo}/tree/${branched.branch}`,
 			number: null,
 			branch: branched.branch,
 			exactBase: base.exact
@@ -649,6 +741,7 @@ module.exports = {
 	classifyFailure,
 	MAX_NOTES_LENGTH,
 	upstream,
+	baseBranchFor,
 	isDryRun,
 	testMode,
 	buildPullRequestBody,

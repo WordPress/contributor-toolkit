@@ -12,6 +12,8 @@ Three GitHub Actions workflows run on every PR, and also on push to `trunk` so t
 
 ESLint over the **whole repo**: `eslint . --max-warnings=0`. A single warning fails the check. The backlog that once made a repo-wide run impractical was cleared (#117), so the check now covers every file rather than only the ones a PR touched.
 
+The same job then runs Stylelint over the window's stylesheet, `src/renderer/shell.css`. Its rules are only about design-system tokens and colours: a token has to exist, is not set in the stylesheet, is written bare with no fallback value beside it, and a colour is never written by hand (`stylelint.config.mjs` says why for each). `npm run lint` runs both locally.
+
 It installs with `npm ci --ignore-scripts`, which skips lifecycle scripts — so linting **never executes the PR's code** (this repo's `postinstall` would otherwise pull the Electron binary, which the linter does not need). If ESLint flags something mechanical, `npm run lint:fix` handles it; check what it rewrote before committing, since it too is repo-wide.
 
 ### Tests — [`unit-tests.yml`](.github/workflows/unit-tests.yml) and [`e2e.yml`](.github/workflows/e2e.yml)
@@ -31,11 +33,11 @@ There is **one** source of truth for how a change is reviewed: **[`.github/instr
 
 Two things consume that one file:
 
-### Copilot code review — assign it to a PR
+### AI review on pull requests
 
-Copilot code review reads `.github/instructions/*.instructions.md` **natively**, selecting files by their `applyTo` glob (this one is `**`, so it applies to every PR). That is the entire reason the standard lives at this path and not somewhere better-named — Copilot follows no links, so a pointer would not have reached it.
+**CodeRabbit** reviews a pull request when you comment `@coderabbitai review`; automatic review is off because the free open-source plan includes about one review per hour for the whole WordPress organisation. If it answers "Review rate limited", wait the time it names and ask once more. It is a GitHub App installed on the WordPress organisation, so it needs no secret in this repository. [`.coderabbit.yaml`](.coderabbit.yaml) points it at the same review standard the author runs, [`code-review.instructions.md`](.github/instructions/code-review.instructions.md), asks for that file's labelling on every finding, and keeps it to comments: it never approves or requests changes. Talk to it with `@coderabbitai` in a PR comment; `@coderabbitai help` lists the commands. Its "Learnings" live in CodeRabbit's dashboard, not in the repository, so anything worth keeping from there goes into the instructions file.
 
-Copilot is **assigned manually** as a reviewer on a pull request; it is **not** an automatic bot that fires on every PR. That is by design: an always-on AI review would mean storing an AI provider credential as a secret in a public repository, which this project will not do. What exists is the *capability* — assign Copilot and it reviews against the same standard the author already ran.
+**Copilot code review** reads `.github/instructions/*.instructions.md` **natively**, selecting files by their `applyTo` glob (this one is `**`, so it applies to every PR). That is the entire reason the standard lives at this path and not somewhere better-named — Copilot follows no links, so a pointer would not have reached it. Copilot is **assigned manually** as a reviewer when a second reader is wanted; it is not automatic.
 
 ### The author's own pass — before you open the PR
 
@@ -53,6 +55,7 @@ Worth knowing so you don't wait on them:
 
 - **Buildkite signed builds** produce Windows, Linux, and macOS artifacts for every branch with an open PR, so a change is testable on a real machine without a local build. Force-pushing a branch invalidates earlier artifacts — check the build matches the current head commit before testing.
 - **Download stats** ([`download-stats.yml`](.github/workflows/download-stats.yml)) is a weekly cron that records release-asset counts to a `metrics` branch. It is not related to PR quality.
+- **Translatable strings** ([`i18n-pot.yml`](.github/workflows/i18n-pot.yml)) runs after a push to trunk and publishes the `.pot` to the `translations` branch for translate.wordpress.org. It never runs on a PR.
 
 ## Before you open a pull request
 
@@ -62,15 +65,41 @@ In an agent-assisted change your agent runs steps 1–3 — it invokes the revie
 2. **Fix or consciously defer** every finding — a deferral is a decision, not an omission.
 3. **Summarise the outcome in the PR description**: what the checks reported, what you fixed, and what you left as a follow-up and why.
 4. **Write a "How to test this" section** — a starting state, numbered steps naming what to click, the expected result of each, and what must *not* have happened. Required on every PR, including ones with green tests: this app fails in places the suite cannot reach, and a reviewer should never have to guess how to drive the change. The shape is spelled out in [AGENTS.md](AGENTS.md#every-pull-request-says-how-to-test-it-by-hand).
-5. Optionally **assign Copilot** as a second reader against the same standard.
+5. Open the PR and, when it is ready for review, comment `@coderabbitai review`; CodeRabbit reviews it against the same standard; optionally **assign Copilot** as a further reader.
 
 GitHub fills every new pull request with [the template](.github/pull_request_template.md); steps 3 and 4 have their place in it already. It is built so a reviewer gets the change in five minutes — Why, What changes, How to test this, Risks, Related stay visible and everything deeper goes in a collapsed `<details>` block. Move detail out of the way rather than dropping it. The same template covers a fix, a feature and a process change; it flags the few places where the three want different things.
 
 Nothing enforces steps 1–4. Skipping them means a human reviewer is the first person to read the diff — which is exactly the cost this process exists to avoid.
 
+## Translatable strings
+
+The app is being made translatable with [`@wordpress/i18n`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-i18n/), one area at a time. The first-run screen and the create-site dialog are done; the rest is still plain English. When you wrap a string, or write a new one in an area that is already wrapped:
+
+- **Call `__()` when the string is shown, never when a module loads.** The locale arrives from main just before the first render, so a constant such as `const MESSAGE = __('…')` is evaluated too early and stays English. Make it a function, or a getter as in `src/project-type.cjs`.
+- **Pass a string literal.** `__(message)` or a template literal with `${}` cannot be extracted; `npm run i18n:pot` refuses it and names the line.
+- **Interpolate with `sprintf`, pluralise with `_n`.** A sentence built with `+` or `${}` fixes English word order into every language.
+- **Leave product names alone**: WordPress Core, Gutenberg, Trac, GitHub.
+
+To see what is wrapped, run the app in the pseudo-locale from the repository root: `npx electron . --lang=en-XA` (either platform). Every wrapped string shows accented and in brackets; plain English is a string nobody wrapped yet. `tests/e2e/journeys/i18n.spec.js` makes the same check on each finished screen, so when you finish wrapping a screen, add it there.
+
+### How strings reach translators, and translations reach the app
+
+Translations happen on translate.wordpress.org, in the project `meta/contributor-toolkit`: <https://translate.wordpress.org/projects/meta/contributor-toolkit/>. The Meta team creates a project like this on request, from the WordPress.org Meta Trac or the #meta channel on Make WordPress Slack; translating the app as a whole is tracked in [#540](https://github.com/WordPress/contributor-toolkit/issues/540).
+
+- **Out:** every push to trunk that touches `src/` runs [`i18n-pot.yml`](.github/workflows/i18n-pot.yml), which regenerates the `.pot` and commits it to the `translations` branch. translate.wordpress.org imports its strings from <https://raw.githubusercontent.com/WordPress/contributor-toolkit/translations/contributor-toolkit.pot>. Nothing to do by hand; run `npm run i18n:pot` from the repository root to see the same file locally, at `contributor-toolkit.pot` in the repository root.
+- **Back:** in the version-bump pull request for a release ([step 1 of RELEASING.md](RELEASING.md#1-open-the-version-bump-pull-request)), run `npm run i18n:download` from the repository root. It writes a catalog to `src/languages/` for every locale at least 80% translated, removes the catalog of any locale that fell below that, and prints a table; commit `src/languages/` and paste the table into the pull request. To include strings awaiting approval, run `npm run i18n:download -- --status=current,waiting` from the repository root; approved and waiting strings count toward the same 80% cutoff and appear in the exported catalogs. Use `--status=waiting` for waiting strings only, or include `fuzzy` in the comma-separated status list. Add `--locales=de,fr` to limit downloads and removals to those locale slugs, leaving other catalogs untouched. Explicitly specifying `--status` or `--locales` (`--locale` is accepted as an alias) bypasses the 80% cutoff; locale eligibility rules still apply. Unknown flags are rejected before any catalogs change. To choose another project, pass its full path, for example `--project=meta/contributor-toolkit` (the default).
+
+The app picks the catalog for the language chosen in its settings, or else for the operating system's language. Right-to-left locales such as Arabic, Hebrew and Persian pass the cut-off and still do not ship, and the table names them: the page already follows a catalog's text direction, but the app's styles are not right-to-left yet, so those locales wait until they are. Every other locale over the cut-off ships, even one no operating system language selects, such as `pirate`; the table names those too.
+
 ## The documentation site
 
-The user guide under `docs/` is a VitePress site, deployed to GitHub Pages by `.github/workflows/docs.yml` on every push to trunk that touches it.
+The user guide under `docs/` is a VitePress site, built by [`docs.yml`](.github/workflows/docs.yml) whenever it changes, on the pull request and again on the push to trunk, and deployed to GitHub Pages only when someone runs that workflow by hand. The live site therefore tracks the latest **release**, not trunk: your docs land with your change, and reach users when the version that contains the feature ships. Advancing it is one command, run from trunk as part of [cutting a release](RELEASING.md):
+
+```bash
+gh workflow run docs.yml --ref trunk -f ref=v1.2.0
+```
+
+The `ref` input is what gets published, so it is the release tag, not a branch. The dispatch itself has to be on trunk: a run started on any other ref builds but will not deploy.
 
 It is a **separate npm package** with its own lockfile, so a root `npm ci` does not install it and the commands below fail with `vitepress: not found` until you run this once:
 
@@ -82,4 +111,4 @@ npm ci --prefix docs
 - `npm run docs:build` — what CI runs. It fails on dead links, so run it before pushing.
 - `npm run docs:preview` — serves the built site exactly as GitHub Pages will, clean URLs and all. This is the one to check a change against before opening a PR.
 
-Its screenshots are captured by `npm run shots` (see `scripts/screenshots/`), not by CI: the harness launches the app against a seeded, throwaway site registry and photographs each screen at a fixed size. **A PR that changes what a documented screen looks like re-runs `npm run shots` and commits the new images** — nothing automated catches a stale screenshot. Shots the fixture registry cannot reach (a running dev server, a real diff) are listed in the live tier: `npm run shots -- --tier=live` pauses per shot while you set the real screen up, and those images show real paths, so look at each one before committing it.
+Its screenshots are captured by `npm run shots` (see `scripts/screenshots/`), not by CI: the harness launches the app against a seeded, throwaway site registry and photographs each screen at a fixed size. **A PR that changes what a documented screen looks like re-runs `npm run shots` and commits the new images** — nothing automated catches a stale screenshot. All but one are taken that way. The one the fixture cannot reach, a site in the middle of being set up (`setup-wizard`), is in the live tier: `npm run shots -- --tier=live` pauses while you set the real screen up, and that image shows real paths, so look at it before committing it.

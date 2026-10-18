@@ -1,7 +1,8 @@
 'use strict';
 
-// The debug constants are the whole of the feature: there is no UI, no setting
-// and no branch, so a test that reads the values is a test of the behaviour.
+// The debug constants are the whole of the feature: a test that reads the
+// values is a test of the behaviour. Two of them have a setting since #559,
+// and `debugConstants` is the set as a server gets it.
 //
 // What these guard against is a silent regression. The app has always tailed
 // build/wp-content/debug.log and streamed it to the renderer, and for as long as
@@ -13,7 +14,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { WP_DEBUG_CONSTANTS } = require('../../src/wp-debug-constants');
+const { WP_DEBUG_CONSTANTS, debugConstants } = require('../../src/wp-debug-constants');
 
 test('the debug constants are exactly the six the app boots a site with', () => {
 	assert.deepStrictEqual(Object.keys(WP_DEBUG_CONSTANTS).sort(), [
@@ -82,4 +83,21 @@ test('every value is a real boolean, not a string', () => {
 test('the exported object cannot be mutated by a caller', () => {
 	assert.throws(() => { WP_DEBUG_CONSTANTS.WP_DEBUG = false; }, TypeError);
 	assert.strictEqual(WP_DEBUG_CONSTANTS.WP_DEBUG, true);
+});
+
+// The two the settings reach, and only those (#559): the rest of the set is
+// what it was, whatever is asked.
+test('a server is booted with the set as it is, unless the settings turn WP_DEBUG or SCRIPT_DEBUG off', () => {
+	assert.deepStrictEqual(debugConstants(), WP_DEBUG_CONSTANTS);
+	assert.deepStrictEqual(debugConstants({}), WP_DEBUG_CONSTANTS);
+	assert.deepStrictEqual(debugConstants({ wpDebug: true, scriptDebug: true }), WP_DEBUG_CONSTANTS);
+	assert.deepStrictEqual(debugConstants({ wpDebug: false }), { ...WP_DEBUG_CONSTANTS, WP_DEBUG: false });
+	assert.deepStrictEqual(debugConstants({ scriptDebug: false }), { ...WP_DEBUG_CONSTANTS, SCRIPT_DEBUG: false });
+	assert.deepStrictEqual(debugConstants({ wpDebug: false, scriptDebug: false }), { ...WP_DEBUG_CONSTANTS, WP_DEBUG: false, SCRIPT_DEBUG: false });
+	assert.ok(Object.isFrozen(debugConstants({ wpDebug: false })));
+});
+
+test('a value that is not false leaves a constant on: the string "false" is not off', () => {
+	assert.strictEqual(debugConstants({ wpDebug: 'false' }).WP_DEBUG, true);
+	assert.strictEqual(debugConstants({ wpDebug: null }).WP_DEBUG, true);
 });

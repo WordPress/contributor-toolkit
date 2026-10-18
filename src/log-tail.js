@@ -7,6 +7,14 @@
 // debug.log panel truncates the file, and `grunt clean` removes it during a
 // rebuild.
 //
+// Every range has an `end`, and it is the size the range was planned from. A
+// stream opened with a `start` alone reads to wherever the end of the file is
+// when it gets round to reading, which is later than the stat that planned it,
+// and WordPress writes a line at a time: the bytes it appends in between arrive
+// once from that stream and again from the next 'change' event, whose read
+// starts at the size that was remembered. The panel showed those lines twice.
+// Bounded to the size it saw, each read ends where the next one begins.
+//
 // Deliberately free of Electron and fs imports, like log-lines.js.
 
 // The most of an existing file to replay when the tail first attaches. A
@@ -19,8 +27,9 @@ function planInitialRead(size, max = MAX_INITIAL_READ) {
 	const total = Math.max(0, Number(size) || 0);
 	return {
 		// Null rather than a zero-length range: an empty file has no backlog, and
-		// the caller uses this to decide whether to open a stream at all.
-		read: total > 0 ? { start: total > max ? total - max : 0 } : null,
+		// the caller uses this to decide whether to open a stream at all. `end` is
+		// inclusive, as fs.createReadStream takes it.
+		read: total > 0 ? { start: total > max ? total - max : 0, end: total - 1 } : null,
 		lastSize: total
 	};
 }
@@ -37,10 +46,10 @@ function planTailRead(lastSize, size) {
 	// offset before a single line reappears — so the panel goes quiet for the
 	// rest of the session. Start over from the beginning of what is there now.
 	if (current < previous) {
-		return { read: current > 0 ? { start: 0 } : null, lastSize: current };
+		return { read: current > 0 ? { start: 0, end: current - 1 } : null, lastSize: current };
 	}
 
-	if (current > previous) return { read: { start: previous }, lastSize: current };
+	if (current > previous) return { read: { start: previous, end: current - 1 }, lastSize: current };
 
 	// Unchanged size. fs.watch fires on metadata changes too, and a rewrite that
 	// happens to land on the same length is not something a size comparison can

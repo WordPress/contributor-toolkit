@@ -1,5 +1,7 @@
 'use strict';
 
+const { __, sprintf } = require('@wordpress/i18n');
+
 /**
  * Decides the one thing the contributor should do next, anywhere in a site's
  * detail view.
@@ -35,8 +37,10 @@
  * @param {boolean} state.isUpdating       A trunk update is running now.
  * @param {boolean} state.stale            The trunk snapshot is old (#94).
  * @param {boolean} state.running          The dev server is up.
+ * @param {?Object} state.pullRequest      The PR currently checked out.
  * @param {boolean} state.hasChanges       The working tree has uncommitted edits.
- * @param {boolean} state.ticketLinked     A Trac ticket is linked.
+ * @param {boolean} state.ticketLinked     A work item (Trac ticket, GitHub issue) is linked.
+ * @param {string}  [state.workItemNoun]   What the site calls it (#251): `issue` on a Gutenberg site, `ticket` otherwise.
  * @return {?{id: string, reason: string}} The block to point at, or null.
  */
 function deriveNextAction(state = {}) {
@@ -50,7 +54,7 @@ function deriveNextAction(state = {}) {
 		if (typeof state.currentSetupStep === 'string' && state.currentSetupStep) {
 			return {
 				id: `setup-${state.currentSetupStep}`,
-				reason: 'The next step in the setup checklist.'
+				reason: __('The next step in the setup checklist.')
 			};
 		}
 		return null;
@@ -64,11 +68,11 @@ function deriveNextAction(state = {}) {
 	// the same apply machinery — and the two operations that own the working tree
 	// (this and a trunk update) never run at once.
 	if (Boolean(state.isApplying)) {
-		return { id: 'applying-patch', reason: 'A patch is being applied or reverted.' };
+		return { id: 'applying-patch', reason: __('A patch is being applied or reverted.') };
 	}
 
 	if (Boolean(state.isUpdating)) {
-		return { id: 'updating', reason: 'The trunk update in progress.' };
+		return { id: 'updating', reason: __('The trunk update in progress.') };
 	}
 
 	// A staged patch preview is not work in flight, but it is the one thing the
@@ -77,36 +81,44 @@ function deriveNextAction(state = {}) {
 	// stale-state warnings and routine steps below — an explicit, waiting choice
 	// beats a standing suggestion.
 	if (Boolean(state.applyPreview)) {
-		return { id: 'apply-preview', reason: 'A patch is staged — apply and rebuild, or cancel.' };
+		return { id: 'apply-preview', reason: __('A patch is staged — apply and rebuild, or cancel.') };
 	}
 
 	if (Boolean(state.updateIncomplete)) {
 		return {
 			id: 'retry-install-build',
-			reason: 'The update left the build stale; install and build to recover.'
+			reason: __('The update left the build stale; install and build to recover.')
 		};
 	}
 
 	if (Boolean(state.stale)) {
 		return {
 			id: 'update-trunk',
-			reason: 'The trunk snapshot is old; update before making a patch.'
+			reason: __('The trunk snapshot is old; update before making a patch.')
 		};
 	}
 
 	if (!Boolean(state.running)) {
-		return { id: 'start-dev', reason: 'Start the dev server to work on the site.' };
+		return { id: 'start-dev', reason: __('Start the dev server to work on the site.') };
+	}
+
+	if (state.pullRequest && Number.isInteger(state.pullRequest.number)) {
+		// translators: %d: a pull request number.
+		return { id: 'pr-checkout', reason: sprintf(__('PR #%d is applied; revert it before applying another change.'), state.pullRequest.number) };
 	}
 
 	if (Boolean(state.hasChanges)) {
 		return {
 			id: 'review-changes',
-			reason: 'You have uncommitted changes ready to review and submit.'
+			reason: __('You have uncommitted changes ready to review and submit.')
 		};
 	}
 
 	if (!Boolean(state.ticketLinked)) {
-		return { id: 'link-ticket', reason: 'Link a Trac ticket to give your work a home.' };
+		const reason = state.workItemNoun === 'issue'
+			? __('Link a GitHub issue to give your work a home.')
+			: __('Link a Trac ticket to give your work a home.');
+		return { id: 'link-ticket', reason };
 	}
 
 	return null;

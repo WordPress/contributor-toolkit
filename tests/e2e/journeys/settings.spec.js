@@ -1,0 +1,439 @@
+/**
+ * The settings dialog (#559): where it opens from, and the two things it
+ * holds in its first form: the folder new sites go in, and who the
+ * contributor is.
+ *
+ * What a setting accepts is settings.cjs's subject, and what the handlers do
+ * with the store is ipc-wiring's. This file is about the window: that the
+ * dialog opens from the footer and from the menu, that what is chosen in it
+ * is what the app then holds and uses, and that a refusal is said where it
+ * was made.
+ *
+ * Assertions are marked INVARIANT or CHARACTERISATION; see
+ * ticket-branches.spec.js for why.
+ */
+
+const fs = require( 'node:fs' );
+const os = require( 'node:os' );
+const path = require( 'node:path' );
+const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
+const { makeSite } = require( '../helpers/git-site.cjs' );
+const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
+const { DARK_BACKGROUND, LIGHT_BACKGROUND, PRIMARY } = require( '../../../src/theme.cjs' );
+
+const openFromMenu = ( app ) => app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().getMenuItemById( 'settings' ).click() );
+
+test( 'the folder new sites go in is chosen in the settings, used by the create-site dialog, and can be forgotten', async ( { session } ) => {
+	const parent = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-parent-' ) ) );
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+
+	// INVARIANT — the footer's cog opens the dialog, on General, and with no
+	// folder set the dialog says so and that the create-site dialog asks.
+	await ui.settingsButton( page ).click();
+	const dialog = ui.settingsDialog( page );
+	await expect( dialog ).toBeVisible();
+	await expect( ui.settingsTab( page, 'General' ) ).toHaveAttribute( 'aria-selected', 'true' );
+	const notSet = dialog.getByText( 'Not set: the create-site dialog asks each time.', { exact: true } );
+	await expect( notSet ).toBeVisible();
+	await expect( dialog.getByRole( 'button', { name: 'Forget this folder', exact: true } ) ).toHaveCount( 0 );
+
+	// INVARIANT — a folder chosen is shown, kept, and offered to be forgotten.
+	await session.answerFileDialog( [ parent ] );
+	const field = dialog.getByRole( 'button', { name: 'New sites go here Choose folder…', exact: true } );
+	await field.press( 'Enter' );
+	await expect( dialog.getByText( parent, { exact: true } ) ).toBeVisible();
+	await expect( notSet ).toHaveCount( 0 );
+	await expect.poll( () => session.readSettings().preferences?.newSiteLocation ).toBe( parent );
+	await expect( dialog.getByRole( 'button', { name: 'Forget this folder', exact: true } ) ).toBeVisible();
+
+	// INVARIANT — a folder that is not there is refused where it was chosen,
+	// with the words main gives, and the one kept stays.
+	await session.answerFileDialog( [ path.join( parent, 'gone' ) ] );
+	await field.press( 'Enter' );
+	await expect( dialog.getByRole( 'alert' ) ).toHaveText( 'That folder does not exist.' );
+	await expect( dialog.getByText( parent, { exact: true } ) ).toBeVisible();
+	expect( session.readSettings().preferences.newSiteLocation ).toBe( parent );
+
+	// INVARIANT — the create-site dialog starts on that folder, and still
+	// lets another be chosen.
+	await ui.closeDialogButton( dialog ).click();
+	await expect( dialog ).toHaveCount( 0 );
+	await ui.createSiteButton( page ).click();
+	const create = ui.createSiteDialog( page );
+	await expect( create ).toBeVisible();
+	await expect( create.getByText( parent, { exact: true } ) ).toBeVisible();
+	await expect( create.getByText( 'No folder selected yet.', { exact: true } ) ).toHaveCount( 0 );
+	const other = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-other-' ) ) );
+	await session.answerFileDialog( [ other ] );
+	await create.getByRole( 'button', { name: 'Location Choose folder…', exact: true } ).press( 'Enter' );
+	await expect( create.getByText( other, { exact: true } ) ).toBeVisible();
+	await ui.closeDialogButton( create ).click();
+	await expect( create ).toHaveCount( 0 );
+	// Choosing another for one site did not change the setting.
+	expect( session.readSettings().preferences.newSiteLocation ).toBe( parent );
+
+	// INVARIANT — the menu's Settings… opens the same dialog, and forgetting
+	// the folder puts both dialogs back as they were.
+	await openFromMenu( app );
+	await expect( dialog ).toBeVisible();
+	await expect( dialog.getByText( parent, { exact: true } ) ).toBeVisible();
+	await dialog.getByRole( 'button', { name: 'Forget this folder', exact: true } ).click();
+	await expect( notSet ).toBeVisible();
+	await expect.poll( () => session.readSettings().preferences?.newSiteLocation ).toBe( null );
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
+	await ui.createSiteButton( page ).click();
+	await expect( create.getByText( 'No folder selected yet.', { exact: true } ) ).toBeVisible();
+	await expect( create.getByText( parent, { exact: true } ) ).toHaveCount( 0 );
+} );
+
+test( 'the Account tab remembers who the contributor is the way the mentor handoff does, and shows the GitHub account', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	// An account signed in, as the review dialog would have left it.
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'github:account' );
+		ipcMain.handle( 'github:account', () => ( { ok: true, login: 'janedoe', configured: true, testMode: null } ) );
+		ipcMain.removeHandler( 'github:sign-out' );
+		ipcMain.handle( 'github:sign-out', () => { global.__e2eSignedOut = ( global.__e2eSignedOut || 0 ) + 1; return { ok: true }; } );
+	} );
+
+	await ui.settingsButton( page ).click();
+	const dialog = ui.settingsDialog( page );
+	await ui.settingsTab( page, 'Account' ).click();
+	const username = dialog.getByLabel( 'WordPress.org username', { exact: true } );
+	const event = dialog.getByLabel( 'Event', { exact: true } );
+	const save = dialog.getByRole( 'button', { name: 'Save', exact: true } );
+	await expect( username ).toHaveValue( '' );
+
+	// INVARIANT — a username that is not one is refused with the handoff's
+	// words, as an alert, and nothing is kept.
+	await username.fill( 'jane doe' );
+	await save.click();
+	await expect( dialog.getByRole( 'alert' ) ).toHaveText( 'Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.' );
+	expect( session.readSettings().preferences?.wporgHandle ).toBeUndefined();
+
+	// INVARIANT — a profile link is kept as the username it names, the event
+	// with it, and the dialog says it saved. Enter in a field saves as the
+	// button does.
+	await username.fill( 'https://profiles.wordpress.org/JaneDoe/' );
+	await event.fill( 'WordCamp Europe 2026' );
+	await event.press( 'Enter' );
+	await expect( dialog.getByRole( 'status' ) ).toHaveText( 'Saved.' );
+	await expect( username ).toHaveValue( 'janedoe' );
+	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
+	await expect.poll( () => session.readSettings().preferences ).toMatchObject( { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' } );
+
+	// INVARIANT — an emptied event is forgotten, and the username stays.
+	await event.fill( '' );
+	await save.click();
+	await expect( dialog.getByRole( 'status' ) ).toHaveText( 'Saved.' );
+	await expect.poll( () => session.readSettings().preferences ).toMatchObject( { wporgHandle: 'janedoe', contributionEvent: null } );
+
+	// INVARIANT — the GitHub account is named, and signing out here asks
+	// main to forget it and says so.
+	await expect( dialog.getByText( 'Signed in as janedoe.', { exact: true } ) ).toBeVisible();
+	await dialog.getByRole( 'button', { name: 'Sign out', exact: true } ).click();
+	await expect( dialog.getByText( 'Not signed in. The app asks you to sign in when you open a pull request.', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByRole( 'button', { name: 'Sign out', exact: true } ) ).toHaveCount( 0 );
+	expect( await app.evaluate( () => global.__e2eSignedOut ) ).toBe( 1 );
+
+	// INVARIANT — opened again, the dialog is on General and the Account tab
+	// shows what was kept, not what was typed.
+	await ui.closeDialogButton( dialog ).click();
+	await expect( dialog ).toHaveCount( 0 );
+	await ui.settingsButton( page ).click();
+	await expect( ui.settingsTab( page, 'General' ) ).toHaveAttribute( 'aria-selected', 'true' );
+	await ui.settingsTab( page, 'Account' ).click();
+	await expect( username ).toHaveValue( 'janedoe' );
+	await expect( event ).toHaveValue( '' );
+} );
+
+test( 'the language set in the settings is the one the app starts in, and a change offers the relaunch that applies it', async ( { session } ) => {
+	// The pseudo-locale, set as a contributor would set a language: in the
+	// store, with no --lang to override it. It needs no catalog, so the build
+	// under test need not ship one.
+	const site = await makeSite( session );
+	const { app, page } = await session.start( { ...site.settings, preferences: { locale: 'en-XA' } }, { lang: false } );
+	await expect( page.locator( 'html' ) ).toHaveAttribute( 'lang', 'en-XA', { timeout: 30_000 } );
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'app:relaunch' );
+		ipcMain.handle( 'app:relaunch', () => { global.__e2eRelaunches = ( global.__e2eRelaunches || 0 ) + 1; return { ok: true }; } );
+	} );
+
+	// INVARIANT — the control shows the language that is set, even one the
+	// build has no catalog for, and offers no relaunch while nothing changed.
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Settings' ), exact: true } ).click();
+	const dialog = page.getByRole( 'dialog', { name: pseudoLocalize( 'Settings' ), exact: true } );
+	const language = dialog.getByRole( 'combobox', { name: pseudoLocalize( 'Language' ), exact: true } );
+	await expect( language ).toHaveText( 'en-XA' );
+	await expect( dialog.getByRole( 'button', { name: pseudoLocalize( 'Relaunch now' ), exact: true } ) ).toHaveCount( 0 );
+
+	// INVARIANT — a language chosen is kept at once, and the dialog says the
+	// window is not in it yet and offers the relaunch, which asks main.
+	await language.click();
+	await page.getByRole( 'option', { name: 'English', exact: true } ).click();
+	await expect( language ).toHaveText( 'English' );
+	await expect.poll( () => session.readSettings().preferences?.locale ).toBe( 'en' );
+	await expect( dialog.getByRole( 'status' ) ).toContainText( pseudoLocalize( 'The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.' ) );
+	await dialog.getByRole( 'button', { name: pseudoLocalize( 'Relaunch now' ), exact: true } ).click();
+	await expect.poll( () => app.evaluate( () => global.__e2eRelaunches ) ).toBe( 1 );
+
+	// INVARIANT — the system's language is a choice like the others: kept as
+	// none, and still not what the window started in, so the offer stays.
+	// The language the window started in is still listed, and choosing it
+	// is refused where it was chosen, since the build has no catalog for
+	// it: what is kept stays as it was.
+	await language.click();
+	await page.getByRole( 'option', { name: pseudoLocalize( 'Your system’s language' ), exact: true } ).click();
+	await expect.poll( () => session.readSettings().preferences?.locale ).toBe( null );
+	await expect( dialog.getByRole( 'button', { name: pseudoLocalize( 'Relaunch now' ), exact: true } ) ).toBeVisible();
+	await language.click();
+	await page.getByRole( 'option', { name: 'en-XA', exact: true } ).click();
+	await expect( dialog.getByRole( 'alert' ) ).toHaveText( pseudoLocalize( 'The app has no translation for that language.' ) );
+	expect( session.readSettings().preferences.locale ).toBe( null );
+
+	// INVARIANT — started again, as the relaunch would start it, the app is
+	// in the language kept, and the control says so with no offer.
+	await language.click();
+	await page.getByRole( 'option', { name: 'English', exact: true } ).click();
+	await expect.poll( () => session.readSettings().preferences?.locale ).toBe( 'en' );
+	const relaunched = await session.restart();
+	await expect( relaunched.page.locator( 'html' ) ).toHaveAttribute( 'lang', 'en', { timeout: 30_000 } );
+	await ui.settingsButton( relaunched.page ).click();
+	const after = ui.settingsDialog( relaunched.page );
+	await expect( after.getByRole( 'combobox', { name: 'Language', exact: true } ) ).toHaveText( 'English' );
+	await expect( after.getByRole( 'button', { name: 'Relaunch now', exact: true } ) ).toHaveCount( 0 );
+} );
+
+test( 'the Sites tab keeps the PHP version and the debug flags the next server start is given', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+
+	await ui.settingsButton( page ).click();
+	const dialog = ui.settingsDialog( page );
+	await ui.settingsTab( page, 'Sites' ).click();
+	const versions = dialog.getByRole( 'radiogroup', { name: 'PHP version', exact: true } );
+	const wpDebug = dialog.getByRole( 'switch', { name: 'Report notices and deprecations (WP_DEBUG)', exact: true } );
+	const scriptDebug = dialog.getByRole( 'switch', { name: 'Use unminified scripts (SCRIPT_DEBUG)', exact: true } );
+
+	// INVARIANT — the fallbacks: 8.3, both constants on.
+	await expect( versions.getByRole( 'radio', { name: '8.3', exact: true } ) ).toBeChecked();
+	await expect( wpDebug ).toBeChecked();
+	await expect( scriptDebug ).toBeChecked();
+
+	// INVARIANT — a version the bundle has is kept, and so is a flag turned
+	// off; the other flag is left as it was.
+	await versions.getByRole( 'radio', { name: '8.4', exact: true } ).click();
+	await expect( versions.getByRole( 'radio', { name: '8.4', exact: true } ) ).toBeChecked();
+	await expect.poll( () => session.readSettings().preferences?.phpVersion ).toBe( '8.4' );
+	await wpDebug.click();
+	await expect( wpDebug ).not.toBeChecked();
+	await expect.poll( () => session.readSettings().preferences?.wpDebug ).toBe( false );
+	expect( session.readSettings().preferences.scriptDebug ).toBeUndefined();
+
+	// INVARIANT — the open site's details say what the next start is given.
+	await ui.closeDialogButton( dialog ).click();
+	await expect( dialog ).toHaveCount( 0 );
+	await expect( page.getByText( 'WordPress Core · PHP 8.4', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( 'SCRIPT_DEBUG', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( 'WP_DEBUG · SCRIPT_DEBUG', { exact: true } ) ).toHaveCount( 0 );
+
+	// INVARIANT — opened again after a restart, the tab shows what was kept.
+	const again = await session.restart();
+	await ui.settingsButton( again.page ).click();
+	await ui.settingsTab( again.page, 'Sites' ).click();
+	const kept = ui.settingsDialog( again.page );
+	await expect( kept.getByRole( 'radio', { name: '8.4', exact: true } ) ).toBeChecked();
+	await expect( kept.getByRole( 'switch', { name: 'Report notices and deprecations (WP_DEBUG)', exact: true } ) ).not.toBeChecked();
+	await expect( kept.getByRole( 'switch', { name: 'Use unminified scripts (SCRIPT_DEBUG)', exact: true } ) ).toBeChecked();
+} );
+
+test( 'the theme set in the settings is the one the window is painted in, and a change is on screen as it is made (#560)', async ( { session } ) => {
+	const site = await makeSite( session );
+	// The page follows the app's own theme here, and not the light scheme
+	// Playwright holds every other journey to.
+	const { app, page } = await session.start( { ...site.settings, preferences: { theme: 'dark' } }, { colorScheme: null } );
+	const themeSource = ( electronApp ) => electronApp.evaluate( ( { nativeTheme } ) => nativeTheme.themeSource );
+	// The colour the window itself was made with, which shows where the page
+	// has not painted yet; and the colour of the theme Electron says it is in.
+	const windowColour = ( electronApp ) => electronApp.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows()[ 0 ].getBackgroundColor().toLowerCase() );
+	const systemColour = ( electronApp ) => electronApp.evaluate( ( { nativeTheme } ) => nativeTheme.shouldUseDarkColors ).then( ( dark ) => ( dark ? DARK_BACKGROUND : LIGHT_BACKGROUND ) );
+	const prefersDark = ( window ) => window.evaluate( () => window.matchMedia( '(prefers-color-scheme: dark)' ).matches );
+	const bodyColour = () => page.evaluate( () => window.getComputedStyle( document.body ).backgroundColor );
+	const tokenColour = ( token ) => ui.tokenColour( page, token );
+
+	// INVARIANT — stored dark, the window starts dark: Electron is told, the
+	// page is in the dark scheme, and once the app has mounted the body is
+	// painted with the token as the dark theme has it, which the light
+	// theme's value below is not. Before the mount the body is the dark seed
+	// and the tokens still the stylesheet's, which is the moment the window
+	// is made dark for; so the body is read once it is the token's colour.
+	expect( await themeSource( app ) ).toBe( 'dark' );
+	await expect.poll( () => prefersDark( page ) ).toBe( true );
+	await expect( ui.renderedApp( page ) ).toBeVisible();
+	await expect.poll( async () => ( await bodyColour() ) === ( await tokenColour( 'var(--wpds-color-background-surface-neutral)' ) ) ).toBe( true );
+	const darkBody = await bodyColour();
+
+	// INVARIANT — the terminal, which is told its colours as values, is
+	// painted with the dark tokens too.
+	await ui.openTray( page, 'Terminal' );
+	// By its class and not under the tray's role: the settings dialog, once
+	// open, makes the rest of the page inert, and a role under it is not
+	// found. One site, so one terminal.
+	const viewport = page.locator( '.xterm-viewport' );
+	const terminalSurface = () => viewport.evaluate( ( el ) => window.getComputedStyle( el ).backgroundColor );
+	await expect.poll( terminalSurface ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' ) );
+	const darkTerminal = await terminalSurface();
+
+	// INVARIANT — the control shows Dark. Light chosen is kept, Electron is
+	// told, and the page, the body and the terminal are light at once, with
+	// no relaunch.
+	await ui.settingsButton( page ).click();
+	const dialog = ui.settingsDialog( page );
+	const themes = dialog.getByRole( 'radiogroup', { name: 'Theme', exact: true } );
+	await expect( themes.getByRole( 'radio', { name: 'Dark', exact: true } ) ).toBeChecked();
+	await themes.getByRole( 'radio', { name: 'Light', exact: true } ).click();
+	await expect( themes.getByRole( 'radio', { name: 'Light', exact: true } ) ).toBeChecked();
+	await expect.poll( () => session.readSettings().preferences?.theme ).toBe( 'light' );
+	await expect.poll( () => themeSource( app ) ).toBe( 'light' );
+	await expect.poll( () => prefersDark( page ) ).toBe( false );
+	// The scheme flips before the app has repainted for it, so the body is
+	// read once it has: until then the token is the dark one too.
+	await expect.poll( bodyColour ).not.toBe( darkBody );
+	expect( await bodyColour() ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral)' ) );
+	await expect.poll( terminalSurface ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' ) );
+	expect( await terminalSurface() ).not.toBe( darkTerminal );
+	// And the window itself, where the page has not painted.
+	await expect.poll( () => windowColour( app ) ).toBe( LIGHT_BACKGROUND );
+
+	// INVARIANT — System is kept as the system's, Electron is left to follow
+	// it, and the window is the colour of whichever theme that is.
+	await themes.getByRole( 'radio', { name: 'System', exact: true } ).click();
+	await expect.poll( () => session.readSettings().preferences?.theme ).toBe( 'system' );
+	await expect.poll( () => themeSource( app ) ).toBe( 'system' );
+	await expect.poll( () => windowColour( app ) ).toBe( await systemColour( app ) );
+
+	// INVARIANT — started again with dark kept, the window is made dark, so
+	// it is not white before its page paints, and the control says so.
+	// CHARACTERISATION — the colour it is made in is the dark seed.
+	await themes.getByRole( 'radio', { name: 'Dark', exact: true } ).click();
+	await expect.poll( () => session.readSettings().preferences?.theme ).toBe( 'dark' );
+	const again = await session.restart();
+	expect( await themeSource( again.app ) ).toBe( 'dark' );
+	expect( await windowColour( again.app ) ).toBe( DARK_BACKGROUND );
+	await expect.poll( () => prefersDark( again.page ) ).toBe( true );
+	await ui.settingsButton( again.page ).click();
+	await expect( ui.settingsDialog( again.page ).getByRole( 'radio', { name: 'Dark', exact: true } ) ).toBeChecked();
+} );
+
+test( 'a custom theme is built from the two colours chosen, is kept, and a colour that is not one is refused (#560)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings, { colorScheme: null } );
+	const themeSource = () => app.evaluate( ( { nativeTheme } ) => nativeTheme.themeSource );
+	const windowColour = ( electronApp ) => electronApp.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows()[ 0 ].getBackgroundColor().toLowerCase() );
+	const bodyColour = ( window ) => window.evaluate( () => window.getComputedStyle( document.body ).backgroundColor );
+	const tokenColour = ( token ) => ui.tokenColour( page, token );
+	const stored = ( key ) => session.readSettings().preferences?.[ key ];
+
+	await ui.settingsButton( page ).click();
+	const dialog = ui.settingsDialog( page );
+	const themes = dialog.getByRole( 'radiogroup', { name: 'Theme', exact: true } );
+	const background = dialog.getByLabel( 'Background', { exact: true } );
+	const primary = dialog.getByLabel( 'Primary', { exact: true } );
+
+	// INVARIANT — the colours are asked for under Custom alone, and start as
+	// the light theme's.
+	await expect( background ).toHaveCount( 0 );
+	await themes.getByRole( 'radio', { name: 'Custom', exact: true } ).click();
+	await expect.poll( () => stored( 'theme' ) ).toBe( 'custom' );
+	await expect( background ).toHaveValue( LIGHT_BACKGROUND );
+	await expect( primary ).toHaveValue( PRIMARY );
+	await expect( dialog.getByLabel( 'Background colour picker', { exact: true } ) ).toHaveValue( LIGHT_BACKGROUND );
+
+	// INVARIANT — a dark background typed and entered is kept as the settings
+	// keep a colour, Electron is told the scheme it comes to, and the page
+	// and the window are painted in it at once.
+	// CHARACTERISATION — the body is the seed itself, and below the brand
+	// surface is the primary seed itself: the design system's ramps pin
+	// their first step to the seed (`surface2`, `bgFill1`, contrast 1
+	// against it) and move it only where the seed cannot meet a contrast
+	// target, which these do not. A design-system release that rescales
+	// differently moves these two numbers and nothing else here.
+	await background.fill( '#102030' );
+	await background.press( 'Enter' );
+	await expect.poll( () => stored( 'customBackground' ) ).toBe( '#102030' );
+	await expect.poll( themeSource ).toBe( 'dark' );
+	await expect.poll( () => bodyColour( page ) ).toBe( 'rgb(16, 32, 48)' );
+	expect( await bodyColour( page ) ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral)' ) );
+	await expect.poll( () => windowColour( app ) ).toBe( '#102030' );
+
+	// INVARIANT — the primary colour, in three digits, is kept in six, and
+	// the field shows it as kept; the brand surface is built from it.
+	await primary.fill( 'F80' );
+	await primary.press( 'Tab' );
+	await expect.poll( () => stored( 'customPrimary' ) ).toBe( '#ff8800' );
+	await expect( primary ).toHaveValue( '#ff8800' );
+	await expect.poll( () => tokenColour( 'var(--wpds-color-background-interactive-brand-strong)' ) ).toBe( 'rgb(255, 136, 0)' );
+	// Spelled another way, the same colour is kept as it was, and the field
+	// shows it as kept.
+	await primary.fill( 'ff8800' );
+	await primary.press( 'Tab' );
+	await expect( primary ).toHaveValue( '#ff8800' );
+
+	// INVARIANT — a colour picked with the picker is kept when the picker is
+	// done, which is what a fill of a colour input is: the input, then the
+	// change.
+	await dialog.getByLabel( 'Primary colour picker', { exact: true } ).fill( '#204060' );
+	await expect.poll( () => stored( 'customPrimary' ) ).toBe( '#204060' );
+	await expect( primary ).toHaveValue( '#204060' );
+	await expect.poll( () => tokenColour( 'var(--wpds-color-background-interactive-brand-strong)' ) ).toBe( 'rgb(32, 64, 96)' );
+
+	// INVARIANT — a colour that is not one is refused in main's words, and
+	// what is kept stays, in the store and in the field.
+	await background.fill( 'navy' );
+	await background.press( 'Enter' );
+	await expect( dialog.getByRole( 'alert' ) ).toHaveText( 'Choose a colour as six hex digits, like #3858e9.' );
+	await expect( background ).toHaveValue( '#102030' );
+	expect( stored( 'customBackground' ) ).toBe( '#102030' );
+
+	// INVARIANT — a light background makes a light theme again, with the
+	// native controls to match.
+	await background.fill( '#fff8e1' );
+	await background.press( 'Enter' );
+	await expect.poll( themeSource ).toBe( 'light' );
+	await expect.poll( () => bodyColour( page ) ).toBe( 'rgb(255, 248, 225)' );
+
+	// INVARIANT — started again, the theme is the custom one, the window is
+	// made in its background, and the fields show the colours kept.
+	const again = await session.restart();
+	expect( await again.app.evaluate( ( { nativeTheme } ) => nativeTheme.themeSource ) ).toBe( 'light' );
+	expect( await windowColour( again.app ) ).toBe( '#fff8e1' );
+	await expect.poll( () => bodyColour( again.page ) ).toBe( 'rgb(255, 248, 225)' );
+
+	// INVARIANT — the page is in the custom colours from the app's first
+	// render, not after a first render in the standard theme: the design
+	// system's tokens on the document at the moment the app mounts, which is
+	// before the app's first frame is painted, are the custom ones, not the
+	// standard theme's and not none. Read on a reload, which loads the page
+	// as a launch does, by a script put in the page before any of its own,
+	// which notes the document's own style as the app mounts.
+	await again.page.addInitScript( () => {
+		window.__styleAtMount = null;
+		new window.MutationObserver( () => {
+			const root = document.getElementById( 'root' );
+			if ( window.__styleAtMount === null && root && root.childElementCount > 0 ) {
+				window.__styleAtMount = document.documentElement.getAttribute( 'style' ) || '';
+			}
+		} ).observe( document, { childList: true, subtree: true } );
+	} );
+	await again.page.reload();
+	await expect.poll( () => again.page.evaluate( () => window.__styleAtMount ) ).toContain( '#fff8e1' );
+	await ui.settingsButton( again.page ).click();
+	const kept = ui.settingsDialog( again.page );
+	await expect( kept.getByRole( 'radio', { name: 'Custom', exact: true } ) ).toBeChecked();
+	await expect( kept.getByLabel( 'Background', { exact: true } ) ).toHaveValue( '#fff8e1' );
+	await expect( kept.getByLabel( 'Primary', { exact: true } ) ).toHaveValue( '#204060' );
+} );

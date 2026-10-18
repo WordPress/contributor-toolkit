@@ -1,0 +1,8 @@
+{
+	"locale_data": {
+		"messages": {
+			"": { "domain": "messages", "lang": "xx-YY", "plural-forms": "nplurals=2; plural=(n != 1);" },
+			"No sites yet.": [ "Yy sites yy." ]
+		}
+	}
+}

@@ -3,20 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { shouldShowTerminalHints, computeTerminalBusy } = require('../../src/renderer/terminal-hints.cjs');
-
-test('the hints stay hidden until a build has completed (issue #182)', () => {
-	// They were showing from the moment a site existed, so a contributor watched
-	// "Edited files in src/? Run npm run build" scroll past while the clone was
-	// still writing the checkout that would contain those files.
-	assert.strictEqual(shouldShowTerminalHints({ hasBuilt: false }), false);
-	assert.strictEqual(shouldShowTerminalHints({}), false, 'a site mid-clone must not show them');
-	assert.strictEqual(shouldShowTerminalHints(), false, 'no flags at all must not show them');
-});
-
-test('a completed build is what puts the hints on screen (issue #182)', () => {
-	assert.strictEqual(shouldShowTerminalHints({ hasBuilt: true }), true);
-});
+const { computeTerminalBusy } = require('../../src/renderer/terminal-hints.cjs');
 
 test('an idle terminal is free, so the hint links stay clickable (issue #182)', () => {
 	assert.strictEqual(computeTerminalBusy({}), false);
@@ -64,3 +51,29 @@ test('the result is a boolean, not whichever flag happened to be truthy', () => 
 	assert.strictEqual(computeTerminalBusy({ installing: 'yes' }), true);
 	assert.strictEqual(computeTerminalBusy({ installing: undefined }), false);
 });
+
+// --- Whether a run's end brings the terminal up (#558) ---------------------
+
+const { runFailedInTerminal } = require( '../../src/renderer/terminal-hints.cjs' );
+
+test( 'a run that ends badly with its output in the terminal brings the terminal up', () => {
+	assert.equal( runFailedInTerminal( { code: 1 } ), true );
+	// One that never started has no code of its own.
+	assert.equal( runFailedInTerminal( { code: -1 } ), true );
+	// Killed by something other than the app: no code at all.
+	assert.equal( runFailedInTerminal( { code: null } ), true );
+} );
+
+test( 'a run that ended well does not', () => {
+	assert.equal( runFailedInTerminal( { code: 0 } ), false );
+} );
+
+test( 'a run that was asked to stop did not fail, whatever it ended with', () => {
+	assert.equal( runFailedInTerminal( { code: null, stopRequested: true } ), false );
+	assert.equal( runFailedInTerminal( { code: 1, stopRequested: true } ), false );
+	assert.equal( runFailedInTerminal( { code: 143, stopRequested: true } ), false );
+} );
+
+test( 'a run whose output is somewhere else does not bring the terminal up', () => {
+	assert.equal( runFailedInTerminal( { code: 1, outputInTerminal: false } ), false );
+} );

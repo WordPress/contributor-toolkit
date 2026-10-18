@@ -67,6 +67,7 @@ export default defineConfig( {
 				text: 'Contributing changes',
 				items: [
 					{ text: 'Working on a Trac ticket', link: '/guide/trac-tickets' },
+					{ text: 'Working on a GitHub issue', link: '/guide/gutenberg-issues' },
 					{ text: 'Working on several tickets', link: '/guide/ticket-branches' },
 					{ text: 'Applying patches and PRs', link: '/guide/applying-patches' },
 					{ text: 'Submitting your changes', link: '/guide/submitting-changes' },
@@ -88,6 +89,7 @@ export default defineConfig( {
 				text: 'Reference',
 				items: [
 					{ text: 'Managing sites', link: '/guide/managing-sites' },
+					{ text: 'Settings', link: '/guide/settings' },
 					{ text: 'Troubleshooting', link: '/guide/troubleshooting' },
 				],
 			},

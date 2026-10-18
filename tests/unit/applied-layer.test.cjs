@@ -117,7 +117,7 @@ test('describeAppliedLayer: while it still comes out, Revert is the only offer (
 	assert.strictEqual(face.canRevert, true);
 	assert.strictEqual(face.offerCopy, false);
 	assert.strictEqual(face.explanation, '');
-	assert.strictEqual(face.summary, 'is applied — 1 file, 12/08/2026.');
+	assert.strictEqual(face.summary, 'PR #123 is applied — 1 file, 12/08/2026.');
 });
 
 // Discarding is a recommendable step here, not an admission of failure — the
@@ -221,4 +221,31 @@ test('layerExitFailure: the save is the failure that must not be missed (#306)',
 	assert.ok(!both.message.includes('could not reset'));
 
 	assert.strictEqual(layerExitFailure({ discardError: 'could not reset' }).message, 'could not reset');
+});
+
+// The journey reaches the banner of a patch that can be reverted; the one too
+// large to keep, and a save that failed, are read here (#628).
+test('describeAppliedLayer and its exits are said in the locale, the name inside the sentence (#628)', (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { sprintf } = require('@wordpress/i18n');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+	const pseudo = (format, ...args) => sprintf(pseudoLocalize(format), ...args);
+
+	const large = describeAppliedLayer(layer({ kept: false, revertable: false, files: [FOO, BAR] }));
+	assert.strictEqual(large.summary, pseudo('%1$s is applied — %2$d files.', 'PR #123', 2));
+	assert.strictEqual(large.explanation, pseudo('%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.', 'PR #123'));
+	assert.strictEqual(large.note, `${pseudoLocalize('Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.')} ${pseudoLocalize('It still counts as this ticket\'s one applied patch, so another cannot be applied until this ticket is reverted or discarded.')}`);
+	assert.strictEqual(describeAppliedLayer({ files: [FOO], kept: true }, { when: 'today' }).summary, pseudo('A patch is applied — %1$d file, %2$s.', 1, 'today'));
+
+	const { sentences } = attributeConflicts({ conflicts: [FOO, BAR], appliedPatch: layer({ files: [FOO] }) });
+	assert.strictEqual(sentences[0], pseudo('You have your own edits to %s. Save a patch of your work first if you want a copy.', BAR));
+	assert.strictEqual(sentences[1], pseudo('%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.', FOO, 'PR #123'));
+	assert.strictEqual(listOf([FOO, BAR]), pseudo('%1$s and %2$s', FOO, BAR));
+	assert.strictEqual(layerExitFailure({ patchSaveError: 'EACCES' }).message, pseudo('The copy could not be saved: %s', 'EACCES'));
 });

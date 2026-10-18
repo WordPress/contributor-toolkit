@@ -1,10 +1,8 @@
 // The changes note's sentence and placement, and the discard guards. All the
 // branching lives in changes-note.cjs so this suite can reach it without a
-// DOM; index.jsx only interleaves the parts with its two link buttons.
+// DOM; index.jsx only fills in the sentence's two link buttons.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 
 const {
 	changesNoteParts,
@@ -13,8 +11,9 @@ const {
 	noteAfterProbe,
 	discardBlocked,
 	discardDisabledReason,
-	DISCARD_CONFIRM_MESSAGE
+	discardQuestion
 } = require('../../src/renderer/changes-note.cjs');
+const { WORK_ITEM_BRANCH_PREFIXES } = require('../../src/ticket-branches.js');
 
 test('changesNoteParts says nothing about a clean tree', () => {
 	assert.equal(changesNoteParts({ dirty: false, changedCount: 0, tracTicket: null }), null);
@@ -23,24 +22,68 @@ test('changesNoteParts says nothing about a clean tree', () => {
 	assert.equal(changesNoteParts(), null);
 });
 
+// The sentence carries its two links as markup the component fills in; the
+// words a reader sees are the sentence with the tags taken out.
+const plain = (sentence) => sentence.replace(/<\/?(?:review|discard)>/g, '');
+
 test('changesNoteParts places an unticketed note by the buttons', () => {
 	const parts = changesNoteParts({ dirty: true, changedCount: 3, tracTicket: null });
 	assert.equal(parts.placement, 'buttons');
-	assert.equal(parts.lead, 'You have 3 changes not assigned to any ticket. You can ');
+	assert.equal(parts.sentence, 'You have 3 changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.');
 });
 
 test('changesNoteParts places a ticketed note in the ticket card and names the ticket', () => {
 	const parts = changesNoteParts({ dirty: true, changedCount: 3, tracTicket: '12345' });
 	assert.equal(parts.placement, 'ticket');
-	assert.equal(parts.lead, 'You have 3 unsubmitted changes for ticket #12345. You can ');
+	assert.equal(plain(parts.sentence), 'You have 3 unsubmitted changes for ticket #12345. You can review and submit or discard your changes.');
+});
+
+test('changesNoteParts attributes work on a PR checkout to the PR, not the linked ticket', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 2, tracTicket: '12345', pullRequest: { number: 7701 } });
+	assert.equal(parts.placement, 'ticket');
+	assert.equal(
+		parts.sentence,
+		'You have 2 changes on top of PR #7701. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request\'s local copy when you revert this PR.'
+	);
+	assert.equal(parts.unlinkNote, undefined);
+	assert.equal(
+		plain(changesNoteParts({ dirty: true, changedCount: 1, pullRequest: { number: 7701 } }).sentence),
+		'You have 1 change on top of PR #7701. You can review them or discard your changes. They stay with this pull request\'s local copy when you revert this PR.'
+	);
+	assert.match(changesNoteParts({ dirty: true, pullRequest: { number: 7701 } }).sentence, /^You have changes on top of PR #7701\. /);
+});
+
+// The note's regex cannot import the list (ticket-branches.js reaches for
+// Git), so this walks the list against it: a namespace the app writes that the
+// note did not know would leave a Gutenberg site's changes by the buttons
+// instead of in its work-item card.
+test('changesNoteParts places a PR that returns to any work-item namespace in the card (#251)', () => {
+	for (const prefix of WORK_ITEM_BRANCH_PREFIXES) {
+		const parts = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '71234', pullRequest: { number: 7701, returnTo: `${prefix}71234` } });
+		assert.equal(parts.placement, 'ticket', `${prefix}: a PR returning there belongs to the card`);
+	}
+});
+
+test('changesNoteParts keeps work on a PR reached from trunk visible by the site controls', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 1, pullRequest: { number: 7701, returnTo: 'trunk' } });
+	assert.equal(parts.placement, 'buttons');
+	assert.match(parts.sentence, /when you revert this PR\.$/);
+	assert.doesNotMatch(parts.sentence, /ticket/);
+});
+
+test('changesNoteParts follows a PR return redirected to trunk even while the old ticket is linked', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '12345', pullRequest: { number: 7701, returnTo: 'trunk' } });
+	assert.equal(parts.placement, 'buttons');
+	assert.match(parts.sentence, /when you revert this PR\.$/);
+	assert.doesNotMatch(parts.sentence, /your ticket/);
 });
 
 test('changesNoteParts names the modal in the ticket card and the patch by the buttons', () => {
 	// The ticket sentence already says where the changes go, so its link
 	// borrows the modal's own name; by the buttons the link says what it
 	// produces instead.
-	assert.equal(changesNoteParts({ dirty: true, tracTicket: '12345' }).patchLabel, 'review and submit');
-	assert.equal(changesNoteParts({ dirty: true, tracTicket: null }).patchLabel, 'create and save a patch');
+	assert.match(changesNoteParts({ dirty: true, tracTicket: '12345' }).sentence, /<review>review and submit<\/review>/);
+	assert.match(changesNoteParts({ dirty: true, tracTicket: null }).sentence, /<review>create and save a patch<\/review>/);
 });
 
 test('changesNoteParts reassures about Unlink only where Unlink is', () => {
@@ -54,12 +97,12 @@ test('changesNoteParts reassures about Unlink only where Unlink is', () => {
 
 test('changesNoteParts uses the singular for one change', () => {
 	assert.equal(
-		changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null }).lead,
-		'You have 1 change not assigned to any ticket. You can '
+		plain(changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null }).sentence),
+		'You have 1 change not assigned to any ticket. You can create and save a patch or discard your changes.'
 	);
 	assert.equal(
-		changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '12345' }).lead,
-		'You have 1 unsubmitted change for ticket #12345. You can '
+		plain(changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '12345' }).sentence),
+		'You have 1 unsubmitted change for ticket #12345. You can review and submit or discard your changes.'
 	);
 });
 
@@ -68,29 +111,31 @@ test('changesNoteParts stays true when the count is missing', () => {
 	// accurate where "0 changes" would be a lie next to a discard link.
 	for (const changedCount of [undefined, 0, -1, 2.5]) {
 		assert.equal(
-			changesNoteParts({ dirty: true, changedCount, tracTicket: null }).lead,
-			'You have changes not assigned to any ticket. You can '
+			plain(changesNoteParts({ dirty: true, changedCount, tracTicket: null }).sentence),
+			'You have changes not assigned to any ticket. You can create and save a patch or discard your changes.'
 		);
 	}
 	assert.equal(
-		changesNoteParts({ dirty: true, tracTicket: '12345' }).lead,
-		'You have unsubmitted changes for ticket #12345. You can '
+		plain(changesNoteParts({ dirty: true, tracTicket: '12345' }).sentence),
+		'You have unsubmitted changes for ticket #12345. You can review and submit or discard your changes.'
 	);
 });
 
 test('changesNoteParts always offers a discard, in the same words', () => {
-	for (const tracTicket of [null, '12345']) {
-		const parts = changesNoteParts({ dirty: true, changedCount: 2, tracTicket });
-		assert.equal(parts.middle, ' or ');
-		assert.equal(parts.discardLabel, 'discard your changes');
-		assert.equal(parts.end, '.');
+	for (const state of [{ tracTicket: null }, { tracTicket: '12345' }, { pullRequest: { number: 7 } }, { tracTicket: '71234', workItemNoun: 'issue' }]) {
+		for (const changedCount of [undefined, 1, 2]) {
+			const parts = changesNoteParts({ dirty: true, changedCount, ...state });
+			assert.match(parts.sentence, / or <discard>discard your changes<\/discard>\./, JSON.stringify(state));
+		}
 	}
 });
 
-test('the confirm message matches the dirty-update modal byte for byte', () => {
-	// index.jsx used this literal before the note existed; one action, one
-	// wording, wherever it is triggered from.
-	assert.equal(DISCARD_CONFIRM_MESSAGE, 'Discard all local changes? This cannot be undone.');
+test('the question before a discard asks it, and its button says what it does', () => {
+	assert.deepEqual(discardQuestion(), {
+		title: 'Discard all local changes?',
+		description: 'This can’t be undone.',
+		confirm: 'Discard changes'
+	});
 });
 
 test('discardOutcome passes a success through', () => {
@@ -193,8 +238,30 @@ test('discardDisabledReason reports the operation in progress before secondary b
 	);
 });
 
-test('both visible discard links use the shared explanatory control', () => {
-	const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.jsx'), 'utf8');
-	const uses = source.match(/<DiscardChangesLink\b/g) || [];
-	assert.equal(uses.length, 2, 'the ticket note and review modal must share the tooltip-enabled discard link');
+ test('review context names the PR base instead of trunk or the ticket', () => {
+	const { patchReviewContext } = require('../../src/renderer/changes-note.cjs');
+	const pr = patchReviewContext({ pullRequest: { number: 7 }, tracTicket: 123 });
+	assert.match(pr.heading, /PR #7/);
+	assert.match(pr.description, /original PR commits/);
+	assert.doesNotMatch(pr.empty, /trunk/);
+	assert.match(patchReviewContext({ tracTicket: 123 }).heading, /ticket #123/);
+	assert.equal(patchReviewContext().heading, 'Your changes');
+});
+
+// The note says what the site calls its work item (#251).
+test('changesNoteParts speaks of an issue when told the site\'s noun', () => {
+	const linked = changesNoteParts({ dirty: true, changedCount: 2, tracTicket: '71234', workItemNoun: 'issue' });
+	assert.equal(linked.placement, 'ticket');
+	assert.match(linked.sentence, /for issue #71234/);
+	assert.match(linked.unlinkNote, /Unlinking this issue/);
+	assert.doesNotMatch(linked.sentence + linked.unlinkNote, /ticket/);
+	assert.match(changesNoteParts({ dirty: true, tracTicket: '71234', workItemNoun: 'issue' }).sentence, /^You have unsubmitted changes for issue #71234\. /);
+	const loose = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null, workItemNoun: 'issue' });
+	assert.match(loose.sentence, /^You have 1 change not assigned to any issue\. /);
+	assert.match(changesNoteParts({ dirty: true, tracTicket: null, workItemNoun: 'issue' }).sentence, /^You have changes not assigned to any issue\. /);
+});
+
+test('patchReviewContext names the work item by the site\'s noun (#251)', () => {
+	const { patchReviewContext } = require('../../src/renderer/changes-note.cjs');
+	assert.equal(patchReviewContext({ tracTicket: 71234, workItemNoun: 'issue' }).heading, 'Your changes for issue #71234');
 });

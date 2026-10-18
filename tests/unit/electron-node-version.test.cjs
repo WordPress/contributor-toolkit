@@ -1,7 +1,7 @@
 // Guards the gap between the Node the app ships (Electron's bundled Node) and the Node that
 // wordpress-develop's dependencies demand.
 //
-// That gap is closed as of this branch: Electron 43 bundles Node 24.18.0, which satisfies
+// That gap is closed as of this branch: Electron 43.6.0 bundles Node 24.20.0, which satisfies
 // wordpress-develop's range, so installs no longer need engine checks relaxed to succeed. On
 // trunk the expectation was the opposite — Electron 32 bundled Node 20.18.1, below the range —
 // and this test is what reported the change. See #37 and #46.

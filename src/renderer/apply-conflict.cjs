@@ -19,26 +19,34 @@
 // needs a DOM.
 'use strict';
 
+const { __, _n, sprintf } = require('@wordpress/i18n');
+
 // Why a region no longer fits, in the contributor's terms.
 //
 // Hedged on purpose. Matching searches for somewhere the surrounding lines fit,
 // so a region whose surroundings repeat can be recognised in the wrong place —
 // good enough to choose a sentence, never good enough to decide what to write.
 // "Looks like" is that uncertainty, said out loud rather than buried here.
-const REASONS = {
-	'already-applied': 'looks like it is already in your checkout',
-	moved: 'the code around it has changed'
-};
+//
+// Functions rather than constants, so that each is translated when it is shown.
+function reasons() {
+	return {
+		'already-applied': __('looks like it is already in your checkout'),
+		moved: __('the code around it has changed')
+	};
+}
 
 // The same two statuses read backwards, for a revert (#306). `already-applied`
 // is derived by testing the inverse of what is being applied, so on a reverse it
 // means the *forward* hunk fits — that region's change is not in the checkout
 // any more. Rendering the forward wording there would put "already in your
 // checkout" under a headline saying the contributor has edited over it.
-const REVERT_REASONS = {
-	'already-applied': 'looks like that change is not in your checkout any more',
-	moved: 'the code around it has changed'
-};
+function revertReasons() {
+	return {
+		'already-applied': __('looks like that change is not in your checkout any more'),
+		moved: __('the code around it has changed')
+	};
+}
 
 /**
  * One failing region, ready to render.
@@ -48,11 +56,11 @@ const REVERT_REASONS = {
  * @return {Object}
  */
 function describeRegion(region, reversing = false) {
-	const reasons = reversing ? REVERT_REASONS : REASONS;
+	const reasonFor = reversing ? revertReasons() : reasons();
 	return {
 		line: region.line,
 		status: region.status,
-		reason: reasons[region.status] || 'it no longer fits',
+		reason: reasonFor[region.status] || __('it no longer fits'),
 		// A line to search for, not a number to go to: the hunk's line numbers
 		// are in the patched file's coordinates and miss by the drift the patch
 		// failed on. The panel leads with this and keeps `line` as the fallback.
@@ -80,20 +88,41 @@ function describeRegion(region, reversing = false) {
 function headlineFor(conflicts) {
 	const failed = conflicts.reduce((sum, c) => sum + c.regions.length, 0);
 	const total = conflicts.reduce((sum, c) => sum + c.total, 0);
-	const changes = `change${total === 1 ? '' : 's'}`;
-	const where = conflicts.length === 1 ? '' : ` across ${conflicts.length} files`;
+	const files = conflicts.length;
 	const allApplied = conflicts.every((c) => c.regions.every((r) => r.status === 'already-applied'));
 
+	// The plural follows the number of changes, so a sentence that also says
+	// how many files is written apart from the one that does not.
 	if (allApplied) {
 		if (failed === total) {
-			return `All ${total} of this patch's ${changes}${where} look like they are already in your checkout.`;
+			if (files === 1) {
+				// translators: %d: how many changes the patch has.
+				return sprintf(_n('All %d of this patch\'s change look like they are already in your checkout.', 'All %d of this patch\'s changes look like they are already in your checkout.', total), total);
+			}
+			// translators: 1: how many changes the patch has. 2: how many files they are in, always more than one.
+			return sprintf(_n('All %1$d of this patch\'s change across %2$d files look like they are already in your checkout.', 'All %1$d of this patch\'s changes across %2$d files look like they are already in your checkout.', total), total, files);
 		}
-		return `${failed} of this patch's ${total} ${changes}${where} look like they are already in your checkout — the other ${total - failed} still fit.`;
+		if (files === 1) {
+			// translators: 1: how many of the patch's changes are already in the checkout. 2: how many changes the patch has. 3: how many of them still fit.
+			return sprintf(_n('%1$d of this patch\'s %2$d change look like they are already in your checkout — the other %3$d still fit.', '%1$d of this patch\'s %2$d changes look like they are already in your checkout — the other %3$d still fit.', total), failed, total, total - failed);
+		}
+		// translators: 1: how many of the patch's changes are already in the checkout. 2: how many changes the patch has. 3: how many files they are in, always more than one. 4: how many of them still fit.
+		return sprintf(_n('%1$d of this patch\'s %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.', '%1$d of this patch\'s %2$d changes across %3$d files look like they are already in your checkout — the other %4$d still fit.', total), failed, total, files, total - failed);
 	}
 	if (failed === total) {
-		return `None of this patch's ${total} ${changes}${where} still fit your checkout.`;
+		if (files === 1) {
+			// translators: %d: how many changes the patch has.
+			return sprintf(_n('None of this patch\'s %d change still fit your checkout.', 'None of this patch\'s %d changes still fit your checkout.', total), total);
+		}
+		// translators: 1: how many changes the patch has. 2: how many files they are in, always more than one.
+		return sprintf(_n('None of this patch\'s %1$d change across %2$d files still fit your checkout.', 'None of this patch\'s %1$d changes across %2$d files still fit your checkout.', total), total, files);
 	}
-	return `${failed} of this patch's ${total} ${changes}${where} no longer fit — the other ${total - failed} do.`;
+	if (files === 1) {
+		// translators: 1: how many of the patch's changes no longer fit. 2: how many changes the patch has. 3: how many of them still fit.
+		return sprintf(_n('%1$d of this patch\'s %2$d change no longer fit — the other %3$d do.', '%1$d of this patch\'s %2$d changes no longer fit — the other %3$d do.', total), failed, total, total - failed);
+	}
+	// translators: 1: how many of the patch's changes no longer fit. 2: how many changes the patch has. 3: how many files they are in, always more than one. 4: how many of them still fit.
+	return sprintf(_n('%1$d of this patch\'s %2$d change across %3$d files no longer fit — the other %4$d do.', '%1$d of this patch\'s %2$d changes across %3$d files no longer fit — the other %4$d do.', total), failed, total, files, total - failed);
 }
 
 /**
@@ -141,7 +170,12 @@ function namePaths(rows) {
 	const rest = paths.length - PATH_NAME_LIMIT;
 	return {
 		count: paths.length,
-		text: `${paths.slice(0, PATH_NAME_LIMIT).join(', ')} and ${rest} more file${rest === 1 ? '' : 's'}`
+		text: sprintf(
+			// translators: 1: up to three file paths, separated by commas. 2: how many more files there are.
+			_n('%1$s and %2$d more file', '%1$s and %2$d more files', rest),
+			paths.slice(0, PATH_NAME_LIMIT).join(', '),
+			rest
+		)
 	};
 }
 
@@ -203,15 +237,23 @@ function prFraming(conflicts, prState, ownWorkPaths = [], appliedPatch = null) {
 		// its named layer; claiming trunk would erase the provenance (#306).
 		if (alreadyPresentInTicketWork) {
 			return {
-				headline: `All ${total} of this pull request's change${total === 1 ? '' : 's'} look like they are already in your checkout — there is nothing left to apply.`,
+				// translators: %d: how many changes the pull request has.
+				headline: sprintf(_n('All %d of this pull request\'s change look like they are already in your checkout — there is nothing left to apply.', 'All %d of this pull request\'s changes look like they are already in your checkout — there is nothing left to apply.', total), total),
 				advice: '',
-				prButton: 'Open the pull request'
+				prButton: __('Open the pull request')
+			};
+		}
+		if (closed) {
+			return {
+				// translators: %d: how many changes the pull request has.
+				headline: sprintf(_n('All %d of this pull request\'s change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.', 'All %d of this pull request\'s changes look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.', total), total),
+				advice: '',
+				prButton: null
 			};
 		}
 		return {
-			headline: closed
-				? `All ${total} of this pull request's change${total === 1 ? '' : 's'} look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.`
-				: `All ${total} of this pull request's change${total === 1 ? '' : 's'} look like they are already in trunk — there is nothing left to apply.`,
+			// translators: %d: how many changes the pull request has.
+			headline: sprintf(_n('All %d of this pull request\'s change look like they are already in trunk — there is nothing left to apply.', 'All %d of this pull request\'s changes look like they are already in trunk — there is nothing left to apply.', total), total),
 			advice: '',
 			prButton: null
 		};
@@ -221,16 +263,23 @@ function prFraming(conflicts, prState, ownWorkPaths = [], appliedPatch = null) {
 	// file twice, and the sentences below go on to name the files, so counting
 	// the rows would have the count disagreeing with the list beside it.
 	const files = new Set(conflicts.map((c) => c.path)).size;
-	const scale = `${failed} of its ${total} change${total === 1 ? '' : 's'}, in ${files} file${files === 1 ? '' : 's'},`;
 
 	// A closed pull request has no author coming back to it: asking for a
 	// rebase would be a message into the void. The way forward is the ticket —
 	// another patch, or redoing the change, which is a contribution in itself.
 	if (closed) {
+		let headline;
+		if (files === 1) {
+			// translators: 1: how many of the pull request's changes no longer fit. 2: how many changes it has. 3: how many files they are in, which is 1.
+			headline = sprintf(_n('This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.', 'This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d changes, in %3$d file, would need rework.', total), failed, total, files);
+		} else {
+			// translators: 1: how many of the pull request's changes no longer fit. 2: how many changes it has. 3: how many files they are in, always more than one.
+			headline = sprintf(_n('This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.', 'This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d changes, in %3$d files, would need rework.', total), failed, total, files);
+		}
 		return {
-			headline: `This pull request is closed and was written against an older trunk — it no longer fits: ${scale} would need rework.`,
-			advice: 'Nobody is coming back to update a closed pull request — its discussion may say why it ended.',
-			prButton: 'See why it was closed'
+			headline,
+			advice: __('Nobody is coming back to update a closed pull request — its discussion may say why it ended.'),
+			prButton: __('See why it was closed')
 		};
 	}
 
@@ -239,27 +288,44 @@ function prFraming(conflicts, prState, ownWorkPaths = [], appliedPatch = null) {
 	const layered = namePaths(conflicts.filter((c) => own.has(c.path) && layerFiles.has(c.path)));
 	const mine = namePaths(conflicts.filter((c) => own.has(c.path) && !layerFiles.has(c.path)));
 	const theirs = namePaths(conflicts.filter((c) => !own.has(c.path)));
-	const REBASE_IS_THEIRS = 'Bringing it up to date is its author\'s work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.';
+	// The first sentence of each headline below where the contributor's own
+	// work is involved; what follows it differs by whose files failed.
+	const doesNotFit = () => {
+		if (files === 1) {
+			// translators: 1: how many of the pull request's changes no longer fit. 2: how many changes it has. 3: how many files they are in, which is 1.
+			return sprintf(_n('This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.', 'This pull request does not fit your checkout: %1$d of its %2$d changes, in %3$d file, would need rework.', total), failed, total, files);
+		}
+		// translators: 1: how many of the pull request's changes no longer fit. 2: how many changes it has. 3: how many files they are in, always more than one.
+		return sprintf(_n('This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.', 'This pull request does not fit your checkout: %1$d of its %2$d changes, in %3$d files, would need rework.', total), failed, total, files);
+	};
 	// A ticket's changes are cheap to redo and expensive to untangle, so keeping
 	// a copy and starting clean is a recommended way forward here, not a defeat.
 	// What must never happen is work going quietly; going on purpose, with the
 	// copy already saved, is a good outcome.
-	const YOUR_WORK_WAY_OUT = 'Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.';
+	const yourWorkWayOut = () => __('Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.');
+	// translators: %s: one or more file paths, separated by commas.
+	const mineToo = () => sprintf(__('Your own work is also in %s and may be part of the failure.'), mine.text);
+	// translators: %s: one or more file paths, separated by commas.
+	const otherFailures = () => sprintf(__('Other failures are in %s.'), theirs.text);
 
 	// The ticket-base scan sees the named layer as ticket work too. It cannot
 	// prove whether the contributor edited those files afterwards, so name the
 	// provenance and preserve the same uncertainty as the preview (#306).
 	if (layered.count) {
-		const label = appliedPatch.label || 'the patch you applied';
-		const parts = [
-			`${layered.text} ${layered.count === 1 ? 'includes' : 'include'} changes from ${label} and may also contain your own edits.`
-		];
-		if (mine.count) parts.push(`Your own work is also in ${mine.text} and may be part of the failure.`);
-		if (theirs.count) parts.push(`Other failures are in ${theirs.text}.`);
+		const parts = [];
+		if (appliedPatch.label) {
+			// translators: 1: one or more file paths, separated by commas. 2: the name of the patch applied to the checkout, such as a file name.
+			parts.push(sprintf(_n('%1$s includes changes from %2$s and may also contain your own edits.', '%1$s include changes from %2$s and may also contain your own edits.', layered.count), layered.text, appliedPatch.label));
+		} else {
+			// translators: %s: one or more file paths, separated by commas.
+			parts.push(sprintf(_n('%s includes changes from the patch you applied and may also contain your own edits.', '%s include changes from the patch you applied and may also contain your own edits.', layered.count), layered.text));
+		}
+		if (mine.count) parts.push(mineToo());
+		if (theirs.count) parts.push(otherFailures());
 		return {
-			headline: `This pull request does not fit your checkout: ${scale} would need rework. ${parts.join(' ')}`,
-			advice: YOUR_WORK_WAY_OUT,
-			prButton: 'Open the pull request'
+			headline: [doesNotFit(), ...parts].join(' '),
+			advice: yourWorkWayOut(),
+			prButton: __('Open the pull request')
 		};
 	}
 
@@ -268,24 +334,33 @@ function prFraming(conflicts, prState, ownWorkPaths = [], appliedPatch = null) {
 	// clean ticket.
 	if (!theirs.count) {
 		return {
-			headline: `This pull request does not fit your checkout: ${scale} would need rework. Your own work is also in ${mine.text}, so it may be part of why the pull request does not fit.`,
-			advice: YOUR_WORK_WAY_OUT,
-			prButton: 'Open the pull request'
+			// translators: %s: one or more file paths, separated by commas.
+			headline: [doesNotFit(), sprintf(__('Your own work is also in %s, so it may be part of why the pull request does not fit.'), mine.text)].join(' '),
+			advice: yourWorkWayOut(),
+			prButton: __('Open the pull request')
 		};
 	}
 
 	if (mine.count) {
 		return {
-			headline: `This pull request does not fit your checkout: ${scale} would need rework. Your own work is also in ${mine.text} and may be part of the failure. Other failures are in ${theirs.text}.`,
-			advice: YOUR_WORK_WAY_OUT,
-			prButton: 'Open the pull request'
+			headline: [doesNotFit(), mineToo(), otherFailures()].join(' '),
+			advice: yourWorkWayOut(),
+			prButton: __('Open the pull request')
 		};
 	}
 
+	let headline;
+	if (files === 1) {
+		// translators: 1: how many of the pull request's changes no longer fit. 2: how many changes it has. 3: how many files they are in, which is 1.
+		headline = sprintf(_n('This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.', 'This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d changes, in %3$d file, would need rework.', total), failed, total, files);
+	} else {
+		// translators: 1: how many of the pull request's changes no longer fit. 2: how many changes it has. 3: how many files they are in, always more than one.
+		headline = sprintf(_n('This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.', 'This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d changes, in %3$d files, would need rework.', total), failed, total, files);
+	}
 	return {
-		headline: `This pull request was written against an older trunk and no longer fits it: ${scale} would need rework.`,
-		advice: REBASE_IS_THEIRS,
-		prButton: 'Ask its author for a rebase'
+		headline,
+		advice: __('Bringing it up to date is its author\'s work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.'),
+		prButton: __('Ask its author for a rebase')
 	};
 }
 
@@ -303,18 +378,31 @@ function prFraming(conflicts, prState, ownWorkPaths = [], appliedPatch = null) {
  * contributor's own, so pointing at them is pointing at their work.
  *
  * @param {Array}  conflicts
- * @param {string} label
+ * @param {string} label     The patch's name, or '' when it has none.
  * @return {{headline: string, advice: string, prButton: ?string}}
  */
 function revertFraming(conflicts, label) {
 	const failed = conflicts.reduce((sum, c) => sum + c.regions.length, 0);
 	const total = conflicts.reduce((sum, c) => sum + c.total, 0);
 	const files = conflicts.length;
-	const where = files === 1 ? '' : `, across ${files} files`;
+	let headline;
+	if (label && files === 1) {
+		// translators: 1: the name of the applied patch, such as a file name. 2: how many of its changes have the contributor's edits on them. 3: how many changes it has.
+		headline = sprintf(_n('%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.', '%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d changes.', total), label, failed, total);
+	} else if (label) {
+		// translators: 1: the name of the applied patch, such as a file name. 2: how many of its changes have the contributor's edits on them. 3: how many changes it has. 4: how many files they are in, always more than one.
+		headline = sprintf(_n('%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.', '%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d changes, across %4$d files.', total), label, failed, total, files);
+	} else if (files === 1) {
+		// translators: 1: how many of the patch's changes have the contributor's edits on them. 2: how many changes it has.
+		headline = sprintf(_n('That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.', 'That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d changes.', total), failed, total);
+	} else {
+		// translators: 1: how many of the patch's changes have the contributor's edits on them. 2: how many changes it has. 3: how many files they are in, always more than one.
+		headline = sprintf(_n('That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.', 'That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d changes, across %3$d files.', total), failed, total, files);
+	}
 
 	return {
-		headline: `${label} cannot be lifted back out on its own: your own edits are on ${failed} of its ${total} change${total === 1 ? '' : 's'}${where}.`,
-		advice: 'It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.',
+		headline,
+		advice: __('It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.'),
 		prButton: null
 	};
 }
@@ -345,7 +433,7 @@ function revertFraming(conflicts, label) {
  * @param {string[]} [options.ownWorkPaths]    Files this ticket has work in, from
  *                                             the preview's collision list (#303).
  * @param {?Object}  [options.appliedPatch]    Named layer within that work (#306).
- * @param {?string}  [options.reverting]       Label of the layer being reverted.
+ * @param {?string}  [options.reverting]       Label of the layer being reverted, '' when it has none; null when this was not a revert.
  * @return {?Object}
  */
 function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, prUrl = null, prState = null, ownWorkPaths = [], appliedPatch = null, reverting = null } = {}) {
@@ -361,7 +449,8 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 	// A revert is never "someone else's patch does not fit": it is the
 	// contributor's own edits sitting on lines they applied. The pull-request
 	// framing would send them to an author who has nothing to do with it.
-	const fromPr = Boolean(prUrl) && !reverting;
+	const isRevert = typeof reverting === 'string';
+	const fromPr = Boolean(prUrl) && !isRevert;
 
 	// Each conflict is consumed as it is matched, not looked up in a map: a
 	// concatenated patch can fail the same file twice with the identical
@@ -380,7 +469,7 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 			failed: conflict.regions.length,
 			// For a pull request the regions are the author's problem; the file
 			// row with its counts is the whole story the contributor needs.
-			regions: fromPr ? [] : conflict.regions.map((region) => describeRegion(region, Boolean(reverting)))
+			regions: fromPr ? [] : conflict.regions.map((region) => describeRegion(region, isRevert))
 		};
 	});
 
@@ -388,13 +477,13 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 	// do not already say, so the headline stands down rather than padding.
 	let headline = '';
 	let advice = '';
-	let prButton = fromPr ? 'Open the pull request' : null;
+	let prButton = fromPr ? __('Open the pull request') : null;
 	if (conflicts.length) {
 		// A failed revert is never the pull request having gone stale, so it is
 		// asked first: the only thing that stops a layer coming back out is the
 		// contributor's own work sitting on its lines (#306).
 		let framing;
-		if (reverting) framing = revertFraming(conflicts, reverting);
+		if (isRevert) framing = revertFraming(conflicts, reverting);
 		else if (fromPr) framing = prFraming(conflicts, prState, ownWorkPaths, appliedPatch);
 		else framing = { headline: headlineFor(conflicts), advice: '', prButton: null };
 		headline = framing.headline;
@@ -408,14 +497,14 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 		// The safe exit, for the panel to offer alongside the sentence. Only
 		// a revert has one: every other failure left the checkout untouched, so
 		// there is nothing to save a copy of that is not already safe.
-		offerDiscardToBase: Boolean(reverting) && conflicts.length > 0,
+		offerDiscardToBase: isRevert && conflicts.length > 0,
 		// Both are offered only when they lead somewhere, the way open-failure.cjs
 		// withholds its picker: a way out that returns to the same dead end is
 		// worse than no button, because it costs a click to find that out.
-		offerOtherPatches: !reverting && othersAvailable > 0,
+		offerOtherPatches: !isRevert && othersAvailable > 0,
 		prUrl: prUrl && prButton ? prUrl : null,
 		prButton
 	};
 }
 
-module.exports = { describeApplyFailure, headlineFor, otherPatchCount, revertFraming, REASONS, REVERT_REASONS };
+module.exports = { describeApplyFailure, headlineFor, otherPatchCount, revertFraming, reasons, revertReasons };

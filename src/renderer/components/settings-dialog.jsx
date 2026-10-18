@@ -1,0 +1,527 @@
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+// The segmented control the design has for a choice of a few. The design
+// system has no other, and documents this one under these names: it is
+// stable in use and has not been given its final export yet.
+// eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- see above.
+import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalToggleGroupControlOption as ToggleGroupControlOption } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
+import { Button, Dialog, InputControl, InputLayout, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
+import { useThemeWarnings } from './app-theme.jsx';
+import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
+import { FolderField } from './folder-field.jsx';
+
+// A notice here is read by its role, and is not also spoken: the dialog it
+// is in is open and being read.
+const SILENT = '';
+
+// The language the app shows, from the ones the build has a catalog for.
+// Main applies a catalog as it starts, so a change is shown after a relaunch,
+// which the control offers once what is set is no longer what the window is
+// in. The relaunch is a quit: running servers and builds stop, as on any.
+function LanguageControl({ settings, loaded, onChange }) {
+  const [languages, setLanguages] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    window.api.listLanguages()
+      .then((res) => { if (!cancelled && res?.ok) setLanguages(res.languages); })
+      .catch(() => { if (!cancelled) setLanguages([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // The entries are drawn here, each with its tag as its value, and the
+  // list is also handed over for the names: handed the list alone, the
+  // control takes each entry as its own value and tells them apart by
+  // identity, which a value kept elsewhere cannot match. The entries are
+  // made from the language the window started in and not the one set, so
+  // that a choice does not change them: an entry taken away under the
+  // control while it is choosing is reported as a second choice, of none.
+  const locale = settings ? settings.locale : null;
+  const started = loaded ? loaded.locale : null;
+  const items = useMemo(() => languageItems(languages, started), [languages, started]);
+
+  const choose = async (value) => {
+    const result = await onChange('locale', languageValue(value));
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that language.')));
+  };
+  const relaunch = () => {
+    window.api.relaunch().catch(() => setError(__('The app could not relaunch. Quit it and open it again.')));
+  };
+
+  return (
+    <Stack direction="column" gap="md">
+      <SelectControl
+        label={__('Language')}
+        description={__('Which language the app is shown in. A change applies after a relaunch.')}
+        items={items}
+        value={locale || SYSTEM_LANGUAGE}
+        disabled={!settings || !languages}
+        onValueChange={choose}
+      >
+        {items.map((item) => (
+          <SelectControl.Item key={item.value} value={item.value} label={item.label}>
+            <SelectControl.ItemLabel>{item.label}</SelectControl.ItemLabel>
+          </SelectControl.Item>
+        ))}
+      </SelectControl>
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+      {languageChanged(settings, loaded) ? (
+        <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
+          <Notice.Description>{__('The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.')}</Notice.Description>
+          <Notice.Actions>
+            <Button variant="outline" size="compact" onClick={relaunch}>{__('Relaunch now')}</Button>
+          </Notice.Actions>
+        </Notice.Root>
+      ) : null}
+    </Stack>
+  );
+}
+
+// One colour of the custom theme (#560): typed as hex, or picked with the
+// system's picker, which is the swatch before the field, showing the colour
+// being chosen, or the colour kept while the field holds no colour. What is
+// typed is kept when the field is left or Enter is
+// pressed, and main says what it accepts, so a colour that is not one is
+// refused in main's words and the field goes back to what is kept. The
+// picker's choice is kept when the picker is closed, not as it is dragged:
+// each keep is a write to the store, and the field shows the colour under
+// the pointer meanwhile. The picker is driven from the draft and not from
+// what is kept: a controlled input is put back to its prop after every
+// step of a drag, and the picker's closing would then read the old colour.
+function ColorField({ label, value, onKeep }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  // What the field shows once main has answered is settings-view's to say:
+  // what is kept after a refusal, the colour as kept after a keep, and what
+  // has been typed since where the answer is to an older draft.
+  const keep = async (text) => {
+    const result = await onKeep(text);
+    setDraft((current) => colorFieldDraft({ current, sent: text, ok: Boolean(result?.ok), kept: value }));
+  };
+  const picker = useRef(null);
+  useEffect(() => {
+    const input = picker.current;
+    if (!input) return undefined;
+    const picked = () => keep(input.value);
+    input.addEventListener('change', picked);
+    return () => input.removeEventListener('change', picked);
+  });
+  const commit = () => { if (draft !== value) keep(draft); };
+  return (
+    <InputControl
+      className="color-field"
+      type="text"
+      label={label}
+      value={draft}
+      spellCheck={false}
+      autoComplete="off"
+      prefix={
+        <InputLayout.Slot padding="minimal">
+          <input
+            ref={picker}
+            type="color"
+            className="color-swatch"
+            // translators: %s: what the colour is for, "Background" or "Primary".
+            aria-label={sprintf(__('%s colour picker'), label)}
+            value={pickerValue(draft, value)}
+            onChange={(event) => setDraft(event.currentTarget.value)}
+          />
+        </InputLayout.Slot>
+      }
+      onChange={(event) => setDraft(event.currentTarget.value)}
+      onBlur={commit}
+      onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit(); } }}
+    />
+  );
+}
+
+// The window's theme (#560): light, dark, the operating system's, or custom,
+// a background and a primary colour of the contributor's own, from which
+// the design system builds every other colour. Main gives the choice to
+// Electron, and the window follows what Chromium then says of the colour
+// scheme and what main holds, so the change is on screen as the control is
+// pressed. Under custom, the design system says when a colour it built
+// cannot be read on another, and the control passes that on.
+function ThemeControl({ settings, onChange }) {
+  const [error, setError] = useState('');
+  const warnings = useThemeWarnings();
+  const keep = async (key, value) => {
+    const result = await onChange(key, value);
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
+    return result;
+  };
+  const custom = settings?.theme === 'custom';
+  return (
+    <>
+      <ToggleGroupControl
+        __nextHasNoMarginBottom
+        __next40pxDefaultSize
+        isBlock
+        label={__('Theme')}
+        help={__('System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.')}
+        value={settings ? settings.theme : undefined}
+        disabled={!settings}
+        onChange={(value) => { if (value) keep('theme', value); }}
+      >
+        {themeItems().map((item) => (
+          <ToggleGroupControlOption key={item.value} value={item.value} label={item.label} />
+        ))}
+      </ToggleGroupControl>
+      {custom ? (
+        <div className="theme-colors">
+          <ColorField label={__('Background')} value={settings.customBackground} onKeep={(value) => keep('customBackground', value)} />
+          <ColorField label={__('Primary')} value={settings.customPrimary} onKeep={(value) => keep('customPrimary', value)} />
+        </div>
+      ) : null}
+      {custom && warnings.length ? (
+        <Notice.Root intent="warning" role="status" spokenMessage={SILENT}>
+          <Notice.Description>{__('Some text may be hard to read with these colours. They are kept as they are; choose others if it is.')}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+    </>
+  );
+}
+
+// What a site opened starts, and what the quit does with what is running.
+// The quit stops servers and watches either way: the one choice is whether
+// the next launch starts them again.
+function OpeningAndQuitting({ settings, onChange }) {
+  const [error, setError] = useState('');
+  const keep = async (key, value) => {
+    const result = await onChange(key, value);
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
+  };
+  const items = quitItems();
+  return (
+    <Stack direction="column" gap="xl">
+      <Text variant="heading-lg" render={<h3 />}>{__('Opening and quitting')}</Text>
+      <SwitchControl
+        label={__('Start the server when I open a site')}
+        description={__('So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.')}
+        checked={settings ? settings.autoStartServer : false}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('autoStartServer', checked)}
+      />
+      <SwitchControl
+        label={__('Start the build watch when I open a site')}
+        description={__('So edits are compiled as they are saved.')}
+        checked={settings ? settings.autoStartWatch : false}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('autoStartWatch', checked)}
+      />
+      <SelectControl
+        label={__('When I quit, running servers and build watches')}
+        description={__('Quitting always stops them; they can be started again when the app next opens.')}
+        items={items}
+        value={settings ? settings.quitBehavior : 'stop'}
+        disabled={!settings}
+        onValueChange={(value) => keep('quitBehavior', value)}
+      >
+        {items.map((item) => (
+          <SelectControl.Item key={item.value} value={item.value} label={item.label}>
+            <SelectControl.ItemLabel>{item.label}</SelectControl.ItemLabel>
+          </SelectControl.Item>
+        ))}
+      </SelectControl>
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+    </Stack>
+  );
+}
+
+// The folder new sites go in. The system's dialog chooses it, main checks
+// it, and what main then holds is what is shown: a folder it refused is
+// said under the field and nothing changes.
+function GeneralTab({ settings, loaded, onChange }) {
+  const [error, setError] = useState('');
+  const location = settings ? settings.newSiteLocation : null;
+
+  const keep = async (value) => {
+    const result = await onChange('newSiteLocation', value);
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that folder.')));
+  };
+  const choose = async () => {
+    let chosen = null;
+    try {
+      chosen = await window.api.chooseDirectory();
+    } catch {
+      return;
+    }
+    if (chosen) await keep(chosen);
+  };
+
+  return (
+    <Stack direction="column" gap="2xl">
+      <Stack direction="column" gap="xl">
+        <Text variant="heading-lg" render={<h3 />}>{__('Appearance')}</Text>
+        <ThemeControl settings={settings} onChange={onChange} />
+        <LanguageControl settings={settings} loaded={loaded} onChange={onChange} />
+      </Stack>
+      <OpeningAndQuitting settings={settings} onChange={onChange} />
+      <Stack direction="column" gap="xl">
+        <Text variant="heading-lg" render={<h3 />}>{__('New sites')}</Text>
+        <FolderField
+          label={__('New sites go here')}
+          description={__('Each new site is created in a subfolder of this location.')}
+          value={location}
+          empty={newSiteLocationNote(settings)}
+          disabled={!settings}
+          onChoose={choose}
+        />
+        {location ? (
+          <div>
+            <Button variant="minimal" tone="neutral" size="compact" onClick={() => keep(null)}>{__('Forget this folder')}</Button>
+          </div>
+        ) : null}
+        {error ? (
+          <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+            <Notice.Description>{error}</Notice.Description>
+          </Notice.Root>
+        ) : null}
+      </Stack>
+    </Stack>
+  );
+}
+
+// What a site's development server runs with: the PHP it runs on, from the
+// versions the bundled Playground has, and the two debug constants that can
+// be turned off. Applied the next time a server starts; one that is running
+// keeps what it started with until it is started again.
+function SitesTab({ settings, php, onChange }) {
+  const [error, setError] = useState('');
+
+  const keep = async (key, value) => {
+    const result = await onChange(key, value);
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
+  };
+  const choice = phpVersionChoice({ versions: php?.versions, fallback: php?.fallback, stored: settings ? settings.phpVersion : null });
+  // The versions could not be read: said in place of a control with nothing
+  // on it, and the version stays as it is.
+  const unread = php?.error ? __('The PHP versions could not be read. Quit the app and open it again.') : '';
+
+  return (
+    <Stack direction="column" gap="xl">
+      <Text variant="heading-lg" render={<h3 />}>{__('Development server')}</Text>
+      <Text variant="body-sm">{__('Applies the next time a site’s server starts. A server that is running keeps what it started with.')}</Text>
+      <ToggleGroupControl
+        __nextHasNoMarginBottom
+        __next40pxDefaultSize
+        isBlock
+        label={__('PHP version')}
+        help={unread || choice.note || undefined}
+        value={choice.value || undefined}
+        disabled={!settings || !php?.fallback}
+        onChange={(value) => { if (value) keep('phpVersion', value); }}
+      >
+        {(php?.versions || []).map((version) => (
+          <ToggleGroupControlOption key={version} value={version} label={version} />
+        ))}
+      </ToggleGroupControl>
+      <SwitchControl
+        label={__('Report notices and deprecations (WP_DEBUG)')}
+        description={__('Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.')}
+        checked={settings ? settings.wpDebug : true}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('wpDebug', checked)}
+      />
+      <SwitchControl
+        label={__('Use unminified scripts (SCRIPT_DEBUG)')}
+        description={__('Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.')}
+        checked={settings ? settings.scriptDebug : true}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('scriptDebug', checked)}
+      />
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+    </Stack>
+  );
+}
+
+// Who the contributor is, as the mentor handoff asks it (#166) and through
+// the same answers (useContributorProvenance), so that the two never
+// disagree; and the GitHub account the app acts for (#167), which is signed
+// in to where it is used and can be signed out of here.
+function AccountTab({ wporg }) {
+  const formId = useId();
+  const [handle, setHandle] = useState(wporg?.handle || '');
+  const [event, setEvent] = useState(wporg?.event || '');
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [account, setAccount] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.api.getGithubAccount()
+      .then((res) => { if (!cancelled) setAccount(res && res.ok ? res : { login: null, configured: false }); })
+      .catch(() => { if (!cancelled) setAccount({ login: null, configured: false }); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Both fields are written in one go, because they are asked in one form.
+  // An empty one forgets what it held: the event, once the WordCamp is over.
+  const save = async (submit) => {
+    submit.preventDefault();
+    if (!wporg) return;
+    setSaving(true);
+    setError('');
+    setSaved(false);
+    try {
+      const named = await wporg.rememberHandle(handle);
+      if (!named?.ok) {
+        setError(named?.error || __('Could not save that username.'));
+        return;
+      }
+      const at = await wporg.rememberEvent(event);
+      if (!at?.ok) {
+        setError(at?.error || __('Could not save that event.'));
+        return;
+      }
+      // As main kept them: a pasted profile link is kept as the username.
+      setHandle(named.handle || '');
+      setEvent(at.event || '');
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      await window.api.signOutOfGithub();
+    } catch {}
+    setAccount((prev) => ({ ...(prev || { configured: true }), login: null }));
+  };
+
+  const github = githubAccountLine(account);
+  const edit = (set) => (change) => {
+    set(change.currentTarget.value);
+    setSaved(false);
+    setError('');
+  };
+
+  return (
+    <Stack direction="column" gap="2xl">
+      <form id={formId} onSubmit={save} noValidate>
+        <Stack direction="column" gap="xl">
+          <Text variant="heading-lg" render={<h3 />}>{__('How you contribute')}</Text>
+          <InputControl
+            label={__('WordPress.org username')}
+            description={__('Goes on a patch you hand to a mentor, so the props land on you.')}
+            value={handle}
+            disabled={saving}
+            onChange={edit(setHandle)}
+          />
+          <InputControl
+            label={__('Event')}
+            description={__('Where you are contributing from, if you are at an event. Leave it empty otherwise.')}
+            value={event}
+            disabled={saving}
+            onChange={edit(setEvent)}
+          />
+          {error ? (
+            <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+              <Notice.Description>{error}</Notice.Description>
+            </Notice.Root>
+          ) : null}
+          {saved ? (
+            <Notice.Root intent="success" role="status" spokenMessage={SILENT}>
+              <Notice.Description>{__('Saved.')}</Notice.Description>
+            </Notice.Root>
+          ) : null}
+          <div>
+            <Button type="submit" form={formId} loading={saving} loadingAnnouncement={__('Saving')}>{__('Save')}</Button>
+          </div>
+        </Stack>
+      </form>
+      <Stack direction="column" gap="md">
+        <Text variant="heading-lg" render={<h3 />}>{__('GitHub')}</Text>
+        <Text variant="body-md">{github.text}</Text>
+        {github.canSignOut ? (
+          <div>
+            <Button variant="outline" onClick={signOut}>{__('Sign out')}</Button>
+          </div>
+        ) : null}
+      </Stack>
+    </Stack>
+  );
+}
+
+// The tabs and what is on each. Inside the dialog's popup, which is there
+// while the dialog is open and not otherwise, so every opening starts on
+// General with nothing typed and not yet saved.
+function SettingsPanels({ settings, loaded, php, onChange, wporg }) {
+  const [tab, setTab] = useState('general');
+  return (
+    <Dialog.Content>
+      <Tabs.Root value={tab} onValueChange={setTab} render={<Stack direction="column" gap="md" />}>
+        <div className="settings-tabs-bar">
+          <Tabs.List variant="minimal" className="settings-tabs">
+            <Tabs.Tab value="general">{__('General')}</Tabs.Tab>
+            <Tabs.Tab value="sites">{__('Sites')}</Tabs.Tab>
+            <Tabs.Tab value="account">{__('Account')}</Tabs.Tab>
+          </Tabs.List>
+          <hr className="card-divider" />
+        </div>
+        <Tabs.Panel value="general" tabIndex={-1} className="settings-panel">
+          <GeneralTab settings={settings} loaded={loaded} onChange={onChange} />
+        </Tabs.Panel>
+        <Tabs.Panel value="sites" tabIndex={-1} className="settings-panel">
+          <SitesTab settings={settings} php={php} onChange={onChange} />
+        </Tabs.Panel>
+        <Tabs.Panel value="account" tabIndex={-1} className="settings-panel">
+          <AccountTab wporg={wporg} />
+        </Tabs.Panel>
+      </Tabs.Root>
+    </Dialog.Content>
+  );
+}
+
+/**
+ * The settings dialog (#559): the app's settings, on tabs, opened from the
+ * footer's cog or the menu's "Settings…".
+ *
+ * It holds no setting itself. `settings` is what main holds (useSettings),
+ * null while it has not answered, and `onChange(key, value)` asks main to
+ * change one and resolves to its answer. `wporg` is what the app remembers
+ * about the contributor (useContributorProvenance), which the mentor handoff
+ * shares.
+ *
+ * @param {Object}   props
+ * @param {boolean}  props.open     Whether the dialog is open.
+ * @param {?Object}  props.settings The settings, or null while they are read.
+ * @param {?Object}  props.loaded   The settings as the window first read them, for what takes a relaunch.
+ * @param {?Object}  props.php      The PHP versions the bundle has and the fallback (useSettings), null while unread, `{ error }` when it could not be.
+ * @param {Function} props.onChange Changes one setting; resolves to `{ ok, settings }` or `{ ok: false, error }`.
+ * @param {Object}   props.wporg    The contributor's details and how to change them.
+ * @param {Function} props.onClose  Asked for by the close button, Escape, or a press outside.
+ */
+export function SettingsDialog({ open, settings, loaded, php, onChange, wporg, onClose }) {
+  return (
+    <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <Dialog.Popup size="medium" className="settings-dialog">
+        <Dialog.Header>
+          <Dialog.Title>{__('Settings')}</Dialog.Title>
+          <Dialog.CloseIcon />
+        </Dialog.Header>
+        <SettingsPanels settings={settings} loaded={loaded} php={php} onChange={onChange} wporg={wporg} />
+      </Dialog.Popup>
+    </Dialog.Root>
+  );
+}

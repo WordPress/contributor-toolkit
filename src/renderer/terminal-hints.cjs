@@ -1,36 +1,6 @@
 'use strict';
 
 /**
- * The two rules behind the command hints under the Terminal (#182): whether to
- * offer them at all, and whether the prompt is free to take one.
- *
- * Kept as a pure, dependency-free module so it can be unit tested without a
- * DOM: the renderer bundle imports it, `node --test` requires it directly
- * (same convention as setup-steps.cjs and dev-server-command.cjs).
- */
-
-/**
- * Whether the hints belong on screen yet.
- *
- * Both commands they name are things you do *again*, after a site is built and
- * you have started changing it. Before that they are not merely premature but
- * wrong: during the clone the terminal is streaming `Updating workdir n/6987`,
- * `npm install` has not run a first time, and there is no checkout to have
- * changed files in. A completed build is the point where re-running either one
- * becomes the normal thing to do, so it is the point where they appear.
- *
- * The checklist owns the first run of both commands and says so in its own
- * steps; these hints exist for everything after it.
- *
- * @param {Object}  flags
- * @param {boolean} [flags.hasBuilt] The site has a completed build on disk.
- * @return {boolean} True when the hints should be rendered.
- */
-function shouldShowTerminalHints(flags = {}) {
-	return Boolean(flags.hasBuilt);
-}
-
-/**
  * Whether the Terminal is occupied, and so cannot take a prefilled command.
  *
  * The hints offer to type `npm run build` / `npm install` at the prompt, which
@@ -78,4 +48,28 @@ function computeTerminalBusy(flags = {}) {
 	);
 }
 
-module.exports = { shouldShowTerminalHints, computeTerminalBusy };
+/**
+ * Whether the end of an install or a build should bring the terminal up
+ * (#558).
+ *
+ * The terminal is in a tray that is closed until it is asked for, and the
+ * page says of a run that failed that its output is in the Terminal. So a
+ * run that ended badly, and printed there, puts the terminal on screen.
+ *
+ * Not a run that was asked to stop, by Ctrl+C or by a button on the page:
+ * that is not a failure, whatever the kill left it with, which is no code at
+ * all on macOS and Linux and a code of its own on Windows. And not a run
+ * whose output is somewhere else, as the build that runs ahead of the watch
+ * prints in the watch's log.
+ *
+ * @param {Object}      run
+ * @param {number|null} run.code               What the run exited with; -1 for one that never started.
+ * @param {boolean}     [run.outputInTerminal] The run printed in the terminal.
+ * @param {boolean}     [run.stopRequested]    The run was asked to stop.
+ * @return {boolean} True when the terminal should be shown.
+ */
+function runFailedInTerminal({ code, outputInTerminal = true, stopRequested = false }) {
+	return code !== 0 && outputInTerminal && !stopRequested;
+}
+
+module.exports = { computeTerminalBusy, runFailedInTerminal };

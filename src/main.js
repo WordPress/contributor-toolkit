@@ -1,12 +1,10 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, screen, nativeTheme } = require('electron');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const fs = require('fs');
 const fse = require('fs-extra');
 const nodeHttp = require('http');
-const git = require('isomorphic-git');
-const http = require('isomorphic-git/http/node');
 const JsDiff = require('diff');
 const { spawn } = require('child_process');
 const { SMTPServer } = require('smtp-server');
@@ -17,6 +15,7 @@ const {
 	buildChildEnv,
 	RELAXED_ENGINES_ENV
 } = require('./npm-runner');
+const { nodeShim, cliShim, nodeExecPath } = require('./node-shims.cjs');
 const {
 	initLogging,
 	getLogFilePath,
@@ -26,44 +25,45 @@ const {
 	logError
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
-const { killChildTree } = require('./kill-tree');
-const { normalizeEol } = require('./git-update.cjs');
-const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
+const { killChildTree, killTreeByPid, killChildTreeAndWait } = require('./kill-tree');
+const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs');
+const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
-const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
+const { fetchLinkedPrs } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
 const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = require('./github-pr.cjs');
 const { buildPullRequestEntries } = require('./pr-files.cjs');
+const { resolveRef, changesAgainst, readBlobs, readCommitInfo, treeEntryMode, blobOid, listBranches, isLegacySite, mergeInProgress, remoteUrl } = require('./git-read.cjs');
+const { cloneSite } = require('./git-clone.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
-const { openExternalUrl, describeRefusedUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
-const { openLinksExternally } = require('./window-links');
+const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
+const { pinToOwnPage } = require('./window-navigation');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
 const { removeTree } = require('./remove-tree');
+const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
 const { createSetupTracker } = require('./setup-tracker');
 const { planInitialRead, planTailRead } = require('./log-tail');
 const {
 	TRUNK,
 	ticketBranchRef,
 	ticketIdFromRef,
+	prBranchRef,
+	prNumberFromRef,
 	currentBranchName,
 	listTicketBranches,
 	countChangesAgainst,
 	startTicketBranch,
 	switchToBranch,
+	resumeSwitch,
+	rebaseOntoTrunk,
 	deleteTicketBranch
 } = require('./ticket-branches');
+const { fetchPullRequestHead, describePullRequestHead, pullRequestBranchState, checkoutPullRequest, leavePullRequest } = require('./pr-checkout');
+const { prSubmissionRefusal, prCheckoutRefusal } = require('./renderer/pr-checkout.cjs');
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
-const { getStore } = require('./settings-store');
-
-// How an address leaves this app, shared by the renderer's `url:open` and the
-// link handling in window-links.js. A refusal is logged rather than dropped, so
-// a caller that trips the guard shows up in the log instead of doing nothing.
-const externalUrlDeps = {
-	openExternal: (target) => shell.openExternal(target),
-	onRefused: (description) => logEvent('url', `refused to open ${description} — only ${ALLOWED_URL_SCHEMES.join(', ')} are allowed`),
-	onFailed: (url, error) => logEvent('url', `could not open ${describeRefusedUrl(url)}: ${error && error.message}`)
-};
+const { getStore, peekStore } = require('./settings-store');
+const { sitesToResume, readResume } = require('./resume-sites.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -76,11 +76,30 @@ const SWITCH_PROGRESS_CHANNEL = 'switch:progress';
 // step of an operation, and describing it as progress would have the panel say
 // "Saving your work…" about trunk — which is the one thing this refuses to do.
 const CARRIED_WORK_CHANNEL = 'ticket:carried-work';
-const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
+
+// The ticket a `wpct://` link carried (#464). Send-only, like the two above,
+// and named here for the same reason: preload.js subscribes by string.
+const DEEP_LINK_CHANNEL = 'deep-link:ticket';
+// Which work item a site is on, read through the provider its project type
+// names (#251): a Trac ticket on Core, a GitHub issue on Gutenberg. The
+// Trac parser is reached through it rather than directly, so no handler
+// here has to know which kind it is holding.
+const { workItemProvider } = require('./work-item.cjs');
+const { legacySiteError } = require('./renderer/legacy-site.cjs');
+const { resolveCatalog, languageChoices } = require('./i18n.cjs');
+const { isPseudoLocale } = require('./renderer/pseudo-locale.cjs');
+const { applyLocale } = require('./renderer/locale-setup.cjs');
+const { __, _n, sprintf, setLocaleData } = require('@wordpress/i18n');
+const { addFilter } = require('@wordpress/hooks');
+const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
+const { SETTINGS, readSettings, acceptSetting } = require('./settings.cjs');
+const { resolveTheme, nativeThemeSource, THEME_KEYS } = require('./theme.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
+const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
+const { mainWindowSize } = require('./window-size.cjs');
 
 const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
 const LOCAL_EXCLUDES = [
@@ -97,8 +116,8 @@ const LOCAL_EXCLUDES = [
 /**
  * Seeds per-site ignores for machine-local files that must never become part
  * of a contribution. This lives in `.git/info/exclude`, not the repository's
- * `.gitignore`: the checkout stays unchanged and isomorphic-git reads these
- * rules when it builds a status matrix (issue #19).
+ * `.gitignore`: the checkout stays unchanged and Git reads these rules on
+ * every status the app runs (issue #19).
  *
  * The marker is the ownership boundary. Once present, the contributor may
  * edit or remove the rules below it and the app will not restore them.
@@ -122,6 +141,15 @@ async function ensureLocalExcludes(dir) {
 		existing = await fs.promises.readFile(excludePath, 'utf8');
 	} catch (error) {
 		if (!error || error.code !== 'ENOENT') throw error;
+	}
+	// Older PRs predate WordPress's /gutenberg ignore. Keep this generated
+	// download out of WIP commits even when their .gitignore is checked out.
+	const generatedMarker = '# WordPress Contributor Toolkit generated Gutenberg';
+	if (!existing.split(/\r?\n/).includes(generatedMarker)) {
+		await fs.promises.mkdir(infoDir, { recursive: true });
+		const block = `${existing && !existing.endsWith('\n') ? '\n' : ''}${generatedMarker}\n/gutenberg/\n`;
+		await fs.promises.appendFile(excludePath, block);
+		existing += block;
 	}
 	if (existing.split(/\r?\n/).includes(LOCAL_EXCLUDES_MARKER)) return false;
 
@@ -153,7 +181,26 @@ if (!app.isPackaged && process.env.TOOLKIT_USER_DATA_DIR) {
 	}
 }
 
-const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
+// Local e2e runs only (TESTING.md): with TOOLKIT_HIDE_WINDOWS=1 the main window
+// is made hidden and the app stays out of the Dock, so a run does not take the
+// screen and the focus from whoever is at the machine. Playwright drives the
+// page over the DevTools protocol, which needs neither. The hidden window is
+// not throttled, because Chromium slows the timers of a page nobody can see and
+// the journeys wait on them. Guarded to dev runs like the variable above, and
+// honoured only with a throwaway profile beside it, which the journeys always
+// have: a variable left exported in a shell must not turn a plain `npm start`
+// into an app with no window that holds the installed app's single-instance
+// lock, so the installed app and its links would do nothing while it runs.
+const hideWindowsForTests = !app.isPackaged && process.env.TOOLKIT_HIDE_WINDOWS === '1' && Boolean(process.env.TOOLKIT_USER_DATA_DIR);
+if (hideWindowsForTests) {
+	process.stderr.write('TOOLKIT_HIDE_WINDOWS: the window is hidden for an e2e run\n');
+	if (process.platform === 'darwin') app.setActivationPolicy('accessory');
+}
+
+// Which upstream a site is a checkout of (#251). The registry is the one place
+// the per-target facts live; `projectTypeForSite` answers Core for any record
+// that predates the field.
+const { getProjectType, normalizeProjectType, projectTypeForSite } = require('./project-type.cjs');
 
 // Provide a PATH shim so npm's spawned scripts can find a 'node' binary that maps to Electron's Node
 let nodeShimDir = null;
@@ -161,15 +208,47 @@ let nodeShimDir = null;
 // shims, preloaded into descendant Node processes via NODE_OPTIONS so that a
 // bare spawn('node') hitting node.cmd does not fail with EINVAL.
 let spawnPatchPath = null;
+// All platforms: absolute path of the runtime-identity patch copied next to the
+// shims, and `--require`d by each of them so that a tool started through the
+// shim sees plain Node instead of Electron (#275). See node-shims.cjs.
+let nodeCompatPath = null;
 let npmCliPath = null;
 let npxCliPath = null;
 function ensureNodeShimDir() {
     if (nodeShimDir) return nodeShimDir;
     nodeShimDir = path.join(os.tmpdir(), `electron-node-shims-${process.pid}`);
     fse.ensureDirSync(nodeShimDir);
+    // Copied out of the app bundle for the same reason as win-spawn-patch below:
+    // a --require path inside app.asar is not reliably resolvable under
+    // ELECTRON_RUN_AS_NODE. Must happen before the shims are written, since each
+    // of them names this path. A failure here is fatal, not a degraded mode:
+    // shims without the preload are the state #275 describes, and a build
+    // launched into them hangs the machine rather than failing. The directory
+    // is forgotten so the next call tries again instead of handing out a
+    // remembered path with nothing in it; the caller reports a run that never
+    // started, which is the surface the person who clicked the button can see.
+    try {
+        const dest = path.join(nodeShimDir, 'electron-node-compat.js');
+        fs.copyFileSync(path.join(__dirname, 'electron-node-compat.js'), dest);
+        nodeCompatPath = dest;
+    } catch (e) {
+        nodeShimDir = null;
+        throw new Error(`Could not install the Node compatibility preload: ${String(e && e.message ? e.message : e)}`);
+    }
+    // The binary every shim execs. On macOS that is the Helper bundle, whose
+    // Info.plist carries LSUIElement, so a tool that sets its process title does
+    // not earn a Dock tile (#518); elsewhere it is process.execPath, unchanged.
+    const execPath = nodeExecPath();
+    // A macOS bundle with no Helper beside its binary falls back to the main
+    // binary and the tiles of #518 come back; without this line the log would
+    // read exactly as if the fix had never shipped. Only a bundle can be missing
+    // one: a bare node binary, as under the unit suite, has nothing to look for.
+    if (process.platform === 'darwin' && execPath === process.execPath && /\.app\/Contents\/MacOS\//.test(process.execPath)) {
+        logError('shims', `no Helper bundle found beside ${process.execPath}; Node children run on the main binary and Gutenberg builds will show Dock tiles (#518)`);
+    }
     try {
         if (process.platform === 'win32') {
-            const content = `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"${process.execPath}" %*\r\n`;
+            const content = nodeShim({ execPath, compatPath: nodeCompatPath });
             fs.writeFileSync(path.join(nodeShimDir, 'node.cmd'), content);
             fs.writeFileSync(path.join(nodeShimDir, 'node.bat'), content);
             // Provide npm/npx shims that invoke npm's CLI through Electron's Node
@@ -180,8 +259,8 @@ function ensureNodeShimDir() {
                 const npxCliAbsPath = path.join(npmRootDir, 'bin', 'npx-cli.js');
                 npmCliPath = npmCliAbsPath;
                 npxCliPath = npxCliAbsPath;
-                const npmCmd = `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"${process.execPath}" "${npmCliAbsPath}" %*\r\n`;
-                const npxCmd = `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"${process.execPath}" "${npxCliAbsPath}" %*\r\n`;
+                const npmCmd = cliShim({ execPath, compatPath: nodeCompatPath, cliPath: npmCliAbsPath });
+                const npxCmd = cliShim({ execPath, compatPath: nodeCompatPath, cliPath: npxCliAbsPath });
                 fs.writeFileSync(path.join(nodeShimDir, 'npm.cmd'), npmCmd);
                 fs.writeFileSync(path.join(nodeShimDir, 'npm.bat'), npmCmd);
                 fs.writeFileSync(path.join(nodeShimDir, 'npx.cmd'), npxCmd);
@@ -196,10 +275,20 @@ function ensureNodeShimDir() {
                 fs.copyFileSync(path.join(__dirname, 'win-spawn-patch.js'), dest);
                 spawnPatchPath = dest;
             } catch {}
+            // The patch also hides console windows in every descendant Node
+            // (#497), through hide-child-windows.js required from beside it.
+            // Separate try: a missing copy costs the hiding, not the patch.
+            try {
+                fs.copyFileSync(path.join(__dirname, 'hide-child-windows.js'), path.join(nodeShimDir, 'hide-child-windows.js'));
+            } catch (e) {
+                // The preload cannot say so itself (its stdout is the build's), so
+                // this is the one line that explains black windows coming back.
+                logError('shims', `could not copy hide-child-windows.js next to the shims; console windows will show below the runners: ${String(e && e.message ? e.message : e)}`);
+            }
             // Intentionally do NOT create node.exe here, as Electron's exe depends on adjacent DLLs.
             // Using node.exe from a temp dir causes STATUS_DLL_NOT_FOUND (0xC0000135) when spawned by npm.
         } else {
-            const content = `#!/usr/bin/env bash\nELECTRON_RUN_AS_NODE=1 "${process.execPath}" "$@"\n`;
+            const content = nodeShim({ execPath, compatPath: nodeCompatPath });
             fs.writeFileSync(path.join(nodeShimDir, 'node'), content, { mode: 0o755 });
             // Provide npm/npx shims that invoke npm's CLI through Electron's Node
             try {
@@ -207,8 +296,8 @@ function ensureNodeShimDir() {
                 const npmRootDir = path.dirname(npmPkgJsonPath);
                 const npmCliAbsPath = path.join(npmRootDir, 'bin', 'npm-cli.js');
                 const npxCliAbsPath = path.join(npmRootDir, 'bin', 'npx-cli.js');
-                const npmSh = `#!/usr/bin/env bash\nELECTRON_RUN_AS_NODE=1 "${process.execPath}" "${npmCliAbsPath}" "$@"\n`;
-                const npxSh = `#!/usr/bin/env bash\nELECTRON_RUN_AS_NODE=1 "${process.execPath}" "${npxCliAbsPath}" "$@"\n`;
+                const npmSh = cliShim({ execPath, compatPath: nodeCompatPath, cliPath: npmCliAbsPath });
+                const npxSh = cliShim({ execPath, compatPath: nodeCompatPath, cliPath: npxCliAbsPath });
                 fs.writeFileSync(path.join(nodeShimDir, 'npm'), npmSh, { mode: 0o755 });
                 fs.writeFileSync(path.join(nodeShimDir, 'npx'), npxSh, { mode: 0o755 });
             } catch {}
@@ -228,13 +317,20 @@ function ensureNodeShimDir() {
 // server-runner.js needs); it is layered on top of the shared environment, never
 // in place of it.
 function spawnRunner(runnerPath, args, { cwd, extraEnv = {} }) {
-	return spawn(process.execPath, [runnerPath, ...args], {
+	// nodeExecPath(), not process.execPath: on macOS the runners are npm, and npm
+	// sets its own process title, which would register the main bundle with
+	// LaunchServices and put a Dock tile up (#518). `NODE` names the same binary
+	// the runner is, so nothing below it disagrees about where Node lives.
+	const execPath = nodeExecPath();
+	return spawn(execPath, [runnerPath, ...args], {
 		cwd,
 		env: buildChildEnv({
+			execPath,
 			shimDir: ensureNodeShimDir(),
 			spawnPatchPath,
 			npmCliPath,
 			npxCliPath,
+			nodeCompatPath,
 			extraEnv
 		}),
 		shell: false,
@@ -246,23 +342,48 @@ function spawnRunner(runnerPath, args, { cwd, extraEnv = {} }) {
 }
 
 function findAvailableDirName(rootDir, baseName) {
-	const sanitizedBase = baseName || 'wordpress-develop-trunk';
-	let candidate = sanitizedBase;
+	let candidate = baseName;
 	let counter = 2;
 	while (fs.existsSync(path.join(rootDir, candidate))) {
-		candidate = `${sanitizedBase}-${counter++}`;
+		candidate = `${baseName}-${counter++}`;
 	}
 	return candidate;
 }
 
 /** @type {Record<string, import('child_process').ChildProcess>} */
 const runningInstalls = {};
+// The Git child a site has running, keyed by its directory: the clone while
+// a site is created, the checkout while a ticket is switched or deleted.
+// Liveness only (setup-tracker.js has the boundary for the clone), so the quit
+// sweep can end a Git process the same way it ends an install; a checkout of
+// wordpress-develop left running after the app is gone would go on rewriting
+// the site with nobody to record where it stopped.
+const runningGit = new Map();
+
+/**
+ * An `onChild` for one site's Git call: registers the child for the quit
+ * sweep and forgets it when it closes, so the caller has nothing to clean up.
+ *
+ * @param {string} sitePath
+ * @return {Function}
+ */
+function trackGitChild(sitePath) {
+	return (child) => {
+		runningGit.set(sitePath, child);
+		child.once('close', () => {
+			if (runningGit.get(sitePath) === child) runningGit.delete(sitePath);
+		});
+	};
+}
 /** @type {Record<string, import('child_process').ChildProcess>} */
 const runningScripts = {};
 // Children the user explicitly stopped, so a failed run is not retried.
 const cancelledChildren = new WeakSet();
 /** @type {Record<string, string>} */
 const runIdByDirectory = {};
+// What each running script is, by run (#559): the quit reads which of them
+// are a site's build watch, to start those again at the next launch.
+const scriptByRunId = {};
 // The same directory index for installs. The renderer knows a script's runId
 // (`npm:run-script` returns it before the first log line) but never an
 // installId — `runNpmInstall` keeps that correlation id to itself in the
@@ -271,6 +392,8 @@ const runIdByDirectory = {};
 const installIdByDirectory = {};
 /** @type {Record<string, { child: import('child_process').ChildProcess, url?: string }>} */
 const playgroundServers = {};
+/** @type {Map<string, Set<import('child_process').ChildProcess>>} */
+const runningChildrenByDirectory = new Map();
 // The sites being created right now — liveness, not truth, which is why it is
 // here beside the other per-site maps and not in the store. See
 // setup-tracker.js: a directory exists minutes before its clone finishes, and
@@ -282,6 +405,44 @@ const wpDebugWatchers = {};
 const smtpServers = {};
 /** @type {{ child: import('child_process').ChildProcess, url?: string } | null} */
 let playgroundWebServer = null;
+
+function runningChildrenForSite(sitePath) {
+	return [...new Set([
+		...(runningChildrenByDirectory.get(sitePath) || []),
+		runningGit.get(sitePath),
+		playgroundServers[sitePath]?.child
+	].filter(Boolean))];
+}
+
+function trackDirectoryChild(directoryPath, child) {
+	let children = runningChildrenByDirectory.get(directoryPath);
+	if (!children) {
+		children = new Set();
+		runningChildrenByDirectory.set(directoryPath, children);
+	}
+	children.add(child);
+	child.once('close', () => untrackDirectoryChild(directoryPath, child));
+}
+
+function untrackDirectoryChild(directoryPath, child) {
+	const children = runningChildrenByDirectory.get(directoryPath);
+	if (!children || !child) return;
+	children.delete(child);
+	if (children.size === 0) runningChildrenByDirectory.delete(directoryPath);
+}
+
+async function stopSiteChildren(sitePath) {
+	const children = runningChildrenForSite(sitePath);
+	// Deletion is an explicit stop too. In particular, a cancelled install must
+	// not interpret its non-zero exit as an engine mismatch and restart itself.
+	for (const child of children) cancelledChildren.add(child);
+	const stopped = await Promise.all(children.map((child) => killChildTreeAndWait(child)));
+	if (stopped.some((result) => !result)) {
+		const error = new Error(`A running process for ${sitePath} did not stop within the timeout`);
+		error.code = 'ETIMEDOUT';
+		throw error;
+	}
+}
 
 function smtpStoreKey(sitePath) {
     return `siteMail:${sitePath}`;
@@ -403,38 +564,323 @@ async function stopSmtpServerForSite(sitePath) {
     delete smtpServers[sitePath];
 }
 
+// The window the app is *for*, as opposed to the short-lived patch and Trac
+// windows. A deep link has to reach this one and no other, and `getAllWindows()`
+// cannot tell them apart.
+let mainWindow = null;
+
+// How an address leaves the app for the contributor's browser, for the
+// renderer's `url:open` and for a link the main window refused to follow. Only
+// the schemes the app actually uses reach the OS — see external-url.js for why.
+// A refusal is logged rather than dropped so a future caller that trips the
+// guard shows up in the log file instead of just doing nothing.
+function openInBrowser(url) {
+	return openExternalUrl(url, {
+		openExternal: (target) => shell.openExternal(target),
+		onRefused: (description) => logEvent('url', `refused to open ${description} — only ${ALLOWED_URL_SCHEMES.join(', ')} are allowed`)
+	});
+}
+
 function createWindow() {
-    const mainWindow = new BrowserWindow({
-		width: 1000,
-		height: 700,
+	// A new page has not subscribed yet, so anything queued waits for its
+	// `deep-link:ready` rather than being sent into a page that is still loading.
+	deepLinkQueue.reset();
+	// Sized for the shell, and no larger than the primary screen (#555).
+	// `screen` is only usable once the app is ready, which is the only time
+	// this runs.
+    mainWindow = new BrowserWindow({
+		...mainWindowSize(screen.getPrimaryDisplay().workAreaSize),
         icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
+		// The colour of the theme the window is made in (#560), so that a dark
+		// window is not white for the moment before its page has painted.
+		backgroundColor: currentTheme().background,
+		show: !hideWindowsForTests,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,
-			nodeIntegration: false
+			nodeIntegration: false,
+			backgroundThrottling: !hideWindowsForTests
 		}
 	});
 
-	// Links belong in the contributor's browser, not in a window of this app
-	// (#284). Set before the page loads so the first click is covered too.
-	openLinksExternally(mainWindow.webContents, externalUrlDeps);
+	// A reload is a new page with no subscription, exactly like a new window, so
+	// a ticket waiting when one starts keeps waiting for the page that follows
+	// rather than being flushed into one that is still loading.
+	mainWindow.webContents.on('did-start-loading', () => deepLinkQueue.reset());
+
+	// This is the window with the preload bridge, so it stays on the app's own
+	// page and opens no other (window-navigation.js). Nothing awaits the events
+	// behind that: a browser that could not be opened is logged here or nowhere.
+	pinToOwnPage(mainWindow.webContents, {
+		openInBrowser: (url) => {
+			openInBrowser(url).catch((e) => logError('url', `could not open ${describeRefused(url)}: ${String(e && e.message ? e.message : e)}`));
+		}
+	});
 
 	mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
-function buildPatchHtml(content) {
-    return `<!doctype html><html><head><meta charset="utf-8"/><title>Patch</title>
-    <style>body{font-family:Menlo,monospace;padding:12px;} pre{white-space:pre-wrap;background:#111;color:#eee;padding:12px;border-radius:6px;height:85vh;overflow:auto} .bar{position:sticky;top:0;background:#fff;padding:8px 0} button{padding:6px 10px}</style>
-    </head><body>
-    <div class="bar"><button id="copy">Copy</button></div>
-    <pre id="pre"></pre>
-    <script>
-    const pre=document.getElementById('pre');
-    pre.textContent = ${JSON.stringify(content)};
-    document.getElementById('copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(pre.textContent); } catch {} });
-    </script>
-    </body></html>`;
+
+// The menu's "Settings…" (#559): the main window opens the dialog, and is
+// brought forward first, as it is for a deep link: the item can be pressed
+// with the window minimised or behind the Trac window. On macOS the menu is
+// there with no window, and the item then only opens one: the page it loads
+// has not subscribed yet, and a request sent into it would be lost. Pressed
+// again once the window is there, it opens the dialog.
+function openSettingsFromMenu() {
+	if (!mainWindow || mainWindow.isDestroyed?.()) {
+		createWindow();
+		return;
+	}
+	try {
+		if (mainWindow.isMinimized?.()) mainWindow.restore();
+		// A hidden e2e run stays hidden: focus() would activate the app.
+		if (!hideWindowsForTests) {
+			mainWindow.show();
+			mainWindow.focus();
+		}
+	} catch {}
+	mainWindow.webContents.send('settings:open');
 }
 
+// --- wpct:// deep links (#464) -------------------------------------------
+//
+// The ticket an address carried waits in `deepLinkQueue` (src/deep-link.cjs)
+// until the renderer says it has subscribed, over `deep-link:ready`. See that
+// module for why the wait exists and what it deliberately does not survive.
+const deepLinkQueue = createDeepLinkQueue();
+
+function flushDeepLink() {
+	// On macOS the window can be closed while the app lives on. The ticket keeps
+	// waiting for the one `showWindowForDeepLink` opens rather than being sent
+	// into a destroyed webContents and lost. Both objects are checked: a window
+	// can outlive its webContents.
+	if (!mainWindow || mainWindow.isDestroyed?.()) return;
+	const contents = mainWindow.webContents;
+	if (!contents || contents.isDestroyed?.()) return;
+	try {
+		// The queue forgets the ticket only once the send returns, so a window
+		// that goes away between the check above and the send keeps it.
+		const ticket = deepLinkQueue.deliver((id) => contents.send(DEEP_LINK_CHANNEL, { ticket: id }));
+		if (ticket !== null) logEvent('deep-link', `delivering ticket ${ticket}`);
+	} catch (e) {
+		logError('deep-link', `delivery failed, ticket kept: ${String(e && e.message ? e.message : e)}`);
+	}
+}
+
+// Brings the app forward for a ticket that has already been accepted.
+//
+// The window may not exist: on macOS closing it does not quit the app, and
+// `activate` — which is what usually brings one back — only fires for a dock or
+// Finder activation, and its own guard counts the patch and Trac windows as
+// windows. So this opens one rather than leaving a link to do nothing at all,
+// which would be the silent failure that reads as "the link is broken".
+//
+// Before `whenReady` there is nothing to open and nothing to log into: macOS
+// can deliver `open-url` that early, and the ready path creates the window and
+// flushes the queue a moment later.
+function showWindowForDeepLink() {
+	if (!app.isReady()) return;
+	if (!mainWindow || mainWindow.isDestroyed?.()) {
+		createWindow();
+		return;
+	}
+	try {
+		if (mainWindow.isMinimized?.()) mainWindow.restore();
+		// A hidden e2e run stays hidden: focus() would activate the app.
+		if (!hideWindowsForTests) {
+			mainWindow.show();
+			mainWindow.focus();
+		}
+	} catch {}
+}
+
+// The one entry point for every source of a `wpct://` address.
+//
+// Nothing happens until the address parses. Any page the contributor visits can
+// navigate to this scheme, so focusing first would hand every page a way to
+// pull the app in front of whatever they are doing, without ever passing the
+// parser. A refusal is logged and nothing else: the contributor did not type
+// this and has nothing to correct.
+function receiveDeepLink(url) {
+	return handleDeepLink(url, {
+		onTicket: (ticket) => {
+			deepLinkQueue.hold(ticket);
+			showWindowForDeepLink();
+			flushDeepLink();
+		},
+		onRefused: (message) => logEvent('deep-link', `refused ${message}`)
+	});
+}
+
+// The renderer is listening. Its own mount calls this, so it is also the moment
+// a ticket that arrived during startup can finally be delivered.
+ipcMain.handle('deep-link:ready', () => {
+	deepLinkQueue.markReady();
+	flushDeepLink();
+	return true;
+});
+
+// The language the window shows: the one chosen in the settings (#559), put
+// before the OS's languages and not in their place, so that a chosen language
+// whose catalog a release has since dropped falls back to the OS's and not
+// to English; or else the first of the OS's languages that has a catalog.
+// `app.getLocale()` is only the fallback, since it is Chromium's UI language,
+// folded into the 55 Chromium ships (Spanish (Mexico) arrives as es-419,
+// Galician as English) (#584). A `--lang` switch replaces the whole list,
+// read off the switch itself so `--lang=es-MX` is not folded either; it is
+// how the journeys pick a locale, the pseudo-locale included, and a flag
+// typed at launch is a decision.
+//
+// Resolved once: main applies it at startup for its own strings (the menu, the
+// native dialogs, the sentences it sends), and the window gets the same reply,
+// so the two cannot end up in different languages. That is also why a change
+// in the settings shows after a relaunch and not before. Read before there
+// is a window: a store that cannot be read is logged and counts as no
+// choice, since the window has to open to say so.
+const LANGUAGES_DIR = path.join(__dirname, 'languages');
+let localeReplyPromise = null;
+function localeReply() {
+	if (!localeReplyPromise) {
+		localeReplyPromise = (async () => {
+			const flag = app.commandLine.getSwitchValue('lang');
+			let chosen = null;
+			try {
+				chosen = readSettings((await getStore()).get('preferences')).locale;
+			} catch (e) {
+				logError('i18n', `the settings could not be read, so no language is chosen: ${String(e && e.message ? e.message : e)}`);
+			}
+			const requested = flag || chosen || '';
+			if (isPseudoLocale(requested)) return { locale: requested, data: null };
+			const system = [...app.getPreferredSystemLanguages(), app.getLocale()];
+			const locales = flag ? [flag] : [...(chosen ? [chosen] : []), ...system];
+			const found = await resolveCatalog(locales, LANGUAGES_DIR, (message) => logEvent('i18n', message));
+			return found ? { locale: found.locale, data: found.messages } : { locale: 'en', data: null };
+		})();
+	}
+	return localeReplyPromise;
+}
+
+// The theme (#560), given to Electron. `nativeTheme` is the one place the
+// scheme is decided: Chromium answers the page's `prefers-color-scheme` from
+// it, and paints the window's chrome and the native form controls to match,
+// so the page only has to follow what it is told, as it would the operating
+// system's. A custom theme is given as the scheme its background comes to.
+// Read from the store before the window is made, so the window is made in
+// it; a store that cannot be read leaves the system's theme, with a line in
+// the log, as it leaves the system's language.
+//
+// `themeSettings` is what the theme was last applied from, for the colour a
+// window is made with: the system's theme until the store is read.
+let themeSettings = { theme: 'system' };
+function applyTheme(settings) {
+	themeSettings = settings;
+	nativeTheme.themeSource = nativeThemeSource(settings);
+	paintWindowForTheme();
+}
+function currentTheme() {
+	return resolveTheme({ ...themeSettings, systemDark: nativeTheme.shouldUseDarkColors });
+}
+async function applyStoredTheme() {
+	try {
+		applyTheme(readSettings((await getStore()).get('preferences')));
+	} catch (e) {
+		logError('theme', `the settings could not be read, so the theme is the system's: ${String(e && e.message ? e.message : e)}`);
+		// A deep link can have opened the window while the store was read.
+		paintWindowForTheme();
+	}
+}
+
+// The colour the window was made with shows wherever the page has not
+// painted yet (a live resize, a reload), so it is given again whenever the
+// theme is: by the setting, through `applyTheme`, and by Electron's
+// `updated`, which is how the system's theme reaches it under 'system'.
+function paintWindowForTheme() {
+	if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(currentTheme().background);
+}
+
+// The languages the settings offer: what the build ships, read once.
+let languagesPromise = null;
+function languages() {
+	if (!languagesPromise) {
+		languagesPromise = fs.promises.readdir(LANGUAGES_DIR)
+			.catch((e) => {
+				logEvent('i18n', `no catalogs listed: ${e.message}`);
+				return [];
+			})
+			.then((names) => languageChoices(names));
+	}
+	return languagesPromise;
+}
+
+ipcMain.handle('i18n:languages', async () => ({ ok: true, languages: await languages() }));
+
+// The PHP versions the bundled Playground can run a site on (#559): what
+// its own module says, read once it is asked for. The module is the server
+// runner's and not otherwise main's, so it is loaded then and not at start.
+let phpVersionsList = null;
+function phpVersions() {
+	if (!phpVersionsList) {
+		// Not a declared dependency: it is @wp-playground/cli's, at whatever
+		// version that package pins, which is the one the runner serves with.
+		const { SupportedPHPVersions } = require('@php-wasm/universal');
+		phpVersionsList = [...SupportedPHPVersions];
+	}
+	return phpVersionsList;
+}
+
+ipcMain.handle('playground:php-versions', () => ({ ok: true, versions: phpVersions(), fallback: SETTINGS.phpVersion.fallback }));
+
+// What the settings dialog offers after the language is changed. `quit`, not
+// `exit`: the quit sweep ends every child the app started, as it does on any
+// quit, and the relaunch is a quit. The new instance gets this one's
+// arguments less two: a `wpct://` address a cold start was given, which is
+// not a second request for its ticket, and a `--lang` switch, which would
+// outrank the language just chosen.
+function relaunchArgs(argv) {
+	return argv.slice(1).filter((arg) => !pickDeepLinkArg([arg]) && !arg.startsWith('--lang='));
+}
+
+// On Linux the app is an AppImage, mounted while it runs at the path the
+// process was started from and gone once it quits: the new instance is
+// started from the image itself.
+ipcMain.handle('app:relaunch', () => {
+	app.relaunch({
+		args: relaunchArgs(process.argv),
+		...(process.env.APPIMAGE ? { execPath: process.env.APPIMAGE } : {})
+	});
+	app.quit();
+	return { ok: true };
+});
+
+ipcMain.handle('i18n:locale', () => localeReply());
+
+// Without the lock, a link clicked while the app is running starts a second copy
+// — which on Windows and Linux is the only way the address arrives at all, and
+// on every platform would mean two processes writing one electron-store.
+//
+// The lock is keyed on the user-data directory, so the e2e journeys, each on
+// its own throwaway profile, are not each other's second instance.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+	app.quit();
+} else {
+	// Windows and Linux, app already running: the address is in the second
+	// process's argv, next to Electron's own switches.
+	app.on('second-instance', (_event, argv) => {
+		const url = pickDeepLinkArg(argv);
+		// No address is someone launching the app again, which is a request for
+		// the window they already have rather than anything to parse.
+		if (url) receiveDeepLink(url);
+		else showWindowForDeepLink();
+	});
+
+	// macOS, every time: `open-url` can fire before `whenReady`, which is the
+	// whole reason the delivery above is queued rather than sent.
+	app.on('open-url', (event, url) => {
+		event.preventDefault();
+		receiveDeepLink(url);
+	});
+}
 // What this checkout has that its copy of trunk does not: one walk, read by
 // both destinations that need it.
 //
@@ -446,7 +892,6 @@ function buildPatchHtml(content) {
 // Returns the base commit alongside the files because the pull request needs it
 // as the commit's parent, and it is the same oid the diff was taken against.
 async function collectChangedFiles(dir, baseOid = null) {
-    const gitFs = await ensureAutocrlf(dir) || fs;
     // The diff base is the branch point of whatever ticket is being worked on
     // (#108) — the trunk snapshot this branch was created from, passed in by the
     // caller from the site's registry entry.
@@ -470,26 +915,40 @@ async function collectChangedFiles(dir, baseOid = null) {
         // No branch point on record: a site still on trunk, or one adopted from
         // disk. HEAD is the trunk snapshot there, which is what this always used
         // to diff against.
-        try { base = await git.resolveRef({ fs: gitFs, dir, ref: 'HEAD' }); } catch {}
+        try { base = await resolveRef(dir, 'HEAD'); } catch {}
         if (!base) {
-            try { base = await git.resolveRef({ fs: gitFs, dir, ref: 'refs/heads/trunk' }); } catch {}
+            try { base = await resolveRef(dir, 'refs/heads/trunk'); } catch {}
         }
+    }
+    if (!base) {
+        // Nothing to compare against: `.git` is gone, unreadable, or has no
+        // commit. An error, not "No changes": a patch panel that quietly shows
+        // nothing for a broken site is the failure nobody reports.
+        throw new Error(`${dir} is not a repository the app can read: no HEAD and no trunk to compare against.`);
     }
 
     // One scan, against the branch point. Untracked files need no staging to
-    // appear: statusMatrix already reports them as [path, 0, 2, 0] and the
+    // appear: the scan already reports them as [path, 0, 2, 0] and the
     // head !== workdir filter below keeps them. The `git.add` loop that used to
     // stand here staged every untracked file into the contributor's real index
     // and never unstaged it (#85) — with the branch point as the base it earns
     // nothing, so it is gone. (`staleStagedPaths` in trunk-update.js stays: it
     // still has to clean up residue left in indexes by earlier versions.)
-    const matrix = await git.statusMatrix({ fs: gitFs, dir, ref: base });
-    const changed = matrix.filter(([, head, workdir]) => head !== workdir);
+    const matrix = await changesAgainst(dir, base);
+    // A pre-fix WIP may already contain generated Gutenberg files. Exclude
+    // only additions absent from the contribution's base; tracked source in
+    // that base still participates in the diff.
+    const changed = matrix.filter(([filepath, head, workdir]) => head !== workdir && !(head === 0 && filepath.startsWith('gutenberg/')));
+    // Every base blob in one spawn, rather than one process per changed file.
+    // A failed batch reads as every base unreadable, which classifyChangedFile
+    // names above the diff rather than diffing: wider than the per-file catch
+    // this replaced, but on the safe side.
+    const inBase = changed.filter(([, head]) => head !== 0).map(([filepath]) => filepath);
+    const baseBlobs = await readBlobs(dir, base, inBase).catch(() => new Map());
     const files = [];
     for (const [filepath, head, workdir] of changed) {
         const abs = path.join(dir, filepath);
         const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
-        const baseBlob = head && base ? await git.readBlob({ fs: gitFs, dir, oid: base, filepath }).catch(() => null) : null;
         files.push({
             path: filepath,
             // The status codes, not the buffers, are what say whether a file is
@@ -499,7 +958,7 @@ async function collectChangedFiles(dir, baseOid = null) {
             // nobody removed (#85).
             inHead: head !== 0,
             inWorkdir: workdir !== 0,
-            base: baseBlob ? Buffer.from(baseBlob.blob) : null,
+            base: (head !== 0 && baseBlobs.get(filepath)) || null,
             work: workBuf
         });
     }
@@ -590,7 +1049,7 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
             gone && a.endsWith('\n')
         );
     }
-    return skippedNotice(binaries, unreadable) + (patch || 'No changes.');
+    return skippedNotice(binaries, unreadable) + patch;
 }
 
 /**
@@ -684,7 +1143,7 @@ async function collectPullRequestFiles(dir, baseOid = null) {
     // the commit the files were compared against, which under #108 is the
     // branch point — the same oid the pull request needs as its parent, so the
     // value is right even where the name has not caught up.
-    const entries = await buildPullRequestEntries(files, { git, fs, dir, headOid: base, platform: process.platform });
+    const entries = await buildPullRequestEntries(files, { treeEntryMode, fs, dir, headOid: base, platform: process.platform });
     return { baseOid: base, files: entries };
 }
 
@@ -693,19 +1152,6 @@ ipcMain.handle('git:get-patch', async (_e, sitePath) => {
         const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
         return { ok: true, patch };
     } catch (e) {
-        return { ok: false, error: String(e) };
-    }
-});
-
-ipcMain.handle('git:create-patch', async (_e, sitePath) => {
-    try {
-        const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
-        const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch)));
-        return { ok: true };
-    } catch (e) {
-        const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml('Failed to generate diff: ' + String(e))));
         return { ok: false, error: String(e) };
     }
 });
@@ -743,6 +1189,7 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
                 handle,
                 event,
                 ticketId: meta.tracTicket,
+                workItem: workItemFor(meta),
                 // The base the patch was actually diffed against, which on a
                 // ticket branch is the trunk it was born at — not the site's
                 // current trunk, which "Update to latest trunk" may have moved
@@ -756,11 +1203,11 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
         }
 
         const { filePath, canceled } = await dialog.showSaveDialog({
-            title: handoff ? 'Save Patch for Handoff' : 'Save Diff File',
+            title: handoff ? __('Save Patch for Handoff') : __('Save Diff File'),
             defaultPath: path.join(os.homedir(), name),
             filters: [
-                { name: 'Patch Files', extensions: ['patch', 'diff'] },
-                { name: 'All Files', extensions: ['*'] }
+                { name: __('Patch Files'), extensions: ['patch', 'diff'] },
+                { name: __('All Files'), extensions: ['*'] }
             ]
         });
 
@@ -876,7 +1323,7 @@ ipcMain.handle('github:sign-in', async (event) => {
 
 ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     if (!githubToken || !githubLogin) {
-        return { ok: false, reason: 'unauthorized', error: 'Sign in to GitHub first.', stage: 'auth' };
+        return { ok: false, reason: 'unauthorized', error: __('Sign in to GitHub first.'), stage: 'auth' };
     }
 
     // The ticket is read from this site's stored metadata rather than taken
@@ -885,9 +1332,14 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     // the one this site is linked to.
     const s = await getStore();
     const meta = (s.get('siteMeta') || {})[sitePath] || {};
+    // What the work item is called, and which repository the fork, the branch
+    // and the pull request go to, both follow the site's project type (#251):
+    // wordpress-develop and a Trac ticket for Core, WordPress/gutenberg and a
+    // GitHub issue for Gutenberg. A record with no type is Core.
+    const project = projectTypeForSite(meta);
     const ticketId = meta.tracTicket;
     if (!ticketId) {
-        return { ok: false, reason: 'no-ticket', error: 'Link a Trac ticket to this site first.', stage: 'auth' };
+        return { ok: false, reason: 'no-ticket', error: project.cards.prNeedsWorkItem, stage: 'auth' };
     }
     const ownershipRefusal = await appliedPatchSubmissionRefusal(sitePath);
     if (ownershipRefusal) return { ...ownershipRefusal, stage: 'ownership' };
@@ -900,9 +1352,10 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
         return { ok: false, reason: 'error', error: String(e), stage: 'collect' };
     }
 
+    const workItem = workItemFor(meta);
     const title = typeof options.title === 'string' && options.title.trim()
         ? options.title.trim()
-        : `Ticket #${ticketId}`;
+        : workItem.defaultPrTitle(ticketId);
 
     const result = await openPullRequest({
         token: githubToken,
@@ -911,7 +1364,14 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
         baseSha: collected.baseOid,
         files: collected.files,
         title,
-        body: buildPullRequestBody({ ticketId, handle, event: contributionEvent, notes: options.notes }),
+        project,
+        body: buildPullRequestBody({
+            ticketId,
+            handle,
+            event: contributionEvent,
+            notes: options.notes,
+            project: { bodyLine: project.pr.bodyLine, workItemUrl: workItem.urlFor(ticketId) }
+        }),
         onProgress: (stage) => {
             if (!event.sender.isDestroyed()) event.sender.send('github:pr:progress', { sitePath, stage });
         }
@@ -932,11 +1392,33 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
 // --- Trunk update path (#94) --- git mechanics live in src/trunk-update.js;
 // these handlers only add IPC plumbing and electron-store writes.
 
-async function mergeSiteMeta(sitePath, patch) {
+/**
+ * The one way a site's record is written: read, change, write, with no `await`
+ * between the read and the write.
+ *
+ * The store's `get` and `set` are synchronous, so the event loop is what
+ * serialises writers, and it only does so while nothing yields in between. A
+ * writer that reads the record, awaits anything, and then writes what it read
+ * saves a snapshot that another writer may have moved on from, and the other
+ * writer's change is gone (#172). The value that made that matter is a
+ * branch's recorded base, the one thing a branch cannot recompute. So every
+ * change is expressed against the record as it is at the moment of the write,
+ * and the read happens here, after the store has been awaited.
+ *
+ * @param {string}                     sitePath
+ * @param {(record: Object) => Object} change   Given the current record, returns the record to store.
+ * @return {Promise<Object>} The record as written.
+ */
+async function changeSiteMeta(sitePath, change) {
     const s = await getStore();
     const meta = s.get('siteMeta') || {};
-    meta[sitePath] = { ...(meta[sitePath] || {}), ...patch };
+    meta[sitePath] = change(meta[sitePath] || {});
     s.set('siteMeta', meta);
+    return meta[sitePath];
+}
+
+async function mergeSiteMeta(sitePath, patch) {
+    await changeSiteMeta(sitePath, (m) => ({ ...m, ...patch }));
 }
 
 // --- Ticket branches (#108) --- git mechanics live in src/ticket-branches.js;
@@ -950,6 +1432,32 @@ async function mergeSiteMeta(sitePath, patch) {
 async function readSiteMeta(sitePath) {
     const s = await getStore();
     return (s.get('siteMeta') || {})[sitePath] || {};
+}
+
+/**
+ * The work-item provider a site's meta selects (#251), with the repository its
+ * issues live in already bound. Every handler that parses what a contributor
+ * typed, or names the work item on screen, goes through this rather than
+ * reaching for the Trac parser: a record that predates project types resolves
+ * to Core, so the Trac path is unchanged.
+ *
+ * @param {Object} meta the site's stored meta
+ */
+function workItemFor(meta) {
+    const type = projectTypeForSite(meta);
+    const { owner, repo } = type.upstream;
+    return workItemProvider(type.workItem.provider, `${owner}/${repo}`);
+}
+
+/**
+ * The namespace this site's work-item branches are created under — `ticket/` on
+ * Core, `issue/` on Gutenberg. Reads accept both (ticket-branches.js), so this
+ * is only ever needed where a ref is being built.
+ *
+ * @param {Object} meta the site's stored meta
+ */
+function branchPrefixFor(meta) {
+    return projectTypeForSite(meta).workItem.branchPrefix;
 }
 
 /**
@@ -972,13 +1480,12 @@ async function migrateSiteToBranches(sitePath) {
     // Nothing was being worked on, so there is no work to put on a branch. The
     // empty map is recorded so this does not re-run, and it costs no git I/O.
     if (!m.tracTicket) {
-        const migrated = { branches: {}, currentBranch: TRUNK };
-        await mergeSiteMeta(sitePath, migrated);
-        return { ...m, ...migrated };
+        return changeSiteMeta(sitePath, (now) => (now.branches ? now : { ...now, branches: {}, currentBranch: TRUNK }));
     }
 
     try {
-        const ref = ticketBranchRef(m.tracTicket);
+        const prefix = branchPrefixFor(m);
+        const ref = ticketBranchRef(m.tracTicket, prefix);
         const existing = await listTicketBranches(sitePath);
         // A branch that already exists was not created by this app, so its fork
         // point is not on record and cannot be recovered on a depth-1 clone.
@@ -987,7 +1494,7 @@ async function migrateSiteToBranches(sitePath) {
         // point (#308).
         const baseOid = existing.includes(ref)
             ? null
-            : (await startTicketBranch(sitePath, m.tracTicket)).baseOid;
+            : (await startTicketBranch(sitePath, m.tracTicket, { prefix })).baseOid;
         const migrated = {
             branches: {
                 [ref]: {
@@ -1000,9 +1507,27 @@ async function migrateSiteToBranches(sitePath) {
             },
             currentBranch: ref
         };
-        await mergeSiteMeta(sitePath, migrated);
-        return { ...m, ...migrated };
+        // The git work above sits between this function's read and its write,
+        // so a migration that finished in the meantime wins: its map is the one
+        // with the branch point the checkout it made is on (#172).
+        return changeSiteMeta(sitePath, (now) => (now.branches ? now : { ...now, ...migrated }));
     } catch (e) {
+        // Losing the race is not failing. The winner created the branch, so
+        // `startTicketBranch` threw `branch-exists` here rather than falling
+        // through to the guard above, and the record on disk is already the
+        // migrated one. Handing back the read from the top of this function
+        // would tell every caller the site has no branches at all, and
+        // `branches:rebase` would refuse a ticket whose base is on record as
+        // having none.
+        const current = await readSiteMeta(sitePath);
+        if (current.branches) {
+            // Logged even though it is benign: what this branch tests is the
+            // record, not the error, so a genuine failure that happens to
+            // coincide with another flow finishing the migration would
+            // otherwise leave nothing anywhere.
+            logEvent('branches', `migration of ${describeRefused(sitePath)} was finished by another flow first — ${String(e && e.message ? e.message : e)}`);
+            return current;
+        }
         // A site that cannot be branched right now — directory on a volume that
         // is not mounted, a clone that never finished — keeps working exactly as
         // it did before. Nothing is persisted, so the next attempt retries:
@@ -1039,20 +1564,105 @@ async function activeBranch(sitePath, { migrate = false } = {}) {
  * A switch whose checkout died part-way leaves HEAD on the branch it was
  * leaving, over a worktree that is half the other branch's. Parking in that
  * state would commit the mixture over the good WIP commit, so every operation
- * that parks refuses until it is reconciled.
+ * that parks refuses until it is reconciled. Two things reconcile it, both a
+ * forced checkout with no park (`resumeSwitch`): retrying the same switch,
+ * and Unlink, which finishes on trunk whatever the marker names.
  *
  * @param {string} sitePath
+ * @param {Object} [options]
+ * @param {string} [options.retryTo] The destination being asked for.
  */
-async function midSwitchBlock(sitePath) {
+async function midSwitchBlock(sitePath, { retryTo = null } = {}) {
     const { switchInProgress } = await readSiteMeta(sitePath);
     if (!switchInProgress) return null;
+    // The retry the sentence below asks for: the same destination again,
+    // which `resumeSwitch` finishes without parking. Any other destination
+    // would park first, and parking is what the marker forbids.
+    if (retryTo && switchInProgress.to === retryTo) return null;
+    const { from, to } = switchInProgress;
     return {
         ok: false,
         code: 'switch-incomplete',
         switchInProgress,
-        error: `A previous switch from ${switchInProgress.from} to ${switchInProgress.to} did not finish. `
-            + `Retry it before making other changes — your work on ${switchInProgress.from} is still committed on that branch.`
+        // Same branch on both ends: a move onto the current trunk whose file
+        // swap did not finish. The card offers no retry for the ticket in
+        // hand, so the sentence names the exit that exists.
+        error: from === to
+            ? `Moving your work on ${to} onto the current trunk did not finish its file swap. `
+                + 'Unlink the ticket and continue it to finish; your work is committed on its branch.'
+            : `A previous switch from ${from} to ${to} did not finish. `
+                + `Retry it before making other changes — your work on ${from} is still committed on that branch.`
     };
+}
+
+/**
+ * A site the old engine made is read but never written (#385): the binary and
+ * isomorphic-git disagree on what a shallow checkout may do, and the decision
+ * was a new site rather than a migration. Same shape as `midSwitchBlock`, so
+ * the handlers and the renderer treat both refusals alike. Delete, the patch
+ * export and opening a pull request are deliberately not behind it: they are
+ * how the work leaves, and none of them touches the checkout. One write
+ * outside the checkout still reaches such a site on purpose: `site:status`
+ * keeps `.git/info/exclude` current.
+ *
+ * The export covers the branch that is checked out. Work parked on another
+ * ticket's branch needs a switch to reach, and the switch is refused, so it
+ * stays where it is; the docs say so.
+ *
+ * @param {string} sitePath
+ */
+const NO_ORIGIN_ERROR = 'This site has no origin remote to fetch from, so it cannot be updated. Add one from a terminal (git remote add origin <url>) or create a new site.';
+
+/**
+ * The update fetches from the checkout's own `origin` (#359), which every
+ * site the app clones has and a site added from disk may not. Told before
+ * the fetch, with the app's sentence, rather than by Git's stderr after the
+ * ticket was parked. Same shape as the other two blocks.
+ *
+ * @param {string} sitePath
+ */
+async function noOriginBlock(sitePath) {
+    let url = null;
+    // A read that fails is not an answer: the fetch that follows reports its
+    // own reason, the way a status read that fails reports `legacy: false`.
+    try { url = await remoteUrl(sitePath, 'origin'); } catch { return null; }
+    if (url) return null;
+    return { ok: false, code: 'no-origin', error: NO_ORIGIN_ERROR };
+}
+
+async function legacySiteBlock(sitePath) {
+    if (!await isLegacySite(sitePath)) return null;
+    return { ok: false, code: 'legacy-site', error: legacySiteError() };
+}
+
+/**
+ * A merge, rebase, cherry-pick, revert or three-way apply started outside
+ * the app and not finished (#352). Every write here ends in a forced
+ * checkout, and a forced checkout drops the unmerged entries, the head file
+ * and the markers without a word; parking would commit the half-resolved
+ * tree as the ticket's work. So the writes that touch the checkout refuse
+ * until a terminal finishes or abandons it: the same shape as
+ * `legacySiteBlock`, the sentence naming the files and both ways out. Read
+ * from the repository on every call, never remembered. A read that fails
+ * refuses too, unlike `noOriginBlock`: there the fetch that follows fails
+ * on its own, here the checkout that follows would succeed and erase what
+ * the read could not see (a mentor's Git holding `index.lock` is the
+ * likely reason it could not). Reads, the patch export, opening a pull
+ * request, deleting the site and deleting a ticket that is not checked out
+ * stay open.
+ *
+ * @param {string} sitePath
+ */
+async function mergeInProgressBlock(sitePath) {
+    let state = null;
+    try {
+        state = await mergeInProgress(sitePath);
+    } catch (e) {
+        logError('git', `could not read the merge state of ${describeRefused(sitePath)}: ${String(e && e.stack ? e.stack : e)}`);
+        return { ok: false, code: 'merge-check-failed', error: mergeCheckFailedError(e) };
+    }
+    if (!state) return null;
+    return { ok: false, code: 'merge-in-progress', kind: state.kind, paths: state.paths, error: mergeInProgressError(state) };
 }
 
 /**
@@ -1174,30 +1784,158 @@ async function readWorkMeta(sitePath) {
  * @return {Promise<?{ok: false, reason: string, error: string}>}
  */
 async function appliedPatchSubmissionRefusal(sitePath) {
-    const appliedPatch = (await readWorkMeta(sitePath)).appliedPatch;
+    const { ref, meta, site } = await activeBranch(sitePath);
+    const number = prNumberFromRef(ref);
+    if (number !== null) return { ok: false, reason: 'pr-checkout', error: prSubmissionRefusal(number) };
+    const appliedPatch = (ref === TRUNK || !meta ? site : meta).appliedPatch;
     if (!appliedPatch) return null;
 
-    const label = typeof appliedPatch.label === 'string' && appliedPatch.label.trim()
-        ? appliedPatch.label.trim()
-        : 'The patch you applied';
+    const label = typeof appliedPatch.label === 'string' ? appliedPatch.label.trim() : '';
     return {
         ok: false,
         reason: 'applied-patch',
-        error: `${label} is applied. Revert it before submitting this checkout as your own work.`
+        error: label
+            ? sprintf(
+                // translators: %s: the name of the patch or pull request, such as 60001.diff or PR #6717.
+                __('%s is applied. Revert it before submitting this checkout as your own work.'),
+                label
+            )
+            : __('The patch you applied is applied. Revert it before submitting this checkout as your own work.')
     };
 }
 
-async function writeWorkMeta(sitePath, patch) {
-    const { ref, meta } = await activeBranch(sitePath);
-    if (ref === TRUNK || !meta) return mergeSiteMeta(sitePath, patch);
-    return mergeBranchMeta(sitePath, ref, patch);
+/**
+ * A work-meta change computed from the work meta itself, applied at the moment
+ * of the write instead of from a read taken before it.
+ *
+ * Which scope the write lands in is the one part that cannot be answered
+ * without yielding, so it is answered first; everything after it is a single
+ * read-change-write. The alternative, reading the work meta and deciding from
+ * that read, is the shape that loses whatever another flow wrote in between
+ * (#172).
+ *
+ * Against a named branch, like `writeWorkMetaOn` and for the same reason: the
+ * caller that needs this has the ref in hand and has already refused if it is
+ * trunk, so re-deriving it from HEAD would spend a Git spawn to ask a question
+ * that is already answered and could answer it differently.
+ *
+ * @param {string}                    sitePath
+ * @param {string}                    ref
+ * @param {(work: Object) => ?Object} change   Given the current work meta, the patch to merge, or null to write nothing.
+ */
+async function changeWorkMetaOn(sitePath, ref, change) {
+    const scope = await workMetaScope(sitePath, ref);
+    await changeSiteMeta(sitePath, (m) => {
+        if (!scope) {
+            const patch = change(m);
+            return patch ? { ...m, ...patch } : m;
+        }
+        const branches = m.branches || {};
+        // The scope was resolved before the store was awaited, so the entry it
+        // named can have been deleted since. Re-creating it here would leave a
+        // branch record holding this one field and no branch point.
+        if (!branches[scope]) return m;
+        const patch = change(branches[scope]);
+        if (!patch) return m;
+        return { ...m, branches: { ...branches, [scope]: { ...branches[scope], ...patch } } };
+    });
 }
 
-async function mergeBranchMeta(sitePath, ref, patch) {
+/**
+ * Moves the applied-patch record onto the branch a carry just took the files
+ * to (#236).
+ *
+ * A carry is `branch` plus `checkout`: HEAD moves and the worktree is left
+ * alone, so the edits ride along. The record describing them did not, and the
+ * two ended in different places — the changes on the ticket, the claim about
+ * them on trunk. Returning to trunk then met a panel naming a patch, counting
+ * its files and offering to revert it over a clean tree, and the revert failed
+ * blaming a trunk update that never happened.
+ *
+ * One `changeSiteMeta`, because the clear and the write have to be indivisible:
+ * split in two, a concurrent write leaves the record in both places or in
+ * neither, and neither is the worse of the two — it takes the patch text with
+ * it, which is what Revert reverses with.
+ *
+ * Called after the branch's own meta is written, so the entry exists with its
+ * branch point rather than being created here holding this one field (#172).
+ *
+ * @param {string} sitePath
+ * @param {string} ref      The branch the work was carried onto.
+ */
+async function carryAppliedPatch(sitePath, ref) {
+    await changeSiteMeta(sitePath, (m) => {
+        const carried = m.appliedPatch;
+        if (!carried) return m;
+        const branches = { ...(m.branches || {}) };
+        // No entry means nowhere per-branch for it to live, and the reader
+        // would look at the site for it anyway (workMetaScope). Leaving it on
+        // trunk is wrong but visible; moving it somewhere unread is not.
+        if (!branches[ref]) return m;
+        // A patch applied while this link was still running belongs to the
+        // branch and is newer. Overwriting it with trunk's would drop the text
+        // Revert reverses with, leaving a patch on disk the app cannot undo —
+        // the same loss this function exists to prevent, in the other
+        // direction. Trunk's record is left where it is, visibly wrong, rather
+        // than taking a newer one down with it.
+        if (branches[ref].appliedPatch) return m;
+        branches[ref] = { ...branches[ref], appliedPatch: carried };
+        return { ...m, appliedPatch: null, branches };
+    });
+}
+
+async function writeWorkMeta(sitePath, patch) {
+    const { ref } = await activeBranch(sitePath);
+    return writeWorkMetaOn(sitePath, ref, patch);
+}
+
+/**
+ * The same write, against a branch named rather than read from HEAD.
+ *
+ * Every caller but one wants the branch that is checked out. The trunk update
+ * is the exception: it parks the ticket before it writes, so by then HEAD says
+ * trunk while the work the flag describes is on the branch it is about to
+ * return to (#419).
+ *
+ * @param {string} sitePath
+ * @param {string} ref
+ * @param {Object} patch
+ */
+async function writeWorkMetaOn(sitePath, ref, patch) {
+    const scope = await workMetaScope(sitePath, ref);
+    return scope ? mergeBranchMeta(sitePath, scope, patch) : mergeSiteMeta(sitePath, patch);
+}
+
+/**
+ * Which scope a work-meta write for `ref` lands in, branch or site, without
+ * writing — the same rule `readWorkMeta` reads by, so a caller that needs to
+ * know where the value it just wrote can be found does not have to guess.
+ *
+ * A ref with no entry of its own has nowhere per-branch to go: a site that
+ * predates #108, one whose migration could not run, a branch the contributor's
+ * own Git client checked out. The site is where the value lives for those, and
+ * where the reader will look for it.
+ *
+ * @param {string} sitePath
+ * @param {string} ref
+ * @return {Promise<?string>} The branch, or null for the site.
+ */
+async function workMetaScope(sitePath, ref) {
+    if (ref === TRUNK) return null;
     const m = await readSiteMeta(sitePath);
-    const branches = { ...(m.branches || {}) };
-    branches[ref] = { ...(branches[ref] || {}), ...patch };
-    await mergeSiteMeta(sitePath, { branches });
+    return (m.branches || {})[ref] ? ref : null;
+}
+
+// The `branches` map is replaced whole, so it is computed from the record at
+// the moment of the write, not from a read made a step earlier: the step in
+// between is exactly where a branch another flow had just started went missing
+// (#172).
+async function mergeBranchMeta(sitePath, ref, patch) {
+    await changeSiteMeta(sitePath, (m) => {
+        const branches = { ...(m.branches || {}) };
+        branches[ref] = { ...(branches[ref] || {}), ...patch };
+        return { ...m, branches };
+    });
 }
 
 /**
@@ -1241,8 +1979,8 @@ async function baseProvenance(dir, baseOid, meta) {
         return { trunkOid: meta.trunkOid, trunkDate: meta.trunkDate };
     }
     try {
-        const { commit } = await git.readCommit({ fs, dir, oid: baseOid });
-        return { trunkOid: baseOid, trunkDate: new Date(commit.committer.timestamp * 1000).toISOString() };
+        const { date } = await readCommitInfo(dir, baseOid);
+        return { trunkOid: baseOid, trunkDate: date };
     } catch {
         return { trunkOid: baseOid, trunkDate: null };
     }
@@ -1312,11 +2050,13 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
 // work it just promised to throw away.
 ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
     try {
+        const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
+        if (blocked) return blocked;
         const baseOid = await patchBaseOid(sitePath);
         if (baseOid) {
-            await discardToBase(sitePath, baseOid);
+            await discardToBase(sitePath, baseOid, { onChild: trackGitChild(sitePath) });
         } else {
-            await discardChanges(sitePath);
+            await discardChanges(sitePath, { onChild: trackGitChild(sitePath) });
         }
         await writeWorkMeta(sitePath, { appliedPatch: null });
         let files = null;
@@ -1331,7 +2071,9 @@ ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
 
 ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
     try {
-        await discardChanges(sitePath);
+        const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
+        if (blocked) return blocked;
+        await discardChanges(sitePath, { onChild: trackGitChild(sitePath) });
         // Clearing the applied-patch record belongs with the reset that removed
         // the patch from the tree — not with the trunk update that may follow and
         // fail on the network, which would leave a revert banner for a patch that
@@ -1373,7 +2115,9 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
         try {
             // The update rewrites `trunk` and checks it out, so it has to run
             // from trunk (#108). Park the ticket first, and return to it after.
-            const blocked = await midSwitchBlock(sitePath);
+            // The merge gate walks the worktree, the other two read a config value
+            // and the store; cheap first, and the walk still precedes the park.
+            const blocked = await legacySiteBlock(sitePath) || await midSwitchBlock(sitePath) || await noOriginBlock(sitePath) || await mergeInProgressBlock(sitePath);
             if (blocked) { sendLog(`\n${blocked.error}\n`); sendDone(blocked); return; }
 
             const active = await activeBranch(sitePath, { migrate: true });
@@ -1381,7 +2125,8 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             branchBefore = active.ref;
             ticketBefore = branchBefore === TRUNK ? null : ticketIdFromRef(branchBefore);
             if (branchBefore !== TRUNK) {
-                sendLog(`Parking your work on ${branchBefore} before updating…\n`);
+                // translators: %s: the branch the contributor's work is on, such as ticket/59234.
+                sendLog(`${sprintf(__('Parking your work on %s before updating…'), branchBefore)}\n`);
                 // The same progress the ticket panel shows (#173), but into the
                 // terminal this flow already streams to rather than onto the
                 // switch channel: one operation with two progress surfaces is
@@ -1390,6 +2135,7 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 const parkLog = updateSwitchLogger(sendLog);
                 try {
                     await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, {
+                        onChild: trackGitChild(sitePath),
                         baseOid: branchMetaBefore && branchMetaBefore.baseOid,
                         onProgress: parkLog.emit
                     }));
@@ -1401,7 +2147,7 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 await mergeSiteMeta(sitePath, { currentBranch: TRUNK });
             }
 
-            const result = await updateToLatestTrunk({ dir: sitePath, url: WORDPRESS_GIT_URL, onLog: sendLog });
+            const result = await updateToLatestTrunk({ dir: sitePath, onLog: sendLog, onChild: trackGitChild(sitePath) });
             // An update resets the worktree, so any applied patch is gone with
             // it either way — clear the record so the "applied" banner does not
             // outlive the patch. (This is also where a discard's cleanup lands:
@@ -1413,10 +2159,47 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // HEAD has moved but install/build have not run yet: persist the
             // incomplete flag now so the state survives a crash or quit
             // mid-chain; the renderer clears it after a successful build.
-            await writeWorkMeta(sitePath, {
-                appliedPatch: null,
-                ...(result.upToDate ? {} : { updateIncomplete: true })
-            });
+            //
+            // On `branchBefore` rather than on HEAD, which the park has already
+            // moved to trunk: the build the renderer runs next ends after the
+            // return below, so it clears the flag on the ticket branch. Writing
+            // it where HEAD is now put it at site level, where nothing cleared
+            // it and it surfaced as a false "Update incomplete" banner the next
+            // time the contributor was on trunk (#419).
+            //
+            // Asked before the writes because both of the site-level ones below
+            // depend on it: a returning branch with no entry of its own reads
+            // and writes its work meta at site level, so for that one the site
+            // record is the branch's, not trunk's, and neither correction there
+            // is safe.
+            const workScope = await workMetaScope(sitePath, branchBefore);
+            if (!result.upToDate) {
+                await writeWorkMetaOn(sitePath, branchBefore, { updateIncomplete: true });
+            }
+
+            if (branchBefore === TRUNK || workScope) {
+                // Two corrections to trunk's own record, for two reasons.
+                //
+                // The patch: unlike the flag, it belongs to the tree the update
+                // reset, and that tree is trunk's. A ticket's patch went into
+                // its WIP commit when the park committed the worktree and comes
+                // back with the return checkout below, so the branch's record
+                // must survive — `branches:rebase` keeps it for the same
+                // reason, and #328 reads it to refuse publishing another
+                // author's hunks as your own.
+                //
+                // The flag: clear the copy earlier versions left here, so a
+                // site that already carries the false banner is not stuck with
+                // it. Only once the live flag is somewhere else, though: an
+                // up-to-date run wrote none, and what is here may be the
+                // failure path's own, which is real. One boolean per scope
+                // cannot tell that copy from a stale one, so this stays a
+                // one-time correction rather than growing a second field.
+                await mergeSiteMeta(sitePath, {
+                    appliedPatch: null,
+                    ...(workScope && !result.upToDate ? { updateIncomplete: false } : {})
+                });
+            }
 
             // Put the contributor back where they were. Without this the site
             // sits on trunk while the panel still names the ticket, every patch
@@ -1425,17 +2208,18 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             //
             // The branch keeps its original branch point, so its patch stays
             // correct against the trunk it was written on. Bringing it forward
-            // onto the new trunk is the replay flow, which is its own issue —
-            // the app never silently rebases anyone.
-            if (ticketBefore !== null) {
-                sendLog(`\nReturning to your work on ${branchBefore}…\n`);
+            // onto the new trunk is `branches:rebase`, offered by the ticket
+            // card's notice — the app never silently rebases anyone.
+            if (branchBefore !== TRUNK) {
+                // translators: %s: the branch the contributor's work is on, such as ticket/59234.
+                sendLog(`\n${sprintf(__('Returning to your work on %s…'), branchBefore)}\n`);
                 const returnLog = updateSwitchLogger(sendLog);
                 try {
-                    await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchBefore, { onProgress: returnLog.emit }));
+                    await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchBefore, { onProgress: returnLog.emit, onChild: trackGitChild(sitePath) }));
                 } finally {
                     returnLog.flush();
                 }
-                await mergeSiteMeta(sitePath, { currentBranch: branchBefore, tracTicket: ticketBefore });
+                await mergeSiteMeta(sitePath, { currentBranch: branchBefore, ...(ticketBefore !== null ? { tracTicket: ticketBefore } : {}) });
             }
             sendDone({ ok: true, ...result, branch: branchBefore });
         } catch (e) {
@@ -1455,14 +2239,30 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             if (stage === 'checkout') {
                 const patch = { updateIncomplete: true };
                 if (e && e.worktreeReset) patch.appliedPatch = null;
-                // Through writeWorkMeta, not mergeSiteMeta: both of these are
-                // per-branch under #108, and the site is on trunk here only
-                // because the park succeeded — a failure before it leaves the
-                // ticket checked out, where the site-level record is the wrong
-                // place for either.
+                // Through writeWorkMeta, which reads HEAD — and here that is the
+                // right question, unlike in the success path above (#419),
+                // because both failures that reach this line end where HEAD
+                // already is. The update's own checkout failed on trunk, and
+                // the recovery below leaves the contributor there, unlinked.
+                // A park whose checkout died arrives here too — `switchToBranch`
+                // tags that `stage: 'checkout'` as well — with HEAD still on the
+                // ticket, because Git moves it only once every file operation
+                // has succeeded; that flag belongs to the ticket, and HEAD says
+                // so. Neither is a case of writing where nobody will read.
                 try { await writeWorkMeta(sitePath, patch); } catch {}
             }
-            sendLog(`\nUpdate failed during ${stage}: ${String(e && e.message ? e.message : e)}\n`);
+            // One sentence per stage, which is a code: the fetch, or the
+            // checkout that follows it.
+            const why = String(e && e.message ? e.message : e);
+            let failed;
+            if (stage === 'checkout') {
+                // translators: %s: the error the checkout failed with.
+                failed = sprintf(__('Update failed during checkout: %s'), why);
+            } else {
+                // translators: %s: the error the fetch failed with.
+                failed = sprintf(__('Update failed during fetch: %s'), why);
+            }
+            sendLog(`\n${failed}\n`);
             // The ticket was parked and the site left on trunk before this went
             // wrong. Saying so is the whole difference between "my work is gone"
             // and "my work is over there": the registry must not keep naming a
@@ -1470,24 +2270,198 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // comes out empty under a panel that still says #59234.
             try {
                 const { ref: nowOn } = await activeBranch(sitePath);
-                if (nowOn === TRUNK && ticketBefore !== null) {
+                if (nowOn === TRUNK && branchBefore !== TRUNK) {
                     await mergeSiteMeta(sitePath, { currentBranch: TRUNK, tracTicket: null });
-                    sendLog(`Your work on #${ticketBefore} is safe — it is committed on ${branchBefore}. `
-                        + 'Link that ticket again to return to it.\n');
+                    let safe;
+                    if (ticketBefore !== null) {
+                        // translators: 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
+                        safe = sprintf(__('Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.'), ticketBefore, branchBefore);
+                    } else {
+                        // translators: %s: the branch the work is committed on, such as pr/7701.
+                        safe = sprintf(__('Your work is safe — it is committed on %s. Apply that pull request again to return to it.'), branchBefore);
+                    }
+                    sendLog(`${safe}\n`);
                 }
             } catch {}
-            sendDone({ ok: false, upToDate: false, error: String(e), stage, parkedOn: ticketBefore === null ? null : branchBefore });
+            sendDone({ ok: false, upToDate: false, error: String(e), stage, parkedOn: branchBefore === TRUNK ? null : branchBefore });
         }
     })();
 
     return { updateId };
 });
 
+// PRs retain their author's history. Only these handlers add the store record;
+// the Git module owns the fetch and switch, including partial-checkout errors.
+function pullRequestNumber(value) {
+    if (!['number', 'string'].includes(typeof value) || !/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) <= 0) {
+        throw Object.assign(new Error('Enter a positive whole pull request number.'), { code: 'bad-pr-number' });
+    }
+    return Number(value);
+}
+
+async function fetchPrHead(sitePath, number, onStderr = null) {
+    try {
+        return await fetchPullRequestHead(sitePath, number, { onStderr, onChild: trackGitChild(sitePath) });
+    } catch (e) {
+        throw Object.assign(new Error(`Could not fetch pull request #${number}: ${e.message}. Check the connection and try again; your checkout was not changed.`), { code: 'fetch-failed' });
+    }
+}
+
+async function prNeedsInstall(sitePath, target) {
+    const [before, after] = await Promise.all([
+        blobOid(sitePath, 'HEAD', 'package-lock.json'),
+        blobOid(sitePath, target, 'package-lock.json')
+    ]);
+    return lockfileChangedFromBlobOids(before, after);
+}
+
+async function recordPrHead(sitePath, ref, number, headOid, returnTo) {
+    await changeSiteMeta(sitePath, (m) => {
+        const branches = { ...(m.branches || {}) };
+        const previous = branches[ref] || {};
+        branches[ref] = {
+            ...previous, pullRequest: number, headOid, baseOid: headOid,
+            returnTo: previous.returnTo || returnTo, lastUsedAt: new Date().toISOString()
+        };
+        return { ...m, branches };
+    });
+}
+
+ipcMain.handle('git:preview-pr', async (_event, sitePath, value) => withRegisteredSite(sitePath, async () => {
+    const blocked = await legacySiteBlock(sitePath) || await midSwitchBlock(sitePath) || await noOriginBlock(sitePath);
+    if (blocked) return blocked;
+    const number = pullRequestNumber(value);
+    const { oid: headOid } = await fetchPrHead(sitePath, number);
+    const active = await activeBranch(sitePath);
+    const recorded = (active.site.branches || {})[prBranchRef(number)] || {};
+    const description = await describePullRequestHead(sitePath, headOid);
+    const state = await pullRequestBranchState(sitePath, number, { headOid, recordedHeadOid: recorded.headOid });
+    return { ok: true, number, headOid, ...description, ...state, returnTo: recorded.returnTo || active.ref };
+}));
+
+// The same invoke/log/done contract as update-trunk. All refusals, including an
+// unregistered site, finish the stream; a contributor must never wait forever.
+function streamPrOperation(event, sitePath, channel, idKey, run) {
+    const id = crypto.randomUUID();
+    const sendLog = (data) => {
+        try { event.sender.send(`${channel}:log`, { [idKey]: id, data }); } catch {}
+    };
+    const progress = updateSwitchLogger(sendLog);
+    (async () => {
+        let result;
+        try {
+            result = await withRegisteredSite(sitePath, () => run({ sendLog, onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
+        } catch (e) {
+            logError(channel, String(e && e.stack || e));
+            result = { ok: false, code: e.code, error: String(e.message || e) };
+        } finally {
+            progress.flush();
+        }
+        if (!result.ok) {
+            result.error = prCheckoutRefusal(result);
+            sendLog(`\n${result.error}\n`);
+        }
+        try { event.sender.send(`${channel}:done`, { [idKey]: id, ...result }); } catch {}
+    })();
+    return { [idKey]: id };
+}
+
+ipcMain.handle('git:checkout-pr', (event, sitePath, value) => streamPrOperation(event, sitePath, 'git:checkout-pr', 'checkoutId', async ({ sendLog, onProgress, onChild }) => {
+    const number = pullRequestNumber(value);
+    const ref = prBranchRef(number);
+    const blocked = await legacySiteBlock(sitePath) || await midSwitchBlock(sitePath, { retryTo: ref }) || await noOriginBlock(sitePath) || await mergeInProgressBlock(sitePath);
+    if (blocked) return { ...blocked, number };
+    const active = await activeBranch(sitePath, { migrate: true });
+    const recorded = (active.site.branches || {})[ref] || {};
+    // A retry finishes the exact ref that was interrupted; fetching and moving
+    // it first would replace the destination the marker promised to restore.
+    const resume = active.site.switchInProgress;
+    const returnTo = recorded.returnTo || (prNumberFromRef(active.ref) !== null ? active.meta?.returnTo || TRUNK : active.ref);
+    let headOid = recorded.headOid;
+    try {
+        if (!resume) ({ oid: headOid } = await fetchPrHead(sitePath, number, sendLog));
+        if (!headOid) return { ok: false, number, code: 'no-pr-head' };
+        const branchState = !resume && recorded.headOid
+            ? await pullRequestBranchState(sitePath, number, { headOid, recordedHeadOid: recorded.headOid })
+            : null;
+        // When GitHub moved but this site has work on the earlier head, the
+        // safe meaning of "return" is the local copy. Replacing it is refused
+        // by the lower layer; switching to its existing tip makes the UI's
+        // keep-or-discard choices reachable without terminal Git (#458).
+        const localCopy = Boolean(branchState?.moved && branchState.hasEdits);
+        // An unchanged PR may carry a parked WIP with its own lockfile. The
+        // switch restores that tip, not just the author's fetched head.
+        let destination = headOid;
+        if (resume) destination = ref;
+        else if (localCopy) destination = branchState.tip;
+        else if (recorded.headOid === headOid) destination = await resolveRef(sitePath, ref) || headOid;
+        const needsInstall = await prNeedsInstall(sitePath, destination);
+        sendLog(`${localCopy ? __('Returning to your saved copy of the pull request…') : __('Downloading the pull request\'s files and switching to its branch…')}\n`);
+        let switchOperation = () => checkoutPullRequest(sitePath, number, { headOid, recordedHeadOid: recorded.headOid, fromBaseOid: active.meta?.baseOid, onProgress, onChild });
+        if (resume) switchOperation = () => resumeSwitch(sitePath, ref, { onProgress, onChild });
+        else if (localCopy) switchOperation = () => switchToBranch(sitePath, ref, { baseOid: active.meta?.baseOid, onProgress, onChild });
+        const result = await withSwitchMarker(sitePath, switchOperation);
+        await recordPrHead(sitePath, ref, number, localCopy ? recorded.headOid : headOid, returnTo);
+        await mergeSiteMeta(sitePath, { currentBranch: ref });
+        return { ok: true, number, from: resume?.from || active.ref, returnTo, parked: Boolean(result.parked), moved: Boolean(result.moved), localCopy, needsInstall };
+    } catch (e) {
+        // The ref can exist even when its checkout did not finish. Recording
+        // it now is what makes the next attempt ours rather than a foreign PR.
+        if (e.created || e.moved) await recordPrHead(sitePath, ref, number, e.headOid, returnTo);
+        logError('git:checkout-pr', String(e.stack || e));
+        if (e.cleanupError) {
+            // translators: %s: the error Git gave.
+            sendLog(`${sprintf(__('Could not remove the unused branch: %s'), e.cleanupError.message)}\n`);
+        }
+        return { ok: false, number, code: e.code, error: e.message, ...(e.code === 'dirty-trunk' ? { files: await countChangesAgainst(sitePath) } : {}) };
+    }
+}));
+
+ipcMain.handle('git:leave-pr', (event, sitePath) => streamPrOperation(event, sitePath, 'git:leave-pr', 'leaveId', async ({ sendLog, onProgress, onChild }) => {
+    const legacy = await legacySiteBlock(sitePath);
+    if (legacy) return legacy;
+    const active = await activeBranch(sitePath);
+    const resume = active.site.switchInProgress;
+    const from = resume?.from || active.ref;
+    const number = prNumberFromRef(from);
+    if (number === null) return { ok: false, code: 'not-on-pr' };
+    const recorded = (active.site.branches || {})[from] || {};
+    const branches = await listBranches(sitePath);
+    const returnTo = branches.includes(recorded.returnTo) ? recorded.returnTo : TRUNK;
+    const blocked = await midSwitchBlock(sitePath, { retryTo: returnTo }) || await mergeInProgressBlock(sitePath);
+    if (blocked) return blocked;
+    if (!recorded.headOid) return { ok: false, code: 'no-pr-head' };
+    const needsInstall = await prNeedsInstall(sitePath, returnTo);
+    sendLog(`${__('Restoring the files of your previous branch…')}\n`);
+    const result = await withSwitchMarker(sitePath, () => resume
+        ? resumeSwitch(sitePath, returnTo, { onProgress, onChild })
+        : leavePullRequest(sitePath, { returnTo, headOid: recorded.headOid, onProgress, onChild }));
+    const to = result.to || returnTo;
+    await changeSiteMeta(sitePath, (m) => {
+        const updatedBranches = { ...(m.branches || {}) };
+        for (const [ref, work] of Object.entries(updatedBranches)) {
+            if (work.activePr === from) updatedBranches[ref] = { ...work, activePr: null };
+        }
+        return { ...m, branches: updatedBranches };
+    });
+    await mergeSiteMeta(sitePath, { currentBranch: to, tracTicket: ticketIdFromRef(to) });
+    if (to !== TRUNK) await mergeBranchMeta(sitePath, to, { lastUsedAt: new Date().toISOString() });
+    return { ok: true, number, from, returnTo: to, parked: Boolean(result.parked), needsInstall };
+}));
+
 // --- Discovering the patches on a ticket (#109/#11) --- linked PRs come from
 // GitHub; the network code is in src/github-prs.js, these handlers add the
 // cache and IPC. A last-known-good copy per ticket, in electron-store, is what
 // lets a rate-limited or offline lookup still show the work that exists.
-const patchCacheKey = (ticketId) => `ticketPatches:${ticketId}`;
+//
+// The cache is keyed per work item, and a work item is a number *in a
+// repository* (#251): Trac ticket 62281 and Gutenberg issue 62281 are
+// different things with different pull requests. Core keeps the bare key it
+// always had, so nothing already cached is thrown away; any other target's
+// key carries its repository.
+const patchCacheKey = (ticketId, project) => (project.workItem.provider === 'trac'
+    ? `ticketPatches:${ticketId}`
+    : `ticketPatches:${project.upstream.owner}/${project.upstream.repo}:${ticketId}`);
 
 ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
     try {
@@ -1495,20 +2469,22 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         const meta = (s.get('siteMeta') || {})[sitePath] || {};
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, ticket: null, prs: { status: 'no-ticket', items: [] } };
+        const project = projectTypeForSite(meta);
+        const repo = `${project.upstream.owner}/${project.upstream.repo}`;
 
         // The cached list is passed back in, not just fallen back to: its commit
         // dates are still valid for any pull request GitHub reports with the
         // same `updatedAt`, so a Refresh does not re-spend the ranking, and a
         // Refresh on a spent quota cannot replace a ranking the contributor
         // could already read with an unranked one (#281).
-        const cachedBefore = s.get(patchCacheKey(ticketId)) || null;
-        const result = await fetchLinkedPrs(ticketId, { known: cachedBefore ? cachedBefore.items : null });
+        const cachedBefore = s.get(patchCacheKey(ticketId, project)) || null;
+        const result = await fetchLinkedPrs(ticketId, { known: cachedBefore ? cachedBefore.items : null, repo, provider: project.workItem.provider });
         if (result.status === 'ok') {
             // `rankComplete` is cached with the items and handed back with them:
             // a list whose commit-date ranking was cut short must not come back
             // from the cache looking complete, or the "Latest" pill returns
             // without the evidence for it (#281).
-            s.set(patchCacheKey(ticketId), { checkedAt: new Date().toISOString(), items: result.items, rankComplete: result.rankComplete });
+            s.set(patchCacheKey(ticketId, project), { checkedAt: new Date().toISOString(), items: result.items, rankComplete: result.rankComplete });
             return { ok: true, ticket: ticketId, prs: { status: 'ok', items: result.items, rankComplete: result.rankComplete } };
         }
 
@@ -1532,23 +2508,22 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
     }
 });
 
-ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
-    try {
-        return await fetchPrDiff(number);
-    } catch (e) {
-        return { ok: false, status: 'error', error: String(e) };
-    }
-});
-
 // Trac attachments (#109/#11). Read on demand: opening a real Trac window can
 // show the proof-of-work challenge, so it happens when the contributor asks,
 // not on every ticket. See src/trac-view.js for the window and scrape.
 ipcMain.handle('trac:list-attachments', async (_e, sitePath) => {
     try {
         const s = await getStore();
-        const ticketId = ((s.get('siteMeta') || {})[sitePath] || {}).tracTicket;
+        const meta = (s.get('siteMeta') || {})[sitePath] || {};
+        // Trac's alone (#251): a Gutenberg site stores its issue in the same
+        // field, and the issue's number is also some Core ticket's number.
+        // Opening that ticket here would show its facts and attachments under
+        // the issue, so the window never opens for a site whose work item is
+        // not a Trac ticket.
+        if (projectTypeForSite(meta).workItem.provider !== 'trac') return { ok: true, status: 'not-trac', items: [] };
+        const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, status: 'no-ticket', items: [] };
-        const result = await openAndScrape(ticketId);
+        const result = await openAndScrape(ticketId, { backgroundColor: currentTheme().background, hidden: hideWindowsForTests });
         return { ok: true, ...result };
     } catch (e) {
         logError('trac:list-attachments', String(e && e.stack ? e.stack : e));
@@ -1585,7 +2560,12 @@ const REVERTABLE_PATCH_LIMIT = 512 * 1024;
 // calls "your own edits" is what the patch modal would show.
 ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
     try {
-        const parsed = parsePatchFiles(patchText);
+        // Paths are read the way this site's repository lays them out (#251):
+        // steered under src/ on Core, left where the diff names them on
+        // Gutenberg. The preview and the apply below read the same layout, so
+        // what is shown is what is written.
+        const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+        const parsed = parsePatchFiles(patchText, { layout });
         if (!parsed.ok) return { ok: false, error: parsed.error };
         let dirtyPaths;
         try {
@@ -1595,7 +2575,7 @@ ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
             // app could not look — surface the failure instead. An unreadable
             // base arrives here as a throw for exactly that reason (#308).
             logError('git:preview-patch', String(e && e.stack ? e.stack : e));
-            return { ok: false, error: 'Could not check your work for conflicts, so the preview was not shown.' };
+            return { ok: false, error: __('Could not check your work for conflicts, so the preview was not shown.') };
         }
         const plan = planApply({ files: parsed.files, dirtyPaths });
         return { ok: true, ...plan, files: parsed.files.map((f) => ({ kind: f.kind, path: f.path })) };
@@ -1606,11 +2586,11 @@ ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
 
 ipcMain.handle('dialog:choose-patch-file', async () => {
     const result = await dialog.showOpenDialog({
-        title: 'Choose a patch file',
+        title: __('Choose a patch file'),
         properties: ['openFile'],
         filters: [
-            { name: 'Patch Files', extensions: ['patch', 'diff'] },
-            { name: 'All Files', extensions: ['*'] }
+            { name: __('Patch Files'), extensions: ['patch', 'diff'] },
+            { name: __('All Files'), extensions: ['*'] }
         ]
     });
     if (result.canceled || result.filePaths.length === 0) return null;
@@ -1648,10 +2628,13 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                 sendDone({ ok: false, error: 'Site is not registered' });
                 return;
             }
+            const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
+            if (blocked) { sendLog(`\n${blocked.error}\n`); sendDone(blocked); return; }
             const stored = (await readWorkMeta(sitePath)).appliedPatch;
+            const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
             if (reverse) {
                 if (!stored || !stored.text) {
-                    sendDone({ ok: false, error: 'There is no stored patch to revert.' });
+                    sendDone({ ok: false, error: __('There is no stored patch to revert.') });
                     return;
                 }
                 patchText = stored.text;
@@ -1659,12 +2642,22 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             } else if (stored) {
                 // Only one patch is tracked at a time, so a second apply would
                 // make the first one silently unrevertable and invisible.
-                sendDone({ ok: false, error: `${stored.label} is already applied. Revert it before applying another patch.` });
+                sendDone({
+                    ok: false,
+                    // translators: %s: the name of the applied patch, such as a file name.
+                    error: sprintf(__('%s is already applied. Revert it before applying another patch.'), stored.label)
+                });
                 return;
             }
-            sendLog(`\n${reverse ? 'Reverting' : 'Applying'} ${label}…\n`);
+            if (reverse) {
+                // translators: %s: the name of the patch, such as a file name.
+                sendLog(`\n${sprintf(__('Reverting %s…'), label)}\n`);
+            } else {
+                // translators: %s: the name of the patch, such as a file name.
+                sendLog(`\n${sprintf(__('Applying %s…'), label)}\n`);
+            }
 
-            const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog });
+            const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog, layout });
             if (!result.ok) {
                 // Nothing to revert means the record is describing a patch the
                 // checkout no longer has. Keeping it would leave the site stuck:
@@ -1691,7 +2684,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             } else {
                 const revertable = patchText.length <= REVERTABLE_PATCH_LIMIT;
                 if (!revertable) {
-                    sendLog('This patch is too large to keep for an undo, so Revert will not be offered.\n');
+                    sendLog(`${__('This patch is too large to keep for an undo, so Revert will not be offered.')}\n`);
                 }
                 try {
                     await writeWorkMeta(sitePath, {
@@ -1708,12 +2701,14 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                     // rather than leave a patch the app cannot revert. If the undo
                     // also fails, say so plainly instead of reporting a clean fail.
                     logError('git:apply-patch', `persist failed, undoing apply: ${String(persistErr && persistErr.stack ? persistErr.stack : persistErr)}`);
-                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog });
+                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog, layout });
                     const why = String(persistErr && persistErr.message ? persistErr.message : persistErr);
                     if (undo.ok) {
-                        sendDone({ ok: false, error: `The patch applied but its revert record could not be saved, so it was undone. ${why}` });
+                        // translators: %s: why the record could not be saved, as the system said it.
+                        sendDone({ ok: false, error: sprintf(__('The patch applied but its revert record could not be saved, so it was undone. %s'), why) });
                     } else {
-                        sendDone({ ok: false, appliedButUntracked: true, files: result.applied, error: `The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. ${why}` });
+                        // translators: %s: why the record could not be saved, as the system said it.
+                        sendDone({ ok: false, appliedButUntracked: true, files: result.applied, error: sprintf(__('The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s'), why) });
                     }
                     return;
                 }
@@ -1721,7 +2716,8 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             sendDone({ ok: true, ...result, reverse });
         } catch (e) {
             logError('git:apply-patch', String(e && e.stack ? e.stack : e));
-            sendLog(`\nApplying the patch failed: ${String(e && e.message ? e.message : e)}\n`);
+            // translators: %s: what went wrong, as the system said it.
+            sendLog(`\n${sprintf(__('Applying the patch failed: %s'), String(e && e.message ? e.message : e))}\n`);
             sendDone({ ok: false, error: String(e) });
         }
     })();
@@ -1734,17 +2730,50 @@ ipcMain.handle('sites:mark-update-complete', async (_e, sitePath) => {
     return true;
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+	// The second copy this one refused (see the lock above) is on its way out;
+	// it must not build a window or take the store with it on the way.
+	if (!gotSingleInstanceLock) return;
+
+	// Claims `wpct://` with the OS. Which form of the call, or none at all, is
+	// `protocolRegistration` in deep-link.cjs, where the three branches are
+	// testable — nothing in here runs in the unit suite.
+	const registration = protocolRegistration({
+		isPackaged: app.isPackaged,
+		platform: process.platform,
+		execPath: process.execPath,
+		appPath: app.getAppPath()
+	});
+	if (registration) {
+		app.setAsDefaultProtocolClient(registration.scheme, registration.execPath, registration.args);
+	}
+
 	// Before createWindow(): initLogging preloads the IPC bridge that carries
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
 	initLogging();
+	// Before the window: it is made in the theme, and kept in it when the
+	// system's theme changes under 'system'.
+	nativeTheme.on('updated', paintWindowForTheme);
+	await applyStoredTheme();
+	// Before the menu and the window: both build their labels from `__()`.
+	applyLocale(await localeReply(), { setLocaleData, addFilter });
 	Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
 		onOpenLog: () => shell.openPath(getLogFilePath()),
-		onShowLogsFolder: () => shell.showItemInFolder(getLogFilePath())
+		onShowLogsFolder: () => shell.showItemInFolder(getLogFilePath()),
+		onOpenSettings: openSettingsFromMenu,
+		appName: app.name
 	})));
 
-	createWindow();
+	// A `wpct://` link that arrived while the locale was being read has already
+	// opened the window.
+	if (BrowserWindow.getAllWindows().length === 0) createWindow();
+
+	// Windows and Linux, cold start: the address that launched the app is in
+	// this process's own argv. macOS does not use argv for this — it sends
+	// `open-url`, which may already have fired and left a ticket queued.
+	const launchUrl = pickDeepLinkArg(process.argv);
+	if (launchUrl) receiveDeepLink(launchUrl);
 
 	app.on('activate', function () {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -1761,11 +2790,55 @@ app.on('window-all-closed', function () {
 // Known residual gap on Windows: taskkill /T walks parent links at kill time,
 // so a grandchild whose intermediate parent is already gone can survive
 // (observed with grunt _watch) — tracked in #83.
+// With the quit setting on 'restart' (#559), what is running is written down
+// before it is swept, for the next launch to start again. Written through
+// the store's synchronous accessor: this handler is not awaited, and the
+// store has been made by now, at startup, for the locale. A store not yet
+// made is a launch that read nothing, with nothing running to remember.
+function rememberRunningSites() {
+	const s = peekStore();
+	if (!s) return;
+	const preferences = s.get('preferences') || {};
+	if (readSettings(preferences).quitBehavior !== 'restart') return;
+	const resume = sitesToResume({
+		servers: Object.keys(playgroundServers).filter((sitePath) => playgroundServers[sitePath]?.child),
+		scripts: Object.keys(runningScripts).map((runId) => scriptByRunId[runId]).filter(Boolean),
+		watchFor: (sitePath) => {
+			const meta = (s.get('siteMeta') || {})[sitePath];
+			return meta ? projectTypeForSite(meta).build.watch : null;
+		}
+	});
+	logEvent('quit', `remembering ${resume.servers.length} server(s) and ${resume.watches.length} watch(es) to start again`);
+	s.set('preferences', { ...preferences, resume });
+}
+
+// The list the quit left, read once by the window as it opens and then
+// forgotten, so a launch that ends badly does not start it all again twice.
+ipcMain.handle('sites:resume', async () => {
+	const s = await getStore();
+	const preferences = s.get('preferences') || {};
+	const resume = readResume(preferences);
+	if ('resume' in preferences) {
+		const { resume: _taken, ...rest } = preferences;
+		s.set('preferences', rest);
+	}
+	return { ok: true, ...resume };
+});
+
 app.on('before-quit', () => {
+	// Before the sweep, since it reads what is running; and unable to stop
+	// the sweep, since a store that cannot be written is no reason to leave
+	// every server and watch running.
+	try {
+		rememberRunningSites();
+	} catch (e) {
+		logError('quit', `could not remember what is running: ${String(e && e.message ? e.message : e)}`);
+	}
 	logEvent('quit', 'sweeping child processes');
 	const children = [
 		...Object.values(runningInstalls),
 		...Object.values(runningScripts),
+		...runningGit.values(),
 		...Object.values(playgroundServers).map((s) => s.child),
 		...(playgroundWebServer?.child ? [playgroundWebServer.child] : [])
 	];
@@ -1787,13 +2860,15 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const nmDir = path.join(sitePath, 'node_modules');
 		const hasNodeModules = fs.existsSync(nmDir) && (() => { try { return fs.readdirSync(nmDir).length > 0; } catch { return false; } })();
 
-		const distDir = path.join(sitePath, 'build', 'wp-includes', 'js', 'dist');
-		const hasBuilt = fs.existsSync(distDir);
-
 		const s = await getStore();
 		if ((s.get('sites') || []).includes(sitePath)) await ensureLocalExcludes(sitePath);
 		const meta = s.get('siteMeta') || {};
 		const m = meta[sitePath] || {};
+
+		// "Is it built" is answered per target (#251): Core's marker is the dist
+		// directory its build writes, Gutenberg's a script under build/scripts.
+		const project = projectTypeForSite(m);
+		const hasBuilt = fs.existsSync(path.join(sitePath, ...project.build.builtCheckRelPath));
 
 		// Trunk snapshot age (#94). Read from HEAD each time (one object
 		// read) and written through to siteMeta, so the sidebar can render
@@ -1813,11 +2888,26 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		// being worked on, not to the site (#108) — otherwise switching tickets
 		// would carry the other one's "patch applied · Revert" banner over, and
 		// Revert would reverse its hunks against this ticket's tree.
-		const work = await readWorkMeta(sitePath);
+		const active = await activeBranch(sitePath);
+		const work = active.ref === TRUNK || !active.meta ? active.site : active.meta;
+		const prNumber = prNumberFromRef(active.ref);
+		const pullRequest = prNumber === null ? null : {
+			number: prNumber, returnTo: work.returnTo || TRUNK, headOid: work.headOid || null,
+			hasEdits: Boolean(work.headOid && (await resolveRef(sitePath, active.ref)) !== work.headOid)
+		};
+		// A site the old engine made (#385): the card says so and the write
+		// handlers refuse. A detector that fails answers false, the same as a
+		// trunk read that fails answers null above: the status stays usable.
+		let legacy = false;
+		try { legacy = await isLegacySite(sitePath); } catch {}
+		// A merge started outside the app (#352): the card says so and the
+		// write handlers refuse. Same rule for a detector that fails.
+		let merging = null;
+		try { merging = await mergeInProgress(sitePath); } catch {}
 		// A recorded branch point and the current trunk tip are enough to warn
 		// that the context changed (#305). Missing metadata stays false: 1.0
 		// refuses to guess, and deliberately offers no checkout rewrite.
-		const ticketBehindTrunk = Boolean(m.tracTicket && work.baseOid && trunkOid && work.baseOid !== trunkOid);
+		const ticketBehindTrunk = Boolean(!pullRequest && m.tracTicket && work.baseOid && trunkOid && work.baseOid !== trunkOid);
 
 		// Summarised rather than passed through: the stored patch text is only
 		// needed by the main process to reverse it, and this is polled.
@@ -1838,9 +2928,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch };
+		return { hasNodeModules, hasBuilt, projectType: project.id, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null };
+		return { hasNodeModules: false, hasBuilt: false, projectType: getProjectType().id, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, pullRequest: null, legacy: false, mergeInProgress: null };
 	}
 });
 
@@ -1853,9 +2943,9 @@ ipcMain.handle('sites:set-skip-init', async (_e, sitePath, skip) => {
 });
 
 ipcMain.handle('sites:add', async (_e, sitePath) => {
-	// A pre-existing dir was likely cloned by native git — exactly the case
-	// where CRLF checkouts break status/patch generation (see ensureAutocrlf).
-	await ensureAutocrlf(sitePath);
+	// A pre-existing dir was likely cloned by a host Git, CRLF on Windows and
+	// all; the reads and writes carry the `core.autocrlf` view for it
+	// (windowsArgs in git-read.cjs), so nothing has to be written here.
 	await ensureLocalExcludes(sitePath);
 	const s = await getStore();
 	const sites = s.get('sites');
@@ -1888,8 +2978,13 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 
 	await fse.ensureDir(destDir);
 
+	// The target decides what is cloned and what the site is called by default
+	// (#251). Normalised at this write boundary: an unknown id is stored as
+	// Core, not as whatever the renderer sent.
+	const projectType = normalizeProjectType(options.projectType);
+	const project = getProjectType(projectType);
 	const requestedName = typeof options.siteName === 'string' ? options.siteName.trim() : '';
-	const sanitizedName = requestedName.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || 'wordpress-develop-trunk';
+	const sanitizedName = requestedName.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || project.defaultFolderName;
 	const uniqueName = findAvailableDirName(destDir, sanitizedName);
 	const siteDir = path.join(destDir, uniqueName);
 	await fse.ensureDir(siteDir);
@@ -1900,23 +2995,39 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 	// guards refuse to open it for the whole clone (#180), and `sites:delete`
 	// would happily remove it if they did not. setup-tracker.js has the why;
 	// `track` releases the entry however this ends.
+	// The clone outlives the window that asked for it: on macOS closing it does
+	// not quit the app (`window-all-changed` only quits elsewhere), and the
+	// child keeps running until the quit sweep. Progress now arrives on a
+	// stderr listener rather than inside the awaited chain the old engine used,
+	// so a send into a destroyed webContents would throw "Object has been
+	// destroyed" straight into the stream — an uncaught exception in the main
+	// process rather than a rejected `invoke`. The clone still has to finish or
+	// clean up after itself, so the report is what is dropped, not the work.
+	const notify = (channel, payload) => {
+		if (!event.sender.isDestroyed()) event.sender.send(channel, payload);
+	};
+
 	return setupTracker.track(siteDir, async () => {
-		event.sender.send('download:status', { phase: 'cloning', target: siteDir });
-		await git.clone({
-			http,
-			fs,
-			url: WORDPRESS_GIT_URL,
-			dir: siteDir,
-			singleBranch: true,
-			depth: 1,
-			ref: 'trunk',
-			onProgress: (evt) => {
-				// evt: {phase,total,loaded,lengthComputable} - forward as terminal-like output
-				const msg = `${evt.phase || 'clone'} ${evt.loaded || 0}/${evt.total || 0}`;
-				event.sender.send('download:progress', { target: siteDir, message: msg });
-			}
-		});
-		await ensureAutocrlf(siteDir);
+		notify('download:status', { phase: 'cloning', target: siteDir });
+		try {
+			await cloneSite({
+				url: project.clone.url,
+				branch: project.clone.ref,
+				dir: siteDir,
+				onChild: trackGitChild(siteDir),
+				onProgress: (evt) => {
+					// Same line the old engine produced, so the terminal panel reads
+					// the same: `<phase> <loaded>/<total>`.
+					notify('download:progress', { target: siteDir, message: `${evt.phase} ${evt.loaded}/${evt.total}` });
+				}
+			});
+		} catch (error) {
+			// The directory is the app's own, picked so it did not exist before
+			// (findAvailableDirName), and a half-written clone in it would be
+			// adopted as a site by the next "Add a site" (#180's other half).
+			await removeTree(siteDir).catch((e) => logError('wordpress:setup', `removing the failed clone: ${String(e && e.message ? e.message : e)}`));
+			throw error;
+		}
 		await ensureLocalExcludes(siteDir);
 
 		const s = await getStore();
@@ -1924,25 +3035,26 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		if (!sites.includes(siteDir)) {
 			sites.push(siteDir);
 			s.set('sites', sites);
-			const meta = s.get('siteMeta');
 			const siteLabel = typeof options.siteLabel === 'string' && options.siteLabel.trim().length
 				? options.siteLabel.trim()
 				: uniqueName;
-			const existingMeta = meta[siteDir] || {};
-			meta[siteDir] = {
-				...existingMeta,
+			// Read before the record is touched rather than in the middle of
+			// writing it: this is a Git spawn on the clone that just finished,
+			// and holding the whole site map across it would write back a map
+			// that predates whatever another flow stored in the meantime — the
+			// same read-await-write #172 is about, over every site at once.
+			let trunkInfo = null;
+			try { trunkInfo = await readTrunkInfo(siteDir); } catch {}
+			await changeSiteMeta(siteDir, (m) => ({
+				...m,
 				initialized: false,
-				createdAt: existingMeta.createdAt || new Date().toISOString(),
-				label: existingMeta.label || siteLabel
-			};
-			try {
-				const { trunkOid, trunkDate } = await readTrunkInfo(siteDir);
-				meta[siteDir].trunkOid = trunkOid;
-				meta[siteDir].trunkDate = trunkDate;
-			} catch {}
-			s.set('siteMeta', meta);
+				projectType,
+				createdAt: m.createdAt || new Date().toISOString(),
+				label: m.label || siteLabel,
+				...(trunkInfo ? { trunkOid: trunkInfo.trunkOid, trunkDate: trunkInfo.trunkDate } : {})
+			}));
 		}
-		event.sender.send('download:status', { phase: 'done', target: siteDir, sitePath: siteDir });
+		notify('download:status', { phase: 'done', target: siteDir, sitePath: siteDir });
 		return siteDir;
 	});
 });
@@ -1959,47 +3071,38 @@ ipcMain.handle('sites:mark-initialized', async (_e, sitePath) => {
 // for why. A refusal is logged rather than dropped so a future caller that trips
 // the guard shows up in the log file instead of just doing nothing.
 ipcMain.handle('sites:delete', async (_e, sitePath) => {
-	const s = await getStore();
-	// Filled in by `remove` when the deletion itself fails. Kept outside the
-	// guard call because deleteRegisteredSite's boolean only answers "was this
-	// allowed", and the renderer needs the other half of the story too (#381).
-	let removalError = null;
-	const allowed = await deleteRegisteredSite(sitePath, {
-		sites: s.get('sites'),
-		// A site whose clone is still running is refused outright, registered or
-		// not: `remove` would be deleting a tree isomorphic-git is writing into.
-		pending: setupTracker.paths(),
-		forget: () => {
-			s.set('sites', s.get('sites').filter((p) => p !== sitePath));
-			const meta = s.get('siteMeta');
-			delete meta[sitePath];
-			s.set('siteMeta', meta);
-		},
-		// removeTree handles what plain removal leaves unanswered on the
-		// protected object files a real Git writes: on POSIX, a directory whose
-		// write bit is missing, which nothing else clears; on Windows, an entry
-		// something still holds open, which only a retry budget survives (#381).
-		// A failure is recorded rather than swallowed: `forget` has already
-		// run — deliberately, so a locked directory cannot leave a site stuck
-		// undeletable — which means the one honest thing left to do when the
-		// disk half fails is to say so, in the log and to the caller.
-		remove: async (p) => {
-			try {
+	try {
+		const s = await getStore();
+		const allowed = await deleteRegisteredSite(sitePath, {
+			sites: s.get('sites'),
+			// A site whose clone is still running is refused outright, registered or
+			// not: `remove` would be deleting a tree the clone is still writing into.
+			pending: setupTracker.paths(),
+			forget: () => {
+				s.set('sites', s.get('sites').filter((p) => p !== sitePath));
+				const meta = s.get('siteMeta');
+				delete meta[sitePath];
+				s.set('siteMeta', meta);
+			},
+			// Stop and fully close every child associated with this directory before
+			// removeTree reaches it. Windows keeps a process's cwd locked until then.
+			// removeTree still owns protected Git objects and transient filesystem
+			// failures; only after it succeeds does site-registry forget the site.
+			remove: async (p) => {
+				await stopSiteChildren(p);
+				if (projectTypeForSite((s.get('siteMeta') || {})[p]).serve.strategy === 'plugin-mount') {
+					await removePersistentPlaygroundSite(p);
+				}
 				await removeTree(p);
-			} catch (e) {
-				removalError = e;
-				logError('sites', `deleted ${sitePath} from the registry, but its folder could not be removed and is still on disk: ${String(e && e.stack ? e.stack : e)}`);
-			}
-		},
-		onRefused: (description) => logEvent('sites', `refused to delete ${description} — not a registered site, or still being created`)
-	});
-	if (!allowed) return { ok: false, refused: true };
-	if (removalError) {
-		// Machine-readable on purpose: the sentence the contributor reads is
-		// composed in the renderer (confirmations.cjs), where it is testable.
-		return { ok: false, reason: 'remove-failed', path: sitePath, code: removalError.code };
+			},
+			onRefused: (description) => logEvent('sites', `refused to delete ${description}: not a registered site, or still being created`)
+		});
+		if (!allowed) return { ok: false, refused: true };
+		return { ok: true };
+	} catch (e) {
+		logError('sites', `kept ${sitePath} in the registry because deletion could not safely finish and its folder may still be on disk: ${String(e && e.stack ? e.stack : e)}`);
+		return { ok: false, reason: 'remove-failed', path: sitePath, code: e?.code };
 	}
-	return { ok: true };
 });
 
 ipcMain.handle('sites:set-label', async (_e, sitePath, label) => {
@@ -2029,12 +3132,24 @@ async function withRegisteredSite(sitePath, run) {
 		// file a contributor attaches to a bug report — and two of the three
 		// channels have no UI to show that string yet.
 		logError('branches', `${describeRefused(sitePath)}: ${String(e && e.stack ? e.stack : e)}`);
-		return { ok: false, error: String(e && e.message ? e.message : e), code: e && e.code };
+		return {
+			ok: false,
+			error: String(e && e.message ? e.message : e),
+			code: e && e.code,
+			...(e && Array.isArray(e.conflicts) ? { conflicts: e.conflicts } : {}),
+			// The kind of each conflict (`content`, `modify/delete`, `add/add`),
+			// so the refusal can say which (#351).
+			...(e && e.kinds && typeof e.kinds === 'object' ? { kinds: e.kinds } : {})
+		};
 	}
 }
 
-// Which Trac ticket a site is being used to work on (#109), which under #108 is
-// also which branch is checked out. Linking a ticket the site has seen before
+// Which work item a site is being used to work on (#109): a Trac ticket on a
+// Core site, a GitHub issue on a Gutenberg one (#251), which under #108 is
+// also which branch is checked out. The stored key stays `tracTicket` for
+// both: renaming it touches every read on the card, the switcher and the
+// patch handlers for no behavior, and a third provider is what would make
+// the name wrong enough to pay that. Linking a ticket the site has seen before
 // switches back to its branch — files and context as they were left; a new one
 // starts a branch at the current trunk tip. Loose edits on trunk are no longer
 // carried along unasked (#234): the handler refuses with `dirty-trunk` on both
@@ -2044,17 +3159,65 @@ async function withRegisteredSite(sitePath, run) {
 // The site-level `tracTicket` is kept in step with the active branch so the
 // handlers that read it (`git:list-ticket-patches`, `trac:list-attachments`,
 // `site:status`) need no change.
+// Leaving a ticket parks its current PR without reverting its application.
+// Persist before switching so an interrupted checkout can still be resumed.
+async function rememberTicketPr(sitePath) {
+    const active = await activeBranch(sitePath);
+    if (active.site.switchInProgress || !active.site.tracTicket || prNumberFromRef(active.ref) === null) return;
+    await mergeBranchMeta(sitePath, ticketBranchRef(active.site.tracTicket, branchPrefixFor(active.site)), { activePr: active.ref });
+}
+
+async function ticketPrImpact(sitePath, from, to) {
+    if (from === to || (prNumberFromRef(from) === null && prNumberFromRef(to) === null)) return {};
+    const destination = await resolveRef(sitePath, to) ? to : TRUNK;
+    return { prTransition: true, needsInstall: await prNeedsInstall(sitePath, destination) };
+}
+
+// The pull request a switch to this work item would put back: the one parked on
+// it, with a head to go back to. Read from the record alone, so both the flow
+// that performs the switch and the list the renderer plans it from get the same
+// answer (#510) — the renderer has to know a restore is coming before the
+// switch starts, since that is the only switch that pauses the build watch.
+function savedPrRef(site, ticketRef) {
+    const ref = site.branches?.[ticketRef]?.activePr;
+    if (!ref || prNumberFromRef(ref) === null || !site.branches?.[ref]?.headOid) return null;
+    return ref;
+}
+
+async function ticketCheckoutRef(sitePath, ticketRef) {
+    if (ticketIdFromRef(ticketRef) === null) return ticketRef;
+    const site = await readSiteMeta(sitePath);
+    const ref = savedPrRef(site, ticketRef);
+    if (!ref) return ticketRef;
+    return await resolveRef(sitePath, ref) ? ref : ticketRef;
+}
+
 ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => withRegisteredSite(sitePath, async () => {
 	// Empty means unlink — the panel's Unlink button and a cleared field both
 	// land here, and neither is an error. The branch and its work stay; going
 	// back to trunk is not the same as throwing a ticket away.
 	const raw = typeof ref === 'string' ? ref.trim() : '';
+	// Both the link and the unlink end in a checkout, so both wait for a
+	// merge started outside the app (#352); before the mid-switch marker,
+	// whose retry is the forced checkout that would erase it.
+	const refused = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
+	if (refused) return refused;
+	await rememberTicketPr(sitePath);
 	if (!raw) {
-		const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
-		if (current !== TRUNK) {
+		const { ref: current, meta, site } = await activeBranch(sitePath, { migrate: true });
+		// Under a mid-switch marker the tree may be half another branch's and
+		// the work of the branch being left is already committed, so the way
+		// back to trunk is the forced checkout alone: parking here would write
+		// the mixture over that commit. Also the one exit when HEAD is on trunk
+		// already, which a switch that failed leaving trunk leaves behind.
+		const resume = Boolean(site.switchInProgress);
+		const impact = await ticketPrImpact(sitePath, current, TRUNK);
+		if (current !== TRUNK || resume) {
 			const progress = switchProgressReporter(event, sitePath);
 			try {
-				await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+				await withSwitchMarker(sitePath, () => (resume
+					? resumeSwitch(sitePath, TRUNK, { onProgress: progress.emit, onChild: trackGitChild(sitePath) })
+					: switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit, onChild: trackGitChild(sitePath) })));
 			} finally {
 				// In a finally because a switch that dies mid-checkout is exactly
 				// when the last frame it reached is worth having.
@@ -2062,19 +3225,39 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 			}
 		}
 		await mergeSiteMeta(sitePath, { tracTicket: null, currentBranch: TRUNK });
-		return { ok: true, ticket: null, branch: TRUNK };
+		return { ok: true, ticket: null, branch: TRUNK, ...impact };
 	}
 
-	const parsed = parseTicketRef(raw);
+	// Parsed by the site's own provider, so a Gutenberg site reads `71234` and a
+	// pasted issue URL, refuses a pull-request URL by name, and refuses an issue
+	// from another repository — none of which the Trac parser could tell apart.
+	const typeMeta = await readSiteMeta(sitePath);
+	const parsed = workItemFor(typeMeta).parseRef(raw);
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
-	const blocked = await midSwitchBlock(sitePath);
+	const prefix = branchPrefixFor(typeMeta);
+	const branchRef = ticketBranchRef(parsed.id, prefix);
+	const checkoutRef = await ticketCheckoutRef(sitePath, branchRef);
+	const blocked = await midSwitchBlock(sitePath, { retryTo: checkoutRef });
 	if (blocked) return blocked;
-	const branchRef = ticketBranchRef(parsed.id);
-	const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
-	if (current === branchRef) {
-		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
-		return { ok: true, ticket: parsed.id, branch: branchRef };
+	const { ref: current, meta, site } = await activeBranch(sitePath, { migrate: true });
+	const impact = await ticketPrImpact(sitePath, site.switchInProgress?.from || current, checkoutRef);
+	if (checkoutRef !== branchRef) await mergeBranchMeta(sitePath, checkoutRef, { returnTo: branchRef });
+	if (site.switchInProgress) {
+		// The retry: finish the checkout the failed switch started, no park.
+		const progress = switchProgressReporter(event, sitePath);
+		try {
+			await withSwitchMarker(sitePath, () => resumeSwitch(sitePath, checkoutRef, { onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
+		} finally {
+			progress.flush();
+		}
+		await mergeBranchMeta(sitePath, branchRef, { lastUsedAt: new Date().toISOString() });
+		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
+		return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
+	}
+	if (current === checkoutRef) {
+		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
+		return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 	}
 
 	const known = await listTicketBranches(sitePath);
@@ -2083,11 +3266,10 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 	if (known.includes(branchRef)) {
 		const progress = switchProgressReporter(event, sitePath);
 		try {
-			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, checkoutRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
 		} finally {
 			progress.flush();
 		}
-		baseOid = ((await readSiteMeta(sitePath)).branches || {})[branchRef]?.baseOid || null;
 	} else {
 		// Starting a ticket from another ticket parks that one first; from trunk
 		// the loose edits ride along into the new branch (that is deliberate —
@@ -2095,7 +3277,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		if (current !== TRUNK) {
 			const progress = switchProgressReporter(event, sitePath);
 			try {
-				await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+				await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
 			} finally {
 				progress.flush();
 			}
@@ -2116,14 +3298,14 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 			// that there is nothing to carry.
 			const files = await countChangesAgainst(sitePath);
 			if (files > 0) {
-				logEvent('branches', `asked before carrying ${files} loose file(s) on trunk into ticket/${parsed.id} in ${describeRefused(sitePath)}`);
+				logEvent('branches', `asked before carrying ${files} loose file(s) on trunk into ${branchRef} in ${describeRefused(sitePath)}`);
 				// Same code the refused switch to an existing branch returns,
 				// so the renderer asks the one question either way. `canCarry`
 				// is what only this path can offer: an existing branch has its
 				// own work to restore, so loose edits cannot ride into it.
 				return {
 					ok: false,
-					error: 'There is uncommitted work on trunk — decide what happens to it before starting the ticket',
+					error: __('There is uncommitted work on trunk — decide what happens to it before starting the ticket'),
 					code: 'dirty-trunk',
 					canCarry: true,
 					files,
@@ -2131,17 +3313,28 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 				};
 			}
 		}
-		({ baseOid } = await startTicketBranch(sitePath, parsed.id));
+		({ baseOid } = await startTicketBranch(sitePath, parsed.id, { prefix }));
 	}
 
 	await mergeBranchMeta(sitePath, branchRef, {
 		tracTicket: parsed.id,
-		baseOid,
+		// Only when this flow is the one that created the branch. The
+		// existing-branch path used to read the recorded base and write it
+		// straight back, which rolled back a `branches:rebase` that moved it
+		// while the switch was running — the base is the one value a branch
+		// cannot recompute (#172), and a write is not the way to leave it
+		// alone.
+		...(baseOid === undefined ? {} : { baseOid }),
 		lastUsedAt: new Date().toISOString()
 	});
-	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
-	if (carriedFrom === TRUNK) reportCarriedWork(event, sitePath, parsed.id);
-	return { ok: true, ticket: parsed.id, branch: branchRef };
+	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
+	if (carriedFrom === TRUNK) {
+		// The record travels with the files (#236), before the notice that
+		// says they arrived.
+		await carryAppliedPatch(sitePath, branchRef);
+		reportCarriedWork(event, sitePath, parsed.id);
+	}
+	return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 }));
 
 // The tickets open in a site, for the "Working on:" switcher. Reads the branches
@@ -2150,52 +3343,127 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 ipcMain.handle('branches:list', async (_e, sitePath) => withRegisteredSite(sitePath, async () => {
 	const { ref: current, site } = await activeBranch(sitePath);
 	const stored = site.branches || {};
-	const branches = (await listTicketBranches(sitePath)).map((branchRef) => ({
-		ref: branchRef,
-		ticketId: ticketIdFromRef(branchRef),
-		baseOid: (stored[branchRef] || {}).baseOid || null,
-		lastUsedAt: (stored[branchRef] || {}).lastUsedAt || null,
-		appliedPatch: Boolean((stored[branchRef] || {}).appliedPatch)
-	}));
+	const refs = await listTicketBranches(sitePath);
+	const branches = refs.filter((ref) => ticketIdFromRef(ref) !== null).map((branchRef) => {
+		// The pull request switching to this work item would restore, by number
+		// (#510). `refs` is the same list the checkout's resolveRef would ask
+		// about, so the existence check costs no extra Git read.
+		const prRef = savedPrRef(site, branchRef);
+		return {
+			ref: branchRef,
+			ticketId: ticketIdFromRef(branchRef),
+			baseOid: (stored[branchRef] || {}).baseOid || null,
+			lastUsedAt: (stored[branchRef] || {}).lastUsedAt || null,
+			appliedPatch: Boolean((stored[branchRef] || {}).appliedPatch),
+			savedPr: prRef && refs.includes(prRef) ? prNumberFromRef(prRef) : null
+		};
+	});
 	return { ok: true, current, branches };
 }));
 
 ipcMain.handle('branches:switch', async (event, sitePath, targetRef) => withRegisteredSite(sitePath, async () => {
-	const blocked = await midSwitchBlock(sitePath);
+	const ticketRef = targetRef;
+	targetRef = await ticketCheckoutRef(sitePath, ticketRef);
+	const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath) || await midSwitchBlock(sitePath, { retryTo: targetRef });
 	if (blocked) return blocked;
-	const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
+	await rememberTicketPr(sitePath);
+	if (targetRef !== ticketRef) await mergeBranchMeta(sitePath, targetRef, { returnTo: ticketRef });
+	const { ref: current, meta, site } = await activeBranch(sitePath, { migrate: true });
+	const impact = await ticketPrImpact(sitePath, site.switchInProgress?.from || current, targetRef);
 	const progress = switchProgressReporter(event, sitePath);
 	let result;
 	try {
-		result = await withSwitchMarker(sitePath, () => switchToBranch(sitePath, targetRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+		result = await withSwitchMarker(sitePath, () => (site.switchInProgress
+			? resumeSwitch(sitePath, targetRef, { onProgress: progress.emit, onChild: trackGitChild(sitePath) })
+			: switchToBranch(sitePath, targetRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit, onChild: trackGitChild(sitePath) })));
 	} finally {
 		progress.flush();
 	}
-	const ticketId = ticketIdFromRef(targetRef);
+	const ticketId = ticketIdFromRef(ticketRef);
 	if (targetRef !== TRUNK) {
 		await mergeBranchMeta(sitePath, targetRef, { lastUsedAt: new Date().toISOString() });
 	}
 	await mergeSiteMeta(sitePath, { currentBranch: targetRef, tracTicket: ticketId });
-	return { ok: true, from: current, to: targetRef, parked: result.parked, ticket: ticketId };
+	return { ok: true, from: current, to: targetRef, parked: result.parked, ticket: ticketId, ...impact };
+}));
+
+// "Update this ticket to the current trunk" (#385): the ticket's single WIP
+// commit replayed onto trunk's tip, its recorded base moved with it. Only the
+// active ticket: the notice that offers it is about the ticket in hand. Refuses
+// on trunk and without a recorded base (#305: the app does not guess a base),
+// and a conflict comes back with the paths and nothing moved. Unlike a discard,
+// the applied-patch record survives (the patch is still in the work); only its
+// revert text is dropped.
+ipcMain.handle('branches:rebase', async (event, sitePath) => withRegisteredSite(sitePath, async () => {
+	const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath) || await midSwitchBlock(sitePath);
+	if (blocked) return blocked;
+	const { ref, meta } = await activeBranch(sitePath, { migrate: true });
+	if (ref === TRUNK) {
+		return { ok: false, code: 'on-trunk', error: __('Link a ticket first: trunk is what tickets are measured against, not a ticket.') };
+	}
+	if (ticketIdFromRef(ref) === null) return { ok: false, code: 'not-a-ticket-branch', error: __('Only a ticket branch can be moved onto the current trunk.') };
+	if (!meta || !meta.baseOid) {
+		return { ok: false, code: 'no-base', error: __('This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.') };
+	}
+	const progress = switchProgressReporter(event, sitePath);
+	let result;
+	try {
+		result = await withSwitchMarker(sitePath, () => rebaseOntoTrunk(sitePath, ref, { baseOid: meta.baseOid, onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
+	} catch (e) {
+		// The ref moved and only the checkout failed: the base has to follow
+		// the ref now, not after the retry. Every patch reads `baseOid`, none
+		// of those readers is behind the mid-switch marker, and a patch
+		// measured from the old base would carry trunk's changes.
+		if (e && e.movedTo) await mergeBranchMeta(sitePath, ref, { baseOid: e.movedTo });
+		throw e;
+	} finally {
+		progress.flush();
+	}
+	await mergeBranchMeta(sitePath, ref, { baseOid: result.to, lastUsedAt: new Date().toISOString() });
+	if (result.rebased) {
+		// The patch someone applied is still in the work (the merge keeps the
+		// ticket's tree), so the record stays and the #328 ownership guard
+		// with it. Its text goes: reverse-applying hunks written against the
+		// old trunk cannot be trusted on the new one, and a record without a
+		// text is exactly "applied, not revertable" to site:status.
+		//
+		// Decided at the moment of the write, not from a read taken before it:
+		// resolving the scope is a Git spawn, and an apply or a discard landing
+		// in that window used to be replaced by this record, leaving a revert
+		// banner for a patch that is not there (#172).
+		await changeWorkMetaOn(sitePath, ref, (work) => (work.appliedPatch && work.appliedPatch.text
+			? { appliedPatch: { ...work.appliedPatch, text: null } }
+			: null));
+	}
+	return { ok: true, ticket: ticketIdFromRef(ref), from: result.from, to: result.to, rebased: result.rebased, parked: result.parked };
 }));
 
 // "Delete this ticket's work" — a branch deletion, not a site reset (#108). The
 // registry entry goes with it, or the switcher would keep offering a ticket that
 // no longer exists.
 ipcMain.handle('branches:delete', async (_e, sitePath, targetRef) => withRegisteredSite(sitePath, async () => {
+	const legacy = await legacySiteBlock(sitePath);
+	if (legacy) return legacy;
 	// Deleting a ticket you are not on leaves you where you are — the module
 	// only checks out trunk when the branch being deleted is the current one, so
 	// resetting these unconditionally would unlink the ticket the contributor is
 	// actually working on and strand its patch base.
 	const { ref: current } = await activeBranch(sitePath);
-	await deleteTicketBranch(sitePath, targetRef);
-	const m = await readSiteMeta(sitePath);
-	const branches = { ...(m.branches || {}) };
-	delete branches[targetRef];
+	// That checkout is the one write here, so only the delete of the branch
+	// in hand waits for a merge started outside the app (#352).
+	if (current === targetRef) {
+		const merging = await mergeInProgressBlock(sitePath);
+		if (merging) return merging;
+	}
+	await deleteTicketBranch(sitePath, targetRef, { onChild: trackGitChild(sitePath) });
 	const wasActive = current === targetRef;
-	await mergeSiteMeta(sitePath, {
-		branches,
-		...(wasActive ? { currentBranch: TRUNK, tracTicket: null } : {})
+	await changeSiteMeta(sitePath, (m) => {
+		const branches = { ...(m.branches || {}) };
+		delete branches[targetRef];
+		for (const [ref, branch] of Object.entries(branches)) {
+			if (branch.returnTo === targetRef) branches[ref] = { ...branch, returnTo: TRUNK };
+		}
+		return { ...m, branches, ...(wasActive ? { currentBranch: TRUNK, tracTicket: null } : {}) };
 	});
 	// `movedToTrunk` says the checkout itself changed, which `current` alone
 	// cannot: a delete made from trunk reports trunk either way, and the note
@@ -2204,9 +3472,7 @@ ipcMain.handle('branches:delete', async (_e, sitePath, targetRef) => withRegiste
 	return { ok: true, deleted: targetRef, current: wasActive ? TRUNK : current, movedToTrunk: wasActive };
 }));
 
-// Only the schemes the app actually uses reach the OS — see external-url.js for
-// why.
-ipcMain.handle('url:open', async (_e, url) => openExternalUrl(url, externalUrlDeps));
+ipcMain.handle('url:open', async (_e, url) => openInBrowser(url));
 
 // --- opening a site's code -----------------------------------------------
 //
@@ -2282,14 +3548,14 @@ ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
 		target = detected.path;
 	} else {
 		const filtersByPlatform = {
-			darwin: [{ name: 'Applications', extensions: ['app'] }],
-			win32: [{ name: 'Programs', extensions: ['exe'] }]
+			darwin: [{ name: __('Applications'), extensions: ['app'] }],
+			win32: [{ name: __('Programs'), extensions: ['exe'] }]
 		};
 		// Everywhere else an application is just a file, so the dialog does not
 		// narrow what can be picked.
 		const filters = filtersByPlatform[process.platform] || [];
 		const result = await dialog.showOpenDialog({
-			title: 'Choose the application to open this folder in',
+			title: __('Choose the application to open this folder in'),
 			properties: ['openFile'],
 			defaultPath: process.platform === 'darwin' ? '/Applications' : undefined,
 			filters
@@ -2364,6 +3630,53 @@ ipcMain.handle('provenance:set-event', async (_e, ref) => {
 	return { ok: true, event: parsed.name };
 });
 
+// --- The app's settings (#559) ---
+//
+// Beside the two fields above, under the same `preferences`, and for the same
+// reason: app-wide. What each setting is and what it accepts is settings.cjs's;
+// what is here is the store, and what the disk is asked.
+
+// Whether a path is a folder, asked before the pure check and not inside it:
+// a folder on a network drive that has gone can take the whole of its
+// timeout to answer, and the main process is not held for it.
+async function isDirectory(target) {
+	try {
+		return (await fs.promises.stat(target)).isDirectory();
+	} catch {
+		return false;
+	}
+}
+
+ipcMain.handle('settings:get', async () => {
+	const s = await getStore();
+	return { ok: true, settings: readSettings(s.get('preferences')) };
+});
+
+// One setting at a time, and the answer is all of them as they then stand: the
+// window holds the whole and replaces it, so what it shows is what was
+// written and not what it sent.
+ipcMain.handle('settings:set', async (_e, key, value) => {
+	// The disk is asked only about a full path for a setting there is: what
+	// the pure check would ask, and nothing a key that is not a setting sends.
+	const directory = Object.hasOwn(SETTINGS, key) && typeof value === 'string' && path.isAbsolute(value) && await isDirectory(value);
+	const known = await languages();
+	const accepted = acceptSetting(key, value, {
+		isAbsolute: path.isAbsolute,
+		isDirectory: () => directory,
+		isLanguage: (tag) => known.some((language) => language.tag === tag),
+		isPhpVersion: (version) => phpVersions().includes(version)
+	});
+	if (!accepted.ok) return { ok: false, error: accepted.error };
+	await setPreference(key, accepted.value);
+	const s = await getStore();
+	const settings = readSettings(s.get('preferences'));
+	// The theme applies at once (#560): Electron tells the page, and the
+	// window's own colour is set here rather than left to Electron's
+	// `updated`, which is not promised for a change to 'system'.
+	if (THEME_KEYS.includes(key)) applyTheme(settings);
+	return { ok: true, settings };
+});
+
 // The fallback that needs no configuration at all — see site-registry.js for why
 // it is behind the same boundary as `sites:delete`.
 ipcMain.handle('dir:show', async (_e, sitePath) => {
@@ -2376,7 +3689,28 @@ ipcMain.handle('dir:show', async (_e, sitePath) => {
 	});
 });
 
-const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this app bundles.\n  Retrying with engine checks relaxed…\n\n';
+// What the terminal says when npm has exited but something it started still
+// holds its output: one sentence per platform, and per whether a signal ended
+// it, since Windows lets that process run on and elsewhere it is ended.
+function npmLetGoLine(code, signal) {
+	if (process.platform === 'win32') {
+		if (signal) {
+			// translators: 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
+			return sprintf(__('npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.'), code, signal);
+		}
+		// translators: %s: the code npm exited with.
+		return sprintf(__('npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.'), code);
+	}
+	if (signal) {
+		// translators: 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
+		return sprintf(__('npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.'), code, signal);
+	}
+	// translators: %s: the code npm exited with.
+	return sprintf(__('npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.'), code);
+}
+
+// A function, so that it is said in the locale applied at startup.
+const engineRetryNotice = () => `\n⚠ ${__('This site requires a newer Node.js than this app bundles.')}\n  ${__('Retrying with engine checks relaxed…')}\n\n`;
 
 // Spawns an npm runner, and if it fails specifically because a dependency
 // demands a newer Node than Electron bundles, retries once with engine checks
@@ -2398,15 +3732,34 @@ const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this 
 // installs that inherit this environment — wordpress-develop's Gruntfile calls
 // install-changed at load time, which execSync's its own `npm install` (#54).
 function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register, logScope, retryOnEngineMismatch = false, relaxEnginesFromStart = false }) {
-	const start = (relaxEngines) => {
+	// `initial` is the first start, the one that happens inside the IPC handler
+	// before it has returned a run id. Nothing is listening on the log and done
+	// channels yet — the renderer subscribes after the invoke resolves (#43) —
+	// so a failure there is thrown for the handler to reject with, and reaches
+	// the contributor through the caller's own catch. A retry's failure happens
+	// later, with the listeners in place, and streams as usual.
+	const start = (relaxEngines, initial = false) => {
 		// Logged before the spawn: a child that fails to start at all (EPERM on
 		// Windows) produces no output, so without this the log would show nothing
 		// where the failure was.
 		logEvent(logScope, `spawn ${path.basename(runnerPath)} ${args.join(' ')} in ${cwd}${relaxEngines ? ' (relaxed engines)' : ''}`);
-		const child = spawnRunner(runnerPath, args, {
-			cwd,
-			extraEnv: relaxEngines ? RELAXED_ENGINES_ENV : {}
-		});
+		let child;
+		try {
+			child = spawnRunner(runnerPath, args, {
+				cwd,
+				extraEnv: relaxEngines ? RELAXED_ENGINES_ENV : {}
+			});
+		} catch (err) {
+			// Synchronous, unlike a spawn failure: the shim directory refused to
+			// hand out shims without the compat preload (#275).
+			logError(logScope, `could not start: ${String(err)}`);
+			if (initial) throw err;
+			logEvent(logScope, 'never started; shims not written');
+			// translators: %s: why npm could not be started.
+			onLog('stderr', `\n${sprintf(__('Failed to start: %s'), err && err.message ? err.message : String(err))}\n`);
+			setTimeout(() => onDone(null), 0);
+			return;
+		}
 		register(child);
 
 		const detector = createEngineMismatchDetector();
@@ -2442,7 +3795,11 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			// Also surfaced in the app's terminal: the log file explains a failure
 			// after the fact, but the person who just clicked the button needs to
 			// see that the run never started.
-			onLog('stderr', `\nFailed to start: ${err && err.message ? err.message : String(err)}\n`);
+			onLog('stderr', `\n${sprintf(
+				// translators: %s: why npm could not be started.
+				__('Failed to start: %s'),
+				err && err.message ? err.message : String(err)
+			)}\n`);
 			// Deferred by a turn so that close — which knows about the engines
 			// retry — wins whenever it does arrive. A spawn failure is the very
 			// case this logging exists to expose, so it must not also become a
@@ -2455,7 +3812,39 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			}, 0);
 		});
 
+		// `close` is the event the run settles on, and it waits for the stdio
+		// pipes. A descendant that outlives npm keeps them open — wp-build after
+		// its cmd.exe was closed by hand (#497) — so npm has exited, the step is
+		// still IN PROGRESS, and the terminal keeps receiving the orphan's output
+		// (#498). Mirror of the Stop escalation (#479) on the natural-exit path:
+		// three seconds after `exit` with no `close`, force the group by pid on
+		// POSIX, where the detached group outlives its leader and the orphan
+		// goes with it, and destroy the pipes, which is what makes Node emit
+		// `close` with the exit code npm gave. The close handler then settles as
+		// usual, so the engines-retry decision stays in one place; whatever the
+		// orphan writes afterwards goes with the stream. Not forced on Windows,
+		// for the reason npm:kill gives: the pid is certainly dead by now, a
+		// `taskkill /T` on it reaches nothing of the orphan (its parent chain
+		// is gone) and could land on a reissued pid; there the orphan runs on
+		// until it finishes, and the terminal line says so.
+		let letGo = null;
+		child.once('exit', (code, signal) => {
+			letGo = setTimeout(() => {
+				if (settled) return;
+				const exit = `code ${code}${signal ? ` (signal ${signal})` : ''}`;
+				logEvent(logScope, `exited with ${exit} but a descendant still holds its output; letting go`);
+				onLog('stderr', `\n${npmLetGoLine(code, signal)}\n`);
+				// Group only: the leader is dead (this is its exit), so a group that
+				// is gone too leaves nothing to kill and a pid that may be reissued.
+				if (process.platform !== 'win32') killTreeByPid(child.pid, 'SIGKILL', { groupOnly: true });
+				for (const stream of [child.stdout, child.stderr, child.stdin]) {
+					if (stream && typeof stream.destroy === 'function') stream.destroy();
+				}
+			}, 3000);
+		});
+
 		child.on('close', (code, signal) => {
+			if (letGo) clearTimeout(letGo);
 			flushChildOutput(logScope);
 			logEvent(logScope, `exited with code ${code}${signal ? ` (signal ${signal})` : ''}`);
 			// `!settled` guards the case where the error path got there first: the
@@ -2470,14 +3859,14 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				cancelled: cancelledChildren.has(child)
 			});
 			if (retry) {
-				onLog('stdout', ENGINE_RETRY_NOTICE);
+				onLog('stdout', engineRetryNotice());
 				start(true);
 				return;
 			}
 			settle(code);
 		});
 	};
-	start(relaxEnginesFromStart);
+	start(relaxEnginesFromStart, true);
 }
 
 ipcMain.handle('npm:install', async (event, directoryPath) => {
@@ -2496,6 +3885,7 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 		register: (child) => {
 			runningInstalls[installId] = child;
 			installIdByDirectory[directoryPath] = installId;
+			trackDirectoryChild(directoryPath, child);
 		},
 		onLog: (type, data) => {
 			event.sender.send('npm:install:log', { installId, type, data });
@@ -2514,6 +3904,7 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 				s.set('siteMeta', meta);
 			} catch {}
 			event.sender.send('npm:install:done', { installId, code });
+			untrackDirectoryChild(directoryPath, runningInstalls[installId]);
 			delete runningInstalls[installId];
 			// Guarded on identity: a second install for the same directory has
 			// already claimed the slot, and clearing it blind would leave that
@@ -2544,14 +3935,18 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 		relaxEnginesFromStart: true,
 		register: (child) => {
 			runningScripts[runId] = child;
+			scriptByRunId[runId] = { directoryPath, scriptName, scriptArgs };
 			runIdByDirectory[directoryPath] = runId;
+			trackDirectoryChild(directoryPath, child);
 		},
 		onLog: (type, data) => {
 			event.sender.send('npm:run-script:log', { runId, type, data });
 		},
 		onDone: (code) => {
 			event.sender.send('npm:run-script:done', { runId, code });
+			untrackDirectoryChild(directoryPath, runningScripts[runId]);
 			delete runningScripts[runId];
+			delete scriptByRunId[runId];
 			if (runIdByDirectory[directoryPath] === runId) {
 				delete runIdByDirectory[directoryPath];
 			}
@@ -2586,11 +3981,24 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 		// A script is a tree — runner -> npm -> shell -> grunt — and child.kill()
 		// signals only the first link, so stopping a build left the rest of it
 		// running (#83, #146). An install is the same shape: runner -> npm.
-		killChildTree(child);
-		// Last resort for a child that ignores SIGTERM. Only the direct child: by
-		// this point the tree has had its chance, and the runner dying takes the
-		// pipes with it.
-		setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 3000);
+		const attempted = killChildTree(child);
+		// Last resort for a tree that ignores SIGTERM: the same group signal,
+		// forced, by pid. It used to be a kill of the direct child, and the
+		// runner dying took the pipes with it but not a descendant that had
+		// chosen to sit through the first signal (Gutenberg's native `tsc
+		// --build`, #251); and by the time the timer fires the runner has
+		// usually died of the first signal, so a check on the ChildProcess
+		// would say "nothing to do" about a tree that is still there. `close`
+		// is what says the tree is gone (the pipes are), and stands this down.
+		// Armed only when the polite signal was actually sent: a child that had
+		// already closed when Stop landed has no tree left, and its pid may be
+		// someone else's three seconds on. Not on Windows either, where the
+		// first step is already a forced `taskkill` of the tree.
+		if (attempted && process.platform !== 'win32') {
+			const pid = child.pid;
+			const escalation = setTimeout(() => { killTreeByPid(pid, 'SIGKILL'); }, 3000);
+			child.once('close', () => clearTimeout(escalation));
+		}
 		return { ok: true };
 	} catch (e) {
 		return { ok: false, error: String(e) };
@@ -2613,12 +4021,36 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	if (playgroundServers[sitePath]?.child) {
 		return { ok: true, url: playgroundServers[sitePath].url };
 	}
+	// How the site is served is the target's (#251). Core's build/ is a whole
+	// WordPress, mounted as the docroot; a Gutenberg checkout is a plugin,
+	// mounted into the stock WordPress Playground installs. The runner turns
+	// the config into Playground options (playground-plan.cjs); the store is
+	// read here, once, and the map below keys on sitePath as before, so
+	// playground:stop and the quit sweep are untouched.
+	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
+	const isPluginMount = serve.strategy === 'plugin-mount';
 	const buildDir = path.join(sitePath, 'build');
-	const runnerPath = path.join(__dirname, 'server-runner.js');
+	// The PHP version and the debug flags the settings hold (#559), read at
+	// each start so a change applies to the next. A version the bundled
+	// Playground no longer has, after a bump, is passed over for the fallback.
 	const logScope = playgroundLogScope(sitePath);
-	logEvent(logScope, `starting server for ${buildDir} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
-	const child = spawnRunner(runnerPath, [buildDir], {
-		cwd: buildDir,
+	const settings = readSettings((await getStore()).get('preferences'));
+	const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
+	if (phpVersion !== settings.phpVersion) {
+		logEvent(logScope, `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
+	}
+	const serveConfig = {
+		...(isPluginMount
+			? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
+			: { strategy: 'docroot', docroot: buildDir }),
+		phpVersion,
+		debug: { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug }
+	};
+	const serveCwd = isPluginMount ? sitePath : buildDir;
+	const runnerPath = path.join(__dirname, 'server-runner.js');
+	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
+	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
+		cwd: serveCwd,
 		extraEnv: {
 			// Provide SMTP settings to the server runner so it can configure WP constants
 			WP_MAIL_SMTP_HOST: '127.0.0.1',
@@ -2673,7 +4105,15 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 		// settles on close the same way.
 		if (typeof pendingResolve === 'function') {
 			clearTimeout(timeoutId);
-			pendingResolve({ ok: false, error: `Server exited with code ${code}${signal ? ` (signal ${signal})` : ''} before reporting a URL` });
+			let error;
+			if (signal) {
+				// translators: 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
+				error = sprintf(__('Server exited with code %1$s (signal %2$s) before reporting a URL'), code, signal);
+			} else {
+				// translators: %s: the code the server exited with.
+				error = sprintf(__('Server exited with code %s before reporting a URL'), code);
+			}
+			pendingResolve({ ok: false, error });
 			pendingResolve = null;
 		}
 		event.sender.send('playground:stopped', { sitePath, code });
@@ -2699,7 +4139,9 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 				// The tree, not the runner alone: a server that hung on the way up
 				// still has its worker underneath it.
 				killChildTree(child);
-				pendingResolve({ ok: false, error: `Server did not start within ${START_TIMEOUT_MS / 1000} seconds` });
+				const seconds = START_TIMEOUT_MS / 1000;
+				// translators: %d: how many seconds the server was given to start.
+				pendingResolve({ ok: false, error: sprintf(_n('Server did not start within %d second', 'Server did not start within %d seconds', seconds), seconds) });
 				pendingResolve = null;
 			}
 		}, START_TIMEOUT_MS);
@@ -2760,7 +4202,8 @@ ipcMain.handle('playground-web:start', async () => {
     ];
     const webDir = webDirCandidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } });
     if (!webDir) {
-        return { ok: false, error: 'local-playground-web directory not found.' };
+        // translators: %s: the name of the folder the web server serves, local-playground-web.
+        return { ok: false, error: sprintf(__('%s directory not found.'), 'local-playground-web') };
     }
 
     const runnerPath = path.join(__dirname, 'playground-web-runner.js');
@@ -2808,7 +4251,7 @@ ipcMain.handle('playground-web:start', async () => {
         if (stillPending) {
             clearTimeout(timeoutId);
             if (probeIntervalId) clearInterval(probeIntervalId);
-            try { pendingResolve({ ok: false, error: 'Server exited before becoming ready' }); } catch {}
+            try { pendingResolve({ ok: false, error: __('Server exited before becoming ready') }); } catch {}
             pendingResolve = null;
         }
         broadcastToAll('playground-web:stopped', { code });
@@ -2840,7 +4283,7 @@ ipcMain.handle('playground-web:start', async () => {
         probeIntervalId = setInterval(probe, 600);
         timeoutId = setTimeout(() => {
             if (!resolved && typeof pendingResolve === 'function') {
-                pendingResolve({ ok: false, error: 'Timed out starting web server' });
+                pendingResolve({ ok: false, error: __('Timed out starting web server') });
                 pendingResolve = null;
             }
             if (probeIntervalId) clearInterval(probeIntervalId);
@@ -2920,31 +4363,47 @@ function startWpDebugTail(sitePath, webContents) {
 	wpDebugWatchers[sitePath] = { filePath, lastSize: 0 };
 	const state = wpDebugWatchers[sitePath];
 
-	function send(data) {
-		webContents.send('wp:debug-log:data', { sitePath, data });
+	// `backlog` says the lines are not news: what the file already held when
+	// the tail started, and the app's own line that marks where that ends.
+	// The panel shows them like any others and does not count them as unseen.
+	// The tail is started before the server is (use-dev-server.jsx), so what
+	// the file holds then is what earlier runs left.
+	function send(data, backlog = false) {
+		webContents.send('wp:debug-log:data', { sitePath, data, backlog });
 	}
 
-	function attachFileWatcher() {
+	// `fromBefore` is true for the one attempt made as the tail starts: a file
+	// found then was left by earlier runs. One that appears later, or comes
+	// back after being removed, was written while this run was being watched:
+	// its lines are news, and nothing is said under them about earlier runs.
+	function attachFileWatcher(fromBefore = false) {
 		try {
 			const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
 			if (!stat) return false;
-			const initial = planInitialRead(stat.size);
-			state.lastSize = initial.lastSize;
-			if (initial.read) {
-				const rs = fs.createReadStream(filePath, initial.read);
-				rs.on('data', (chunk) => send(chunk.toString()));
+			// A file found again after a 'rename' is taken for the one the tail
+			// was reading, carried on from where it stopped, until its size says
+			// otherwise: an editor saving debug.log writes a new file at the old
+			// path, and replaying that would show every line a second time and
+			// count them all as unseen. With no offset — the first attach, a file
+			// that was gone when the app looked (watchForFile), or one that was
+			// empty or cleared — the file is new and read whole, up to the cap.
+			const plan = state.lastSize > 0 ? planTailRead(state.lastSize, stat.size) : planInitialRead(stat.size);
+			state.lastSize = plan.lastSize;
+			if (plan.read) {
+				const rs = fs.createReadStream(filePath, plan.read);
+				rs.on('data', (chunk) => send(chunk.toString(), fromBefore));
 				// The file outlives the dev server, so what was just replayed is
 				// whatever previous runs left behind — with WordPress's own
 				// timestamps on it, which is exactly what makes it read as
 				// something that happened just now. The marker is the app saying
 				// where the backlog ends.
-				rs.on('end', () => send(`${WP_DEBUG_SESSION_MARKER}\n`));
+				if (fromBefore) rs.on('end', () => send(`${WP_DEBUG_SESSION_MARKER}\n`, true));
 			}
 			state.fileWatcher = fs.watch(filePath, (evt) => {
 				// 'rename' is the file being replaced or removed under the
 				// watcher, which stays bound to the old inode and would never
 				// fire again. Re-attaching is what keeps the panel alive across a
-				// `grunt clean` or a manual delete.
+				// `grunt clean`, a manual delete or an editor's save.
 				if (evt === 'rename') { reattachAfterLoss(); return; }
 				if (evt !== 'change') return;
 				try {
@@ -2968,8 +4427,10 @@ function startWpDebugTail(sitePath, webContents) {
 	// Watch the directory for the file appearing. Used both before it exists at
 	// all — the common case, since nothing writes it until WordPress logs
 	// something — and again if it is later removed.
-	function watchForFile() {
-		if (attachFileWatcher()) return;
+	function watchForFile(fromBefore = false) {
+		if (attachFileWatcher(fromBefore)) return;
+		// Not there: whatever appears at the path is a new file, read whole.
+		state.lastSize = 0;
 		try {
 			state.dirWatcher = fs.watch(wpContentDir, () => {
 				if (attachFileWatcher() && state.dirWatcher) {
@@ -2983,11 +4444,10 @@ function startWpDebugTail(sitePath, webContents) {
 	function reattachAfterLoss() {
 		try { state.fileWatcher?.close(); } catch {}
 		state.fileWatcher = undefined;
-		state.lastSize = 0;
 		watchForFile();
 	}
 
-	watchForFile();
+	watchForFile(true);
 	return true;
 }
 

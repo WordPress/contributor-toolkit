@@ -21,10 +21,11 @@
  * only to `diff --git` and `Index:` lines. `#` is the comment marker Trac and
  * Subversion patches already use, so nothing downstream has to learn a new one.
  *
- * Pure and dependency-free apart from the ticket URL helper, so `node --test`
- * can require it directly.
+ * Pure, with nothing behind it but the ticket URL helper and the translation
+ * functions, so `node --test` can require it directly.
  */
 
+const { __, sprintf } = require('@wordpress/i18n');
 const { ticketUrl } = require('./renderer/trac-ticket.cjs');
 const { isHandle } = require('./wporg-handle.cjs');
 
@@ -88,16 +89,17 @@ function day(iso) {
  */
 function parseEventName(input) {
 	const raw = typeof input === 'string' ? input.trim() : '';
-	if (!raw) return { ok: false, error: 'Enter the event name, or leave it empty.' };
+	if (!raw) return { ok: false, error: __('Enter the event name, or leave it empty.') };
 	if (CONTROL_CHARACTERS.test(raw)) {
 		// `test` on a /g regex advances lastIndex; reset it so the next call
 		// does not start reading from where this one stopped.
 		CONTROL_CHARACTERS.lastIndex = 0;
-		return { ok: false, error: 'The event name has to fit on one line.' };
+		return { ok: false, error: __('The event name has to fit on one line.') };
 	}
 	CONTROL_CHARACTERS.lastIndex = 0;
 	if (raw.length > MAX_EVENT_LENGTH) {
-		return { ok: false, error: `Keep the event name under ${MAX_EVENT_LENGTH} characters.` };
+		// translators: %d: a number of characters.
+		return { ok: false, error: sprintf(__('Keep the event name under %d characters.'), MAX_EVENT_LENGTH) };
 	}
 	return { ok: true, name: raw };
 }
@@ -127,12 +129,13 @@ function ticketNumber(ticketId) {
  * @param {string}        [details.handle]      WordPress.org handle, already validated.
  * @param {string}        [details.event]       Where it was written — a WordCamp, a meetup.
  * @param {number|string} [details.ticketId]
+ * @param {Object}        [details.workItem]    The site's provider; existing callers default to Trac.
  * @param {string}        [details.trunkOid]
  * @param {string}        [details.trunkDate]   ISO timestamp of the base commit.
  * @param {string}        [details.generatedAt] ISO timestamp for "now".
  * @return {string}
  */
-function buildProvenanceHeader({ handle, event, ticketId, trunkOid, trunkDate, generatedAt } = {}) {
+function buildProvenanceHeader({ handle, event, ticketId, workItem = { noun: 'ticket', urlFor: ticketUrl }, trunkOid, trunkDate, generatedAt } = {}) {
 	const lines = [];
 
 	const contributor = field(handle);
@@ -146,7 +149,7 @@ function buildProvenanceHeader({ handle, event, ticketId, trunkOid, trunkDate, g
 	if (where) lines.push(`# Event: ${where}`);
 
 	const ticket = ticketNumber(ticketId);
-	if (ticket) lines.push(`# Ticket: ${ticketUrl(ticket)}`);
+	if (ticket) lines.push(`# ${workItem.noun === 'issue' ? 'Issue' : 'Ticket'}: ${workItem.urlFor(ticket)}`);
 
 	const oid = field(trunkOid);
 	const based = day(trunkDate);
@@ -189,7 +192,6 @@ function handoffFilename({ handle, ticketId } = {}) {
 
 module.exports = {
 	TITLE,
-	SHORT_OID_LENGTH,
 	MAX_FIELD_LENGTH,
 	MAX_EVENT_LENGTH,
 	parseEventName,

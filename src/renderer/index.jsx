@@ -1,312 +1,119 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
-  TabPanel,
-  Card,
-  CardBody,
-  Dropdown,
-  Flex,
-  DropdownMenu,
-  Icon,
-  MenuGroup,
-  MenuItem,
-  Modal,
-  SnackbarList,
-  TextControl,
-  TextareaControl,
-  Spinner,
-  Tooltip
+  SlotFillProvider
 } from '@wordpress/components';
-import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
+import { Page } from '@wordpress/admin-ui';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, _n, _x, sprintf, setLocaleData } from '@wordpress/i18n';
+import { addFilter } from '@wordpress/hooks';
+import { drawerLeft, globe } from '@wordpress/icons';
+import { Badge, Button as UiButton, Card as UiCard, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
+// The design system's tokens: every `--wpds-*` custom property, at its default,
+// on `:root`.
+import '@wordpress/theme/design-tokens.css';
 import '@wordpress/components/build-style/style.css';
-import { Terminal } from 'xterm';
-import 'xterm/css/xterm.css';
-import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
+import '@wordpress/dataviews/build-style/style.css';
+import '@xterm/xterm/css/xterm.css';
+// After the libraries' own, so the shell's rules are the later ones.
+import './shell.css';
+import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
-import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.cjs';
-import { planDevServerStart, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
-import { appendBounded, countLines } from './debug-log.cjs';
+import { computeTerminalBusy } from './terminal-hints.cjs';
+import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
+import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
+import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
+import { serverReport, sitesListRows, siteToOpen, withServerReport } from './sites-list.cjs';
+import { deleteSiteQuestion } from './site-dialogs.cjs';
+import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
+import { applyLocale, textDirection } from './locale-setup.cjs';
+import { getProjectType } from '../project-type.cjs';
+import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
-import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
+import { trunkAgeInfo, updateStepStatuses, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText, updateSummarySentence } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
-import { parsePrRef } from '../patch-sources.cjs';
-import { prStateBadge } from './pr-state.cjs';
-import { statusBadge } from '../trac-ticket-info.cjs';
-import { prDateLabel } from './pr-date-label.cjs';
-import { ticketUrl, attachUrl } from './trac-ticket.cjs';
-import { adminUrl, adminerUrl } from './site-urls.cjs';
-import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
+import { workItemProvider } from '../work-item.cjs';
+import { adminUrl } from './site-urls.cjs';
+import { ticketBranchRows, ticketListCard, deleteWorkQuestion } from './ticket-branch-list.cjs';
 import { ticketTrunkNotice } from './ticket-trunk-notice.cjs';
+import { legacySiteNotice } from './legacy-site.cjs';
+import { deepLinkNotice } from './deep-link-notice.cjs';
+import { mergeInProgressNotice } from './merge-in-progress.cjs';
+import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
-import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
-import { highlightLog } from './log-highlight.cjs';
-import { carryTestMode } from './github-account.cjs';
-import { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
-import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
+import { hasDiffLines } from './diff-highlight.cjs';
+import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion } from './changes-note.cjs';
+import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
+import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
+import { ReasonedUiButton } from './components/reasoned-button.jsx';
+import { DiscardChangesLink } from './components/discard-changes-link.jsx';
+import { LogText } from './components/log-text.jsx';
+import { DestinationGroup } from './components/destination.jsx';
+import { TerminalCommandLink } from './components/terminal-command-link.jsx';
+import { RenameSiteDialog } from './components/rename-site-dialog.jsx';
+import { ConfirmDialog } from './components/confirm-dialog.jsx';
+import { ToastStack } from './components/toast-stack.jsx';
+import { TrunkUpdateCard } from './components/trunk-update-card.jsx';
+import { SetupChecklist } from './components/setup-checklist.jsx';
+import { EmailModal } from './components/email-modal.jsx';
+import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
+import { CreateSiteDialog } from './components/create-site-dialog.jsx';
+import { SettingsDialog } from './components/settings-dialog.jsx';
+import { PatchDiffPane } from './components/patch-diff-pane.jsx';
+import { MentorHandoff } from './components/mentor-handoff.jsx';
+import { TracDestination } from './components/trac-destination.jsx';
+import { PullRequestDestination } from './components/pull-request-destination.jsx';
+import { ReviewDialog } from './components/review-dialog.jsx';
+import { SitesSidebar } from './components/sites-sidebar.jsx';
+import { AppFooter, LogsToggleNote, trayToggleId } from './components/app-footer.jsx';
+import { BottomTray, SiteTrayActionsFill, SiteTrayFill } from './components/bottom-tray.jsx';
+import { LogsPanel } from './components/logs-panel.jsx';
+import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
+import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
+import { SiteDetails } from './components/site-details.jsx';
+import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
+import { applyHeldReason, previewShown } from './apply-card.cjs';
+import { TicketCard } from './components/ticket-card.jsx';
+import { TicketListCard } from './components/ticket-list.jsx';
+import { AppTheme } from './components/app-theme.jsx';
+import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
+import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
+import { useSettings } from './hooks/use-settings.jsx';
+import { phpVersionChoice, resumeFor } from './settings-view.cjs';
+import { autoStartPlan } from './auto-start.cjs';
+import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
+import { useSites } from './hooks/use-sites.jsx';
+import { usePullRequest } from './hooks/use-pull-request.jsx';
+import { useSiteMail } from './hooks/use-site-mail.jsx';
+import { useSiteLogs } from './hooks/use-site-logs.jsx';
+import { useSiteTerminal } from './hooks/use-site-terminal.jsx';
+import { useSiteScripts } from './hooks/use-site-scripts.jsx';
+import { useBuildWatch } from './hooks/use-build-watch.jsx';
+import { useDevServer } from './hooks/use-dev-server.jsx';
+import { useTrunkUpdate } from './hooks/use-trunk-update.jsx';
+import { useSiteStatus } from './hooks/use-site-status.jsx';
+import { useSiteTicket } from './hooks/use-site-ticket.jsx';
+import { useApplyPatch } from './hooks/use-apply-patch.jsx';
+import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
-const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
-// One face for everything that is process output: the terminal below and every
-// log pane above it. Shared rather than repeated because the panes had drifted
-// into the app's sans-serif, which does not line up a stack trace and does not
-// read as a console even though that is exactly what it is.
-const TERMINAL_FONT = { fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace', fontSize: 13 };
-// Shared by every log pane so the tabs cannot drift apart visually. The line
-// height is looser than xterm's: this is wrapped text in a div, not painted rows.
-const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
-// The build-watch status dot, by state (#247). Keyed rather than nested
-// ternaries; an unknown state falls back to the grey "stopped" colour.
-const WATCH_DOT_COLORS = { watching: '#00a32a', building: '#dba617', paused: '#dba617', exited: '#d63638' };
-// What the Copy button says about the press just made. Keyed rather than
-// nested ternaries, so a fourth state is a line here instead of another branch
-// in the middle of the JSX.
-const COPY_BUTTON_LABELS = {
-  idle: 'Copy',
-  copied: 'Copied',
-  failed: 'Could not copy'
-};
 
-// One discard action, wherever it is offered. Keeping the disabled rendering
-// here means the ticket note cannot lose the explanation while the review
-// modal keeps it (or vice versa).
-function DiscardChangesLink({ label, onClick, reason, style }) {
-  if (!reason) {
-    return <Button variant="link" isDestructive onClick={onClick} style={style}>{label}</Button>;
-  }
-  return (
-    <Tooltip text={reason} placement="bottom">
-      <Button
-        variant="link"
-        isDestructive
-        onClick={onClick}
-        disabled
-        accessibleWhenDisabled
-        description={reason}
-        style={style}
-      >{label}</Button>
-    </Tooltip>
-  );
-}
-// What the app is doing while a pull request is being opened (#167). Each step
-// is named because they take visibly different amounts of time — forking is the
-// slow one, and an unlabelled spinner there reads as a hang.
-const PR_STAGE_LABELS = {
-  forking: 'Creating your fork of wordpress-develop…',
-  syncing: 'Bringing your fork up to date…',
-  committing: 'Uploading your changes…',
-  opening: 'Opening the pull request…'
-};
-// Why it failed, in a sentence that says what to do about it. Every one of
-// these still leaves the patch file, which is what the card offers underneath.
-const PR_FAILURE_MESSAGES = {
-  unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
-  'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
-  offline: 'No connection to GitHub.',
-  'no-ticket': 'Link a Trac ticket to this site first — a pull request has to cite one.',
-  empty: 'There are no changes to open a pull request with.'
-};
-// Per-status wording for the update chain card (#94), following the issue's
-// mockups: the skipped install step is named, never hidden, and the build
-// step points at the Terminal instead of opening a second log surface.
-const UPDATE_STEP_LABELS = {
-  fetch: { pending: 'Fetch and reset to trunk', current: 'Fetching and resetting to trunk…', complete: 'Fetched and reset to trunk' },
-  install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
-  build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
-};
-// Checkmark/pointer and color per step status; pending/skipped fall back to
-// no symbol in muted gray.
-const UPDATE_STEP_MARKS = {
-  complete: { symbol: '✓', color: '#0f5132' },
-  current: { symbol: '›', color: '#0b5d95' }
-};
-// The file manager has a name on the two platforms that have one; everywhere
-// else it is whatever the desktop provides, so it is called what it is.
-//
-// Two forms, because it appears in two places: an instruction in a list of
-// commands ("Show in Finder"), and an application named alongside the editors in
-// the "Open directory in" menu, where every other row is a bare name.
-const FILE_MANAGER_LABELS = { darwin: 'Show in Finder', win32: 'Show in Explorer' };
-const FILE_MANAGER_NAMES = { darwin: 'Finder', win32: 'File Explorer' };
-const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
-const RENAME_INPUT_ID = 'rename-site-name-input';
-const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
-const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
-const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
-// Why the ticket's PR list could not be read, worded for the contributor.
-const TICKET_PATCH_STATUS_MESSAGE = {
-  'rate-limited': 'GitHub is rate-limiting this connection.',
-  offline: 'Could not reach GitHub.',
-  error: 'Could not read the pull requests from GitHub.'
-};
-const TRAC_TICKET_LISTS_URL = 'https://core.trac.wordpress.org/tickets/good-first-bugs';
-const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
+// A notice that is on the page as the page is drawn, or that already says
+// itself through its role, is told to say nothing of its own: left to, it
+// would be read out each time its site is opened, or said twice.
+const SILENT = '';
 
-function formatEmailDate(email) {
-  if (email.sentAt) return new Date(email.sentAt).toLocaleString();
-  if (email.date) return new Date(email.date).toLocaleString();
-  return '';
-}
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
-// Which applications this machine has is a fact about the machine, not about a
-// site, so it is held once for the window rather than once per site. Every site
-// is mounted at all times (the inactive ones are hidden), so per-row state here
-// would mean N copies of the same answer and N filesystem sweeps.
-//
-// Detection is deliberately not part of the load: the probe behind `editor:list`
-// waits until a menu is actually opened. It is re-run on every open rather than
-// cached for the session, because an editor installed while this app is running
-// is one the next menu should offer. The previous answer is kept on screen in the
-// meantime, so reopening the menu does not blink through an empty list.
-function useDetectedEditors() {
-  const [detected, setDetected] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadDetected = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await window.api.listEditors();
-      setDetected(result?.detected || []);
-    } catch (err) {
-      // The menu still offers the file manager and "Other application…", which
-      // is enough to finish the job — but "detection failed" and "nothing is
-      // installed" must not be the same event to whoever reads the log.
-      // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.
-      console.error('Could not list the editors on this machine:', err);
-      setDetected([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  return { detected, loading, loadDetected };
-}
-
-// Who this contributor is and where they are contributing from (#166), held
-// once for the same reason the detected editors are: both are facts about the
-// person or their machine, not about a checkout, so answering them in one site's
-// patch modal must not leave every other site still asking.
-function useContributorProvenance() {
-  const [handle, setHandle] = useState(null);
-  const [event, setEvent] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    window.api.getProvenance()
-      .then((res) => {
-        if (cancelled) return;
-        setHandle(res?.handle || null);
-        setEvent(res?.event || null);
-      })
-      // "nothing answered yet" is an ordinary state; "the store could not be
-      // read" is not, and the two must not look the same in the log. Same
-      // argument as useDetectedEditors above.
-      // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
-      .catch((err) => console.error('Could not read the remembered contributor details:', err));
-    return () => { cancelled = true; };
-  }, []);
-
-  // An empty ref forgets the field. A rejected invoke comes back as a refusal
-  // rather than being raised: the caller shows the message next to the input.
-  const rememberHandle = useCallback(async (ref) => {
-    let result;
-    try {
-      result = await window.api.setWporgHandle(ref);
-    } catch (err) {
-      // eslint-disable-next-line no-console -- see the note above.
-      console.error('Could not remember that WordPress.org handle:', err);
-      return { ok: false, error: String(err?.message ?? err) };
-    }
-    if (result?.ok) setHandle(result.handle || null);
-    return result;
-  }, []);
-
-  const rememberEvent = useCallback(async (ref) => {
-    let result;
-    try {
-      result = await window.api.setContributionEvent(ref);
-    } catch (err) {
-      // eslint-disable-next-line no-console -- see the note above.
-      console.error('Could not remember that event:', err);
-      return { ok: false, error: String(err?.message ?? err) };
-    }
-    if (result?.ok) setEvent(result.event || null);
-    return result;
-  }, []);
-
-  return { handle, event, rememberHandle, rememberEvent };
-}
-
-// Brings the block the contributor should act on next into view when it changes,
-// so their one hint is never left below the fold (#252). The mark itself is
-// drawn by React — the `.next-action-cue` class the render binds to this same id
-// — because a className survives re-render where an imperative one would be
-// reconciled away; this handles only the movement, which no className can do.
-//
-// Gated on `isActive` because every SiteRow stays mounted at once: without it a
-// background site could yank the viewport the moment its own state changed. It
-// fires on a *change* of the id (or on becoming active), not on every render, so
-// a contributor reading one block is not dragged off it by an unrelated update.
-function useNextActionCue(nextActionId, isActive, containerRef) {
-  useEffect(() => {
-    if (!isActive || !nextActionId) return;
-    const root = containerRef.current;
-    if (!root) return;
-    const el = root.querySelector(`[data-next-action="${nextActionId}"]`);
-    if (!el) return;
-    // `center` brings the block clearly into view rather than just nudging it to
-    // the nearest edge — the cue only fires when the target *changes*, so this
-    // moves the viewport to whatever is newly worth looking at (a step that just
-    // became current, an operation that just started) without fighting a
-    // contributor mid-read. Reduced motion drops the smooth glide to an instant
-    // jump.
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
-  }, [nextActionId, isActive, containerRef]);
-}
-
-// The two halves are one piece of state because one change moves both: adopting
-// the directory the app really created has to retire the guessed row and carry
-// its metadata across, and two setters cannot do that without a render in
-// between where the site has a path under one key and a label under another.
-// `setSiteMeta` keeps its old signature so every other caller is untouched;
-// `applySetup` is for the changes that need the pair, which is every change the
-// create flow makes.
-function useSites() {
-  const [state, setState] = useState({ sites: [], siteMeta: {} });
-  const setSiteMeta = useCallback((update) => setState((prev) => ({
-    ...prev,
-    siteMeta: typeof update === 'function' ? update(prev.siteMeta) : update
-  })), []);
-  const applySetup = useCallback((fn) => setState(fn), []);
-  const refresh = useCallback(async () => {
-    const { sites: list, siteMeta: meta } = await window.api.getSitesWithMeta();
-    setState({ sites: list, siteMeta: meta || {} });
-  }, []);
-  useEffect(() => { refresh(); }, [refresh]);
-  return { sites: state.sites, siteMeta: state.siteMeta, refresh, setSiteMeta, applySetup };
-}
-
-// The one way any panel confirms a completed action (#253). `confirm(message)`
-// queues a transient, screen-reader-announced notice; the provider below renders
-// the queue once for the window. The default is a no-op so a component rendered
-// outside the provider (a test, say) does not throw on a stray confirm.
-const ConfirmationContext = createContext(() => {});
-
-function useConfirmation() {
-  return useContext(ConfirmationContext);
-}
-
-function App() {
+function App({ settingsState }) {
   const { sites, siteMeta, refresh, setSiteMeta, applySetup } = useSites();
   // The confirmation queue for the whole window. It lives here, above every
   // SiteRow, because only one row is visible at a time and a per-row toast would
-  // be hidden along with its inactive row. See ConfirmationContext above.
+  // be hidden along with its inactive row. See ConfirmationContext in hooks/use-confirmation.jsx.
   const [confirmations, dispatchConfirmation] = useReducer(confirmationReducer, initialConfirmations);
   const confirm = useCallback((content, options = {}) => {
     dispatchConfirmation({ type: 'add', content, tone: options.tone });
@@ -318,6 +125,30 @@ function App() {
   // machine has is a fact about the machine, not about a site.
   const detectedApplications = useDetectedEditors();
   const wporg = useContributorProvenance();
+  // The app's settings (#559), read once above the theme, which is one of
+  // them, and the dialog they are changed in. The menu asks for the dialog
+  // too, over a subscription the whole window holds.
+  const { settings, loaded: loadedSettings, php: phpVersions, change: changeSetting } = settingsState;
+  // The PHP a server starts on: the one set where the bundle has it, and
+  // the fallback where it does not, decided where the dialog decides it.
+  const startingPhp = settings ? phpVersionChoice({ versions: phpVersions?.versions, fallback: phpVersions?.fallback, stored: settings.phpVersion }).value : null;
+  // What the last quit stopped and is to start again (#559), read once as
+  // the window opens; main forgets it as it is read.
+  const [resume, setResume] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    window.api.takeResumeList()
+      .then((res) => { if (!cancelled) setResume(res?.ok ? { servers: res.servers, watches: res.watches } : { servers: [], watches: [] }); })
+      .catch(() => { if (!cancelled) setResume({ servers: [], watches: [] }); });
+    return () => { cancelled = true; };
+  }, []);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const openSettings = useCallback(() => setSettingsOpen(true), []);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+  useEffect(() => {
+    const unsub = window.api.subscribeSettingsOpen(() => setSettingsOpen(true));
+    return () => { if (unsub) unsub(); };
+  }, []);
   const [downloadPhase, setDownloadPhase] = useState('');
   // Where the row for the setup in flight currently lives. It starts as the
   // window's guess and becomes the directory the main process reports, and it
@@ -336,7 +167,6 @@ function App() {
   const clearPendingSites = useCallback(() => setPendingSites([]), []);
   const [terminalMsgs, setTerminalMsgs] = useState('');
   const termRef = useRef(null);
-  const createDirInputRef = useRef(null);
   useEffect(() => { if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight; }, [terminalMsgs]);
   const [webStarting, setWebStarting] = useState(false);
   const [webUrl, setWebUrl] = useState('');
@@ -346,12 +176,37 @@ function App() {
   useEffect(() => { if (webLogRef.current) webLogRef.current.scrollTop = webLogRef.current.scrollHeight; }, [webLogs]);
   const [webAvailable, setWebAvailable] = useState(false);
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Whether the sites list is showing. Closed, it gives its width to the page.
+  const [sitesListOpen, setSitesListOpen] = useState(true);
+  // Whether the open site's details are showing. One answer for the window,
+  // not one per site: it is how the contributor likes the page, and it should
+  // not change as they move between sites.
+  const [detailsOpen, setDetailsOpen] = useState(true);
+  const toggleDetails = useCallback(() => setDetailsOpen((open) => !open), []);
+  // Which tray is open along the bottom of the window, if any (#558). One
+  // answer for the window, like the details: it is how the contributor has the
+  // window arranged, and the tray shows the open site's whichever site that is.
+  const [tray, setTray] = useState(null);
+  const trays = trayList();
+  const pressTrayToggle = useCallback((id) => setTray((current) => toggleTray(current, id)), []);
+  // The one time the tray opens without being asked: a site's view says so
+  // when something failed or was refused and the only word of it is in the
+  // terminal or in the logs. The page points there, and there has to be on
+  // screen.
+  const showTray = useCallback((id) => setTray((current) => trayAfterReveal(current, id)), []);
+  // Closed from inside itself, the tray takes the focused button with it. The
+  // focus goes back to the button that opened it, and not to the top of the
+  // document.
+  const closeTray = () => {
+    if (tray) document.getElementById(trayToggleId(tray))?.focus();
+    setTray(null);
+  };
   const [activeSite, setActiveSite] = useState(null);
+  const [deletingSites, setDeletingSites] = useState([]);
+  // State paints the progress, while the ref closes the same-tick gap before
+  // React renders it and prevents two delete requests for one site.
+  const deletingSitesRef = useRef(new Set());
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createSiteName, setCreateSiteName] = useState('');
-  const [createSiteDir, setCreateSiteDir] = useState('');
-  const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
   const setupLogAliasRef = useRef({});
@@ -412,36 +267,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    let styleEl = document.getElementById(CREATE_SITE_MODAL_STYLE_ID);
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = CREATE_SITE_MODAL_STYLE_ID;
-      styleEl.textContent = `
-.create-site-modal .components-modal__header-heading { color: #1d2327; }
-.create-site-modal .components-modal__header { border-bottom: 1px solid #e2e4e7; }
-.create-site-modal .components-modal__content { color: #1d2327; }
-`;
-      document.head.appendChild(styleEl);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!createModalOpen) return;
-    const input = document.getElementById(CREATE_SITE_NAME_INPUT_ID);
-    if (input) {
-      input.focus();
-      if (typeof input.select === 'function') input.select();
-    }
-  }, [createModalOpen]);
-
-  useEffect(() => {
-    if (createModalOpen) return;
-    if (createDirInputRef.current) {
-      createDirInputRef.current.value = '';
-    }
-  }, [createModalOpen]);
-
-  useEffect(() => {
     const unsubProg = window.api.subscribeSetupProgress((p) => {
       if (p && p.message) {
         setTerminalMsgs((v) => v + p.message + '\n');
@@ -470,11 +295,10 @@ function App() {
       if (s.target && s.phase !== 'done') addPendingSite(s.target);
       const key = s.sitePath || s.target;
       if (key) {
-        const phaseLabel = s.phase ? `Status: ${s.phase}` : 'Status update';
-        appendSetupLog(key, `${phaseLabel}\n`);
-        if (s.phase === 'done') appendSetupLog(key, 'Setup finished.\n');
+        appendSetupLog(key, `${setupStatusLine(s.phase)}\n`);
+        if (s.phase === 'done') appendSetupLog(key, `${__('Setup finished.')}\n`);
       }
-      if (s.phase === 'cloning') setDownloadPhase('Cloning repository…');
+      if (s.phase === 'cloning') setDownloadPhase(__('Cloning repository…'));
       else if (s.phase === 'done') { setDownloadPhase(''); clearPendingSites(); setTerminalMsgs(''); }
     });
     return () => { if (unsubProg) unsubProg(); if (unsubStat) unsubStat(); };
@@ -506,6 +330,27 @@ function App() {
     return () => { if (unsub) unsub(); };
   }, []);
 
+  // A ticket handed to the app by a `wpct://` link (#464). Held here rather
+  // than in SiteRow for the reason the switch progress gives: every row stays
+  // mounted, so subscribing per row would open one listener per site for an
+  // event that concerns exactly one of them.
+  //
+  // `at` is what makes the same ticket arriving twice two events. Without it
+  // the second link is the same state value, the effect below never re-runs,
+  // and a banner the contributor dismissed never comes back.
+  const [deepLink, setDeepLink] = useState(null);
+  useEffect(() => {
+    const unsub = window.api.subscribeDeepLinkTicket((p) => {
+      if (!p || !p.ticket) return;
+      setDeepLink({ ticket: p.ticket, at: Date.now() });
+    });
+    // Only after the subscription above exists: main holds a ticket that
+    // arrived while this page was still loading until it hears this.
+    Promise.resolve(window.api.deepLinkReady()).catch(() => {});
+    return () => { if (unsub) unsub(); };
+  }, []);
+  const clearDeepLink = useCallback(() => setDeepLink(null), []);
+
   // Refused while one is already running. Everything about this flow is
   // single-file and always has been — one pending card, one terminal, one
   // `clearPendingSites()` that clears them all — and `setupRowPathRef` is one
@@ -515,50 +360,13 @@ function App() {
   // shape.
   const chooseAndSetup = useCallback(() => {
     if (createSubmitting) return;
-    setCreateSiteName('');
-    setCreateSiteDir('');
-    setCreateSiteError('');
     setCreateModalOpen(true);
   }, [createSubmitting]);
 
-  const openDirectoryPicker = useCallback(async () => {
-    try {
-      const dir = await window.api.chooseDirectory();
-      if (dir) {
-        setCreateSiteDir(dir);
-        setCreateSiteError('');
-      }
-    } catch {}
-  }, []);
-
-  const handleCreateDirInputChange = useCallback((event) => {
-    const inputEl = event.target;
-    createDirInputRef.current = inputEl;
-    const files = inputEl.files;
-    if (!files || files.length === 0) {
-      inputEl.value = '';
-      return;
-    }
-
-    const resolved = directoryFromFileEntry(files[0], inputEl.value);
-    setCreateSiteDir(resolved);
-    // Clearing the error only when there is a directory: a selection that
-    // resolved to nothing has not fixed anything the message was about.
-    if (resolved) setCreateSiteError('');
-    inputEl.value = '';
-  }, [setCreateSiteDir, setCreateSiteError]);
-
-  const handleCreateSiteSubmit = useCallback(async () => {
-    const nameTrimmed = createSiteName.trim();
-    if (!nameTrimmed) {
-      setCreateSiteError('Please provide a site name.');
-      return;
-    }
-    if (!createSiteDir) {
-      setCreateSiteError('Please choose where to create the site.');
-      return;
-    }
-
+  // What the create-site dialog hands over once it has every answer: the name,
+  // trimmed, the parent folder and the project. The dialog closes here, and the
+  // setup it started goes on without it.
+  const startSiteSetup = useCallback(async ({ name: nameTrimmed, dir: createSiteDir, projectType: createSiteType }) => {
     const cleanFolder = sanitizeSiteFolder(nameTrimmed);
     const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
     let finalSitePath = targetDir;
@@ -568,20 +376,19 @@ function App() {
     applySetup((state) => beginSetup(state, {
       path: targetDir,
       label: nameTrimmed,
-      createdAt: placeholderCreatedAt
+      createdAt: placeholderCreatedAt,
+      projectType: createSiteType
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
-    setCreateSiteName('');
-    setCreateSiteDir('');
+    const chosenType = createSiteType;
 
     try {
       setCreateSubmitting(true);
-      setCreateSiteError('');
       setTerminalMsgs('');
       addPendingSite(targetDir);
-      appendSetupLog(targetDir, 'Starting site setup…\n');
-      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+      appendSetupLog(targetDir, `${__('Starting site setup…')}\n`);
+      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed, projectType: chosenType });
       if (createdPath) {
         finalSitePath = createdPath;
         // Ordinarily already done, by the `cloning` status this handler's own
@@ -598,14 +405,18 @@ function App() {
       }
       await refresh();
       setActiveSite(finalSitePath);
-      appendSetupLog(finalSitePath, 'Site setup request completed.\n');
+      appendSetupLog(finalSitePath, `${__('Site setup request completed.')}\n`);
     } catch (e) {
       // Whatever the row is *now*, which is not necessarily what it started as:
       // once the clone reports its directory the guess no longer exists, and
       // discarding the guess here would strand a row for a setup that failed.
       const rowPath = setupRowPathRef.current || targetDir;
-      setCreateSiteError(String(e));
-      appendSetupLog(rowPath, `Setup failed: ${String(e)}\n`);
+      // Said in the window's corner, and until it is dismissed: the dialog
+      // that asked for the site closed minutes ago, and the row that showed
+      // the setup is about to go.
+      confirm(setupFailureMessage(e), { tone: 'error' });
+      // translators: %s: the error setup failed with.
+      appendSetupLog(rowPath, `${sprintf(__('Setup failed: %s'), String(e))}\n`);
       applySetup((state) => discardSetup(state, rowPath));
     } finally {
       setupRowPathRef.current = null;
@@ -615,30 +426,9 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, confirm, moveSetupLog, refresh]);
 
-  const closeCreateModal = useCallback(() => {
-    if (createSubmitting) return;
-    setCreateModalOpen(false);
-  }, [createSubmitting]);
-
-  const handleCreateModalSubmit = useCallback((event) => {
-    event.preventDefault();
-    handleCreateSiteSubmit();
-  }, [handleCreateSiteSubmit]);
-
-  const handleCreateModalKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      closeCreateModal();
-    }
-  }, [closeCreateModal]);
-
-  const handleCreateDirInputClick = useCallback((event) => {
-    event.preventDefault();
-    void openDirectoryPicker();
-  }, [openDirectoryPicker]);
+  const closeCreateModal = useCallback(() => setCreateModalOpen(false), []);
 
   const togglePlaygroundWeb = useCallback(async () => {
     if (!webUrl) {
@@ -649,7 +439,8 @@ function App() {
         const res = await window.api.startPlaygroundWeb(
           ({ data }) => setWebLogs((v) => v + String(data)),
           (url) => { const u = (url || 'http://127.0.0.1:39372/').replace(/\/$/,'/'); setWebUrl(u); setWebStarting(false); },
-          (payload) => { setWebUrl(''); if (payload && typeof payload.code === 'number' && payload.code !== 0) setWebError(`Server exited with code ${payload.code}`); }
+          // translators: %d: the code the server exited with, a number.
+          (payload) => { setWebUrl(''); if (payload && typeof payload.code === 'number' && payload.code !== 0) setWebError(sprintf(__('Server exited with code %d'), payload.code)); }
         );
         if (res && res.ok && res.url) {
           const u = String(res.url).replace(/\/$/,'/');
@@ -679,32 +470,48 @@ function App() {
     setSiteMeta((m) => ({ ...(m || {}), [sitePath]: { ...(m?.[sitePath] || {}), ...patch } }));
   }, [setSiteMeta]);
 
+  // What each site's view last said of its server, by path, for the dot the
+  // sites list draws before every name. A server lives in its site's view,
+  // open or not, so the view is the one thing that knows, and it reports
+  // each change here; a report of null, from a view on its way out, takes
+  // the site's entry back. What a report does to the reports is decided in
+  // sites-list.cjs.
+  const [serverReports, setServerReports] = useState({});
+  const onServerStatus = useCallback((sitePath, report) => {
+    setServerReports((current) => withServerReport(current, sitePath, report));
+  }, []);
+
   const onDelete = useCallback(async (sitePath) => {
-    const result = await window.api.deleteSite(sitePath);
-    await refresh();
-    removeSetupLog(sitePath);
-    // A deletion that half-happened must not look like one that worked (#381).
-    // The sentence and the decision to show it live in confirmations.cjs,
-    // where the suite can reach them; the error tone stays until dismissed.
-    const failure = deleteFailureMessage(result);
-    if (failure) {
-      confirm(failure, { tone: 'error' });
+    if (deletingSitesRef.current.has(sitePath)) return;
+    deletingSitesRef.current.add(sitePath);
+    setDeletingSites((current) => (current.includes(sitePath) ? current : [...current, sitePath]));
+    let result;
+    try {
+      try {
+        result = await window.api.deleteSite(sitePath);
+      } catch {
+        result = { ok: false, reason: 'remove-failed', path: sitePath };
+      }
+      try { await refresh(); } catch {}
+      if (result?.ok) removeSetupLog(sitePath);
+      // A failed deletion stays visible and retryable. The error tone keeps its
+      // notice on screen until dismissed rather than expiring on a timer.
+      const failure = deleteFailureMessage(result);
+      if (failure) confirm(failure, { tone: 'error' });
+    } finally {
+      deletingSitesRef.current.delete(sitePath);
+      setDeletingSites((current) => current.filter((path) => path !== sitePath));
     }
   }, [refresh, removeSetupLog, confirm]);
 
+  // Rejects when the name could not be written, and the dialog that asked
+  // says why.
   const onRename = useCallback(async (sitePath, newLabel) => {
-    try {
-      await window.api.setSiteLabel(sitePath, newLabel);
-      setSiteMeta((meta) => ({
-        ...(meta || {}),
-        [sitePath]: { ...(meta?.[sitePath] || {}), label: newLabel }
-      }));
-    } catch (err) {
-      // Pre-existing UX convention in this file; replacing every alert()/confirm()
-      // with an in-app notice is a separate, larger UX change than a lint cleanup should make.
-      // eslint-disable-next-line no-alert
-      alert(String(err));
-    }
+    await window.api.setSiteLabel(sitePath, newLabel);
+    setSiteMeta((meta) => ({
+      ...(meta || {}),
+      [sitePath]: { ...(meta?.[sitePath] || {}), label: newLabel }
+    }));
   }, [setSiteMeta]);
 
   const sortedSites = useMemo(() => {
@@ -726,519 +533,252 @@ function App() {
     setActiveSite((current) => (current && sortedSites.includes(current) ? current : sortedSites[0]));
   }, [sortedSites]);
 
-  const handleSelectSite = useCallback((sitePath) => {
-    setActiveSite(sitePath);
-  }, []);
+  // The list reports its selection; which site that opens is decided in
+  // sites-list.cjs.
+  const sitesRows = useMemo(
+    () => sitesListRows({ sites: sortedSites, siteMeta, deleting: deletingSites, servers: serverReports }),
+    [sortedSites, siteMeta, deletingSites, serverReports]
+  );
+  const openRow = sitesRows.find((row) => row.path === activeSite) || null;
+  const handleChangeSelection = useCallback((selection) => {
+    setActiveSite((current) => siteToOpen({ selection, current, rows: sitesRows }));
+  }, [sitesRows]);
+  const openFeedbackForm = useCallback(() => { window.api.openExternal(FEEDBACK_FORM_URL); }, []);
+
+  // What the window has to say that is about no one site: the Playground web
+  // server where a build ships one, a setup in flight, and a ticket that
+  // arrived from a link with no site to put it in. The prototype (#542) has no
+  // place for these, so they are above whatever the page area shows.
+  const windowNotices = (
+    <>
+      {webAvailable ? (
+        <Stack direction="row" align="center" justify="flex-end" gap="sm" className="window-notice">
+          <UiButton
+            loading={webStarting}
+            loadingAnnouncement={__('Starting the Playground web server')}
+            variant={webUrl ? 'outline' : 'solid'}
+            tone={webUrl ? 'neutral' : 'brand'}
+            onClick={togglePlaygroundWeb}
+          >{webUrl ? __('Stop Playground web server') : __('Start Playground web server')}</UiButton>
+          {webStarting || webUrl ? (
+            <Text variant="body-sm">
+              {webStarting ? __('Starting…') : (
+                <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
+              )}
+            </Text>
+          ) : null}
+        </Stack>
+      ) : null}
+
+      {/* Playground web server status + logs */}
+      {(webStarting || webUrl || webError || webLogs) ? (
+        <UiCard.Root className="window-notice">
+          <UiCard.Content render={<Stack direction="column" gap="sm" />}>
+            <Stack direction="row" align="center" justify="space-between" gap="sm">
+              <Text variant="heading-md">{__('Playground web server')}</Text>
+              <Text variant="body-sm" className="muted-label">
+                {webStarting ? __('Starting…') : null}
+                {!webStarting && webUrl ? (
+                  <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
+                ) : null}
+                {!webStarting && !webUrl ? __('Stopped') : null}
+              </Text>
+            </Stack>
+            {webError ? <Text variant="body-sm" className="error-text">{webError}</Text> : null}
+            <div ref={webLogRef} className="log-pane is-short"><LogText text={webLogs} /></div>
+          </UiCard.Content>
+        </UiCard.Root>
+      ) : null}
+
+      {pendingSites.length > 0 && (
+        <UiCard.Root className="window-notice">
+          <UiCard.Content render={<Stack direction="column" gap="sm" />}>
+            <Text variant="heading-md">{__('Setting up new site…')}</Text>
+            {downloadPhase && <Text variant="body-sm" className="muted-label">{downloadPhase}</Text>}
+            <div ref={termRef} className="log-pane is-short">{terminalMsgs}</div>
+          </UiCard.Content>
+        </UiCard.Root>
+      )}
+
+      {/* A ticket arrived from a link and there is no site to put it
+          in. The site in front of the contributor gets its own
+          confirmation inside the ticket panel, where the ticket would
+          go; `activeSite` is null only when there are no sites at all,
+          so this is the one other case. */}
+      {(() => {
+        if (!deepLink || activeSite) return null;
+        const notice = deepLinkNotice({ ticket: deepLink.ticket });
+        if (!notice) return null;
+        return (
+          <Notice.Root className="window-notice" intent="info" role="status" spokenMessage={SILENT}>
+            <Notice.Title>{notice.title}</Notice.Title>
+            <Notice.Description>{notice.body}</Notice.Description>
+            <Notice.Actions>
+              <UiButton variant="outline" tone="neutral" size="compact" onClick={clearDeepLink}>{__('Dismiss')}</UiButton>
+            </Notice.Actions>
+          </Notice.Root>
+        );
+      })()}
+    </>
+  );
 
   return (
     <ConfirmationContext.Provider value={confirm}>
-    <div style={{ display: 'flex', height: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>
-      <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
-        <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
-          <Flex align="center" justify="space-between">
-            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>WordPress Core</div>) : null}
-            <Button
-              icon={sidebarCollapsed ? chevronRight : chevronLeft}
-              onClick={() => setSidebarCollapsed((v) => !v)}
-              variant="tertiary"
-              aria-label={sidebarCollapsed ? 'Expand site list' : 'Collapse site list'}
-              isSmall
-              style={{ color: '#f7f7f7' }}
-            >
-              {!sidebarCollapsed ? 'Collapse' : null}
-            </Button>
-          </Flex>
-          <Dropdown
-            popoverProps={{
-              placement: sidebarCollapsed ? 'right-start' : 'bottom-start',
-              offset: 8
-            }}
-            renderToggle={({ isOpen, onToggle }) => (
-              <Button
-                variant="secondary"
-                onClick={onToggle}
-                aria-expanded={isOpen}
-                aria-haspopup="dialog"
-                aria-label="Share feedback"
-                icon={comment}
-                isSmall
-                style={{
-                  width: '100%',
-                  justifyContent: 'center',
-                  marginTop: 12,
-                  background: '#e8e8e8',
-                  color: '#1e1e1e',
-                  borderColor: '#e8e8e8',
-                  padding: sidebarCollapsed ? '10px 0' : '10px 12px',
-                  borderRadius: 0
-                }}
-              >
-                {!sidebarCollapsed ? 'Share feedback' : null}
-              </Button>
-            )}
-            renderContent={({ onClose }) => (
-              <div style={{ width: 320, padding: 16, color: '#1d2327' }}>
-                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Share feedback</div>
-                <p style={{ margin: '0 0 12px', lineHeight: 1.5 }}>Your feedback helps decide what to build next.</p>
-                <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.</p>
-                <Button
-                  variant="link"
-                  onClick={() => {
-                    onClose();
-                    window.api.openExternal(FEEDBACK_FORM_URL);
-                  }}
-                  style={{ padding: 0, height: 'auto' }}
-                >
-                  Open the feedback form ↗
-                </Button>
-              </div>
-            )}
-          />
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {sortedSites.length === 0 && !sidebarCollapsed ? (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>No sites yet.</div>
-          ) : null}
-          {sortedSites.map((sitePath) => {
-            const meta = siteMeta?.[sitePath] || {};
-            const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
-            const isActive = activeSite === sitePath;
-            // Staleness surfaces in the sidebar before the site is even
-            // opened (#94): amber = old trunk snapshot, red = an update that
-            // moved trunk but never finished install/build.
-            const trunkAge = trunkAgeInfo({ trunkDate: meta.trunkDate });
-            let staleDotColor = null;
-            if (meta.updateIncomplete) staleDotColor = '#d63638';
-            else if (trunkAge.stale) staleDotColor = '#dba617';
-            const staleDotTitle = meta.updateIncomplete
-              ? 'Update incomplete — code is new, built assets are old'
-              : `WordPress code is ${trunkAge.ageDays} days old — update to latest trunk`;
-            const staleDot = staleDotColor ? (
-              <span
-                title={staleDotTitle}
-                style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: staleDotColor, flexShrink: 0 }}
-              />
-            ) : null;
-            return (
-              <Button
-                key={sitePath}
-                onClick={() => handleSelectSite(sitePath)}
-                variant="tertiary"
-                isSmall
-                isPressed={isActive}
-                style={{
-                  width: '100%',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                  background: isActive ? 'rgba(255,255,255,0.16)' : 'transparent',
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  color: '#f7f7f7',
-                  padding: sidebarCollapsed ? '8px 0' : '10px 12px',
-                  borderRadius: 6,
-                }}
-              >
-                {sidebarCollapsed ? (
-                  <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{siteName.slice(0, 1).toUpperCase()}{staleDot}</span>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                    <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{siteName}{staleDot}</span>
-                  </div>
-                )}
-              </Button>
-            );
-          })}
-        </div>
-        <div
-          style={{
-            padding: sidebarCollapsed ? '12px 8px 20px' : '16px 16px 24px',
-            borderTop: '1px solid #2b2b2b'
-          }}
-        >
-          <Button
-            icon={plus}
-            variant="primary"
-            onClick={chooseAndSetup}
-            disabled={createSubmitting}
-            style={{ width: '100%', justifyContent: 'center' }}
-            aria-label="Create WordPress Core site"
-            label={createSubmitting ? 'Finish creating the current site first' : undefined}
-          >
-            {!sidebarCollapsed ? 'Create WordPress Core site' : null}
-          </Button>
-        </div>
-      </div>
-      <div style={{ flex: 1, background: '#fff', color: '#1d2327', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 32px 48px' }}>
-          <div style={{ maxWidth: 1040, margin: '0 auto' }}>
-            {webAvailable ? (
-              <Flex align="center" justify="flex-end" style={{ gap: 8, marginBottom: 24 }}>
-                <Button
-                  isBusy={webStarting}
-                  variant={webUrl ? 'secondary' : 'primary'}
-                  onClick={togglePlaygroundWeb}
-                >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</Button>
-                {webStarting || webUrl ? (
-                  <span style={{ fontSize: 12 }}>
-                    {webStarting ? 'Starting…' : (
-                      <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
-                    )}
-                  </span>
-                ) : null}
-              </Flex>
-            ) : null}
-
-            {/* Playground web server status + logs */}
-            {(webStarting || webUrl || webError || webLogs) ? (
-              <Card style={{ marginBottom: 24 }}>
-                <CardBody>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'space-between' }}>
-                    <div style={{ fontWeight: 600 }}>Playground web server</div>
-                    <div style={{ fontSize:12, color:'#666' }}>
-                      {webStarting ? 'Starting…' : null}
-                      {!webStarting && webUrl ? (
-                        <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
-                      ) : null}
-                      {!webStarting && !webUrl ? 'Stopped' : null}
-                    </div>
-                  </div>
-                  {webError ? (<div style={{ marginTop:6, color:'#C00', fontSize:12 }}>{webError}</div>) : null}
-                  <div ref={webLogRef} style={{ ...LOG_PANE_STYLE, marginTop:8, padding:8, height:140 }}><LogText text={webLogs} /></div>
-                </CardBody>
-              </Card>
-            ) : null}
-
-            <div id="sites">
-              {pendingSites.length > 0 && (
-                <Card style={{ marginBottom: 24 }}>
-                  <CardBody>
-                    <div style={{ fontWeight: 600 }}>Setting up new site…</div>
-                    {downloadPhase && <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>{downloadPhase}</div>}
-                    <div ref={termRef} style={{ whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 8, borderRadius: 6, height: 140, overflow: 'auto' }}>{terminalMsgs}</div>
-                  </CardBody>
-                </Card>
-              )}
-
-              {sortedSites.length > 0 ? (
-                sortedSites.map((s) => (
-                  <div
-                    key={s}
-                    style={{ display: activeSite === s ? 'block' : 'none' }}
-                    aria-hidden={activeSite === s ? false : true}
-                  >
-                    <SiteRow
-                      sitePath={s}
-                      initialized={Boolean(siteMeta?.[s]?.initialized)}
-                      createdAt={siteMeta?.[s]?.createdAt}
-                      label={siteMeta?.[s]?.label}
-                      onInitialized={onInitialized}
-                      onSiteMetaPatch={onSiteMetaPatch}
-                      onDelete={onDelete}
-                      onRename={onRename}
-                      editor={detectedApplications}
-                      wporg={wporg}
-                      isPending={pendingSites.includes(s)}
-                      setupLogs={setupLogsBySite[s] || ''}
-                      switchProgress={switchProgressBySite[s] || null}
-                      onClearSwitchNotices={clearSwitchNotices}
-                      carriedWork={carriedWorkBySite[s] || null}
-                      isActive={activeSite === s}
-                    />
-                  </div>
-                ))
-              ) : (
-                <Card>
-                  <CardBody>
-                    <div style={{ marginBottom: 8 }}>No sites yet.</div>
-                    <div>Use the sidebar to create your first site.</div>
-                  </CardBody>
-                </Card>
-              )}
+    <SlotFillProvider>
+    <div className="app-root">
+      {sortedSites.length === 0 ? (
+        // No site, so no list and no page: what there is to do is in the
+        // middle of the window. The footer stays, since what it holds is
+        // about the app and not about a site.
+        <>
+          <div className="page-body">
+            <div className="page-body-notices">{windowNotices}</div>
+            <div className="page-body-center">
+              <EmptyState.Root>
+                <EmptyState.Icon icon={globe} />
+                <EmptyState.Title>{__('No sites')}</EmptyState.Title>
+                <EmptyState.Description>{__('Create your first site to begin contributing')}</EmptyState.Description>
+                <EmptyState.Actions>
+                  <UiButton onClick={chooseAndSetup} disabled={createSubmitting}>{__('Create site')}</UiButton>
+                </EmptyState.Actions>
+              </EmptyState.Root>
             </div>
           </div>
-        </div>
-      </div>
-      {createModalOpen ? (
-        <Modal
-          className="create-site-modal"
-          title="Create WordPress Core site"
-          onRequestClose={closeCreateModal}
-          shouldCloseOnClickOutside={!createSubmitting}
-        >
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape-to-close/Enter-to-submit on the modal form is standard, intentional behavior. */}
-          <form
-            onSubmit={handleCreateModalSubmit}
-            onKeyDown={handleCreateModalKeyDown}
-            style={{ display: 'flex', flexDirection: 'column', gap: 16, color: '#1d2327', colorScheme: 'light' }}
-          >
-            <TextControl
-              id={CREATE_SITE_NAME_INPUT_ID}
-              label="Site name"
-              value={createSiteName}
-              onChange={(value) => setCreateSiteName(value)}
-              disabled={createSubmitting}
-              placeholder="My WordPress site"
-              // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the first field of a just-opened modal.
-              autoFocus
+          <AppFooter onOpenFeedbackForm={openFeedbackForm} onOpenSettings={openSettings} />
+        </>
+      ) : (
+        <div className={sitesListOpen ? 'site-shell' : 'site-shell is-sites-list-hidden'}>
+          {/* Hidden, the list is out of the tab order and out of the
+              accessibility tree as well as out of sight. `inert` is given as a
+              string: React 18 drops the boolean. */}
+          <div id="sites-list" className="sites-sidebar-slot" inert={sitesListOpen ? undefined : ''} aria-hidden={!sitesListOpen}>
+            <SitesSidebar
+              rows={sitesRows}
+              selectedId={openRow ? openRow.id : null}
+              onChangeSelection={handleChangeSelection}
+              onCreateSite={chooseAndSetup}
+              creating={createSubmitting}
             />
-            <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <input
-                ref={createDirInputRef}
-                id={CREATE_SITE_LOCATION_INPUT_ID}
-                type="file"
-                webkitdirectory=""
-                // eslint-disable-next-line react/no-unknown-property -- non-standard but required alongside webkitdirectory for cross-browser directory pickers.
-                directory=""
-                multiple
-                onChange={handleCreateDirInputChange}
-                onClick={handleCreateDirInputClick}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    void openDirectoryPicker();
-                  }
-                }}
-                disabled={createSubmitting}
-                aria-describedby={CREATE_SITE_LOCATION_HELP_ID}
-                style={{ height: 40, color: '#1d2327', background: '#fff', border: '1px solid #8c8f94', borderRadius: 4, padding: '6px 10px' }}
-              />
-              <span style={{ fontSize: 12, color: '#3c434a' }}>{createSiteDir || 'No folder selected yet.'}</span>
-            </div>
-            <div id={CREATE_SITE_LOCATION_HELP_ID} style={{ fontSize: 12, color: '#3c434a', marginTop: -4 }}>
-              Choose the parent folder where you want this new site created. We&apos;ll add a new directory inside it for the project.
-            </div>
-            {createSiteError ? (
-              <div style={{ color: '#d63638', fontSize: 12 }}>{createSiteError}</div>
-            ) : null}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button type="button" variant="secondary" onClick={closeCreateModal} disabled={createSubmitting}>Cancel</Button>
-              <Button type="submit" variant="primary" isBusy={createSubmitting} disabled={createSubmitting}>Create site</Button>
-            </div>
-          </form>
-        </Modal>
-      ) : null}
+          </div>
+          <div className="site-shell-main">
+            <Page
+              className="app-page"
+              title={openRow ? openRow.name : ''}
+              badges={openRow ? <Badge>{openRow.project}</Badge> : null}
+              actions={<SiteHeaderActionsSlot />}
+              showSidebarToggle
+              hasPadding={false}
+              ariaLabel={openRow ? openRow.name : __('Site')}
+            >
+              {/* The button says what pressing it does, and that is the one
+                  place its state is said: a pressed state beside a name that
+                  changes would say it twice, and the two would disagree. */}
+              <Page.SidebarToggleFill>
+                <IconButton
+                  className="sites-list-toggle"
+                  icon={drawerLeft}
+                  label={sitesListOpen ? __('Hide sites list') : __('Show sites list')}
+                  variant="minimal"
+                  tone="neutral"
+                  size="compact"
+                  aria-expanded={sitesListOpen}
+                  aria-controls="sites-list"
+                  onClick={() => setSitesListOpen((open) => !open)}
+                />
+              </Page.SidebarToggleFill>
+              <div className="site-workspace-main">
+                <div className="site-workspace-content">
+                  {windowNotices}
+                  {/* Every site's view stays mounted, and only the open one is
+                      shown: a site's terminal, its server and its watch live in
+                      its view, and have to outlive the look at another site. */}
+                  <div id="sites">
+                    {sortedSites.map((s) => (
+                    <div
+                      key={s}
+                      hidden={activeSite !== s}
+                      aria-hidden={activeSite === s ? false : true}
+                    >
+                      <SiteRow
+                        sitePath={s}
+                        initialized={Boolean(siteMeta?.[s]?.initialized)}
+                        createdAt={siteMeta?.[s]?.createdAt}
+                        label={siteMeta?.[s]?.label}
+                        projectType={siteMeta?.[s]?.projectType}
+                        settings={settings}
+                        startingPhp={startingPhp}
+                        resume={resumeFor(resume, s)}
+                        onInitialized={onInitialized}
+                        onSiteMetaPatch={onSiteMetaPatch}
+                        onServerStatus={onServerStatus}
+                        onDelete={onDelete}
+                        onRename={onRename}
+                        onCreateSite={() => setCreateModalOpen(true)}
+                        editor={detectedApplications}
+                        wporg={wporg}
+                        isPending={pendingSites.includes(s)}
+                        isDeleting={deletingSites.includes(s)}
+                        setupLogs={setupLogsBySite[s] || ''}
+                        switchProgress={switchProgressBySite[s] || null}
+                        onClearSwitchNotices={clearSwitchNotices}
+                        carriedWork={carriedWorkBySite[s] || null}
+                        deepLink={activeSite === s ? deepLink : null}
+                        onDeepLinkDone={clearDeepLink}
+                        isActive={activeSite === s}
+                        detailsOpen={detailsOpen}
+                        onToggleDetails={toggleDetails}
+                        tray={tray}
+                        onShowTray={showTray}
+                      />
+                    </div>
+                  ))}
+                  </div>
+                </div>
+              </div>
+            </Page>
+            {/* Between the page and the footer, and taking its height from
+                the page: the page is the part that scrolls, so nothing on it
+                is ever under the tray. */}
+            <BottomTray title={trays.find((entry) => entry.id === tray)?.title || null} onClose={closeTray} />
+            <AppFooter trays={trays} activeTray={tray} onToggleTray={pressTrayToggle} onOpenFeedbackForm={openFeedbackForm} onOpenSettings={openSettings} />
+          </div>
+        </div>
+      )}
+      <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} defaultDir={settings ? settings.newSiteLocation : null} onCreate={startSiteSetup} onClose={closeCreateModal} />
+      <SettingsDialog open={settingsOpen} settings={settings} loaded={loadedSettings} php={phpVersions} onChange={changeSetting} wporg={wporg} onClose={closeSettings} />
     </div>
-    {/* One toast region for the window (#253). Anchored top-right and sized to
-        its content so it never covers the rest of the UI; SnackbarList announces
-        each message via aria-live. The z-index clears the modal overlay
-        (components-modal__screen-overlay is 100000, and a modal is a later body
-        portal that would otherwise win the tie) so a confirmation for an action
-        taken inside a modal — saving a patch, opening a PR — is still seen. It
-        stays below popovers/dropdowns (1000000), which should sit over it. */}
-    <div style={{ position: 'fixed', right: 24, top: 24, zIndex: 100001, pointerEvents: 'none' }}>
-      <SnackbarList
-        className="toolkit-snackbars"
-        // The icon and the tone class are added here, at render, rather than in
-        // the reducer — an icon is a React element and the tone class is styling,
-        // neither of which belongs in the DOM-free confirmations module.
-        notices={confirmations.notices.map((n) => ({
-          ...n,
-          // Wrapped in <Icon> so it renders at a set size with the tone colour;
-          // Snackbar drops the raw icon element straight into the DOM, where the
-          // bare @wordpress/icons export has no dimensions of its own.
-          icon: n.tone === 'error' ? undefined : <Icon icon={checkIcon} size={20} />,
-          className: n.tone === 'error' ? 'toolkit-toast toolkit-toast--error' : 'toolkit-toast toolkit-toast--success'
-        }))}
-        onRemove={removeConfirmation}
-      />
-    </div>
+    </SlotFillProvider>
+    {/* One toast region for the window (#253, #557). In the bottom corner,
+        above the footer: the top one is where the open site's actions are
+        (#555), and a toast that stays until dismissed would sit on them. Its
+        z-index clears the older library's modal overlay
+        (components-modal__screen-overlay is 100000, and a modal is a later
+        body portal that would otherwise win the tie) so a confirmation for
+        an action taken inside a modal — saving a patch, opening a PR — is
+        still seen. It stays below popovers/dropdowns (1000000), which should
+        sit over it. It is drawn on `body`, outside the app's own element,
+        because that element is a stacking context of its own (see shell.css)
+        and nothing inside it can rise over a dialog. */}
+    {createPortal(<ToastStack notices={confirmations.notices} onRemove={removeConfirmation} />, document.body)}
     </ConfirmationContext.Provider>
   );
 }
 
-// What each kind of patch line looks like (#166). The classification is in
-// diff-highlight.cjs; the colours are here because they are a property of this
-// pane, not of a diff. Added and removed lines carry a wash as well as a
-// foreground colour so the two are still distinguishable without colour vision
-// — the sign in column 0 is the other half of that, and it is never hidden.
-const DIFF_LINE_STYLES = {
-  add: { color: '#7ee787', background: 'rgba(46,160,67,0.18)' },
-  del: { color: '#ffa198', background: 'rgba(248,81,73,0.18)' },
-  hunk: { color: '#d2a8ff' },
-  meta: { color: '#79c0ff' },
-  header: { color: '#8b949e', fontStyle: 'italic' },
-  context: {}
-};
-
-// The patch, painted. An empty line still needs to occupy one: `\n` is appended
-// per line rather than joining, so the last line of a patch that ends in a
-// newline does not silently gain or lose one.
-//
-// Memoised on the text, because this renders inside SiteRow — which re-renders
-// on every chunk a running dev server or watch task streams into its log. The
-// patch has not changed; without this, each chunk re-splits it and hands React
-// thousands of fresh spans to reconcile, on the same thread that has to paint
-// the log.
-function DiffText({ text }) {
-  const lines = useMemo(() => highlightDiff(text), [text]);
-  if (!lines) return text;
-  return lines.map((line, index) => (
-    // A diff line has no identity beyond its position, and the whole pane is
-    // replaced when the patch changes.
-    <span key={index} style={{ display: 'block', ...DIFF_LINE_STYLES[line.kind] }}>
-      {line.text || ' '}
-    </span>
-  ));
-}
-
-// What each kind of log line looks like. Same split as the diff pane: the
-// classification is in log-highlight.cjs, the colours are a property of this
-// pane. Colour is never the only signal — the words `Fatal error`, `Warning`,
-// `Deprecated` stay in the text, and the severity is a re-statement of them, so
-// nothing is lost without colour vision.
-const LOG_LINE_STYLES = {
-  fatal: { color: '#ffa198' },
-  warning: { color: '#ffb86c' },
-  deprecated: { color: '#e3d16a' },
-  notice: { color: '#e3d16a' },
-  // Stack frames and node's "(Use `…`)" follow-ups: they belong to the line
-  // above and are most of the volume in a full pane, so they recede.
-  trace: { color: '#8b949e' },
-  ready: { color: '#7ee787', fontWeight: 600 },
-  plain: {}
-};
-// The `[11-Aug-2026 …]` every debug.log line opens with. It is worth keeping —
-// it is how two runs of the same request are told apart — but it is the same 26
-// characters on every line, so it is the last thing that should catch the eye.
-const LOG_STAMP_STYLE = { color: '#6e7681' };
-
-// A log pane, painted. Memoised on the text because a running dev server streams
-// chunks into it: without this, an unrelated SiteRow re-render re-splits the
-// whole buffer. Only the tail is turned into per-line spans (see
-// MAX_HIGHLIGHTED_LINES); everything older is one plain string, so the element
-// count stays flat however long the server runs.
-function LogText({ text }) {
-  const painted = useMemo(() => highlightLog(text), [text]);
-  if (!painted) return null;
-  return (
-    <>
-      {painted.head}
-      {painted.lines.map((line, index) => (
-        // A log line has no identity beyond its position, and lines only ever
-        // arrive at the end.
-        <span key={index} style={{ display: 'block', ...LOG_LINE_STYLES[line.kind] }}>
-          {line.stamp ? <span style={LOG_STAMP_STYLE}>{line.stamp}</span> : null}
-          {/* A blank line still has to occupy one, same as in the diff pane. */}
-          {line.stamp === '' && line.text === '' ? ' ' : line.text}
-        </span>
-      ))}
-    </>
-  );
-}
-
-// One destination for a finished patch (#166): what it is, what it costs to
-// use, and what happens afterwards. The costs are the point — they are what the
-// app used to leave the contributor to find out on their own — so every
-// destination states one, in the same place and the same shape, rather than the
-// cheap one being presented as the obvious choice.
-function Destination({ title, cost, after, children }) {
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-      <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>{title}</div>
-      <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>{cost}</div>
-      <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>{after}</div>
-      {/*
-        The actions follow the prose rather than being pushed to the bottom of
-        the row: the destinations carry different numbers of controls, so
-        bottom-aligning them lines up nothing and leaves a hole above the
-        shorter one's button.
-      */}
-      <div style={{ paddingTop:4, display:'flex', flexDirection:'column', gap:8 }}>{children}</div>
-    </div>
-  );
-}
-
-// The card around the destinations that ask the same thing of the contributor.
-//
-// Three equal cards said the three destinations were three variations on one
-// choice. They are not: two of them save a file and stop, leaving the
-// contributor to carry it somewhere, and the third signs them in and pushes on
-// their behalf. That is the fork in the road, and a layout that hides it makes
-// the reader rediscover it by reading all three in full.
-//
-// So the shared card is the grouping, and the hairline between destinations
-// inside it says "another way to do the same kind of thing" — as against the
-// gap between cards, which says "a different kind of thing". No group heading:
-// the line above the grid names the split once, and a heading per card would
-// say it twice while pushing the destinations themselves further down.
-function DestinationGroup({ children }) {
-  // Filtered because a conditional destination renders as false, and an empty
-  // section would draw a divider with nothing under it.
-  const destinations = React.Children.toArray(children).filter(Boolean);
-  return (
-    <div style={{ display:'flex', flexDirection:'column', border:'1px solid #dcdcde', borderRadius:10, background:'#fff' }}>
-      {destinations.map((destination, index) => (
-        // Position is the only identity a destination in a fixed list has, and
-        // the list is rebuilt whole when it changes.
-        <div key={index} style={{ padding:'14px 16px', borderTop: index === 0 ? 'none' : '1px solid #dcdcde' }}>
-          {destination}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// A command named in the hints under the Terminal (#182). Clicking it types the
-// command at the prompt and stops there — running it is the contributor's
-// keypress, so the hint teaches where these commands live instead of becoming a
-// second, hidden set of build buttons. Rendered as plain text while something is
-// running, since prefilling then would land in the middle of live output.
-function TerminalCommandLink({ command, onPrefill, disabled }) {
-  if (disabled) return <code>{command}</code>;
-  return (
-    <Button
-      variant="link"
-      onClick={() => onPrefill(command)}
-      style={{ fontSize: 12, fontFamily: 'monospace', height: 'auto' }}
-    >{command}</Button>
-  );
-}
-
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
   const confirm = useConfirmation();
-  // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
-  // recreated callback prop must not retrigger the status-loading effect.
+  // Kept in a ref so that `loadStatus`, in useSiteStatus, keeps its identity:
+  // a recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
   useEffect(() => { metaPatchRef.current = onSiteMetaPatch; }, [onSiteMetaPatch]);
-  // state
-  const [serverUrl, setServerUrl] = useState('');
-  const [starting, setStarting] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [installing, setInstalling] = useState(false);
-  const [npmLogs, setNpmLogs] = useState('');
-  const [runtimeLogs, setRuntimeLogs] = useState('');
-  // WordPress's own debug.log, kept apart from the server's output: one is what
-  // Playground is doing, the other is what the contributor's code is doing, and
-  // interleaving them buries the second in the first.
-  const [debugLogs, setDebugLogs] = useState('');
-  const [debugUnread, setDebugUnread] = useState(0);
-  // Kept after the dev server stops: the file is still there, and so is the
-  // reason someone wants the path.
-  const [debugLogPath, setDebugLogPath] = useState('');
-  const [activeLogTab, setActiveLogTab] = useState('runtime');
-  const activeLogTabRef = useRef('runtime');
-  // The build watcher (grunt _watch) runs decoupled from the PHP server (issue
-  // #247): its own output tab, its own lifecycle. `watchState` drives the tab
-  // title; `watchExitCode` is only read when the state is 'exited'.
-  const [watchLogs, setWatchLogs] = useState('');
-  const [watchState, setWatchState] = useState('idle');
-  const [watchExitCode, setWatchExitCode] = useState(null);
-  // Ref mirror for the inline reads (guards, callbacks) that must not wait for a
-  // re-render, the same split as terminalRunning/terminalStateRef below.
-  const watchStateRef = useRef('idle');
-  // Set while the watcher is (or was) live, so a pause knows whether a resume
-  // has anything to bring back. Survives the process being killed for a pause.
-  const watchWasActiveRef = useRef(false);
-  const markWatchState = useCallback((state, code = null) => {
-    watchStateRef.current = state;
-    setWatchState(state);
-    if (state === 'exited') setWatchExitCode(Number.isFinite(code) ? code : null);
-  }, []);
-  // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
-  const [debugCopied, setDebugCopied] = useState('');
-  const debugCopyTimer = useRef(null);
+  // What this site's processes have said (#554): the text of the logs'
+  // panes, which tab is open and the debug.log tail. Whoever runs a process
+  // appends to its pane, so the functions those callbacks call are taken out
+  // by name; each keeps its identity, which their dependency lists rely on.
+  const logs = useSiteLogs({ sitePath, shown: isActive && tray === 'logs' });
+  const { appendNpm, appendRuntime, appendWatch, ensureStick, selectTab: selectLogTab, startDebugTail, stopDebugTail } = logs;
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [patchLoading, setPatchLoading] = useState(false);
@@ -1258,230 +798,62 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [worktreeDirty, setWorktreeDirty] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
-  const [handleInput, setHandleInput] = useState('');
-  const [eventInput, setEventInput] = useState('');
-  const [handleError, setHandleError] = useState('');
-  const [handleSaving, setHandleSaving] = useState(false);
-  const [editingHandle, setEditingHandle] = useState(false);
-  // Opening a pull request (#167). `githubAccount` is null until the panel has
-  // asked; `{ login: null }` is a real answer meaning signed out, and the two
-  // must not render the same way — offering "Sign in" before the app knows
-  // whether it already is signed in makes the panel flicker on every open.
-  const [githubAccount, setGithubAccount] = useState(null);
-  const [githubDeviceCode, setGithubDeviceCode] = useState(null);
-  const [githubError, setGithubError] = useState('');
-  const [githubDeclined, setGithubDeclined] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [prTitle, setPrTitle] = useState('');
-  const [prNotes, setPrNotes] = useState('');
-  const [prStage, setPrStage] = useState('');
-  const [prResult, setPrResult] = useState(null);
-  const [prError, setPrError] = useState(null);
-  const [prLinkCopied, setPrLinkCopied] = useState(false);
-  const [emails, setEmails] = useState([]);
-  const [smtpPort, setSmtpPort] = useState(0);
-  const newEmailUnsubRef = useRef(null);
-  const smtpStartedUnsubRef = useRef(null);
-  const wpDebugUnsubRef = useRef(null);
-  const [isEmailOpen, setIsEmailOpen] = useState(false);
-  const [activeEmail, setActiveEmail] = useState(null);
-  const [, setEmailViewTab] = useState('rendered');
-  const [building, setBuilding] = useState(false);
-  const [hasNodeModules, setHasNodeModules] = useState(false);
-  const [installFailed, setInstallFailed] = useState(false);
-  // The build's counterpart to installFailed — session-local, because only the
-  // install outcome is persisted (main.js records it on the site's meta). After
-  // a restart a failed build reads "Ready" again, which is the honest fallback:
-  // the app knows there is no build on disk, just not that the last attempt lost.
-  const [buildFailed, setBuildFailed] = useState(false);
-  const [hasBuilt, setHasBuilt] = useState(false);
-  const [skipInit, setSkipInit] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(true);
-  const [waitingForWatch, setWaitingForWatch] = useState(false);
-  // Trac ticket association (#109)
-  const [tracTicket, setTracTicket] = useState(null);
-  const [ticketBehindTrunk, setTicketBehindTrunk] = useState(false);
-  const [ticketInput, setTicketInput] = useState('');
-  const [ticketError, setTicketError] = useState('');
-  const [ticketSaving, setTicketSaving] = useState(false);
-  // The site's ticket branches (#108): what branches:list reported, so the
-  // panel can offer the tickets that already have work here.
-  const [ticketBranches, setTicketBranches] = useState({ current: null, branches: [] });
-  const [deletingBranch, setDeletingBranch] = useState(null);
-  // The ticket a switch was refused for because trunk had loose edits, and
-  // where those edits were saved if the contributor chose to keep them.
-  const [blockedByTrunkWork, setBlockedByTrunkWork] = useState(null);
-  // Where the edits went when "save them as a patch, then start clean" ran
-  // to completion (#234) — the panel that showed the path is gone by then.
-  const [patchSavedNotice, setPatchSavedNotice] = useState('');
-  // How many loose files rode along into a ticket that had no branch yet, so
-  // the panel can say where they went instead of moving them in silence.
-  const [patchSavedTo, setPatchSavedTo] = useState('');
-  // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
-  const [ticketPatches, setTicketPatches] = useState(null);
-  const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
-  const [fetchingPr, setFetchingPr] = useState(null);
-  // Trac attachments (#11): loaded on demand, since opening a real Trac window
-  // can surface the proof-of-work challenge. null until the user asks.
-  const [tracAttachments, setTracAttachments] = useState(null);
-  const [tracAttachmentsLoading, setTracAttachmentsLoading] = useState(false);
-  const [fetchingAttachment, setFetchingAttachment] = useState(null);
-  // Trunk update path (#94)
-  const [trunkDate, setTrunkDate] = useState(null);
-  const [updateIncomplete, setUpdateIncomplete] = useState(false);
-  const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
+  // Opening a pull request (#167): the account, the sign-in, the form and the
+  // attempt. Held here because all of it outlives the card that shows it.
+  const prSubmission = usePullRequest({ sitePath, confirm });
+  // The mail this site's WordPress sent (#554): the list, the port and the one
+  // open in the dialog. The dev server below says when the list is live, so
+  // the three functions it calls are taken out by name; each keeps its
+  // identity, which the callbacks that list them as dependencies rely on.
+  const mail = useSiteMail({ sitePath });
+  const { listen: listenForMail, stopListening: stopListeningForMail, load: loadMail } = mail;
+  // What the main process says about this site (#554): installed, built, the
+  // ticket, what is applied, the trunk's age, and the two states the app only
+  // reads. `loadStatus` reads it all again, and is what every chain below
+  // calls when it has changed what the answer would be.
+  const { hasNodeModules, installFailed, hasBuilt, setHasBuilt, skipInit, setSkipInit, statusLoading, tracTicket, setTracTicket, ticketBehindTrunk, setTicketBehindTrunk, legacy, mergeInProgress, trunkDate, updateIncomplete, appliedPatch, setAppliedPatch, pullRequest, loadStatus } = useSiteStatus({ sitePath, metaPatchRef });
+  // Which target this site is a checkout of (#251): the site record's field,
+  // carried by the placeholder from the moment the dialog closes, and Core
+  // for any site made before the field existed. `build` is what the watcher
+  // and the terminal's script list read. The work-item card shows on every
+  // site and takes its words from the provider; what is Trac's alone (the
+  // attachments, "Attach to Trac", the patch-file picker, the pull-request
+  // flow until PR 5) shows only where the work item is a Trac ticket.
+  const project = getProjectType(projectType);
+  const projectBuild = project.build;
+  // A watch that rebuilds build/ from scratch when it starts (Gutenberg's npm
+  // run dev, the registry's readyPattern) does the one build after an apply
+  // that paused it; the apply skips its own (#506).
+  const watchRebuildsOnStart = Boolean(projectBuild.watch.readyPattern);
+  // Trac's alone: the attachments, "Attach to Trac", "Read details from Trac".
+  // The pull-request destination is on every site since #251.
+  const showTracCards = project.workItem.provider === 'trac';
+  // Memoised on the registry entry, which is a stable object, so the
+  // callbacks that parse a reference do not change identity every render.
+  const workItem = useMemo(
+    () => workItemProvider(project.workItem.provider, `${project.upstream.owner}/${project.upstream.repo}`),
+    [project]
+  );
   // Initial setup chain (#246): install then build, started by the clone
   // finishing rather than by a click. Same shape as the two chains below.
   const [setupChainState, setSetupChainState] = useState('idle'); // idle | installing | building
   // How the last chain ended, or null while one is running or none has run.
   const [setupChainEnd, setSetupChainEnd] = useState(null);
-  // Applying someone else's patch (#11)
-  const [applyState, setApplyState] = useState('idle'); // idle | applying | installing | building
-  const [applyPreview, setApplyPreview] = useState(null);
-  // Held separately from applyPreview: the preview is cleared the moment the
-  // chain starts, and the step list still has to know whether install runs.
-  const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
-  // True when a running build watch will recompile the change, so the apply
-  // chain shows its build step skipped and attributed to the watch (#262).
-  const [applyBuildByWatcher, setApplyBuildByWatcher] = useState(false);
-  const [applyError, setApplyError] = useState('');
-  // The failure broken down: which regions of the patch no longer fit, where,
-  // why, and what they were trying to change (#282, #226). Held beside
-  // applyError rather than replacing it — a refusal with nothing to break down
-  // (a parse error, a rolled-back write) still has only its sentence.
-  const [applyConflict, setApplyConflict] = useState(null);
-  // One call, because the breakdown must never outlive the sentence it belongs
-  // to: every place that took the error banner down predates it, and any that
-  // cleared only one would leave regions on screen describing a patch the
-  // contributor has moved on from.
-  const clearApplyError = () => { setApplyError(''); setApplyConflict(null); };
   // Where "try another patch" goes. The list is already on screen when a patch
   // fails — three rows above, in the case that prompted this — so the way out
   // is a scroll, not a fetch.
   const ticketPatchesRef = useRef(null);
-  // Not every unhappy ending is a failure: a revert can find that the patch is
-  // already gone, which resolves the situation rather than blocking it. Red
-  // would read as "you broke something" when nothing is left to do.
-  const [applyNotice, setApplyNotice] = useState('');
-  const [appliedPatch, setAppliedPatch] = useState(null);
-  const [prUrlInput, setPrUrlInput] = useState('');
-  const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
-  const [dirtySaving, setDirtySaving] = useState(false);
-  const [dirtyFiles, setDirtyFiles] = useState([]);
-  const [dirtyChoice, setDirtyChoice] = useState('save'); // save | discard
-  const [dirtyError, setDirtyError] = useState(null); // failure text shown inside the dirty-tree modal
-  const [updateLockfileChanged, setUpdateLockfileChanged] = useState(false);
-  const [lastUpdateSummary, setLastUpdateSummary] = useState(null);
-  const updateStartRef = useRef(null);
-  const savedPatchPathRef = useRef(null);
+  // The apply card, for focus to come to when its preview closes.
+  const applyCardRef = useRef(null);
   const setupLogsRef = useRef('');
-
-  // sticky refs per log
-  const npmRef = useRef(null);
-  const runtimeRef = useRef(null);
-  const debugRef = useRef(null);
-  const watchRef = useRef(null);
-  const currentRunIdRef = useRef(null);
-  // The watcher's own run handle, kept apart from currentRunIdRef so it can be
-  // killed on its own (pause, dev-server stop) without disturbing whatever
-  // one-shot the terminal is tracking.
-  const watchRunIdRef = useRef(null);
-  const threshold = 8;
-  const [logStick, setLogStick] = useState({ npm: true, runtime: true, debug: true, watch: true });
-  const updateStick = useCallback((key, value) => {
-    setLogStick((prev) => (prev[key] === value ? prev : { ...prev, [key]: value }));
-  }, []);
-  const ensureStick = useCallback((key) => {
-    setLogStick((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
-  }, []);
-  useEffect(() => { if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight; }, [npmLogs, logStick.npm]);
-  // Both log effects watch `activeLogTab` because TabPanel renders only the
-  // selected tab: the pane is a fresh element every time it is switched back to,
-  // scrolled to the top, and the arriving-text dependency alone would not fire
-  // to put it back at the bottom. The guard is not just for the dependency — the
-  // other tab's element is unmounted, so there is nothing to scroll.
-  useEffect(() => {
-    if (activeLogTab !== 'runtime') return;
-    if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
-  }, [runtimeLogs, logStick.runtime, activeLogTab]);
-  useEffect(() => {
-    if (activeLogTab !== 'debug') return;
-    if (logStick.debug && debugRef.current) debugRef.current.scrollTop = debugRef.current.scrollHeight;
-  }, [debugLogs, logStick.debug, activeLogTab]);
-  useEffect(() => {
-    if (activeLogTab !== 'watch') return;
-    if (logStick.watch && watchRef.current) watchRef.current.scrollTop = watchRef.current.scrollHeight;
-  }, [watchLogs, logStick.watch, activeLogTab]);
-  // Independence has a cost: nothing else tears the watcher down now, so when
-  // this site view unmounts (site switch, window teardown) its process would be
-  // orphaned. Kill it on unmount / before switching sites.
-  useEffect(() => () => {
-    const runId = watchRunIdRef.current;
-    if (runId) window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {});
-  }, [sitePath]);
-  const makeOnScroll = useCallback((key) => (e) => {
-    const el = e.currentTarget;
-    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
-    updateStick(key, atBottom);
-  }, [threshold, updateStick]);
 
   const siteName = pathBasename(sitePath);
   const displayName = (label && label.trim()) || siteName;
+  // Whether the rename dialog is up. Everything else about it, the value being
+  // typed, the refusal, the busy flag, is the dialog's own (#553).
   const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState(displayName);
-  const [renameError, setRenameError] = useState('');
-  const [renaming, setRenaming] = useState(false);
-  useEffect(() => { setRenameValue(displayName); }, [displayName]);
-  useEffect(() => {
-    if (!renameModalOpen) return;
-    const input = document.getElementById(RENAME_INPUT_ID);
-    if (input) {
-      input.focus();
-      if (typeof input.select === 'function') input.select();
-    }
-  }, [renameModalOpen]);
-
-  const openRenameModal = useCallback(() => {
-    setRenameValue(displayName);
-    setRenameError('');
-    setRenameModalOpen(true);
-  }, [displayName]);
-
-  const closeRenameModal = useCallback(() => {
-    if (renaming) return;
-    setRenameModalOpen(false);
-  }, [renaming]);
-
-  const submitRename = useCallback(async () => {
-    const trimmed = renameValue.trim();
-    if (!trimmed) {
-      setRenameError('Site name cannot be empty.');
-      return;
-    }
-    try {
-      setRenaming(true);
-      setRenameError('');
-      if (onRename) await onRename(sitePath, trimmed);
-      setRenameModalOpen(false);
-    } catch (err) {
-      setRenameError(String(err));
-    } finally {
-      setRenaming(false);
-    }
-  }, [onRename, renameValue, sitePath]);
-
-  const handleRenameSubmit = useCallback((event) => {
-    event.preventDefault();
-    submitRename();
-  }, [submitRename]);
-
-  const handleRenameFormKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      closeRenameModal();
-    }
-  }, [closeRenameModal]);
+  const openRenameModal = useCallback(() => setRenameModalOpen(true), []);
+  const closeRenameModal = useCallback(() => setRenameModalOpen(false), []);
   const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
   const [pathCopied, setPathCopied] = useState(false);
   const copyTimeoutRef = useRef(null);
@@ -1490,20 +862,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
   }, []);
 
-  const copyPath = useCallback(async () => {
+  // Puts the path on the clipboard and resolves to whether it got there. Each
+  // of the two things that copy says so in its own way, and only in that way:
+  // said twice, a screen reader reads it twice.
+  const writePathToClipboard = useCallback(async () => {
     try {
       if (!navigator?.clipboard?.writeText) {
-        throw new Error('Clipboard access is not available in this environment');
+        throw new Error(__('Clipboard access is not available in this environment'));
       }
       await navigator.clipboard.writeText(sitePath);
-      setPathCopied(true);
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
+      return true;
     } catch (err) {
-      // eslint-disable-next-line no-alert -- see the note above onRename.
-      alert('Unable to copy path: ' + (err?.message ?? String(err)));
+      confirm(sprintf(
+        // translators: %s: why the path could not be copied, a sentence.
+        __('Unable to copy path: %s'),
+        err?.message ?? String(err)
+      ), { tone: 'error' });
+      return false;
     }
-  }, [sitePath]);
+  }, [confirm, sitePath]);
+  // The details' button, which says "Copied" on itself for a moment.
+  const copyPath = useCallback(async () => {
+    if (!(await writePathToClipboard())) return;
+    setPathCopied(true);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
+  }, [writePathToClipboard]);
 
   // --- opening the directory ------------------------------------------------
   //
@@ -1511,20 +895,37 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // argument to the action rather than a setting configured first, so there is
   // nothing remembered, nothing to change later, and no first-run picker.
   //
-  // What the menu offers is what detection found (see editor-launch.js — a
+  // What is offered is what detection found (see editor-launch.js — a
   // convenience, not a claim about what is installed) plus the file manager and
   // "Other application…", which is what covers everything the table misses. No
-  // entry is ever drawn disabled: an application this app cannot find is not one
-  // it refuses to use, and the copy button above is the floor under all of it.
+  // application is ever drawn disabled: one this app cannot find is not one it
+  // refuses to use, and copying the path is the floor under all of it. Since
+  // #556 these are items of the site's menu, in the page's header; which ones
+  // and in what order is site-menu.cjs.
   const { detected: detectedEditors, loading: detectingEditors, loadDetected } = editor;
   // `{ message, offerPicker }` from open-failure.cjs, or null for nothing to
   // say. Both what it reads and whether "Choose application…" is a way out of
   // it are decided there, per reason — the two callers below deciding that
   // separately is what #180 was.
   const [editorNotice, setEditorNotice] = useState(null);
+  // The notice is drawn at the top of the site's cards, and the menu that
+  // caused it can be used from anywhere down the page: said out of sight, a
+  // refusal looks like a button that did nothing. Each refusal is brought
+  // into view once. A new notice object is a new refusal, so one that repeats
+  // is brought back; one that is merely still there when the site is opened
+  // again is not this effect's to move to. Where the page goes then is the
+  // next-action cue's (useNextActionCue), which centres the next step each
+  // time a site is opened, and two effects scrolling the same page in one
+  // commit would only be the second one's.
+  const editorNoticeRef = useRef(null);
+  const shownEditorNoticeRef = useRef(null);
+  useEffect(() => {
+    if (!editorNotice || !isActive || !editorNoticeRef.current) return;
+    if (shownEditorNoticeRef.current === editorNotice) return;
+    shownEditorNoticeRef.current = editorNotice;
+    editorNoticeRef.current.scrollIntoView({ block: 'nearest' });
+  }, [editorNotice, isActive]);
 
-  const fileManagerLabel = FILE_MANAGER_LABELS[window.api?.platform] || 'Show in file manager';
-  const fileManagerName = FILE_MANAGER_NAMES[window.api?.platform] || 'File manager';
 
   // `editorPath` is one of the detected applications; null asks the main process
   // for the file dialog instead.
@@ -1538,7 +939,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     try {
       result = await window.api.openInEditor(sitePath, editorPath);
     } catch (err) {
-      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not open the site directory:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
@@ -1558,129 +959,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     try {
       result = await window.api.showSiteInFileManager(sitePath);
     } catch (err) {
-      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not reveal the site folder:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
-
-  const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
-  const appendRuntime = useCallback((s)=>setRuntimeLogs((v)=>v + String(s ?? '')),[]);
-  const appendDebug = useCallback((s) => {
-    const chunk = String(s ?? '');
-    if (!chunk) return;
-    setDebugLogs((v) => appendBounded(v, chunk));
-    // Counted only while the tab is not the one being read. Selecting it zeroes
-    // the badge, so incrementing there would flicker it straight back on.
-    if (activeLogTabRef.current !== 'debug') setDebugUnread((n) => n + countLines(chunk));
-  }, []);
-  // Bounded like the debug pane: the watcher is long-lived and chatty, so its
-  // pane cannot grow without limit the way an unrendered buffer quietly could.
-  const appendWatch = useCallback((s) => {
-    const chunk = String(s ?? '');
-    if (!chunk) return;
-    setWatchLogs((v) => appendBounded(v, chunk));
-  }, []);
-  const selectLogTab = useCallback((name) => {
-    activeLogTabRef.current = name;
-    setActiveLogTab(name);
-    if (name === 'debug') setDebugUnread(0);
-  }, []);
-  // The count is on the tab rather than beside it because the tab is what the
-  // contributor is not looking at: a notice landing while they read the server
-  // output is the case this panel exists for.
-  const logTabs = useMemo(() => ([
-    { name: 'runtime', title: 'Server' },
-    { name: 'watch', title: watchTabLabel(watchState, watchExitCode) },
-    { name: 'debug', title: debugUnread ? `debug.log (${debugUnread})` : 'debug.log' }
-  ]), [debugUnread, watchState, watchExitCode]);
-  const clearDebugLog = useCallback(async () => {
-    setDebugLogs('');
-    setDebugUnread(0);
-    // The file has to go with the pane. Clearing only the pane looks like it
-    // worked and then hands the same lines back on the next dev-server start,
-    // because the tail replays whatever is on disk when it attaches.
-    let cleared;
-    try {
-      cleared = await window.api.clearWpDebug(sitePath);
-    } catch (e) {
-      cleared = { ok: false, error: e && e.message ? e.message : String(e) };
-    }
-    if (!cleared?.ok) appendDebug(`Could not clear ${pathBasename(sitePath)}'s debug.log: ${cleared?.error || cleared?.reason || 'unknown error'}. The panel was cleared; the file was not.\n`);
-  }, [appendDebug, sitePath]);
-  // Same shape as copyPatch below, and for the same reason: a clipboard write
-  // has no visible result, so the button has to report one. This log goes
-  // straight into a Trac ticket or a pull request comment.
-  const copyDebugLog = useCallback(async () => {
-    if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current);
-    let state = 'copied';
-    try {
-      await navigator.clipboard.writeText(debugLogs);
-    } catch {
-      state = 'failed';
-    }
-    setDebugCopied(state);
-    debugCopyTimer.current = setTimeout(() => setDebugCopied(''), 2000);
-  }, [debugLogs]);
-  useEffect(() => () => { if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current); }, []);
-  // Switching to another site unmounts this panel without going through
-  // stopDevServer, so the listener has to come off here too.
-  useEffect(() => () => { try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {} }, []);
-  const revealDebugLog = useCallback(async () => {
-    let revealed;
-    try {
-      revealed = await window.api.revealWpDebug(sitePath);
-    } catch (e) {
-      revealed = { ok: false, error: e && e.message ? e.message : String(e) };
-    }
-    // Nothing on screen moves when a file manager opens behind the app, so a
-    // refusal that says nothing is a button that did nothing.
-    if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
-  }, [appendDebug, sitePath]);
-  const sortEmails = useCallback((list)=>[...list].sort((a,b)=>new Date(b.sentAt||b.date||0)-new Date(a.sentAt||a.date||0)),[]);
-  const openEmail = useCallback((m)=>{ setActiveEmail(m); setEmailViewTab('rendered'); setIsEmailOpen(true); },[]);
-  const clearEmails = useCallback(async ()=>{ await window.api.clearEmails(sitePath); setEmails([]); }, [sitePath]);
-  const loadStatus = useCallback(async ()=>{
-    try {
-      setStatusLoading(true);
-      const s = await window.api.getSiteStatus(sitePath);
-      setHasNodeModules(Boolean(s?.hasNodeModules));
-      setInstallFailed(Boolean(s?.installFailed));
-      setHasBuilt(Boolean(s?.hasBuilt));
-      setSkipInit(Boolean(s?.skipInitWizard));
-      setTrunkDate(s?.trunkDate || null);
-      setUpdateIncomplete(Boolean(s?.updateIncomplete));
-      setTracTicket(s?.tracTicket || null);
-      setTicketBehindTrunk(Boolean(s?.ticketBehindTrunk));
-      setAppliedPatch(s?.appliedPatch || null);
-      if (metaPatchRef.current) {
-        // A null trunkDate here means the git read failed (e.g. clone still
-        // running) — keep whatever the sidebar already shows in that case.
-        const patch = { updateIncomplete: Boolean(s?.updateIncomplete), tracTicket: s?.tracTicket || null };
-        if (s?.trunkDate) patch.trunkDate = s.trunkDate;
-        metaPatchRef.current(sitePath, patch);
-      }
-      // Returned as well as stored: the setup chain (#246) re-probes when the
-      // clone finishes and has to decide from that read, not from state React
-      // has not committed yet.
-      return s;
-    } catch {}
-    finally { setStatusLoading(false); }
-    return null;
-  }, [sitePath]);
-  useEffect(()=>{ loadStatus(); }, [loadStatus]);
-
-  // Deliberately not part of loadStatus: that one is called after every long
-  // operation, and the branch list only changes when a ticket is linked,
-  // resumed or deleted — the three paths that call this themselves.
-  const loadBranches = useCallback(async () => {
-    try {
-      const res = await window.api.listBranches(sitePath);
-      if (res?.ok) setTicketBranches({ current: res.current, branches: res.branches || [] });
-    } catch {}
-  }, [sitePath]);
-  useEffect(()=>{ loadBranches(); }, [loadBranches]);
 
   // The note's probe. It asks the wide question — unsubmitted work measured
   // from the ticket's branch point, the same measurement the patch makes —
@@ -1706,10 +990,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // decided by the module so the card has one rule for it and a test to hold
   // it. The generation bump is what makes it outrank a probe that started
   // before the discard did.
-  const applyDiscardToNote = (outcome) => {
+  // Memoised with nothing to depend on: it touches a ref and a setter. The
+  // ticket hook lists it among a callback's dependencies, and a new function
+  // here on every render would give that callback a new identity each time.
+  const applyDiscardToNote = useCallback((outcome) => {
     dirtyProbeRef.current.generation++;
     setWorktreeDirty(noteAfterDiscard(outcome));
-  };
+  }, []);
   const refreshDirty = useCallback(async () => {
     const probe = dirtyProbeRef.current;
     // A walk already running answers for the tree as it was when it started.
@@ -1756,544 +1043,174 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   useEffect(() => {
     if (!isActive) return undefined;
     refreshDirty();
-    window.addEventListener('focus', refreshDirty);
-    return () => window.removeEventListener('focus', refreshDirty);
-  }, [isActive, refreshDirty]);
+    // The status too (#352): a merge started outside the app ends outside
+    // it, and returning focus is when the banner can have become stale.
+    const onFocus = () => { refreshDirty(); loadStatus().catch(() => {}); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [isActive, refreshDirty, loadStatus]);
 
-  // Linking and unlinking are the same write (#109): an empty ref clears the
-  // association, so Unlink needs no second channel. Resuming a ticket that
-  // already has a branch is also this write (#108) — main switches to the
-  // existing branch instead of creating one, with the same parking rules.
-  const saveTicket = useCallback(async (ref, options = undefined) => {
-    setTicketSaving(true);
-    setTicketError('');
-    setBlockedByTrunkWork(null);
-    setPatchSavedNotice('');
-    // The previous switch's last sentence must not be this one's first frame.
-    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
-    try {
-      const res = await window.api.setSiteTicket(sitePath, ref, options);
-      if (!res?.ok) {
-        // `dirty-trunk` is a question, not a failure (#234): main refuses it
-        // on both paths — a new ticket that would carry the edits, a known
-        // one that cannot — and the panel asks what happens to them. A red
-        // error line over a set of choices would read as a fault, so the
-        // message is kept for real failures only. `canCarry` is main's word
-        // on whether the edits can ride into this ticket, and the count
-        // arrives only on the path that scanned before refusing.
-        if (res?.code === 'dirty-trunk') {
-          setBlockedByTrunkWork({
-            ref: String(ref),
-            canCarry: Boolean(res.canCarry),
-            files: typeof res.files === 'number' ? res.files : null,
-            ticket: res.ticket || null
-          });
-        } else {
-          setTicketError(res?.error || 'Could not save the ticket.');
-        }
-        return;
-      }
-      // The status belongs to the branch we just left. Clear it in the same
-      // render that names the new ticket; loadStatus will restore the new
-      // branch's answer below (#305).
-      setTicketBehindTrunk(false);
-      setTracTicket(res.ticket);
-      if (res.ticket) autoReadTicketRef.current = res.ticket;
-      setTicketInput('');
-      setPatchSavedTo('');
-      if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
-      // Both, and awaited: the branch list decides which rows show, and
-      // appliedPatch/updateIncomplete are per-branch (#108) — without the
-      // status reload, switching tickets would keep showing the other
-      // ticket's "patch applied · Revert" banner over this branch's tree.
-      await Promise.all([loadBranches(), loadStatus()]);
-      // The tree under the note is a different branch's now (#239).
-      reprobeAfterBranchChange();
-    } catch (e) {
-      setTicketError(String(e));
-    } finally {
-      setTicketSaving(false);
-    }
-  }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
-  const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
-  const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
+  // The ticket or issue this site is working on (#554): linking, leaving,
+  // switching, moving onto trunk and deleting, with the question a switch
+  // asks about trunk's loose edits. The three refs are how it and the apply
+  // chain, called further down, reach each other.
+  const { ticketInput, setTicketInput, ticketError, setTicketError, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
 
-  const discardTrunkWorkAndSwitch = useCallback(async (ref) => {
-    setTicketSaving(true);
-    setTicketError('');
-    // The refused attempt left its last frame behind — without this, the
-    // discard runs under a spinner describing a switch that never happened.
-    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
-    try {
-      const res = await window.api.discardChanges(sitePath);
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not discard the changes.');
-        return;
-      }
-      setPatchSavedTo('');
-      setBlockedByTrunkWork(null);
-      // The switch below re-walks the tree, so on the happy path this is
-      // redundant — but a switch that fails returns without reprobing, and
-      // the note would go on offering to discard trunk work that is already
-      // gone (#239).
-      applyDiscardToNote(discardOutcome(res));
-    } catch (e) {
-      setTicketError(String(e));
-      return;
-    } finally {
-      setTicketSaving(false);
-    }
-    // Outside the guard above: saveTicket owns the busy flag itself, and the
-    // discard has already succeeded — a failure here is about the switch.
-    await saveTicket(ref);
-  }, [sitePath, saveTicket, onClearSwitchNotices]);
+  // A ticket arrived from a link and this is the site in front of the
+  // contributor (#464). The answer goes through `saveTicket` like any other
+  // link, so every guard the panel already has — a running install, a
+  // mid-switch site, a merge started in a terminal, the dirty-trunk question —
+  // applies unchanged.
+  //
+  // Read straight off the prop, never copied into state here. Every row stays
+  // mounted behind `display: none`, so a row that kept its own copy would go on
+  // showing the question after another row answered it, and would raise it
+  // again the moment the contributor came back. The App's one value is the one
+  // truth, and answering clears it for everybody.
+  //
+  // The ticket field is deliberately left alone. It is free text the
+  // contributor may be halfway through, the question already says which ticket
+  // it means, and its button links that ticket directly — so writing over what
+  // they typed would buy nothing.
+  const deepLinkTicket = (deepLink && deepLink.ticket) ? deepLink.ticket : null;
+  // Which of the states the link is in is the module's decision, not this
+  // file's; here it is only rendered and dispatched.
+  const deepLinkState = deepLinkNotice({
+    ticket: deepLinkTicket,
+    provider: project.workItem.provider,
+    siteLabel: displayName,
+    currentTicket: tracTicket
+  });
+  const deepLinkPrompt = deepLinkState && deepLinkState.state === 'confirm' ? deepLinkState : null;
+  // A ticket that cannot land on this site (#251): said, dismissable, never
+  // consumed, so a Core site opened next still gets the question.
+  const deepLinkNoteState = deepLinkState && deepLinkState.state === 'unsupported' ? deepLinkState : null;
+  // Hidden here, on this site only: the ticket stays with the app, so a Core
+  // site opened next still gets the question. Reset when a link arrives, and
+  // only then: the prop is the event (App stamps each arrival, so the same
+  // ticket twice is two events), and it is null while another site is in
+  // front, which must not un-hide what the contributor hid here.
+  const [deepLinkNoteHidden, setDeepLinkNoteHidden] = useState(false);
+  // The stamp, not the object: the prop goes object → null → the same object
+  // when another site is looked at and this one comes back, and that is not
+  // a new arrival.
+  const deepLinkAt = deepLink ? deepLink.at : null;
+  useEffect(() => { if (deepLinkAt) setDeepLinkNoteHidden(false); }, [deepLinkAt]);
+  const deepLinkNote = deepLinkNoteHidden ? null : deepLinkNoteState;
+  // `settled` is a link for the ticket this site is on already. Cleared rather
+  // than merely hidden, so the question does not resurface on the next site the
+  // contributor opens.
+  const deepLinkSettled = Boolean(deepLinkState && deepLinkState.state === 'settled');
+  useEffect(() => {
+    if (deepLinkSettled && onDeepLinkDone) onDeepLinkDone();
+  }, [deepLinkSettled, onDeepLinkDone]);
 
-  // "Save them as a patch, then start clean" — one chosen outcome, not two
-  // steps the contributor has to sequence themselves (#234). The discard only
-  // runs once the save dialog has really produced a file: cancelling the
-  // dialog cancels the whole option, and a failed save leaves the edits in
-  // the working tree with the question still open. The busy flag is held
-  // while the dialog is up because it is not window-modal — without it the
-  // panel underneath keeps taking clicks, and a discard chosen there would
-  // run again when the dialog finally answers.
-  const saveTrunkWorkThenStartClean = useCallback(async (ref) => {
-    setTicketError('');
-    let savedTo = '';
-    setTicketSaving(true);
-    try {
-      const res = await window.api.savePatch(sitePath);
-      if (res?.canceled) return;
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not save the patch.');
-        return;
-      }
-      savedTo = res.filePath || '';
-      setPatchSavedTo(savedTo);
-    } catch (e) {
-      setTicketError(String(e));
-      return;
-    } finally {
-      setTicketSaving(false);
-    }
-    await discardTrunkWorkAndSwitch(ref);
-    // After the panel is gone, the only on-screen record of where the work
-    // went. The switch clears `patchSavedTo` with the rest of the panel
-    // state, so the sentence that survives is its own notice — same shape as
-    // carriedNotice, and true even if the switch itself failed: by now the
-    // patch is written and the tree is clean.
-    setPatchSavedNotice(savedTo);
-  }, [sitePath, discardTrunkWorkAndSwitch]);
+  const dismissDeepLink = useCallback(() => {
+    if (onDeepLinkDone) onDeepLinkDone();
+  }, [onDeepLinkDone]);
 
-  // "Delete this ticket's work" (#108) — destroys the branch, which is why it
-  // sits behind a confirm while switching does not.
-  const deleteTicketWork = useCallback(async (ref) => {
-    setDeletingBranch(ref);
-    setTicketError('');
-    try {
-      const res = await window.api.deleteBranch(sitePath, ref);
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not delete the branch.');
-        return;
-      }
-      await loadBranches();
-      // 'trunk' is the literal main returns (TRUNK in ticket-branches.js,
-      // which the renderer cannot import — it pulls in fs). It means the site
-      // now sits on trunk: usually because the delete was made from there,
-      // but also when the deleted branch was somehow the active one — main
-      // then cleared the ticket, and the status reload re-syncs the panel and
-      // the sidebar to that.
-      if (res.current === 'trunk') await loadStatus();
-      // Only a delete that took the checkout with it changed what the note is
-      // measuring against (#239): deleting a ticket you are not on — including
-      // from trunk, where `current` says trunk either way — leaves the tree
-      // alone, and re-walking it would blank the sentence and rebuild the
-      // identical one. After loadStatus, so a fast walk cannot render trunk's
-      // count under the ticket number the delete just cleared.
-      if (res.movedToTrunk) reprobeAfterBranchChange();
-    } catch (e) {
-      setTicketError(String(e));
-    } finally {
-      setDeletingBranch(null);
-    }
-  }, [sitePath, loadBranches, loadStatus, reprobeAfterBranchChange]);
+  const acceptDeepLink = useCallback(() => {
+    if (deepLinkTicket !== null) saveTicket(String(deepLinkTicket));
+    if (onDeepLinkDone) onDeepLinkDone();
+  }, [deepLinkTicket, onDeepLinkDone, saveTicket]);
 
-  const runInstall = useCallback((options = {}) => {
-    const { onLog, onDone } = options;
-    setInstalling(true);
-    ensureStick('npm');
-    window.api.runNpmInstall(sitePath, ({ data }) => {
-      appendNpm(data);
-      if (onLog) onLog(data);
-    }, async ({ code }) => {
-      appendNpm(`\ninstall exited with code ${code}\n`);
-      setInstalling(false);
-      // A failed install must not mark the site initialized (#42): the wizard
-      // would advance to a build that cannot work. Leaving the step incomplete
-      // keeps the install button available for a retry.
-      if (code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
-      try { await loadStatus(); } catch {}
-      if (onDone) onDone({ code });
-    });
-  }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
+  // Brings one of this site's trays up (#558), for what is said nowhere else:
+  // an install or a build that failed, whose output is in the terminal; an
+  // action that was refused because a command is running, which is a line
+  // printed there; and a build watch that ended by itself, whose last lines
+  // are in the logs. The tray shows the open site's, so a site that is not
+  // the open one waits until it is: its page will be saying where to look
+  // when it is looked at.
+  const siteRef = useRef({ active: isActive, deleting: isDeleting });
+  const trayWantedRef = useRef(null);
+  useLayoutEffect(() => {
+    siteRef.current = { active: isActive, deleting: isDeleting };
+    return () => {
+      siteRef.current = { active: false, deleting: true };
+    };
+  }, [isActive, isDeleting]);
+  const revealTray = useCallback((id) => {
+    // Nothing is brought up, now or later, for a site on its way out: its
+    // processes are ended as it goes, and if it stays after all, because its
+    // folder could not be removed, their ending was the deletion's doing. A
+    // process that takes longer to end than the deletion waits for is not
+    // caught by this, and ends as one that went by itself.
+    if (siteRef.current.deleting) return;
+    if (siteRef.current.active) onShowTray?.(id);
+    // Kept by the tray's own rule, so that the logs asked for after the
+    // terminal do not take its place here either.
+    else trayWantedRef.current = trayAfterReveal(trayWantedRef.current, id);
+  }, [onShowTray]);
+  useEffect(() => {
+    if (!isActive || !trayWantedRef.current) return;
+    const wanted = trayWantedRef.current;
+    trayWantedRef.current = null;
+    onShowTray?.(wanted);
+  }, [isActive, onShowTray]);
+  const revealTerminal = useCallback(() => revealTray('terminal'), [revealTray]);
+  // The logs, on the build watch's tab: where the page says a watch's last
+  // lines are. And on the server's tab, for a server that could not start
+  // or went by itself. The tab is selected whether or not the logs come up:
+  // they do not take the place of the terminal or of the mail (tray.cjs),
+  // and are then on the right tab when they are opened.
+  const revealWatchLog = useCallback(() => {
+    selectLogTab('watch');
+    revealTray('logs');
+  }, [revealTray, selectLogTab]);
+  const revealServerLog = useCallback(() => {
+    selectLogTab('runtime');
+    revealTray('logs');
+  }, [revealTray, selectLogTab]);
 
-  // `track` (default) records the run in currentRunIdRef so killCurrent/Ctrl+C
-  // reach it; the decoupled watcher passes track:false and takes its runId
-  // through onStart into its own ref instead. `mirrorToNpm` (default) copies the
-  // output into the shared npm buffer; the watcher passes false so its stream
-  // stays in its own tab (and does not grow that buffer without bound).
-  const runScript = useCallback((name, options = {}) => {
-    const { onLog, onDone, args = [], track = true, mirrorToNpm = true, onStart } = options;
-    ensureStick('npm');
-    // Clearing the failure here rather than on the next exit is what stops the
-    // step reading "Failed" while its own retry is streaming to the terminal.
-    if (name === 'build') { setBuilding(true); setBuildFailed(false); }
-    if (track) currentRunIdRef.current = null;
-    return window.api.runNpmScript(sitePath, name, args, ({ data }) => {
-      if (mirrorToNpm) appendNpm(data);
-      if (onLog) onLog(data);
-    }, async ({ code }) => {
-      if (mirrorToNpm) appendNpm(`\n${name} exited with code ${code}\n`);
-      if (name === 'build') {
-        setBuilding(false);
-        setBuildFailed(code !== 0);
-        try { await loadStatus(); } catch {}
-      }
-      if (track) currentRunIdRef.current = null;
-      if (onDone) onDone({ code });
-    }).then(({ runId }) => {
-      if (track) currentRunIdRef.current = runId;
-      if (onStart) onStart(runId);
-    }).catch((error) => {
-      if (track) currentRunIdRef.current = null;
-      if (mirrorToNpm) appendNpm(`\nFailed to start npm run ${name}: ${error && error.message ? error.message : String(error)}\n`);
-      if (name === 'build') setBuilding(false);
-      if (onDone) onDone({ code: -1 });
-    });
-  }, [appendNpm, ensureStick, loadStatus, sitePath]);
+  // The npm runs this view starts (#554): the install and the scripts, and the
+  // flags the rest of the view reads about them. Called here because it needs
+  // `loadStatus` above; the terminal and the build watch below run through it.
+  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
 
-  const killCurrent = useCallback(async () => {
-    const runId = currentRunIdRef.current;
-    try {
-      await window.api.npmKill({ runId, directoryPath: sitePath });
-    } finally {
-      currentRunIdRef.current = null;
-    }
-  }, [sitePath]);
-
-  // Kills only the watcher, by its own runId, so stopping or pausing it never
-  // reaches whatever one-shot currentRunIdRef is tracking. Kill by runId is
-  // exact: the watcher is always stopped before any other per-directory run
-  // starts, so main's one-per-directory fallback is never contended.
-  const killWatcher = useCallback(async () => {
-    const runId = watchRunIdRef.current;
-    if (!runId) return;
-    try {
-      await window.api.npmKill({ runId, directoryPath: sitePath });
-    } finally {
-      watchRunIdRef.current = null;
-    }
-  }, [sitePath]);
-
-  // terminal refs/state (after run helpers so dependencies are available)
-  const terminalContainerRef = useRef(null);
+  // The site's terminal (#554): the xterm instance, what is typed in it and
+  // the commands it runs through the three runners above. The lock, the kill
+  // handler and the writer are taken out by name because every chain below
+  // holds the lock and writes its progress there, as it always has.
+  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, shown: isActive && tray === 'terminal' });
+  // What a chain says when it is asked to start while a command holds the
+  // terminal. The line is printed there and nowhere else, so the terminal is
+  // brought up with it: a refusal nobody sees is a button that did nothing.
+  const refuseInTerminal = useCallback(() => {
+    // translators: %s: the keys that stop a command, Ctrl+C.
+    writeToTerminal(`${sprintf(__('A command is already running. Press %s to stop it.'), 'Ctrl+C')}\n`);
+    revealTerminal();
+  }, [revealTerminal, writeToTerminal]);
   // The scroll root for the next-action cue (#252): the whole detail section, so
   // the cue can find whichever block is the next step wherever it sits.
   const nextActionSectionRef = useRef(null);
-  const terminalRef = useRef(null);
-  const terminalStickRef = useRef(true);
-  const terminalInputHandlerRef = useRef(() => {});
-  const terminalKillRef = useRef(null);
-  const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
-  const serverStartRequestedRef = useRef(false);
-  const stoppingRef = useRef(false);
-  const runningRef = useRef(false);
-  const waitingForWatchRef = useRef(false);
-  // "A dev-server boot is in progress or live." The terminal lock used to double
-  // as this signal, but the watcher no longer holds that lock (#247), so
-  // startPhpServer needs its own flag to know the boot was not aborted.
-  const devServerActiveRef = useRef(false);
-
-  useEffect(() => { runningRef.current = running; }, [running]);
-  useEffect(() => { waitingForWatchRef.current = waitingForWatch; }, [waitingForWatch]);
-
-  // The terminal's own busy flag lives in a ref, so nothing re-renders when it
-  // moves — fine for the guards that read it inline, useless for anything the
-  // UI has to reflect. The hints under the Terminal (#182) do have to reflect
-  // it, so every write goes through here and keeps a state copy in step. The
-  // direction that hurts is the ref saying "busy" while the state says "free":
-  // the hint links stay enabled and their click is silently refused.
-  const [terminalRunning, setTerminalRunning] = useState(false);
-  const markTerminalRunning = useCallback((value) => {
-    const next = Boolean(value);
-    terminalStateRef.current.running = next;
-    setTerminalRunning(next);
-  }, []);
-
-  const normalizeForTerminal = useCallback((text) => String(text ?? '').replace(/\r?\n/g, '\r\n'), []);
-
-  const writeToTerminal = useCallback((text) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    term.write(normalizeForTerminal(text));
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, [normalizeForTerminal]);
 
   // Taking a step back by hand is the answer to "Setup stopped." — so the
   // notice goes away here rather than lingering over work already resumed.
   const runInstallWithTerminal = useCallback(() => {
     setSetupChainEnd(null);
-    writeToTerminal('Running npm install…\n');
+    // translators: %s: the command being run, such as npm install.
+    writeToTerminal(`${sprintf(__('Running %s…'), 'npm install')}\n`);
     runInstall({
       onLog: (chunk) => writeToTerminal(chunk),
       onDone: ({ code }) => {
-        writeToTerminal(`npm install exited with code ${code}\n`);
+        // translators: 1: the command that ended, such as npm install. 2: the code it exited with, a number.
+        writeToTerminal(`${sprintf(__('%1$s exited with code %2$s'), 'npm install', code)}\n`);
       }
     });
   }, [runInstall, writeToTerminal]);
 
   const runBuildWithTerminal = useCallback(() => {
     setSetupChainEnd(null);
-    writeToTerminal('Running npm run build…\n');
+    // translators: %s: the command being run, such as npm run build.
+    writeToTerminal(`${sprintf(__('Running %s…'), 'npm run build')}\n`);
     runScript('build', {
       onLog: (chunk) => writeToTerminal(chunk),
       onDone: ({ code }) => {
-        writeToTerminal(`npm run build exited with code ${code}\n`);
+        // translators: 1: the command that ended, such as npm run build. 2: the code it exited with, a number.
+        writeToTerminal(`${sprintf(__('%1$s exited with code %2$s'), 'npm run build', code)}\n`);
       }
     });
   }, [runScript, writeToTerminal]);
-
-  const showPrompt = useCallback((prependNewLine = true) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    const state = terminalStateRef.current;
-    if (prependNewLine) term.write('\r\n');
-    term.write('$ ');
-    state.input = '';
-    state.historyIndex = state.history.length;
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, []);
-
-  const replaceTerminalInput = useCallback((next) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    const state = terminalStateRef.current;
-    const current = state.input;
-    if (current && current.length) {
-      for (let i = 0; i < current.length; i += 1) {
-        term.write('\b \b');
-      }
-    }
-    state.input = next;
-    if (next) term.write(next);
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, []);
-
-  // Drops a command at the prompt without running it, for the hints under the
-  // Terminal (#182). Build and install are one-time steps in the setup
-  // checklist, so a contributor who edits files or adds a dependency later has
-  // no button left to press — the terminal is the path that still works, and
-  // nothing pointed at it. Prefilling rather than running is the point: the
-  // command lands where they can see it, and they press Enter themselves.
-  const prefillTerminalCommand = useCallback((command) => {
-    // The links are already rendered as plain text while the terminal is busy,
-    // so this is the belt to that braces — but it says so rather than returning
-    // silently, matching every other busy guard in this file. A guard that
-    // swallows the click is how a link becomes a control that does nothing.
-    if (terminalStateRef.current.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    replaceTerminalInput(command);
-    const term = terminalRef.current;
-    if (term) term.focus();
-  }, [replaceTerminalInput, writeToTerminal]);
-
-  const addCommandToHistory = useCallback((value) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    const state = terminalStateRef.current;
-    if (state.history[state.history.length - 1] === trimmed) {
-      state.historyIndex = state.history.length;
-      return;
-    }
-    const nextHistory = [...state.history, trimmed];
-    if (nextHistory.length > 50) nextHistory.shift();
-    state.history = nextHistory;
-    state.historyIndex = nextHistory.length;
-  }, []);
-
-  const printHelp = useCallback(() => {
-    writeToTerminal('Available commands:\n');
-    writeToTerminal('  help                        Show this help text\n');
-    writeToTerminal('  npm install                 Run npm install in the site directory\n');
-    writeToTerminal('  npm run <script>            Run one of: ' + TERMINAL_ALLOWED_SCRIPTS.join(', ') + '\n');
-    writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
-  }, [writeToTerminal]);
-
-  const executeTerminalCommand = useCallback((rawCommand) => {
-    const command = rawCommand.trim();
-    const state = terminalStateRef.current;
-    if (!command) {
-      showPrompt(false);
-      return;
-    }
-
-    addCommandToHistory(command);
-
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-
-    if (command === 'help') {
-      printHelp();
-      showPrompt(false);
-      return;
-    }
-
-    const lower = command.toLowerCase();
-    if (TERMINAL_INSTALL_ALIASES.includes(lower)) {
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      writeToTerminal('Running npm install…\n');
-      runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          writeToTerminal(`npm install exited with code ${code}\n`);
-          markTerminalRunning(false);
-          terminalKillRef.current = null;
-          showPrompt(false);
-        }
-      });
-      return;
-    }
-
-    if (lower.startsWith('npm run ')) {
-      const script = command.slice(8).trim();
-      if (!script) {
-        writeToTerminal('Missing script name. Example: npm run build\n');
-        showPrompt(false);
-        return;
-      }
-      if (!TERMINAL_ALLOWED_SCRIPTS.includes(script)) {
-        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${TERMINAL_ALLOWED_SCRIPTS.join(', ')}\n`);
-        showPrompt(false);
-        return;
-      }
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      writeToTerminal(`Running npm run ${script}…\n`);
-      runScript(script, {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          writeToTerminal(`npm run ${script} exited with code ${code}\n`);
-          markTerminalRunning(false);
-          terminalKillRef.current = null;
-          showPrompt(false);
-        }
-      });
-      return;
-    }
-
-    writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
-    showPrompt(false);
-  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
-
-  const handleTerminalData = useCallback((data) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    const state = terminalStateRef.current;
-
-    if (data === '\u0003') { // Ctrl+C
-      term.write('^C\r\n');
-      state.input = '';
-      state.historyIndex = state.history.length;
-      if (state.running) {
-        if (terminalKillRef.current) terminalKillRef.current();
-      } else {
-        showPrompt(false);
-      }
-      return;
-    }
-
-    if (state.running) {
-      // Ignore all other input while command is running
-      return;
-    }
-
-    if (data === '\r') { // Enter
-      const current = state.input;
-      state.input = '';
-      term.write('\r\n');
-      state.historyIndex = state.history.length;
-      executeTerminalCommand(current);
-      return;
-    }
-
-    if (data === '\u007f') { // Backspace
-      if (state.input.length > 0) {
-        state.input = state.input.slice(0, -1);
-        term.write('\b \b');
-      }
-      return;
-    }
-
-    if (data === '\u001b[A' || data === '\u001b[B') { // history navigation
-      if (!state.history.length) return;
-      if (data === '\u001b[A') {
-        state.historyIndex = Math.max(0, state.historyIndex - 1);
-      } else {
-        state.historyIndex = Math.min(state.history.length, state.historyIndex + 1);
-      }
-      const nextValue = state.historyIndex >= state.history.length ? '' : state.history[state.historyIndex];
-      replaceTerminalInput(nextValue);
-      return;
-    }
-
-    if (data.startsWith('\u001b')) {
-      // Ignore other escape sequences
-      return;
-    }
-
-    state.input += data;
-    term.write(data);
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, [executeTerminalCommand, replaceTerminalInput, showPrompt]);
-
-  useEffect(() => {
-    terminalInputHandlerRef.current = handleTerminalData;
-  }, [handleTerminalData]);
-
-  useEffect(() => {
-    const container = terminalContainerRef.current;
-    if (!container) return undefined;
-    const term = new Terminal({
-      rows: 12,
-      cursorBlink: true,
-      scrollback: 4000,
-      convertEol: false,
-      theme: { background: '#111', foreground: '#f5f5f5' },
-      ...TERMINAL_FONT
-    });
-    terminalRef.current = term;
-    term.open(container);
-    term.write(normalizeForTerminal('WordPress npm helper terminal.\n'));
-    printHelp();
-    showPrompt(false);
-    const dataDisposable = term.onData((d) => terminalInputHandlerRef.current(d));
-    const scrollDisposable = term.onScroll(() => {
-      const buffer = term.buffer.active;
-      const atBottom = buffer.baseY + buffer.cursorY >= buffer.length - term.rows;
-      terminalStickRef.current = atBottom;
-    });
-    return () => {
-      dataDisposable.dispose();
-      scrollDisposable.dispose();
-      term.dispose();
-      terminalRef.current = null;
-      terminalStickRef.current = true;
-    };
-  }, [normalizeForTerminal, printHelp, showPrompt]);
 
   useEffect(() => {
     const incoming = setupLogs || '';
@@ -2307,271 +1224,129 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
     setupLogsRef.current = incoming;
   }, [appendNpm, setupLogs, writeToTerminal]);
-  const stopDevServer = useCallback(async () => {
-    if (stoppingRef.current) return;
-    stoppingRef.current = true;
-    devServerActiveRef.current = false;
-    setWaitingForWatch(false);
-    waitingForWatchRef.current = false;
-    serverStartRequestedRef.current = false;
-    setStarting(false);
-    try { await window.api.stopServer(sitePath); } catch {}
-    try { window.api.stopWpDebug(sitePath); } catch {}
-    // stopWpDebug only tears down the watcher in the main process. The renderer
-    // keeps its own 'wp:debug-log:data' listener until this runs, and a second
-    // start would add another one on top of it — every line then appended once
-    // per dev-server run the session has had.
-    try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {}
-    try { if (newEmailUnsubRef.current) { newEmailUnsubRef.current(); newEmailUnsubRef.current = null; } } catch {}
-    try { if (smtpStartedUnsubRef.current) { smtpStartedUnsubRef.current(); smtpStartedUnsubRef.current = null; } } catch {}
-    setRunning(false);
-    runningRef.current = false;
-    setServerUrl('');
-    setSmtpPort(0);
-    stoppingRef.current = false;
-    waitingForWatchRef.current = false;
-    terminalKillRef.current = null;
-    markTerminalRunning(false);
-    currentRunIdRef.current = null;
-    // The watcher is independent now (#247): stopping the dev server leaves it
-    // running, so a contributor can keep compiling on save without serving the
-    // site. It is stopped only by its own control (stopWatcher).
-  }, [markTerminalRunning, setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
 
-  const startPhpServer = useCallback(async () => {
-    if (serverStartRequestedRef.current || stoppingRef.current || !devServerActiveRef.current) {
-      serverStartRequestedRef.current = false;
-      return;
-    }
-    serverStartRequestedRef.current = true;
-    setWaitingForWatch(false);
-    waitingForWatchRef.current = false;
-    ensureStick('runtime');
-    setStarting(true);
-    // Subscribe to SMTP events before starting to avoid missing early events
-    if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port)=>setSmtpPort(port||0));
-    if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg)=>setEmails((prev)=>sortEmails([msg, ...prev])));
-    try {
-      const res = await window.api.startServer(
-        sitePath,
-        (p)=>appendRuntime(p.data || ''),
-        (url)=>{
-          if (stoppingRef.current) {
-            serverStartRequestedRef.current = false;
-            return;
-          }
-          const u = url.replace(/\/$/,'/');
-          setServerUrl(u);
-          window.api.openExternal(u);
-          setRunning(true);
-          runningRef.current = true;
-          setStarting(false);
-          serverStartRequestedRef.current = false;
-        },
-        ()=>{
-          setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
-          // A stop the user did not ask for is a crash: say so, and tear the
-          // whole dev session down — watcher included — instead of leaving the
-          // button spinning "Starting dev server…" forever (issue #73).
-          if (!stoppingRef.current) {
-            appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
-            killCurrent().catch(() => {});
-            stopDevServer().catch(() => {});
-          }
-        }
-      );
-      // A failed start reports through the return value, not an exception.
-      // This also covers spawn failures that never produce a "stopped" event.
-      if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
-        appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
-        killCurrent().catch(() => {});
-        stopDevServer().catch(() => {});
-        return;
-      }
-    } catch (error) {
-      appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
-      setStarting(false);
-      serverStartRequestedRef.current = false;
-      runningRef.current = false;
-      return;
-    }
-    // Reset before subscribing: the tail replays the tail of the file when it
-    // attaches (up to 256KB, startWpDebugTail in main.js), so a restart would
-    // otherwise show the previous session's log a second time below itself.
-    // Stopping the server does not clear the pane — after a crash that log is
-    // the thing to read — but starting a new run does.
-    setDebugLogs('');
-    setDebugUnread(0);
-    try {
-      if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; }
-      const tail = await window.api.startWpDebug(sitePath,(d)=>appendDebug(d || ''));
-      wpDebugUnsubRef.current = tail?.unsubscribe || null;
-      if (tail?.filePath) setDebugLogPath(tail.filePath);
-    } catch {}
-    try { const { port, emails: fetchedEmails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(fetchedEmails||[]); } catch {}
-  }, [appendDebug, appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
-
-  // The watcher process itself (grunt _watch), streaming into its own tab. No
-  // terminal lock, no server coupling — that independence is the point of #247.
-  const startWatchProcess = useCallback(() => {
-    const plan = planDevServerStart({ hasBuilt: true });
-    markWatchState('watching');
-    watchWasActiveRef.current = true;
-    appendWatch(`Running ${plan.watch.label}…\n`);
-    runScript(plan.watch.script, {
-      args: plan.watch.args,
-      track: false,
-      mirrorToNpm: false,
-      onStart: (runId) => { watchRunIdRef.current = runId; },
-      onLog: (chunk) => { appendWatch(chunk); },
-      onDone: ({ code }) => {
-        watchRunIdRef.current = null;
-        appendWatch(`\n${plan.watch.label} exited with code ${code}\n`);
-        // A watcher exit never touches the server (#247). Only an unexpected
-        // exit flips the tab to 'exited'; a stop/pause we asked for has already
-        // moved the state to 'idle'/'paused', so leave it be.
-        if (watchStateRef.current === 'watching' || watchStateRef.current === 'building') {
-          markWatchState('exited', code);
-          watchWasActiveRef.current = false;
-        }
-      }
-    });
-  }, [appendWatch, markWatchState, runScript]);
-
-  // Start the build watch, building first if the site has no completed build
-  // (the _watch task deliberately skips that full build). `onReady` fires once
-  // build/ exists and the watch has started — the server start hangs off it,
-  // but the watch stays independent afterwards.
-  const startBuildWatch = useCallback(({ onReady } = {}) => {
-    const s = watchStateRef.current;
-    if (s === 'watching') { if (onReady) onReady(); return; }
-    if (s === 'building') return; // already on its way to watching
-    if (!hasBuilt) {
-      // Fresh / skip-the-wizard sites need one full build before anything can
-      // watch or serve. It is a one-shot, so it holds the terminal lock while
-      // it runs; the watch that follows does not. Reveal the tab so the build
-      // is visible.
-      const state = terminalStateRef.current;
-      if (state.running) { appendWatch('A command is already running in the terminal — stop it before starting the build watch.\n'); return; }
-      selectLogTab('watch');
-      markWatchState('building');
-      watchWasActiveRef.current = true;
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      appendWatch('No completed build found — running npm run build first…\n');
-      runScript('build', {
-        mirrorToNpm: false,
-        onLog: (chunk) => { appendWatch(chunk); },
-        onDone: ({ code }) => {
-          markTerminalRunning(false);
-          terminalKillRef.current = null;
-          if (code !== 0 || watchStateRef.current !== 'building') {
-            if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code); }
-            else markWatchState('idle');
-            watchWasActiveRef.current = false;
-            return;
-          }
-          startWatchProcess();
-          if (onReady) onReady();
-        }
-      });
-    } else {
-      startWatchProcess();
-      if (onReady) onReady();
-    }
-  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, runScript, selectLogTab, startWatchProcess]);
-
-  // User-initiated stop of the watch (its own button). Never touches the server.
-  const stopWatcher = useCallback(async () => {
-    const wasBuilding = watchStateRef.current === 'building';
-    markWatchState('idle');
-    watchWasActiveRef.current = false;
-    if (watchRunIdRef.current) {
-      try { await killWatcher(); } catch {}
-    } else if (wasBuilding) {
-      // Still in the one-shot build phase — that run is the tracked one.
-      try { await killCurrent(); } catch {}
-      markTerminalRunning(false);
-      terminalKillRef.current = null;
-    }
-  }, [killCurrent, killWatcher, markTerminalRunning, markWatchState]);
-
-  // Pause the watch for an operation that needs the build directory and
-  // node_modules to itself — an install, a full build, a trunk reset (#262).
-  // Returns whether it actually paused, so a caller can log accordingly; resume
-  // is safe to call unconditionally since it no-ops unless the state is 'paused'.
-  const pauseWatcher = useCallback(async () => {
-    if (watchStateRef.current !== 'watching' && watchStateRef.current !== 'building') return false;
-    markWatchState('paused');
-    appendWatch('\nPaused while another operation uses the build.\n');
-    try { await killWatcher(); } catch {}
-    return true;
-  }, [appendWatch, killWatcher, markWatchState]);
-
-  // Bring the watch back after a pause. Guarded on 'paused' so a dev-server stop
-  // or a manual stop mid-operation (which sets 'idle') is never resurrected.
-  const resumeWatcher = useCallback(() => {
-    if (watchStateRef.current !== 'paused') return;
-    appendWatch('\nResumed.\n');
-    startWatchProcess();
-  }, [appendWatch, startWatchProcess]);
-
-  const toggleWatch = useCallback(() => {
-    const s = watchStateRef.current;
-    if (s === 'watching' || s === 'building') { stopWatcher(); return; }
-    // Starting it from its own button reveals the tab, whether or not a build
-    // runs first — that is where its output and state live.
-    selectLogTab('watch');
-    startBuildWatch();
-  }, [selectLogTab, startBuildWatch, stopWatcher]);
-
-  const toggleDevServer = async ()=>{
-    if (!running) {
-      // eslint-disable-next-line no-alert -- see the note above onRename.
-      if (!skipInit && !hasBuilt) { alert('Please complete the full build before starting the dev server. You can also skip the wizard.'); return; }
-      serverStartRequestedRef.current = false;
-      devServerActiveRef.current = true;
-      setStarting(true);
-      // The server needs build/ on disk, which the build watch guarantees. Start
-      // the watch first (automatically, if it is not already running) and hang
-      // the server start off its readiness — the watch stays independent after.
-      startBuildWatch({ onReady: () => { startPhpServer().catch(() => {}); } });
-    } else {
-      await killCurrent().catch(() => {});
-      await stopDevServer();
-    }
-  };
-  const isServerStarting = waitingForWatch || (starting && !serverUrl);
-  const isDevProcessActive = running || isServerStarting;
-  let devServerButtonLabel = 'Start dev server';
-  if (isDevProcessActive) devServerButtonLabel = isServerStarting ? 'Starting dev server...' : 'Stop dev server';
-  // The build watch has its own control and status dot beside the server's — it
-  // runs independently of the server (#247). Green watching, amber building or
-  // paused, red an unexpected exit, grey stopped.
-  const watchActive = watchState === 'watching' || watchState === 'building';
-  const watchDotColor = WATCH_DOT_COLORS[watchState] || '#8c8f94';
-  const watchButtonLabel = watchActive ? 'Stop build watch' : 'Start build watch';
-  // Elapsed-seconds counter for the starting state, so a slow boot is
-  // distinguishable from a hang (issue #73).
-  const [startElapsed, setStartElapsed] = useState(0);
+  // The build watch (#554): its state, its run and what can be done to it. It
+  // is called here because it needs the script runner and the terminal's lock
+  // above. What the chains below use of it is taken out by name.
+  const { watchState, watchExitCode, watchExitOf, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, refuseInTerminal, terminalStateRef, terminalKillRef, markTerminalRunning });
+  // A watch that ended by itself, or was never started because the build
+  // ahead of it failed, is said on the page with "Its last lines are in the
+  // Logs." So the logs come up, on the watch's tab, when that happens. A
+  // watch stopped by its button goes to idle and not to this, and brings
+  // nothing up.
   useEffect(() => {
-    if (!isServerStarting) {
-      setStartElapsed(0);
-      return undefined;
-    }
-    const id = setInterval(() => setStartElapsed((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [isServerStarting]);
+    if (watchState === 'exited') revealWatchLog();
+  }, [watchState, revealWatchLog]);
+
+  // The count is on the tab rather than beside it because the tab is what the
+  // contributor is not looking at: a notice landing while they read the server
+  // output is the case this panel exists for.
+  const logTabs = useMemo(() => ([
+    { name: 'runtime', title: __('Server') },
+    { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
+    // translators: %d: how many lines have arrived in WordPress's debug.log since it was last looked at.
+    { name: 'debug', title: logs.debugUnread ? sprintf(__('Debug.log (%d)'), logs.debugUnread) : __('Debug.log') }
+  ]), [logs.debugUnread, watchState, watchExitCode, watchCompiling]);
+
+  // The dev server (#554): its state, its guards and its one button. It is
+  // called here because starting it needs everything above: the build watch,
+  // the logs, the mail, the terminal's lock and the script runner.
+  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
-  }, [sitePath]);
-  // eslint-disable-next-line no-alert -- see the note above onRename.
-  const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
+  }, [sitePath, setSkipInit]);
+  // The question asked before a site or a ticket's work is deleted (#557),
+  // or before local changes are discarded (#658), in a dialog of the app's
+  // own: what is asked, and what a yes does. The system's confirm is not
+  // used, because Electron draws its buttons in English whatever the
+  // language.
+  const [asking, setAsking] = useState(null);
+  const askFirst = (question, action) => setAsking({ question, action });
+
+  // Updating to the latest trunk (#94, #554): the chain, the question it asks
+  // about edits in the tree, and the retry. Called here because it runs
+  // through everything above, and because what follows reads whether an
+  // update is under way.
+  const { updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, askFirst, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  // What opening the site starts (#559): the server, the watch, as the
+  // settings say, and what the last quit left for this site to start again.
+  // Which edge to consume and what to start is auto-start.cjs's; what is
+  // here is the gates and the calls. What an edge asks for waits until the
+  // site is ready for it, its status read and its setup done, and is
+  // dropped by a deactivation first. Nothing starts under an update, a
+  // setup or a deletion, and nothing that is already running or starting is
+  // started again: the watch is started after the server's start has
+  // answered, and only where that start did not bring it up.
+  const autoStart = useRef({ open: false, resumed: false });
+  useEffect(() => { autoStart.current.open = isActive; }, [isActive]);
+  const starters = useRef({ toggleDevServer, startBuildWatch });
+  useEffect(() => { starters.current = { toggleDevServer, startBuildWatch }; });
+  useEffect(() => {
+    if (statusLoading || !skipInit || !settings) return;
+    if (isPending || isDeleting || isUpdating || setupChainState !== 'idle') return;
+    const plan = autoStartPlan({ open: autoStart.current.open, isActive, resumed: autoStart.current.resumed, resume, settings });
+    if (plan.consumeOpen) autoStart.current.open = false;
+    if (plan.consumeResume) autoStart.current.resumed = true;
+    if (!plan.server && !plan.watch) return;
+    const watchUp = () => ['watching', 'building'].includes(watchStateRef.current);
+    const serverTried = plan.server && !isDevProcessActive;
+    (async () => {
+      if (serverTried) await starters.current.toggleDevServer();
+      // A server's start that found the terminal held has already been
+      // refused the watch, and said so; the watch is not asked for again.
+      if (plan.watch && !watchUp() && !(serverTried && terminalStateRef.current.running)) starters.current.startBuildWatch();
+    })().catch((err) => {
+      // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
+      console.error('Could not start what opening the site asks for:', err);
+    });
+  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, setupChainState, isDevProcessActive, watchStateRef, terminalStateRef]);
+
+  // What the page says about the site's two processes (#557), in the header
+  // and in the details alike. Decided in site-processes.cjs, and worked out
+  // here because an update of trunk holds both.
+  const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, failure: serverFailure });
+  const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
+  const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
+  // The sites list draws this server's dot before the site's name whether or
+  // not the site is open, and this is how it learns what to draw: what the
+  // report says is decided in sites-list.cjs. Reported on each change, and
+  // taken back when the view goes: the report before a change is taken back
+  // in the same commit as the new one is made, so the list sees one change,
+  // not a grey dot in between.
+  const { status: serverDotStatus, text: serverDotText } = serverReport(serverState);
+  useEffect(() => {
+    if (!onServerStatus) return undefined;
+    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText });
+    return () => onServerStatus(sitePath, null);
+  }, [onServerStatus, sitePath, serverDotStatus, serverDotText]);
+  // A link to the running site is opened in the browser by the main process.
+  const openSiteLink = (url) => window.api.openExternal(url);
+
+  // What the site's menu does (#556). Which items it offers is decided in
+  // site-menu.cjs; this is each one's function. Copying the path says so in a
+  // toast, since the menu is gone by then and the details, whose own button
+  // says it on itself, may be put away.
+  const detailsId = useId();
+  const runSiteMenuAction = async (item) => {
+    if (item.id === 'rename') openRenameModal();
+    else if (item.id === 'copy-path') { if (await writePathToClipboard()) confirm(__('Copied the path')); }
+    else if (item.id === 'show-in-file-manager') await showInFileManager();
+    else if (item.id === 'update-trunk') await startTrunkUpdate();
+    else if (item.id === 'open-in') await openIn(item.path);
+    else if (item.id === 'open-in-other') await openIn(null);
+    else if (item.id === 'delete') askFirst(deleteSiteQuestion(displayName), () => onDelete(sitePath));
+  };
+
+  // Putting someone else's patch or pull request on this site (#554): what a
+  // ticket offers, the preview, and the chain. Called here because it runs
+  // through everything above, and because what follows reads whether an
+  // apply is under way.
+  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
 
   // The tickets with work on this site (#108), in a card of their own (#240)
-  // between the Trac ticket card and the patch one — which ticket am I on,
-  // which of my tickets do I want, bring in work from elsewhere. The sentence
+  // below the Trac ticket card and the patch one — which ticket am I on, what
+  // work can I bring into it, which of my other tickets do I want. The sentence
   // differs with the state — with no ticket linked the rows offer to continue,
   // with one linked they point out the other open tickets — but the rows, the
   // ordering and the delete action are the same list, and it lives in the one
@@ -2582,7 +1357,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // operations as well as on each other — the same trio every destructive
   // control in the ticket panel guards on.
   const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, tracTicket, now: Date.now() });
-  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket) });
+  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket), provider: project.workItem.provider });
   // What the switch is doing, while it does it (#173). Gated on the busy flag
   // rather than merely cleared by it: the last sends can land after the invoke
   // has already answered, which would flash a sentence under an idle panel.
@@ -2591,9 +1366,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // panel below (#234), so this confirms an answered question rather than
   // announcing a move the app made on its own.
   const carriedNotice = carriedWork ? (
-    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
-      Your {carriedWork.files} uncommitted {carriedWork.files === 1 ? 'change' : 'changes'} came along into #{carriedWork.ticket}, and will go into its patch.
-    </div>
+    <Notice.Root intent="info" spokenMessage={SILENT}>
+      <Notice.Description>
+        {sprintf(
+          // translators: 1: how many files had uncommitted changes. 2: the number of the ticket or issue they went into.
+          _n(
+            'Your %1$d uncommitted change came along into #%2$s, and will go into its patch.',
+            'Your %1$d uncommitted changes came along into #%2$s, and will go into its patch.',
+            carriedWork.files
+          ),
+          carriedWork.files,
+          carriedWork.ticket
+        )}
+      </Notice.Description>
+    </Notice.Root>
   ) : null;
 
   // The counterpart for the other answer to the same question: the edits were
@@ -2601,18 +1387,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // asked could have been, because that panel — and the path it showed — is
   // gone once the switch completes.
   const savedCleanNotice = patchSavedNotice ? (
-    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
-      Your edits were saved to {patchSavedNotice} and are no longer in the working tree.
-    </div>
+    <Notice.Root intent="info" spokenMessage={SILENT}>
+      <Notice.Description>
+        {sprintf(
+          // translators: %s: the path of the patch file the edits were saved to.
+          __('Your edits were saved to %s and are no longer in the working tree.'),
+          patchSavedNotice
+        )}
+      </Notice.Description>
+    </Notice.Root>
   ) : null;
 
   const switchProgressLine = ticketSaving && switchProgress ? (
-    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 12 }}>
-      <Spinner />
-      <span>{describeSwitchProgress(switchProgress)}</span>
-    </div>
+    <Stack direction="row" align="center" gap="sm">
+      <UiSpinner />
+      <Text variant="body-md" className="muted-label">{describeSwitchProgress(switchProgress)}</Text>
+    </Stack>
   ) : null;
-  const ticketActionsBlocked = ticketSaving || deletingBranch !== null || updateState !== 'idle' || installing || building;
+  // One gate for every ticket action, and the sentence that goes with it
+  // (#409): a control this disables says why, through ReasonedButton.
+  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun });
 
   // The one question both paths now ask (#234). Picking a ticket while trunk
   // has uncommitted edits used to do opposite things — carry them silently
@@ -2623,151 +1417,90 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // loose edits cannot ride into it. Rendered as a variable because two
   // views hold a "Link ticket" field, and a refusal with no panel under it
   // would be a dead end in the second one.
+  const dirtyQuestion = blockedByTrunkWork ? dirtyTrunkQuestion({
+    ...blockedByTrunkWork,
+    pullRequest: blockedByTrunkWork.kind === 'pr' ? blockedByTrunkWork.number : null,
+    noun: workItem.noun
+  }) : null;
   const blockedPanel = blockedByTrunkWork ? (
-    <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
-      <div>
-        {blockedByTrunkWork.files
-          ? `You have ${blockedByTrunkWork.files === 1 ? '1 uncommitted change' : `${blockedByTrunkWork.files} uncommitted changes`} on this site, not on any ticket yet.`
-          : 'You have uncommitted changes on this site, not on any ticket yet.'}
-        {' '}What should happen to them?
-        {blockedByTrunkWork.canCarry ? '' : ' This ticket already has its own work here, so these edits cannot come along into it.'}
-      </div>
+    <Notice.Root intent="warning" spokenMessage={SILENT}>
+      <Notice.Description>{dirtyQuestion.question}</Notice.Description>
       {patchSavedTo ? (
-        <div style={{ marginTop: 6, fontWeight: 600 }}>
-          Saved to {patchSavedTo}. The edits are still in the working tree.
-        </div>
+        <Notice.Description>
+          <strong>{sprintf(
+            // translators: %s: the path of the patch file the edits were saved to.
+            __('Saved to %s. The edits are still in the working tree.'),
+            patchSavedTo
+          )}</strong>
+        </Notice.Description>
       ) : null}
-      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        {blockedByTrunkWork.canCarry ? (
-          <Button
-            variant="link"
-            isBusy={ticketSaving}
-            disabled={ticketActionsBlocked}
+      <Notice.Actions>
+        {dirtyQuestion.carry ? (
+          <ReasonedUiButton
+            variant="outline"
+            tone="neutral"
+            size="compact"
+            reason={ticketActionsReason}
             onClick={() => saveTicket(blockedByTrunkWork.ref, { carryTrunkWork: true })}
-            style={{ fontSize: 12 }}
-          >Take these edits into {blockedByTrunkWork.ticket ? `#${blockedByTrunkWork.ticket}` : 'the ticket'}</Button>
+          >{dirtyQuestion.carry}</ReasonedUiButton>
         ) : null}
-        <Button variant="link" disabled={ticketActionsBlocked} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork.ref)} style={{ fontSize: 12 }}>
-          Save them as a patch, then start clean…
-        </Button>
-        <Button
-          variant="link"
-          isDestructive
-          disabled={ticketActionsBlocked}
-          onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork.ref))}
-          style={{ fontSize: 12 }}
-        >Discard them and start clean</Button>
+        <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={ticketActionsReason} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork)}>
+          {dirtyQuestion.save}
+        </ReasonedUiButton>
+        <ReasonedUiButton
+          variant="outline"
+          tone="neutral"
+          size="compact"
+          reason={ticketActionsReason}
+          onClick={() => askFirst(discardTrunkEditsQuestion(), () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
+        >{dirtyQuestion.discard}</ReasonedUiButton>
         {/* The way out that touches nothing — three consequential actions
             with no fourth door is its own trap (#234). */}
-        <Button variant="link" disabled={ticketActionsBlocked} onClick={() => { setBlockedByTrunkWork(null); setPatchSavedTo(''); }} style={{ fontSize: 12 }}>
-          Cancel
-        </Button>
-      </div>
-    </div>
+        {/* For a pull request it takes the preview with it: the preview is
+            a dialog, set aside while this is asked, and would otherwise come
+            back in front of whoever has just said "not now". */}
+        <ReasonedUiButton variant="minimal" tone="neutral" size="compact" reason={ticketActionsReason} onClick={() => { if (blockedByTrunkWork.kind === 'pr') setApplyPreview(null); setBlockedByTrunkWork(null); setPatchSavedTo(''); }}>
+          {dirtyQuestion.cancel}
+        </ReasonedUiButton>
+      </Notice.Actions>
+    </Notice.Root>
   ) : null;
-  const renderBranchRows = (linked) => (
-    <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-      {branchRows.map((row, i) => (
-        <div key={row.ref} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: i < branchRows.length - 1 ? '1px solid #f0f0f1' : 'none' }}>
-          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            <span style={{ fontSize: 13, color: '#1d2327' }}>
-              {linked ? <>You also have work on #{row.ticketId}{' — '}</> : null}
-              <Button variant="link" onClick={() => saveTicket(String(row.ticketId))} disabled={ticketActionsBlocked} style={{ fontSize: 13 }}>
-                {linked ? 'switch' : `Continue working on #${row.ticketId}`}
-              </Button>
-            </span>
-            {row.timeLabel ? (
-              <div style={{ marginTop: 2, fontSize: 11, color: '#6c6f72' }}>{row.timeLabel}</div>
-            ) : null}
-          </div>
-          <Button
-            variant="link"
-            isDestructive
-            isBusy={deletingBranch === row.ref}
-            disabled={ticketActionsBlocked}
-            onClick={() => confirmAnd(`Delete all work on #${row.ticketId} on this site? This cannot be undone.`, () => deleteTicketWork(row.ref))}
-            style={{ fontSize: 12, flex: '0 0 auto' }}
-          >Delete this ticket&apos;s work</Button>
-        </div>
-      ))}
-    </div>
-  );
 
-  // --- Update to latest trunk (#94) ---
+  // What the panel says back after an action: the refusal, the switch's
+  // progress line, the carried-work and saved-clean notices, and the
+  // dirty-trunk question. Rendered under the controls that cause them, the
+  // Unlink row and the trunk notice's button when a ticket is linked, the
+  // Link ticket field when none is, rather than at the foot of a card that
+  // can be a screen tall by the time the pull requests have loaded.
+  const ticketFeedback = (
+    <>
+      {ticketError ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{ticketError}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+      {switchProgressLine}
+      {carriedNotice}
+      {savedCleanNotice}
+      {blockedPanel}
+    </>
+  );
+  // How old the site's trunk is (#94), for the notice that offers an update.
   const age = trunkAgeInfo({ trunkDate });
-  const isUpdating = updateState !== 'idle';
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
-  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket });
-  const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk });
-  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
-  const updateStepStates = updateStepStatuses(updateSteps, updateState);
+  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket, pullRequest, workItemNoun: workItem.noun });
+  const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
+  const legacyNotice = legacySiteNotice({ legacy });
+  const mergeNotice = mergeInProgressNotice({ mergeInProgress });
 
-  const finishUpdate = (message) => {
-    markTerminalRunning(false);
-    terminalKillRef.current = null;
-    setUpdateState('idle');
-    if (message) writeToTerminal(message);
-    // Resume the watch if the update paused it (#262). Safe on every exit path
-    // and a no-op if nothing was paused.
-    resumeWatcher();
-    loadStatus().catch(() => {});
-    refreshDirty();
-  };
-
-  // Steps 2 and 3 of the chain: npm install (only when the lockfile moved,
-  // and named when skipped) then a rebuild. Reuses the wizard's runInstall /
-  // runScript so exit codes, retries and terminal streaming all behave
-  // exactly as they do everywhere else (same pattern as toggleDevServer).
-  const runUpdateInstallAndBuild = (lockfileChanged) => {
-    const runBuildStep = () => {
-      setUpdateState('building');
-      writeToTerminal('\nRunning npm run build…\n');
-      runScript('build', {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: async ({ code }) => {
-          if (code === 0) {
-            try { await window.api.markUpdateComplete(sitePath); } catch {}
-            const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
-            setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
-            confirm('Updated to the latest trunk');
-            finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
-          } else {
-            finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
-          }
-        }
-      });
-    };
-    if (lockfileChanged) {
-      setUpdateState('installing');
-      writeToTerminal('\npackage-lock.json changed — running npm install (only the changed packages are downloaded)…\n');
-      runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          if (code !== 0) {
-            finishUpdate('\nUpdate incomplete — npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n');
-            return;
-          }
-          runBuildStep();
-        }
-      });
-    } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      runBuildStep();
-    }
-  };
-
-  // --- Applying someone else's patch (#11) ---
-  // Same three-stage shape as the update chain, and the same npm wrappers, so
-  // exit codes and terminal streaming behave identically.
-  const isApplying = applyState !== 'idle';
-  const showTerminalHints = shouldShowTerminalHints({ hasBuilt });
+  // Whether the terminal is free, and what the site's view says about the
+  // patch or pull request that is applied (#11).
+  const showTerminalHints = Boolean(hasBuilt);
   const terminalBusy = computeTerminalBusy({
     terminalRunning, installing, building, starting, running, isUpdating, isApplying
   });
-  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher });
-  const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
 
   // The applied patch as a layer with a name (#306), not an undo blob. Both
   // answers come from the same record: whether it can still be lifted out —
@@ -2776,8 +1509,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const appliedLayer = describeAppliedLayer(appliedPatch, {
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
-  const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
+  // Empty when the record has no name: each sentence has a version without one.
+  const appliedPatchLabel = appliedPatch?.label || '';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
+  const prCheckout = pullRequest ? describePrCheckout({ ...pullRequest, noun: workItem.noun }) : null;
+  // The banner's tone and headline follow the watch (#509): green only once
+  // the site is built around the checkout.
+  const prBanner = pullRequest ? appliedBannerState({ number: pullRequest.number, watchState, compiling: watchCompiling, buildInterrupted, actionsReason: ticketActionsReason }) : null;
+  const prPreview = applyPreview?.kind === 'pr' ? describePrPreview({
+    number: applyPreview.number,
+    files: applyPreview.files,
+    needsInstall: applyPreview.needsInstall,
+    exists: applyPreview.exists,
+    moved: applyPreview.moved,
+    hasEdits: applyPreview.hasEdits,
+    state: applyPreview.prState
+  }) : null;
   // The layer exits reach the same two operations the changes note does, so
   // they go through the same guard: a discard is a force checkout, and running
   // it under a live dev server or a half-finished install rewrites the tree
@@ -2807,25 +1554,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // between them. Every one of them ends by naming where the rest of the work
   // now lives, because the chain going quiet is otherwise indistinguishable
   // from the app having forgotten about the site.
-  const SETUP_END_MESSAGES = {
-    done: '\nSetup complete — start the dev server when you are ready.\n',
-    stopped: '\nSetup stopped. The remaining steps are in the checklist above — run them whenever you are ready.\n',
-    'failed-install': '\nnpm install failed — setup stopped here. Its output is above; retry the install from the checklist.\n',
-    'failed-build': '\nThe build failed — dependencies are installed. Its output is above; retry the build from the checklist.\n'
-  };
 
   const finishSetupChain = (outcome) => {
     markTerminalRunning(false);
     terminalKillRef.current = null;
     setSetupChainState('idle');
     setSetupChainEnd(outcome);
-    writeToTerminal(SETUP_END_MESSAGES[outcome] || '');
-    if (outcome === 'done') confirm('This site is ready to work on');
+    const ended = setupEndMessage(outcome);
+    if (ended) writeToTerminal(`\n${ended}\n`);
+    if (outcome === 'done') confirm(__('This site is ready to work on'));
   };
 
   const stopSetupChain = () => {
     setupStoppedRef.current = true;
-    writeToTerminal('\nStopping setup…\n');
+    writeToTerminal(`\n${__('Stopping setup…')}\n`);
     killCurrent().catch(() => {});
   };
 
@@ -2837,7 +1579,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     markTerminalRunning(true);
     terminalKillRef.current = () => { stopSetupChain(); };
     setSetupChainState('installing');
-    writeToTerminal('\nSetting this site up — running npm install…\n');
+    // translators: %s: the command that installs dependencies, npm install.
+    writeToTerminal(`\n${sprintf(__('Setting this site up — running %s…'), 'npm install')}\n`);
     runInstall({
       onLog: (chunk) => writeToTerminal(chunk),
       onDone: ({ code }) => {
@@ -2857,7 +1600,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           return;
         }
         setSetupChainState('building');
-        writeToTerminal('\nRunning npm run build…\n');
+        // translators: %s: the command being run, such as npm run build.
+        writeToTerminal(`\n${sprintf(__('Running %s…'), 'npm run build')}\n`);
         runScript('build', {
           onLog: (chunk) => writeToTerminal(chunk),
           onDone: ({ code: buildCode }) => {
@@ -2915,486 +1659,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     attachments: tracAttachments?.items,
     prRankComplete: ticketPatches?.rankComplete
   });
-  const latestIsAttachment = latestPatch?.kind === 'attachment';
-  // The panel lists only what can be applied — screenshots and other non-patch
-  // attachments are noise here. The parser still returns them (pickLatest and
-  // tests rely on the full list); the filtering is purely what's shown.
-  const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
+  // Attachments are Trac's; a GitHub issue never has one, whatever a stale
+  // scrape says (#251).
+  const latestIsAttachment = showTracCards && latestPatch?.kind === 'attachment';
   // The ticket's own facts (#292), riding the same scrape as the attachments:
   // one Trac visit, one challenge, both answers.
-  const tracInfo = tracAttachments?.ticket || null;
-  const tracInfoBadge = statusBadge(tracInfo);
-  const tracAttachmentsRead = tracAttachments
-    && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
-  // One pill shape, two uses: the "Latest" marker on a patch row and a linked
-  // pull request's state. Only the words and the colours differ.
-  const pillStyle = { display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' };
-  const latestPill = (isLatest) => (isLatest ? (
-    <span style={{ ...pillStyle, background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
-      Latest
-    </span>
-  ) : null);
-  const prStatePill = (state) => {
-    const badge = prStateBadge(state);
-    return (
-      <span style={{ ...pillStyle, background: badge.background, color: badge.color }}>
-        {badge.label}
-      </span>
-    );
-  };
-
-  const finishApply = (message) => {
-    markTerminalRunning(false);
-    terminalKillRef.current = null;
-    setApplyState('idle');
-    if (message) writeToTerminal(message);
-    // Resume the watch if this apply paused it. Safe on every exit path
-    // (success, failure, cancel) and a no-op if nothing was paused (#262).
-    resumeWatcher();
-    loadStatus().catch(() => {});
-    refreshDirty();
-  };
-
-  const runApplyInstallAndBuild = (needsInstall, verb, { runBuild = true } = {}) => {
-    const runBuildStep = () => {
-      setApplyState('building');
-      writeToTerminal('\nRunning npm run build…\n');
-      runScript('build', {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          // Only now is the apply genuinely done — the patch is on disk and the
-          // site is rebuilt around it, so "open the site to try it out" is true
-          // (#253). A failed build leaves stale assets and its own banner, so it
-          // gets no success confirmation.
-          if (code === 0) confirm(`${verb} the patch`);
-          finishApply(code === 0
-            ? `\n${verb} — open the site to try it out.\n`
-            : `\nThe patch is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
-        }
-      });
-    };
-    if (!runBuild) {
-      // A running build watch recompiles the src/ change on its own, so there is
-      // no install and no build of our own to run — just hand off to it (#262).
-      confirm(`${verb} the patch`);
-      finishApply(`\n${verb} — the build watch is recompiling it. Open the site to try it out.\n`);
-      return;
-    }
-    if (needsInstall) {
-      setApplyState('installing');
-      writeToTerminal('\nThe patch changes package-lock.json — running npm install…\n');
-      runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          if (code !== 0) {
-            finishApply('\nnpm install failed, so the build was skipped. The patch is applied but dependencies are stale.\n');
-            return;
-          }
-          runBuildStep();
-        }
-      });
-    } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      runBuildStep();
-    }
-  };
-
-  // Reads a patch file and works out what it would do, without touching the
-  // checkout — the contributor decides after seeing the file list.
-  const choosePatchFile = async () => {
-    clearApplyError();
-    setApplyNotice('');
-    try {
-      const chosen = await window.api.choosePatchFile();
-      if (!chosen) return;
-      if (chosen.error) {
-        setApplyError(`Could not read that file: ${chosen.error}`);
-        return;
-      }
-      const preview = await window.api.previewPatch(sitePath, chosen.text);
-      if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
-        return;
-      }
-      setApplyPreview({ ...preview, label: chosen.name, text: chosen.text });
-    } catch (e) {
-      setApplyError(String(e));
-    }
-  };
-
-  // Loads the PRs linked to the ticket. Manual, not on a timer: each call is a
-  // request against a shared, unauthenticated GitHub limit, so it runs when the
-  // contributor asks — on link, and on an explicit refresh.
-  const loadTicketPatches = useCallback(async () => {
-    setTicketPatchesLoading(true);
-    try {
-      const res = await window.api.listTicketPatches(sitePath);
-      setTicketPatches(res && res.ok ? res.prs : { status: 'error', items: [] });
-    } catch {
-      setTicketPatches({ status: 'error', items: [] });
-    } finally {
-      setTicketPatchesLoading(false);
-    }
-  }, [sitePath]);
-
-  // Load the ticket's PRs only for the active site. Every SiteRow stays mounted
-  // (the parent hides inactive ones), so fetching on mount would spend the
-  // shared, unauthenticated GitHub quota once per linked site on every launch.
-  // The ref keeps re-activating a site from re-fetching the same ticket; a
-  // relink (ticket change) and the Refresh button still fetch. Unlinking clears
-  // the list. Placed after loadTicketPatches is defined: an effect that named it
-  // earlier in the body would read the const before its declaration ran.
-  const loadedTicketRef = useRef(null);
-  // Set only by saveTicket, on a link the contributor just performed. The
-  // per-ticket effect below consumes it to auto-read the ticket's details:
-  // there, after the generation bump, so the scrape's result is not dropped as
-  // stale. A ref and not state — it must not survive a remount, or selecting
-  // an already-linked site would open a Trac window nobody asked for (#292).
-  const autoReadTicketRef = useRef(null);
-  const tracScrapeRef = useRef(null);
-  // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
-  // a scrape that resolves after the ticket has moved on is dropped, rather than
-  // shown under the wrong ticket or clearing a newer request's loading flag. Kept
-  // on its own [tracTicket]-only effect, deliberately not folded into the one
-  // below: that effect also re-runs on an `isActive` toggle (switching site tabs
-  // and back), which must not bump the generation of an in-flight scrape that
-  // has nothing to do with this ticket change (#299 follow-up). Declared first —
-  // React runs same-component passive effects in declaration order — so the
-  // bump always lands before the auto-triggered scrape a few lines down (#299).
-  const scrapeGenRef = useRef(0);
-  useEffect(() => { scrapeGenRef.current += 1; }, [tracTicket]);
-  useEffect(() => {
-    if (!tracTicket) {
-      setTicketPatches(null);
-      // Attachments are per-ticket and loaded on demand; a stale list from the
-      // previous ticket must not linger, and a scrape dropped by the generation
-      // bump above must not leave a stuck spinner.
-      setTracAttachments(null);
-      setTracAttachmentsLoading(false);
-      loadedTicketRef.current = null;
-      return;
-    }
-    if (!isActive || loadedTicketRef.current === tracTicket) return;
-    // A new ticket on the active site: drop any attachments the previous one
-    // loaded (and clear its loading flag, so a scrape dropped by the generation
-    // bump above cannot leave a stuck spinner with no button to recover), then
-    // fetch its PRs. Marked loaded before the fetch resolves, on purpose: a
-    // failed initial fetch is not retried on every re-activation (which could
-    // keep spending a rate-limited quota) — Refresh is the retry.
-    setTracAttachments(null);
-    setTracAttachmentsLoading(false);
-    loadedTicketRef.current = tracTicket;
-    loadTicketPatches();
-    // Auto-read the ticket's own facts when this ticket was just linked by
-    // hand (#292). Only then: the contributor just acted on this ticket, so a
-    // human-check window appearing has context. On mount or re-activation the
-    // ref is empty and nothing opens — details stay on demand, the #109 rule.
-    if (autoReadTicketRef.current === tracTicket) {
-      autoReadTicketRef.current = null;
-      // Through the ref, not the function: loadTracAttachments is declared
-      // below this effect and recreated per render — the same shape as
-      // metaPatchRef above.
-      if (tracScrapeRef.current) tracScrapeRef.current();
-    }
-  }, [tracTicket, isActive, loadTicketPatches]);
-
-  // Fetches a PR's diff and drops into the same preview the file picker uses,
-  // so applying a PR and applying a downloaded patch are one path from here on.
-  const previewPr = async (pr) => {
-    clearApplyError();
-    setApplyNotice('');
-    setFetchingPr(pr.number);
-    try {
-      const diff = await window.api.fetchPrDiff(pr.number);
-      if (!diff || !diff.ok) {
-        setApplyError(diff?.status === 'rate-limited'
-          ? 'GitHub is rate-limiting this connection right now. Open the PR and download its .diff, then use “Choose a patch file”.'
-          : `Could not fetch the diff for PR #${pr.number}: ${diff?.error || 'unknown error'}`);
-        return;
-      }
-      const preview = await window.api.previewPatch(sitePath, diff.text);
-      if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that diff.');
-        return;
-      }
-      // `url` and `state` ride along so a conflict can offer the pull request
-      // itself, framed by what it is: an open one is rebased by its author, a
-      // closed one is nobody's to update (#282). State is absent when the PR
-      // came from a pasted number rather than the linked list.
-      setApplyPreview({ ...preview, label: `PR #${pr.number}`, text: diff.text, prUrl: pr.url, prState: pr.state || null });
-    } catch (e) {
-      setApplyError(String(e));
-    } finally {
-      setFetchingPr(null);
-    }
-  };
-
-  // Opens the real Trac ticket (the user clears the challenge once if shown),
-  // scrapes its attachment list, and shows it in-app. On demand, not on link.
-  const loadTracAttachments = async () => {
-    const gen = scrapeGenRef.current;
-    clearApplyError();
-    setTracAttachmentsLoading(true);
-    try {
-      const res = await window.api.listTracAttachments(sitePath);
-      if (gen !== scrapeGenRef.current) return; // ticket changed mid-scrape; drop the stale result
-      setTracAttachments(res && res.ok ? res : { status: 'error', items: [] });
-    } catch {
-      if (gen !== scrapeGenRef.current) return;
-      setTracAttachments({ status: 'error', items: [] });
-    } finally {
-      if (gen === scrapeGenRef.current) setTracAttachmentsLoading(false);
-    }
-  };
-
-  // Downloads an attachment through the challenge-passing session and hands it
-  // to the same preview the PR and file paths use.
-  useEffect(() => { tracScrapeRef.current = loadTracAttachments; });
-
-  const previewAttachment = async (att) => {
-    clearApplyError();
-    setApplyNotice('');
-    setFetchingAttachment(att.url);
-    try {
-      const res = await window.api.fetchTracAttachment(att.url);
-      if (!res || !res.ok) {
-        setApplyError(res?.error || `Could not download ${att.filename}.`);
-        return;
-      }
-      const preview = await window.api.previewPatch(sitePath, res.text);
-      if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
-        return;
-      }
-      setApplyPreview({ ...preview, label: att.filename, text: res.text });
-    } catch (e) {
-      setApplyError(String(e));
-    } finally {
-      setFetchingAttachment(null);
-    }
-  };
-
-  // Apply a PR straight from a pasted URL or number, without needing it to be
-  // linked to the ticket — same fetch → preview flow as the linked-PR list.
-  const previewPrFromInput = () => {
-    const parsed = parsePrRef(prUrlInput);
-    // clearApplyError first, not setApplyError alone: a parse error arriving on
-    // top of a conflict breakdown would otherwise leave the stale regions on
-    // screen hiding it, since the banner leads with the breakdown's headline.
-    if (!parsed.ok) { clearApplyError(); setApplyError(parsed.error); setApplyNotice(''); return; }
-    setPrUrlInput('');
-    previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
-  };
-
-  const runApply = async ({ reverse = false } = {}) => {
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    const preview = applyPreview;
-    const needsInstall = reverse
-      ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
-      : Boolean(preview.needsInstall);
-    // A running build watch already recompiles src/, so a src-only patch skips
-    // the build and is not interrupted; an install/full build pauses it (#262).
-    const watcherActive = watchStateRef.current === 'watching';
-    const impact = planWatchImpact({ needsInstall, watcherActive });
-    clearApplyError();
-    setApplyNotice('');
-    setApplyNeedsInstall(needsInstall);
-    setApplyBuildByWatcher(!impact.runBuild);
-    setApplyState('applying');
-    markTerminalRunning(true);
-    if (impact.pauseWatcher) await pauseWatcher();
-    // Same contract as the other chains: while `running` is set, Ctrl+C in the
-    // terminal has to reach the child process the chain is about to spawn.
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    window.api.applyPatch(
-      sitePath,
-      reverse ? { reverse: true } : { patchText: preview.text, label: preview.label },
-      ({ data }) => writeToTerminal(data),
-      (res) => {
-        if (!res || !res.ok) {
-          // The main process has already dropped the stale record, so reloading
-          // the status is what takes the "is applied" banner down and frees the
-          // panel to accept another patch. Nothing was written, so there is
-          // nothing to install or build.
-          if (res?.notApplied) {
-            if (res.recordCleared) {
-              setApplyNotice(`${res.error} The applied-patch record has been cleared.`);
-            } else {
-              setApplyError(`${res.error} The record of it could not be cleared, so this site still thinks it is applied.`);
-            }
-            // finishApply reloads the status, which is what takes the banner
-            // down now that the main process has dropped the record.
-            finishApply();
-            return;
-          }
-          setApplyError(res?.error || 'The patch could not be applied.');
-          // A conflict is where the panel used to stop: one file named, the
-          // rest of the failures left in the terminal, and no sense of whether
-          // one region of twenty missed or all of them. The breakdown is what
-          // turns that into a decision (#282). A reverse gets its own framing
-          // (#306): it fails only because the contributor's own edits are on the
-          // patch's lines, so the ticket's other patches and the pull request's
-          // author are both the wrong place to send them.
-          setApplyConflict(describeApplyFailure(res, reverse
-            ? { reverting: appliedPatch?.label || 'That patch' }
-            : {
-              otherPatchCount: otherPatchCount({
-                label: preview?.label,
-                prs: ticketPatches?.items,
-                attachments: patchAttachments
-              }),
-              prUrl: preview?.prUrl || null,
-              prState: preview?.prState || null,
-              appliedPatch,
-              // The preview's own collision list: the files this ticket has work
-              // in, measured from its base (#301). Without it an open pull
-              // request is always narrated as stale, so a failure caused by the
-              // contributor's own edits sends them to ask a stranger for a
-              // rebase that would not help (#303).
-              ownWorkPaths: preview?.conflicts || []
-            }));
-          finishApply();
-          return;
-        }
-        setApplyPreview(null);
-        // The confirmation waits until the rebuild finishes (see runBuildStep) —
-        // the patch is on disk now, but the site is not usable until it is built
-        // around it, so announcing "applied" here would be premature. When a
-        // watch will rebuild it, runApplyInstallAndBuild confirms right away.
-        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied', { runBuild: impact.runBuild });
-      }
-    ).catch((e) => {
-      // A rejected invoke never reaches onDone, so without this the terminal
-      // stays wedged with `running` set and no way back short of a reload.
-      setApplyError(String(e));
-      finishApply();
-    });
-  };
-
-  // Step 1: fetch + reset in the main process, then hand over to the npm
-  // steps. Assumes the tree is clean (startTrunkUpdate handles dirty trees).
-  const beginTrunkUpdate = async () => {
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    // A trunk reset rewrites the whole tree at once; a live watch would try to
-    // recompile mid-reset. Pause it for the update; finishUpdate resumes it. The
-    // PHP server stays up — the rebuild regenerates build/ under it (#262).
-    await pauseWatcher();
-    markTerminalRunning(true);
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    setUpdateLockfileChanged(false);
-    setLastUpdateSummary(null);
-    updateStartRef.current = Date.now();
-    setUpdateState('fetching');
-    window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
-      if (!res || !res.ok) {
-        // The main process already wrote the failure message to the stream.
-        finishUpdate();
-        return;
-      }
-      if (res.upToDate) {
-        // Nothing to fetch — but "Already up to date." only reaching the
-        // terminal left the contributor unsure the check had even run (#253).
-        // The confirmation says so where it will be seen; there is no install
-        // or build to follow.
-        confirm('Already up to date with trunk');
-        finishUpdate();
-        return;
-      }
-      setUpdateLockfileChanged(Boolean(res.lockfileChanged));
-      runUpdateInstallAndBuild(Boolean(res.lockfileChanged));
-    });
-  };
-
-  const startTrunkUpdate = async () => {
-    // The dev server no longer blocks an update: the watch is paused for the
-    // reset and the PHP server stays up (#262). Only real in-progress work
-    // (an update, install or build already running) still blocks.
-    if (isUpdating || installing || building) return;
-    savedPatchPathRef.current = null;
-    try {
-      const res = await window.api.isWorktreeDirty(sitePath);
-      if (res && res.ok && res.dirty) {
-        setDirtyFiles(Array.isArray(res.files) ? res.files : []);
-        setDirtyChoice('save');
-        setDirtyError(null);
-        setDirtyModalOpen(true);
-        return;
-      }
-    } catch {}
-    beginTrunkUpdate();
-  };
-
-  // Dirty-tree resolutions. Saving is the default: it is what the tool is
-  // for, and it is the only option that cannot lose work.
-  const dirtySaveAndUpdate = async () => {
-    setDirtySaving(true);
-    setDirtyError(null);
-    try {
-      const res = await window.api.savePatch(sitePath);
-      if (res && res.canceled) return; // stay in the modal
-      if (!res || !res.ok || !res.filePath) {
-        setDirtyError(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
-        return;
-      }
-      const d = await window.api.discardChanges(sitePath);
-      if (!d || !d.ok) {
-        setDirtyError(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
-        return;
-      }
-      savedPatchPathRef.current = res.filePath;
-      applyDiscardToNote(discardOutcome(d));
-      setDirtyModalOpen(false);
-      writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
-      // This ran as the contributor closed the modal; the confirmation is the
-      // only trace of it outside the terminal (#253).
-      confirm(`Saved your changes to ${pathBasename(res.filePath)} and reset the working tree`);
-      beginTrunkUpdate();
-    } finally {
-      setDirtySaving(false);
-    }
-  };
-
-  const dirtyDiscardAndUpdate = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
-    setDirtyError(null);
-    const d = await window.api.discardChanges(sitePath);
-    if (!d || !d.ok) {
-      setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
-      return;
-    }
-    applyDiscardToNote(discardOutcome(d));
-    setDirtyModalOpen(false);
-    writeToTerminal('\nDiscarded local changes.\n');
-    confirm('Local changes discarded.');
-    beginTrunkUpdate();
-  });
-
-  // Re-entry point for a previously interrupted update: trunk already moved,
-  // so only install+build remain. Install runs unconditionally — the
-  // lockfile delta from the failed run is no longer known.
-  const retryInstallAndBuild = async () => {
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    // Same as beginTrunkUpdate: install + a full build need the tree to
-    // themselves, so pause the watch; finishUpdate resumes it (#262).
-    await pauseWatcher();
-    markTerminalRunning(true);
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    setUpdateLockfileChanged(true);
-    setLastUpdateSummary(null);
-    updateStartRef.current = Date.now();
-    runUpdateInstallAndBuild(true);
-  };
+  const tracInfo = showTracCards ? (tracAttachments?.ticket || null) : null;
 
   // The diff fetch, shared by opening the modal and by a discard that happens
   // while it is open — the pane has to show what the tree now holds, which
@@ -3404,14 +1674,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setPatchLoadFailed(false);
     try {
       const res = await window.api.getPatch(sitePath);
-      if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
+      // On a failure the text is the error, which the pane words around.
+      if (res && res.ok) setPatchText(res.patch || '');
       else {
         setPatchLoadFailed(true);
-        setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
+        setPatchText(res && res.error ? res.error : '');
       }
     } catch (e) {
       setPatchLoadFailed(true);
-      setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
+      setPatchText(e && e.message ? e.message : String(e));
     } finally {
       setPatchLoading(false);
     }
@@ -3425,29 +1696,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setPatchSaved(null);
     setPatchSaveError('');
     setDiscardError(null);
-    setHandleError('');
-    setEditingHandle(false);
-    // Same rule for the pull request card: last time's outcome belongs to last
-    // time's patch. The account is not reset — that survives the modal — but it
-    // is re-read, since it can have been signed out from another site's panel.
-    setPrResult(null);
-    setPrError(null);
-    setPrStage('');
-    setPrNotes('');
-    setGithubError('');
-    setGithubDeclined(false);
-    loadGithubAccount();
+    // Same rule for the pull request card, which also reads the account again.
+    prSubmission.startReview();
     await loadPatchText();
   };
 
   // One discard for both entry points — the note's link and the modal's. The
-  // confirm is the same native one the dirty-update modal uses; the user has
+  // question is the same one the dirty-update modal asks; the user has
   // already chosen, this is the last chance to notice they chose wrong.
   // Both links disable through discardBlocked; no re-check in here. The
-  // native confirm blocks the renderer, so the states discardBlocked names
-  // cannot flip while the dialog is up — a check after it would read the
-  // same render-time values the disabled prop already enforced.
-  const discardAllChanges = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
+  // question's dialog is modal, so nothing the contributor can press starts
+  // what discardBlocked names while it is up.
+  const discardAllChanges = () => askFirst(discardQuestion(), async () => {
     setDiscarding(true);
     setDiscardError(null);
     try {
@@ -3469,8 +1729,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setApplyError(feedback.applyError);
       setApplyConflict(feedback.applyConflict);
       setApplyNotice(feedback.applyNotice);
-      writeToTerminal('\nDiscarded local changes.\n');
-      confirm('All changes discarded.');
+      writeToTerminal(`\n${__('Discarded local changes.')}\n`);
+      confirm(__('All changes discarded.'));
       if (isPatchOpen) await loadPatchText();
     } finally {
       setDiscarding(false);
@@ -3478,25 +1738,28 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   });
 
   // The sentence is one thing wherever it renders; only the wrapper differs.
+  // Its two links are marked in it, so it reaches a translator whole.
   const changesNoteBody = changesNote ? (
     <>
-      {changesNote.lead}
-      <Button variant="link" onClick={openPatchModal} disabled={isUpdating}>{changesNote.patchLabel}</Button>
-      {changesNote.middle}
-      <DiscardChangesLink
-        label={changesNote.discardLabel}
-        onClick={discardAllChanges}
-        reason={discardDisabledReason({
-          patchHasChanges: true,
-          isUpdating,
-          installing,
-          building,
-          devServerActive: isDevProcessActive,
-          discarding
+      <span>
+        {createInterpolateElement(changesNote.sentence, {
+          review: <Button variant="link" onClick={openPatchModal} disabled={isUpdating} />,
+          discard: (
+            <DiscardChangesLink
+              onClick={discardAllChanges}
+              reason={discardDisabledReason({
+                patchHasChanges: true,
+                isUpdating,
+                installing,
+                building,
+                devServerActive: isDevProcessActive,
+                discarding
+              })}
+            />
+          )
         })}
-      />
-      {changesNote.end}
-      {discardError ? <div style={{ color: '#d63638', fontSize: 12, marginTop: 4 }}>{discardError}</div> : null}
+      </span>
+      {discardError ? <Text variant="body-sm" className="error-text">{discardError}</Text> : null}
     </>
   ) : null;
 
@@ -3526,13 +1789,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   // Naming destinations for a patch that does not exist would be noise, and
   // both of the states that produce one are already spelled out in the pane
-  // below: `getPatch` returns the literal 'No changes.', and its failures are
-  // put in the same box prefixed with 'Error'. The sentinel can arrive under
-  // `#` lines naming binaries that could not be carried (#85), so the test is
-  // "is there a diff under the commentary" rather than a string comparison.
-  const patchHasChanges = Boolean(patchText)
-    && hasDiffLines(patchText)
-    && !patchText.startsWith('Error');
+  // below: an empty patch, and a failure (`patchLoadFailed`). An empty patch
+  // can still carry `#` lines naming binaries that could not be carried (#85),
+  // so the test is "is there a diff under the commentary".
+  const reviewContext = patchReviewContext({ pullRequest, tracTicket, workItemNoun: workItem.noun });
+  const patchHasChanges = !patchLoadFailed && hasDiffLines(patchText);
   const modalDiscardReason = discardDisabledReason({
     patchLoading,
     patchLoadFailed,
@@ -3560,11 +1821,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         // The green line below is the record of where it went; this is the
         // announcement, for a contributor who saved from a menu and is no
         // longer looking at the pane (#253).
-        confirm(`Patch saved to ${pathBasename(res.filePath)}`);
+        confirm(patchSavedMessage(pathBasename(res.filePath)));
         return res.filePath;
       }
       if (res && res.canceled) return null;
-      setPatchSaveError(res && res.error ? res.error : 'Unknown error');
+      setPatchSaveError(res && res.error ? res.error : __('Unknown error'));
     } catch (e) {
       setPatchSaveError(e && e.message ? e.message : String(e));
     }
@@ -3580,433 +1841,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // an attach form with nothing to attach.
   const saveForTrac = async () => {
     const filePath = await savePatchFile({ destination: 'trac' });
-    if (filePath && tracTicket) window.api.openExternal(attachUrl(tracTicket));
+    // Trac's alone; the destination only renders where the provider has one.
+    if (filePath && tracTicket && workItem.attachUrlFor) window.api.openExternal(workItem.attachUrlFor(tracTicket));
   };
 
   const saveForHandoff = async () => {
     if (!wporg?.handle) return;
     await savePatchFile({ handoff: true });
-  };
-
-  // --- The pull request destination (#167) ---
-
-  const loadGithubAccount = async () => {
-    try {
-      const res = await window.api.getGithubAccount();
-      setGithubAccount(res && res.ok ? res : { login: null, configured: false });
-    } catch {
-      setGithubAccount({ login: null, configured: false });
-    }
-  };
-
-  // Sign-in is two-legged on purpose: this resolves as soon as there is a code
-  // to show, because the contributor's next move is in a browser, and the
-  // outcome of the wait arrives later on the callback.
-  const startGithubSignIn = async () => {
-    setGithubError('');
-    setCodeCopied(false);
-    let started;
-    try {
-      started = await window.api.signInToGithub((done) => {
-        setGithubDeviceCode(null);
-        if (done && done.ok) {
-          setGithubAccount((prev) => carryTestMode(prev, { login: done.login, configured: true }));
-          setGithubError('');
-          return;
-        }
-        // Declining is a choice, not a fault, so it reads as one.
-        setGithubError(done && done.reason === 'denied'
-          ? 'The authorization was declined on GitHub. Nothing was changed.'
-          : (done && done.error) || 'Sign-in did not complete.');
-      });
-    } catch (e) {
-      setGithubError(e && e.message ? e.message : String(e));
-      return;
-    }
-    if (!started || !started.ok) {
-      setGithubError((started && started.error) || 'Could not start sign-in.');
-      return;
-    }
-    setGithubDeviceCode({ userCode: started.userCode, verificationUri: started.verificationUri });
-    // Opening the page here rather than making it a second button: the code on
-    // screen is only useful on that page, and a contributor who has just been
-    // told what will happen should not have to go looking for where.
-    window.api.openExternal(started.verificationUri);
-  };
-
-  const cancelGithubSignIn = async () => {
-    setGithubDeviceCode(null);
-    setGithubError('');
-    try { await window.api.cancelGithubSignIn(); } catch {}
-  };
-
-  const signOutOfGithub = async () => {
-    try { await window.api.signOutOfGithub(); } catch {}
-    setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: prev?.configured !== false }));
-    setPrResult(null);
-    setPrError(null);
-  };
-
-  const openPullRequest = async () => {
-    setPrError(null);
-    setPrResult(null);
-    setPrStage('forking');
-    // Subscribed only for the duration of the attempt: the event carries a site
-    // path because one main process serves every open site, and a stale
-    // listener would move another site's spinner.
-    const unsubscribe = window.api.subscribePullRequestProgress((payload) => {
-      if (payload && payload.sitePath === sitePath) setPrStage(payload.stage);
-    });
-    try {
-      const res = await window.api.openPullRequest(sitePath, { title: prTitle, notes: prNotes });
-      if (res && res.ok) {
-        setPrResult(res);
-        // The result panel below carries the link; this announces the outcome
-        // for a contributor who looked away during the slow fork step (#253).
-        confirm(prConfirmationMessage(res));
-      } else {
-        setPrError(res || { reason: 'error', error: 'The pull request could not be opened.' });
-        // A revoked authorization is forgotten in the main process, so the card
-        // has to stop claiming an account it no longer has.
-        if (res && res.reason === 'unauthorized') setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: true }));
-      }
-    } catch (e) {
-      setPrError({ reason: 'error', error: e && e.message ? e.message : String(e) });
-    } finally {
-      setPrStage('');
-      unsubscribe();
-    }
-  };
-
-  const copyPrLink = async () => {
-    if (!prResult?.url) return;
-    try {
-      await navigator.clipboard.writeText(prResult.url);
-      setPrLinkCopied(true);
-      setTimeout(() => setPrLinkCopied(false), 2000);
-    } catch {}
-  };
-
-  // The pull request card has six states and they are genuinely sequential —
-  // done, still asking, waiting on the browser, ready, declined, not started.
-  // Written as nested ternaries in the JSX that is one expression six levels
-  // deep and unreadable at the point where the wording matters most, so the
-  // states get early returns and the card body gets one call.
-  const renderPullRequestBody = () => {
-    if (appliedPatch) {
-      return (
-        <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-          Revert {appliedPatchLabel} before opening a pull request from this checkout.
-        </div>
-      );
-    }
-
-    if (prResult) {
-      return (
-        <>
-          {/*
-            A dry run (WP_DEV_ENV_GITHUB_DRY_RUN) stops after the branch: the
-            fork writes are private, the pull request is the step watchers
-            hear about. Saying so beats a "pull request #null".
-          */}
-          {prResult.dryRun ? (
-            <div style={{ fontSize:13, color:'#0f5132' }}>
-              Dry run — branch <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}><code style={{ fontSize:12 }}>{prResult.branch}</code></Button> was created on your fork; no pull request was opened.
-            </div>
-          ) : (
-          <div style={{ fontSize:13, color:'#0f5132' }}>
-            Opened <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}>pull request #{prResult.number}</Button>
-            {' '}from <code style={{ fontSize:12 }}>{prResult.branch}</code>.
-          </div>
-          )}
-          {/*
-            The branch always bases on today's trunk (see resolveBase); this
-            names the consequence when the local checkout was behind it. The
-            clash guard has already ruled out upstream changes to the same
-            files, so this is information, not alarm.
-          */}
-          {prResult.exactBase === false ? (
-            <div style={{ fontSize:12, color:'#6e5406', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, padding:'8px 10px' }}>
-              Your checkout was behind trunk, so the branch was based on today&apos;s trunk. None of your files were changed upstream in between — the pull request shows only your work.
-            </div>
-          ) : null}
-          {/*
-            The Trac loop-back is for a pull request that exists — a dry run
-            has no link worth posting on a ticket.
-          */}
-          {!prResult.dryRun && (
-            <>
-              <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                Triage and props live on the ticket, so the link belongs there too.
-              </div>
-              <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
-                {prLinkCopied ? 'Link copied' : 'Copy the link'}
-              </Button>
-              {tracTicket ? (
-                <Button variant="primary" onClick={()=>window.api.openExternal(ticketUrl(tracTicket))} style={{ justifyContent:'center' }}>
-                  Open #{tracTicket} to comment
-                </Button>
-              ) : null}
-            </>
-          )}
-        </>
-      );
-    }
-
-    // Not yet asked, which is not the same as signed out: offering "Sign in"
-    // before the answer arrives makes the card flicker on every open.
-    if (githubAccount === null) {
-      return <div style={{ fontSize:12, color:'#6c6f72' }}>Checking…</div>;
-    }
-
-    if (githubAccount.configured === false) {
-      return (
-        <div style={{ fontSize:12, color:'#6c6f72' }}>
-          This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.
-        </div>
-      );
-    }
-
-    if (githubDeviceCode) {
-      return (
-        <>
-          <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-            Enter this code at <strong>github.com/login/device</strong>, which has been opened in your browser.
-          </div>
-          <div style={{ fontFamily:'Menlo, Consolas, monospace', fontSize:24, letterSpacing:2, fontWeight:600, textAlign:'center', padding:'10px 0', color:'#1d2327' }}>
-            {githubDeviceCode.userCode}
-          </div>
-          <Button variant="secondary" onClick={copyDeviceCode} icon={codeCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
-            {codeCopied ? 'Code copied' : 'Copy the code'}
-          </Button>
-          <Flex justify="center" gap={2}>
-            <Spinner />
-            <div style={{ fontSize:12, color:'#6c6f72' }}>Waiting for you to finish in the browser…</div>
-          </Flex>
-          <Button variant="link" onClick={cancelGithubSignIn} style={{ fontSize:12 }}>Cancel</Button>
-        </>
-      );
-    }
-
-    if (githubAccount.login) {
-      return (
-        <>
-          {tracTicket ? (
-            <>
-              {/*
-                The placeholder used to be the fallback title, `Ticket #NNNNN`,
-                which taught the wrong thing by example: a reviewer scanning a
-                list of pull requests learns nothing from a ticket number they
-                can already see. It shows a good title instead, and the line
-                under the field says what an empty box will produce, so the
-                fallback stays honest without being the model.
-              */}
-              <TextControl
-                value={prTitle}
-                onChange={setPrTitle}
-                disabled={Boolean(prStage)}
-                placeholder="Reject a theme zip in the plugin installer"
-                label="Title"
-                help="What the change does, in one line. Reviewers scan these."
-              />
-              {!prTitle.trim() ? (
-                <div style={{ fontSize:12, color:'#6c6f72', marginTop:-4 }}>
-                  Left empty, it will be titled <strong>Ticket #{tracTicket}</strong>.
-                </div>
-              ) : null}
-              {/*
-                The one part of the body a human writes, and the reason the
-                field exists: everything else — the ticket link, the handle,
-                the event — the app already knows and adds. It goes to the top
-                of the description, above the ticket line.
-              */}
-              <TextareaControl
-                value={prNotes}
-                onChange={setPrNotes}
-                disabled={Boolean(prStage)}
-                rows={4}
-                label="Notes for reviewers (optional)"
-                placeholder={'What the change does, and why.\nHow to see it working — the steps you used.\nAnything you are unsure about.'}
-                help="Goes at the top of the description. The ticket link and your WordPress.org username are added underneath."
-              />
-              {/*
-                Two facts from the core handbook that a first-timer has no way
-                to know and that change what they do next: nobody is watching
-                GitHub, and nothing is merged there. Both make the Trac step
-                this flow ends on the point rather than the postscript, so they
-                are stated before the button, not after the pull request
-                exists.
-              */}
-              <details style={{ fontSize:12, color:'#6c6f72' }}>
-                <summary style={{ cursor:'pointer', color:'#3858e9' }}>How pull requests work in core</summary>
-                <div style={{ padding:'8px 0 0', lineHeight:1.6, display:'flex', flexDirection:'column', gap:6 }}>
-                  <div>Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.</div>
-                  <div>Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.</div>
-                  <Button
-                    variant="link"
-                    onClick={()=>window.api.openExternal('https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/')}
-                    style={{ fontSize:12 }}
-                  >The handbook page on pull requests</Button>
-                </div>
-              </details>
-              {/*
-                The button says what it will actually do. A dry run's button
-                reading "Open pull request" is the label lying about the mode,
-                which is the failure this whole indicator exists to prevent.
-              */}
-              <Button
-                variant="primary"
-                onClick={openPullRequest}
-                isBusy={Boolean(prStage)}
-                disabled={Boolean(prStage)}
-                style={{ justifyContent:'center' }}
-              >{githubAccount?.testMode?.dryRun ? 'Push branch (dry run)' : 'Open pull request'}</Button>
-            </>
-          ) : (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>
-              No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.
-            </div>
-          )}
-          {prStage ? (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>{PR_STAGE_LABELS[prStage] || 'Working…'}</div>
-          ) : (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>
-              {/*
-                The destination is named, not implied: "the fork is made for
-                you" answers what, this answers where — which account the fork
-                and the branch land in.
-              */}
-              Signed in as {githubAccount.login} — the fork and branch go to{' '}
-              <Button
-                variant="link"
-                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/wordpress-develop`)}
-                style={{ fontSize:12 }}
-              >{githubAccount.login}/wordpress-develop</Button>.{' '}
-              <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
-            </div>
-          )}
-        </>
-      );
-    }
-
-    if (githubDeclined) {
-      return (
-        <>
-          <div style={{ fontSize:12, color:'#6c6f72' }}>
-            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other two destinations are unchanged.
-          </div>
-          <Button variant="link" onClick={()=>setGithubDeclined(false)} style={{ fontSize:12 }}>Show this again</Button>
-        </>
-      );
-    }
-
-    return (
-      <>
-        {/*
-          The whole ask, before any of it happens — including the part the app
-          cannot do for you. Declining has to be as visible as accepting, or the
-          cliff is sprung rather than named.
-        */}
-        <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.6 }}>
-          Signing in lets the app fork wordpress-develop to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
-        </div>
-        <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.6 }}>
-          It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.
-        </div>
-        <Button variant="primary" onClick={startGithubSignIn} style={{ justifyContent:'center' }}>Sign in with GitHub</Button>
-        <Button variant="link" onClick={()=>{ setGithubDeclined(true); setGithubError(''); }} style={{ fontSize:12 }}>Not now</Button>
-      </>
-    );
-  };
-
-  const copyDeviceCode = async () => {
-    if (!githubDeviceCode?.userCode) return;
-    try {
-      await navigator.clipboard.writeText(githubDeviceCode.userCode);
-      setCodeCopied(true);
-      setTimeout(() => setCodeCopied(false), 2000);
-    } catch {}
-  };
-
-  // Both fields are written in one go, because they are asked in one form. The
-  // event is optional: an empty box means "not at an event", which is also how
-  // it is cleared once the WordCamp is over.
-  const rememberContributor = async () => {
-    if (!wporg) return;
-    setHandleSaving(true);
-    setHandleError('');
-    try {
-      const named = await wporg.rememberHandle(handleInput);
-      if (!named?.ok) {
-        setHandleError(named?.error || 'Could not save that username.');
-        return;
-      }
-      const at = await wporg.rememberEvent(eventInput);
-      if (!at?.ok) {
-        setHandleError(at?.error || 'Could not save that event.');
-        return;
-      }
-      setHandleInput('');
-      setEventInput('');
-      setEditingHandle(false);
-    } finally {
-      setHandleSaving(false);
-    }
-  };
-
-  const statusStyles = initialized
-    ? { background: '#e7f6e7', color: '#0f5132' }
-    : { background: '#fff4ce', color: '#8a6d1c' };
-
-  // Colours and indicator per step status. The status *word* is not here — it
-  // lives in `setupStepLabel`, the one place that distinguishes a step that is
-  // merely next from one that is running (#257).
-  const checklistVisuals = {
-    complete: {
-      color: '#0f5132',
-      background: '#f4fbf4',
-      border: '#94d3ae',
-      indicatorBg: '#0f5132',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '✓'
-    },
-    current: {
-      color: '#0b5d95',
-      background: '#e8f3ff',
-      border: '#66afe9',
-      indicatorBg: '#007cba',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '•'
-    },
-    failed: {
-      color: '#8a1f21',
-      background: '#fcf0f1',
-      border: '#d63638',
-      indicatorBg: '#d63638',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '✕'
-    },
-    pending: {
-      color: '#6c6f72',
-      background: '#f8f9f9',
-      border: '#dcdcde',
-      indicatorBg: '#6c6f72',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '•'
-    },
-    locked: {
-      color: '#6c6f72',
-      background: '#f5f5f7',
-      border: '#dcdcde',
-      indicatorBg: 'transparent',
-      indicatorColor: '#6c6f72',
-      indicatorBorder: '2px solid #c3c4c7',
-      indicatorContent: '–'
-    }
   };
 
   const setupFlags = {
@@ -4022,70 +1863,77 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     isUpdating
   };
   const stepState = computeSetupStepState(setupFlags);
-  const { installLabel, installDescription, buildLabel, buildDescription } = setupStepCopy(setupFlags);
+  const { installLabel, installDescription, buildLabel, buildDescription } = setupStepCopy(setupFlags, project.setup);
 
   const baseSteps = [
     {
       key: 'download',
-      label: 'Download WordPress development version',
+      label: project.setup.cloneLabel,
       description: isPending
         // The clone is also the trigger for everything after it (#246), so the
         // step says what happens next rather than implying a click is coming.
-        ? 'Cloning the WordPress develop repository… install and build start on their own when it finishes.'
-        : 'Clone the WordPress develop repository.',
+        ? __('Cloning the repository… install and build start on their own when it finishes.')
+        : project.setup.cloneDescription,
       ...stepState.download,
       running: isPending
     },
     {
       key: 'install',
-      label: 'Install npm dependencies',
+      label: __('Install npm dependencies'),
       description: installDescription,
       ...stepState.install,
       running: installing,
       action: (
-        <Button
-          isBusy={installing}
-          variant={stepState.install.done ? 'secondary' : 'primary'}
+        <UiButton
+          variant={stepState.install.done ? 'outline' : 'solid'}
+          tone={stepState.install.done ? 'neutral' : 'brand'}
+          size="compact"
           onClick={runInstallWithTerminal}
           disabled={stepState.install.disabled}
-        >{installLabel}</Button>
+        >{installLabel}</UiButton>
       )
     },
     {
       key: 'build',
-      label: 'Run full build',
+      label: __('Run full build'),
       description: buildDescription,
       ...stepState.build,
       running: building,
       action: (
-        <Button
-          isBusy={building}
-          variant={hasBuilt ? 'secondary' : 'primary'}
+        <UiButton
+          variant={stepState.build.done ? 'outline' : 'solid'}
+          tone={stepState.build.done ? 'neutral' : 'brand'}
+          size="compact"
           onClick={runBuildWithTerminal}
           disabled={stepState.build.disabled}
-        >{buildLabel}</Button>
+        >{buildLabel}</UiButton>
       )
     },
     {
       key: 'dev',
-      label: 'Start dev server & finish wizard',
-      description: 'Launch the development server once to complete the WordPress setup wizard.',
+      label: __('Start dev server & finish wizard'),
+      description: project.setup.serverDescription,
       ...stepState.dev,
       running: starting,
       action: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button
-            isBusy={starting}
-            variant={running ? 'secondary' : 'primary'}
+        <Stack direction="row" align="center" gap="sm" wrap="wrap">
+          <UiButton
+            variant={running ? 'outline' : 'solid'}
+            tone={running ? 'neutral' : 'brand'}
+            size="compact"
             onClick={async () => {
               await markSkipWizard();
               await toggleDevServer();
             }}
             disabled={stepState.dev.disabled}
-          >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
+          >{running ? __('Stop dev server') : __('Start dev server and finish the wizard')}</UiButton>
           {starting || serverUrl ? (
-            <span style={{ fontSize: 12 }}>
-              {starting ? `Starting… (${formatElapsed(startElapsed)})` : null}
+            <Text variant="body-sm">
+              {starting ? sprintf(
+                // translators: %s: how long the server has been starting, such as 12s.
+                __('Starting… (%s)'),
+                formatElapsed(startElapsed)
+              ) : null}
               {!starting && serverUrl ? (
                 <>
                   <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
@@ -4093,9 +1941,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
                 </>
               ) : null}
-            </span>
+            </Text>
           ) : null}
-        </div>
+        </Stack>
       )
     }
   ];
@@ -4120,8 +1968,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     isUpdating,
     stale: age.stale,
     running,
+    pullRequest,
     hasChanges: Boolean(worktreeDirty && worktreeDirty.dirty),
-    ticketLinked: Boolean(tracTicket)
+    ticketLinked: Boolean(tracTicket),
+    workItemNoun: workItem.noun
   });
   const nextActionId = nextAction ? nextAction.id : null;
   useNextActionCue(nextActionId, isActive, nextActionSectionRef);
@@ -4134,8 +1984,41 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     className: nextActionId === id ? 'next-action-cue' : undefined
   });
 
+  // What the work-item card is handed besides its own content: the banner of
+  // a checked-out pull request, the note about uncommitted changes when it
+  // belongs with the ticket, and whether a patch can be read now. Reading
+  // one is held by everything that would be working on the files it reads
+  // against, and by a preview that is already open.
+  const prCheckoutBanner = prCheckout && !isApplying ? (
+    <PrCheckoutNotice cue={cueProps('pr-checkout')} banner={prBanner} checkout={prCheckout} onRevert={() => runPrSwitch({ leaving: true })} />
+  ) : null;
+  const ticketChangesNote = changesNote && changesNote.placement === 'ticket' ? (
+    <Stack direction="column" gap="xs">
+      <Text variant="body-md">{changesNoteBody}</Text>
+      <Text variant="body-sm" className="muted-label">{changesNote.unlinkNote}</Text>
+    </Stack>
+  ) : null;
+  const patchReadBlocked = isApplying || isUpdating || installing || building || Boolean(applyPreview);
+  // The two ways out the apply card offers of a patch that cannot be lifted
+  // back out, or that would not go on: the same two the changes note has,
+  // behind the same guard, with what either said when it failed.
+  const layerExits = { blocked: layerExitBlocked, onSaveCopy: savePatch, onDiscard: discardAllChanges, message: layerExit.message };
+  // Choosing another patch is walking away from this one, so everything
+  // about it goes: the preview, whose presence holds the lists' Apply
+  // buttons, and the failure itself, which would otherwise sit above the new
+  // attempt as noise. The list is already on screen, so the way to it is a
+  // scroll.
+  const tryAnotherPatch = () => {
+    setApplyPreview(null);
+    clearApplyError();
+    ticketPatchesRef.current?.scrollIntoView({
+      block: 'center',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    });
+  };
+
   return (
-    <section ref={nextActionSectionRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
+    <section ref={nextActionSectionRef} className="site-view">
       {/* The glow on the next-action block is purely visual, invisible to a
           screen reader. This is its spoken equivalent: a polite live region that
           names the next step as the cue moves, so a non-sighted contributor gets
@@ -4144,1432 +2027,492 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           whereas a change to one already in the DOM is. Only the active row ever
           holds text, so only the visible site speaks; it clears to nothing when
           there is no next action. */}
-      <div className="sr-only" role="status" aria-live="polite">
-        {isActive && nextAction ? `Next step: ${nextAction.reason}` : ''}
-      </div>
-      <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 440px', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{displayName}</h1>
-            <Button
-              icon={edit}
-              label="Rename site"
-              aria-label="Rename site"
-              onClick={openRenameModal}
-              variant="tertiary"
-              isSmall
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: '#3c434a', flexWrap: 'wrap' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
-              {initialized ? 'Initialized' : 'Uninitialized'}
-            </span>
-            {createdLabel ? <span>Created {createdLabel}</span> : null}
-            {age.known ? (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                {createdLabel ? <span aria-hidden="true">·</span> : null}
-                {age.stale ? (
-                  <span
-                    aria-hidden="true"
-                    title={`Trunk snapshot is ${age.ageDays} days old`}
-                    style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#dba617' }}
-                  />
-                ) : null}
-                <span>{age.label}</span>
-              </span>
-            ) : null}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
-            <code style={{ fontSize: 12, color: '#3c434a', background: '#f0f0f1', padding: '2px 6px', borderRadius: 4, overflowWrap: 'anywhere' }}>
-              {sitePath}
-            </code>
-            <Button
-              icon={pathCopied ? checkIcon : copyIcon}
-              label={pathCopied ? 'Copied!' : 'Copy path'}
-              aria-label={pathCopied ? 'Copied!' : 'Copy path'}
-              onClick={copyPath}
-              variant="tertiary"
-              isSmall
-            />
-          </div>
-          {/* One control for one intention, directly under the path it acts on.
-              Detection runs when the menu is opened rather than on load: it is a
-              filesystem sweep, and the answer is only needed once someone asks.
-              It is re-read on every open, so an application installed while this
-              app is running shows up the next time the menu is used. */}
-          <div style={{ marginTop: 4 }}>
-            <Dropdown
-              popoverProps={{ placement: 'bottom-start', offset: 4 }}
-              renderToggle={({ isOpen, onToggle }) => (
-                <Button
-                  variant="link"
-                  aria-expanded={isOpen}
-                  aria-haspopup="menu"
-                  onClick={() => {
-                    if (!isOpen) void loadDetected();
-                    onToggle();
-                  }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 12 }}
-                >
-                  Open directory in
-                  <Icon icon={chevronDown} size={18} />
-                </Button>
-              )}
-              renderContent={({ onClose }) => (
-                <MenuGroup>
-                  <MenuItem onClick={() => { onClose(); void showInFileManager(); }}>
-                    {fileManagerName}
-                  </MenuItem>
-                  {detectedEditors.map((candidate) => (
-                    <MenuItem key={candidate.path} onClick={() => { onClose(); void openIn(candidate.path); }}>
-                      {candidate.name}
-                    </MenuItem>
-                  ))}
-                  {/* A menu that is still counting is not an empty menu, and the
-                      difference has to be visible: without this, a slow sweep
-                      looks exactly like a machine with no editors on it. */}
-                  {detectingEditors ? (
-                    <MenuItem disabled>Looking for applications…</MenuItem>
-                  ) : null}
-                  {/* Always offered, never only as a fallback: detection is a
-                      shortcut, and an application it misses is not one this app
-                      refuses to use. */}
-                  <MenuItem onClick={() => { onClose(); void openIn(null); }}>
-                    Other application…
-                  </MenuItem>
-                </MenuGroup>
-              )}
-            />
-          </div>
-          {/* With no modal in the way, this is the only place a failed open can
-              speak — and it carries the way out with it, rather than leaving the
-              contributor to find the menu again. */}
-          {editorNotice ? (
-            <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-              <span style={{ flex: '1 1 240px' }}>{editorNotice.message}</span>
-              {editorNotice.offerPicker ? (
-                <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
+      <VisuallyHidden role="status" aria-live="polite">
+        {isActive && nextAction ? sprintf(
+          // translators: %s: what to do next, a sentence.
+          __('Next step: %s'),
+          nextAction.reason
+        ) : ''}
+      </VisuallyHidden>
+      {/* What this site has in the tray along the bottom of the window (#558).
+          Every site's is there, and all but the open site's are hidden: a
+          terminal is drawn in one element for as long as it lives, and what a
+          site's commands print has to be there when the site is looked at
+          again. Inside it, the tray that is open is the one shown. */}
+      <SiteTrayFill>
+        <div className="tray-site" hidden={!isActive}>
+          <div className="tray-panel" hidden={tray !== 'terminal'}>
+            {/* The pane has the padding and the element inside it has none,
+                so that what the terminal is fitted to is the room it has. */}
+            <div className="terminal-pane"><div ref={terminalContainerRef} className="terminal-screen" /></div>
+            <Stack direction="column" gap="xs" className="tray-notes">
+              {showTerminalHints ? (
+                <>
+                  <Text variant="body-sm" className="muted-label">{createInterpolateElement(
+                    // translators: <folder /> is the folder the project's source is in, such as src/. <command /> is the command that builds it, npm run build, which types it into the terminal when clicked.
+                    __('Edited files in <code><folder /></code>? Run <command /> so the site picks them up.'),
+                    { code: <code />, folder: <>{project.cards.sourceDir}</>, command: <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> }
+                  )}</Text>
+                  <Text variant="body-sm" className="muted-label">{createInterpolateElement(
+                    // translators: <file /> is the file dependencies are listed in, package.json. <command /> is the command that installs them, npm install, which types it into the terminal when clicked.
+                    __('Added a dependency to <code><file /></code>? Run <command />.'),
+                    { code: <code />, file: <>package.json</>, command: <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> }
+                  )}</Text>
+                </>
               ) : null}
-            </div>
-          ) : null}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          <DropdownMenu
-            label="More"
-            text=""
-            controls={[
-              { title: 'Copy path', onClick: copyPath },
-              // Opening the folder lives in the header's "Open directory in"
-              // menu, next to the path it acts on. Repeating it here would be two
-              // menus answering the same question a few pixels apart.
-              { title: fileManagerLabel, onClick: showInFileManager },
-              // Also reachable when the site is not yet stale (the staleness
-              // notice is the primary entry point) — a fresh site just gets
-              // "Already up to date." in the terminal.
-              { title: 'Update to latest trunk', onClick: startTrunkUpdate },
-              // Not while the clone is running: deleting the site would be
-              // removing a directory the app is still writing into. The main
-              // process refuses it either way (see site-registry.js) — that is
-              // the backstop, and not offering a control that cannot work is
-              // the actual answer.
-              ...(isPending ? [] : [
-                { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
-              ])
-            ]}
+              <Text variant="body-sm" className="muted-label">
+                {createInterpolateElement(
+                  // translators: <command /> is the command that lists the others, help. <keys /> is the keys that stop a command, Ctrl+C.
+                  __('Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.'),
+                  { code: <code />, command: <>help</>, keys: <>Ctrl+C</> }
+                )}
+              </Text>
+            </Stack>
+          </div>
+          <LogsPanel
+            hidden={tray !== 'logs'}
+            tabs={logTabs}
+            logs={logs}
+            copyLabel={copyButtonLabel(logs.debugCopied)}
           />
+          <MailPanel hidden={tray !== 'email'} mail={mail} />
         </div>
-      </Flex>
+      </SiteTrayFill>
+      {/* What is done to the whole of the mail is in the tray's heading,
+          while the mail is what the tray shows and this is the open site. */}
+      {isActive && tray === 'email' ? <SiteTrayActionsFill><MailTrayActions mail={mail} /></SiteTrayActionsFill> : null}
+      {/* And on the footer's Logs button, how many lines of this site's
+          debug.log arrived unseen, while this is the site that is open. */}
+      {isActive ? <LogsToggleNote count={logs.debugUnread} /> : null}
+      {/* What is done to the site as a whole is in the page's header (#556):
+          the window leaves a slot there, and the site that is open fills it. */}
+      {isActive ? (
+        <SiteHeaderActions
+          detailsOpen={detailsOpen}
+          detailsId={detailsId}
+          onToggleDetails={onToggleDetails}
+          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld }}
+          onMenuOpen={loadDetected}
+          onAction={runSiteMenuAction}
+          work={skipInit ? {
+            server: serverState,
+            watch: watchProcessState,
+            onToggleServer: toggleDevServer,
+            onToggleWatch: toggleWatch,
+            // The site and its admin, while there is a server to go to: the
+            // details have them too, and can be put away.
+            serverLinks: serverSectionState.menuLinks,
+            onOpenLink: openSiteLink,
+            onReview: openPatchModal,
+            reviewDisabled: isUpdating,
+            serverCue: cueProps('start-dev'),
+            reviewCue: cueProps('review-changes')
+          } : null}
+        />
+      ) : null}
+      <div className={detailsOpen ? 'dashboard' : 'dashboard is-sidebar-collapsed'}>
+      <div className="dashboard-main">
+    {/* With no modal in the way, this is the only place a failed open can
+        speak — and it carries the way out with it, rather than leaving the
+        contributor to find the menu again. The menu is in the header, which
+        does not scroll, so this is brought into view when it appears. */}
+    {editorNotice ? (
+      <Notice.Root ref={editorNoticeRef} intent="warning" role="alert" spokenMessage={SILENT}>
+        <Notice.Description>{editorNotice.message}</Notice.Description>
+        {editorNotice.offerPicker ? (
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null)}>{__('Choose application…')}</UiButton>
+          </Notice.Actions>
+        ) : null}
+      </Notice.Root>
+    ) : null}
+      {legacyNotice && !isPending ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Title>{legacyNotice.title}</Notice.Title>
+          <Notice.Description>{legacyNotice.body}</Notice.Description>
+          <Notice.Actions>
+            <UiButton size="compact" onClick={onCreateSite}>{__('Create site')}</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
+      ) : null}
+      {mergeNotice && !isPending ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Title>{mergeNotice.title}</Notice.Title>
+          <Notice.Description>{mergeNotice.body}</Notice.Description>
+        </Notice.Root>
+      ) : null}
       {updateIncomplete && !isUpdating ? (
-        <div {...cueProps('retry-install-build')} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
-          <span style={{ flex: '1 1 320px' }}>
-            <strong>Update incomplete</strong> — the code is new but the built assets are old. The site may not run correctly until install and build succeed.
-          </span>
-          <Button
-            variant="secondary"
-            isDestructive
-            onClick={retryInstallAndBuild}
-            disabled={installing || building}
-          >Retry install &amp; build</Button>
-        </div>
+        <Notice.Root {...cueProps('retry-install-build')} intent="error" spokenMessage={SILENT}>
+          <Notice.Title>{__('Update incomplete')}</Notice.Title>
+          <Notice.Description>{__('The code is new but the built assets are old. The site may not run correctly until install and build succeed.')}</Notice.Description>
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={retryInstallAndBuild} disabled={installing || building}>{__('Retry install & build')}</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {age.stale && !updateIncomplete && !isUpdating ? (
-        <div {...cueProps('update-trunk')} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
-          <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong style={{ color: '#5c4400' }}>This site&apos;s WordPress code is {age.ageDays} days old</strong>
-            <span>Patches you create now may not apply on Trac. Updating takes a few minutes.</span>
-          </div>
-          <Button
-            variant="secondary"
-            onClick={startTrunkUpdate}
-            disabled={installing || building}
-          >Update to latest trunk</Button>
-        </div>
+        <Notice.Root {...cueProps('update-trunk')} intent="warning" spokenMessage={SILENT}>
+          <Notice.Title>{sprintf(
+            // translators: %d: how many days old the site's copy of WordPress is.
+            _n("This site's WordPress code is %d day old", "This site's WordPress code is %d days old", age.ageDays),
+            age.ageDays
+          )}</Notice.Title>
+          <Notice.Description>{__('Patches you create now may not apply on Trac. Updating takes a few minutes.')}</Notice.Description>
+          <Notice.Actions>
+            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={updateHeld} onClick={startTrunkUpdate}>{__('Update to latest trunk')}</ReasonedUiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {isUpdating ? (
-        <div {...cueProps('updating')} style={{ padding: '14px 16px', background: '#fff', border: '1px solid #dcdcde', borderRadius: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 600, fontSize: 14, color: '#1d2327' }}>Updating to latest trunk</span>
-            <span style={{ fontSize: 12, color: '#6c6f72' }}>
-              step {Math.max(1, updateStepStates.filter((s) => s.status === 'complete' || s.status === 'skipped').length + 1)} of {updateSteps.length}
-            </span>
-          </div>
-          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
-            {updateStepStates.map((s) => {
-              const labels = UPDATE_STEP_LABELS[s.key] || {};
-              const text = labels[s.status] || labels.pending || s.key;
-              const { symbol = '', color = '#6c6f72' } = UPDATE_STEP_MARKS[s.status] || {};
-              return (
-                <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>
-                  <span aria-hidden="true" style={{ width: 12, display: 'inline-block', textAlign: 'center' }}>{symbol}</span>
-                  <span style={{ fontWeight: s.status === 'current' ? 600 : 400 }}>{text}</span>
-                </div>
-              );
-            })}
-          </div>
-          {updateState === 'installing' ? (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f1', fontSize: 12, color: '#6c6f72' }}>
-              Most packages are already cached, so this is a download of the difference — not the whole tree.
-            </div>
-          ) : null}
-        </div>
+        <TrunkUpdateCard
+          cue={cueProps('updating')}
+          rows={updateStepStates.map((step) => ({ key: step.key, label: updateStepText(updateSteps, step), status: step.status }))}
+          // translators: 1: the step the update is on. 2: how many steps it has.
+          count={sprintf(__('step %1$d of %2$d'), Math.max(1, updateStepStates.filter((step) => step.status === 'complete' || step.status === 'skipped').length + 1), updateSteps.length)}
+          note={updateState === 'installing' ? __('Most packages are already cached, so this is a download of the difference — not the whole tree.') : ''}
+        />
       ) : null}
       {lastUpdateSummary && !isUpdating && !updateIncomplete ? (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', background: '#f4fbf4', border: '1px solid #94d3ae', borderRadius: 8, fontSize: 13, color: '#0f5132' }}>
-          <span aria-hidden="true" style={{ fontWeight: 700 }}>✓</span>
-          <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong>Up to date with trunk as of today.</strong>
-            <span>
-              {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
-              {typeof lastUpdateSummary.elapsedSeconds === 'number' ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
-              {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
-            </span>
-          </div>
-          <Button
-            variant="tertiary"
-            isSmall
-            aria-label="Dismiss"
-            onClick={() => setLastUpdateSummary(null)}
-            style={{ color: '#0f5132' }}
-          >✕</Button>
-        </div>
-      ) : null}
-      {!skipInit ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Initial setup checklist</div>
-          {/*
-            Nobody pressed a button to start this, so the banner has to say what
-            is happening, how far along it is and how to stop it — that is the
-            whole licence for running unattended. The step counter comes from
-            the same `updateStepStatuses` the update panel uses.
-          */}
-          {isSettingUp ? (
-            <div role="status" style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#e8f3ff', border: '1px solid #66afe9', borderRadius: 8, fontSize: 13, color: '#0b5d95' }}>
-              <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <strong style={{ color: '#0b5d95' }}>
-                  Setting this site up for you — step {setupStepStates.filter((s) => s.status === 'complete').length + 1} of {setupSteps.length}
-                </strong>
-                <span>
-                  {setupChainState === 'installing'
-                    ? 'Installing dependencies. You can leave this running — the build follows on its own.'
-                    : 'Running the full build. This can take up to half an hour on Windows; the Terminal below shows what it is doing.'}
-                </span>
-              </div>
-              <Button variant="secondary" onClick={stopSetupChain}>Stop setup</Button>
-            </div>
-          ) : null}
-          {!isSettingUp && setupChainEnd === 'stopped' ? (
-            <div style={{ marginTop: 12, padding: '12px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
-              <strong style={{ color: '#5c4400' }}>Setup stopped.</strong>{' '}
-              Nothing was lost — pick it back up with the buttons below whenever you want.
-            </div>
-          ) : null}
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>Complete each step to prepare this site for development.</div>
-          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {stepItems.map((step) => {
-              const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
-              const cueId = `setup-${step.key}`;
-              return (
-                <div
-                  key={step.key}
-                  data-next-action={cueId}
-                  className={nextActionId === cueId ? 'next-action-cue' : undefined}
-                  style={{
-                    border: `1px solid ${visuals.border}`,
-                    background: visuals.background,
-                    borderRadius: 10,
-                    padding: '14px 16px',
-                    display: 'grid',
-                    gridTemplateColumns: 'auto 1fr auto',
-                    gridTemplateRows: 'auto auto',
-                    columnGap: 16,
-                    rowGap: 8,
-                    alignItems: 'center'
-                  }}
-                >
-                  <div style={{ gridRow: '1 / span 2', alignSelf: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28 }}>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        lineHeight: 1,
-                        background: visuals.indicatorBg,
-                        color: visuals.indicatorColor,
-                        border: visuals.indicatorBorder || 'none'
-                      }}
-                    >
-                      {visuals.indicatorContent}
-                    </span>
-                  </div>
-                  <div style={{ gridColumn: '2 / 3', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, minWidth: 0, flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 600, color: '#1d2327', lineHeight: 1.4 }}>{step.label}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: visuals.color, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{setupStepLabel(step.status, step.running)}</div>
-                  </div>
-                  <div style={{ gridColumn: '2 / 3', fontSize: 12, color: '#3c434a', lineHeight: 1.5 }}>{step.description}</div>
-                  <div style={{ gridRow: '1 / span 2', gridColumn: '3 / 4', alignSelf: 'center', display: 'flex', alignItems: 'center' }}>
-                    {step.action}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <Button variant="link" onClick={markSkipWizard} style={{ textDecoration: 'underline' }}>Skip initialization wizard</Button>
-          </div>
-        </div>
-      ) : (
-        null
-      )}
-      {skipInit ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, flexWrap: 'wrap' }}>
-            <span {...cueProps('start-dev')} style={{ display: 'inline-flex' }}>
-            <Button
-              isBusy={isServerStarting}
-              variant={isDevProcessActive ? 'secondary' : 'primary'}
-              onClick={toggleDevServer}
-              disabled={isUpdating}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: 220, justifyContent: 'center', padding: '12px 20px', fontSize: 15, borderRadius: 12 }}
-            >
-              {isDevProcessActive ? (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: 'inline-block',
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    background: '#d63638',
-                    boxShadow: '0 0 0 4px rgba(214,54,56,0.15)',
-                    marginRight: 6
-                  }}
-                />
-              ) : null}
-              <span style={{ fontWeight: 600 }}>{devServerButtonLabel}</span>
-            </Button>
-            </span>
-            <Button
-              variant="secondary"
-              onClick={toggleWatch}
-              disabled={isUpdating}
-              title={watchActive ? 'The build watch compiles src/ edits automatically' : 'Compile src/ edits on save (runs independently of the dev server)'}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', padding: '12px 16px', fontSize: 15, borderRadius: 12 }}
-            >
-              <span
-                aria-hidden="true"
-                style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: watchDotColor, flexShrink: 0 }}
-              />
-              <span style={{ fontWeight: 600 }}>{watchButtonLabel}</span>
-            </Button>
-            <span {...cueProps('review-changes')} style={{ display: 'inline-flex' }}>
-            <Button
-              variant="secondary"
-              onClick={openPatchModal}
-              disabled={isUpdating}
-              style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Review & submit changes</Button>
-            </span>
-          </div>
-          {changesNote && changesNote.placement === 'buttons' ? (
-            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
-              {changesNoteBody}
-            </div>
-          ) : null}
-          {(isServerStarting || serverUrl) ? (
-            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {serverUrl ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
-                    <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
-                    <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
-                    {running ? (
-                      <>
-                        <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
-                        <a href={adminerUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminerUrl(serverUrl)); }}>DB inspect (Adminer)</a>
-                      </>
-                    ) : null}
-                  </div>
-                  <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>password</code>.</span>
-                </>
-              ) : (
-                `Dev server is starting… (${formatElapsed(startElapsed)})`
-              )}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      {skipInit ? (
-      <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
-        {tracTicket ? (
-          <>
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              {/* The ticket number is what the site is *for* once one is linked
-                  — and under #108 it also names the branch you are on, so it
-                  answers "which of my tickets am I looking at" at a glance.
-                  Sized to read as the panel's subject rather than as a tag. */}
-              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: 999, fontSize: 18, fontWeight: 600, letterSpacing: '0.01em', background: '#f0f0f1', color: '#1d2327' }}>
-                #{tracTicket}
-              </span>
-              <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
-              {!tracInfo ? (
-                <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading}>
-                  {tracAttachmentsLoading ? 'Reading ticket…' : 'Read details from Trac'}
-                </Button>
-              ) : null}
-              <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
-            </div>
-
-            {staleTicketNotice ? (
-              <div role="status" style={{ marginTop: 10, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
-                <div style={{ fontWeight: 600 }}>{staleTicketNotice.title}</div>
-                <div style={{ marginTop: 4 }}>{staleTicketNotice.body}</div>
-              </div>
-            ) : null}
-
-            {tracInfo ? (
-              <div style={{ marginTop: 10 }}>
-                {tracInfo.summary ? (
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2327' }}>{tracInfo.summary}</div>
-                ) : null}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap', fontSize: 12, color: '#3c434a' }}>
-                  {tracInfoBadge ? (
-                    <span style={{ padding: '1px 8px', borderRadius: 999, fontWeight: 600, fontSize: 11,
-                      background: tracInfoBadge.tone === 'closed' ? '#fcf0f1' : '#edfaef',
-                      color: tracInfoBadge.tone === 'closed' ? '#8a1f21' : '#005c12' }}>
-                      {tracInfoBadge.label}
-                    </span>
-                  ) : null}
-                  {tracInfo.type ? (
-                    <span style={{ padding: '1px 8px', borderRadius: 999, fontSize: 11, background: '#f0f0f1', color: '#3c434a' }}>{tracInfo.type}</span>
-                  ) : null}
-                  {tracInfo.opened ? (
-                    <span title={tracInfo.opened.absolute}>opened {tracInfo.opened.relative}</span>
-                  ) : null}
-                  {tracInfo.milestone ? <span>milestone: {tracInfo.milestone}</span> : null}
-                </div>
-                {tracInfo.component || tracInfo.keywords.length ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap', fontSize: 12, color: '#6c6f72' }}>
-                    {tracInfo.component ? (
-                      <span>
-                        component:{' '}
-                        {tracInfo.component.url ? (
-                          <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(tracInfo.component.url)}>
-                            {tracInfo.component.label}
-                          </Button>
-                        ) : tracInfo.component.label}
-                      </span>
-                    ) : null}
-                    {tracInfo.keywords.length ? (
-                      <span>
-                        keywords:{' '}
-                        {tracInfo.keywords.map((kw, i) => (
-                          <span key={kw.label}>
-                            {i ? ' ' : ''}
-                            {kw.url ? (
-                              <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(kw.url)}>{kw.label}</Button>
-                            ) : kw.label}
-                          </span>
-                        ))}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            {changesNote && changesNote.placement === 'ticket' ? (
-              <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
-                {changesNoteBody}
-                <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
-              </div>
-            ) : null}
-
-            <div ref={ticketPatchesRef} style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Linked pull requests</div>
-                <Button variant="link" onClick={loadTicketPatches} disabled={ticketPatchesLoading} style={{ fontSize: 12 }}>
-                  {ticketPatchesLoading ? 'Checking…' : 'Refresh'}
-                </Button>
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
-                See the work that already exists on this ticket before adding your own.
-              </div>
-
-              {ticketPatchesLoading && !ticketPatches ? (
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Checking GitHub…</div>
-              ) : null}
-
-              {ticketPatches && ticketPatches.status === 'ok' && ticketPatches.items.length === 0 ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No pull requests cite this ticket yet.</div>
-              ) : null}
-
-              {ticketPatches && ticketPatches.status !== 'ok' && ticketPatches.status !== 'no-ticket' ? (
-                <div style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {TICKET_PATCH_STATUS_MESSAGE[ticketPatches.status] || TICKET_PATCH_STATUS_MESSAGE.error}
-                  {ticketPatches.items && ticketPatches.items.length && ticketPatches.cachedAt
-                    ? ` Showing what was last seen ${new Date(ticketPatches.cachedAt).toLocaleString()}.`
-                    : ' No cached list to fall back on.'}
-                </div>
-              ) : null}
-
-              {ticketPatches && ticketPatches.items && ticketPatches.items.length ? (
-                <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-                  {ticketPatches.items.map((pr) => (
-                    <div key={pr.number} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
-                      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <Button variant="link" onClick={() => window.api.openExternal(pr.url)} style={{ fontSize: 13 }}>#{pr.number}</Button>
-                            {' '}{pr.title}
-                          </span>
-                          {latestPill(latestPatch?.kind === 'pr' && latestPatch.key === pr.number)}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#6c6f72' }}>
-                          {prStatePill(pr.state)}
-                          {(() => {
-                            const dated = prDateLabel(pr);
-                            return dated ? <span>{dated.prefix} {new Date(dated.when).toLocaleDateString()}</span> : null;
-                          })()}
-                        </div>
-                      </div>
-                      <Button
-                        variant="secondary"
-                        isBusy={fetchingPr === pr.number}
-                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null}
-                        onClick={() => previewPr(pr)}
-                        style={{ flex: '0 0 auto' }}
-                      >Apply…</Button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {latestIsAttachment ? (
-              <div style={{ marginTop: 12, padding: '8px 10px', background: '#e7f1ff', border: '1px solid #9ec5f0', borderRadius: 6, fontSize: 12, color: '#0b5d95' }}>
-                The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.
-              </div>
-            ) : null}
-
-            <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Trac attachments</div>
-                {tracAttachments ? (
-                  <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading} style={{ fontSize: 12 }}>
-                    {tracAttachmentsLoading ? 'Checking…' : 'Refresh'}
-                  </Button>
-                ) : null}
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
-                Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.
-              </div>
-
-              {!tracAttachments && !tracAttachmentsLoading ? (
-                <div style={{ marginTop: 10 }}>
-                  <Button variant="secondary" onClick={loadTracAttachments} disabled={isApplying || isUpdating || installing || building} style={{ padding: '8px 14px', borderRadius: 10 }}>
-                    Show Trac attachments
-                  </Button>
-                </div>
-              ) : null}
-
-              {tracAttachmentsLoading ? (
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Opening the ticket on Trac…</div>
-              ) : null}
-
-              {tracAttachmentsRead && patchAttachments.length === 0 ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No patch files attached to this ticket.</div>
-              ) : null}
-
-              {tracAttachments && (tracAttachments.status === 'challenge-timeout' || tracAttachments.status === 'error' || tracAttachments.status === 'closed') ? (
-                <div style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {(() => {
-                    if (tracAttachments.status === 'challenge-timeout') return 'Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.';
-                    if (tracAttachments.status === 'closed') return 'The Trac window was closed before the attachments finished loading. Click “Show Trac attachments” to try again.';
-                    return `Could not read the attachments from Trac.${tracAttachments.error ? ` (${tracAttachments.error})` : ''}`;
-                  })()}
-                </div>
-              ) : null}
-
-              {patchAttachments.length ? (
-                <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-                  {patchAttachments.map((att) => (
-                    <div key={att.url} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
-                      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <Button variant="link" onClick={() => window.api.openExternal(att.url)} style={{ fontSize: 13 }}>{att.filename}</Button>
-                          </span>
-                          {latestPill(latestPatch?.kind === 'attachment' && latestPatch.key === att.url)}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#6c6f72' }}>
-                          {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
-                        </div>
-                      </div>
-                      <Button
-                        variant="secondary"
-                        isBusy={fetchingAttachment === att.url}
-                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingAttachment !== null}
-                        onClick={() => previewAttachment(att)}
-                        style={{ flex: '0 0 auto' }}
-                      >Apply…</Button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Tell the app which ticket you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
-            </div>
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 260 }}>
-                <TextControl
-                  value={ticketInput}
-                  onChange={(value) => { setTicketInput(value); setTicketError(''); }}
-                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                  disabled={ticketActionsBlocked}
-                  placeholder="Ticket number or URL, e.g. 62281"
-                  aria-label="Trac ticket number or URL"
-                />
-              </div>
-              <Button
-                variant="secondary"
-                onClick={linkTicket}
-                isBusy={ticketSaving}
-                disabled={ticketActionsBlocked || !ticketInput.trim()}
-                style={{ padding: '10px 16px', borderRadius: 10 }}
-              >Link ticket</Button>
-            </div>
-            {/* Expectation-setting, not the warning itself: since #234 the
-                app asks before moving or discarding anything, so this only
-                has to be true, not load-bearing. Said without asking the
-                worktree, so it costs nothing. */}
-            <div style={{ marginTop: 6, fontSize: 12, color: '#6c6f72' }}>
-              If you have edited anything already, you will be asked what should happen to those edits.
-            </div>
-          </>
-        )}
-        {ticketError ? (
-          <div role="alert" style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
-        ) : null}
-        {switchProgressLine}
-        {carriedNotice}
-        {savedCleanNotice}
-        {blockedPanel}
-        {tracTicket ? null : (
-          <div style={{ marginTop: 8 }}>
-            <Button variant="link" onClick={() => window.api.openExternal(TRAC_TICKET_LISTS_URL)} style={{ fontSize: 12 }}>
-              Not sure yet? Browse good first bugs on Trac
-            </Button>
-          </div>
-        )}
-      </div>
-      ) : null}
-      {skipInit && ticketsCard ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
-          {renderBranchRows(Boolean(tracTicket))}
-        </div>
-      ) : null}
-      {skipInit ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
-          {!applyPreview && !isApplying ? (
-            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Apply a pull request or a <code>.diff</code>/<code>.patch</code> file to this checkout and rebuild, so you can test the work before adding your own. Your own changes are left alone.
-            </div>
-          ) : null}
-
-          {appliedLayer && !isApplying ? (
-            <div style={{ marginTop: 12, padding: '14px 16px', border: `1px solid ${appliedLayer.canRevert ? '#94d3ae' : '#dba617'}`, background: appliedLayer.canRevert ? '#f4fbf4' : '#fcf9e8', borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: appliedLayer.canRevert ? '#0f5132' : '#6e5406' }}>
-                <strong>{appliedLayer.label}</strong> {appliedLayer.summary}
-              </div>
-              {appliedLayer.explanation ? (
-                <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{appliedLayer.explanation}</div>
-              ) : null}
-              {appliedLayer.detail.map((line) => (
-                <div key={line} style={{ marginTop: 4, fontSize: 12, color: '#6e5406', wordBreak: 'break-all' }}>{line}</div>
-              ))}
-              {appliedLayer.note ? (
-                <div style={{ marginTop: 8, fontSize: 12, color: '#6c6f72' }}>{appliedLayer.note}</div>
-              ) : null}
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                {appliedLayer.canRevert ? (
-                  <Button variant="secondary" onClick={() => runApply({ reverse: true })} disabled={isUpdating || installing || building}>Revert this patch</Button>
-                ) : null}
-                {appliedLayer.offerCopy ? (
-                  <>
-                    <Button variant="secondary" onClick={savePatch} disabled={layerExitBlocked}>Save a copy of your work</Button>
-                    <Button variant="tertiary" onClick={discardAllChanges} disabled={layerExitBlocked}>Discard this ticket to its base</Button>
-                  </>
-                ) : null}
-              </div>
-              {/* Both exits report failure through state the changes note and the
-                  patch modal own, and neither is on screen here — so a save that
-                  could not write, or a discard that refused, would be a button
-                  that did nothing on the one way out this banner recommends. */}
-              {layerExit.message ? (
-                <div role="alert" style={{ marginTop: 8, fontSize: 12, color: '#d63638' }}>{layerExit.message}</div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {applyPreview && !isApplying ? (
-            <div {...cueProps('apply-preview')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: '#1d2327' }}>
-                <strong>{applyPreview.label}</strong> changes {applyPreview.paths.length} file{applyPreview.paths.length === 1 ? '' : 's'}:
-              </div>
-              <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
-                {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
-              </div>
-              {/* Who the colliding work belongs to (#306) is the sentence. */}
-              {previewAttribution.sentences.length ? (
-                <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {previewAttribution.sentences.map((sentence) => <div key={sentence} style={{ marginTop: 2 }}>{sentence}</div>)}
-                </div>
-              ) : null}
-              {applyPreview.unsupported.length ? (
-                <div style={{ marginTop: 10, fontSize: 12, color: '#6e5406' }}>
-                  {applyPreview.unsupported.join(', ')} {applyPreview.unsupported.length === 1 ? 'is a binary file and will be skipped' : 'are binary files and will be skipped'}.
-                </div>
-              ) : null}
-              {applyPreview.needsInstall ? (
-                <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>It changes <code>package-lock.json</code>, so dependencies will be installed before the rebuild.</div>
-              ) : null}
-              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
-                <Button variant="tertiary" onClick={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}>Cancel</Button>
-              </div>
-            </div>
-          ) : null}
-
-          {isApplying ? (
-            <div {...cueProps('applying-patch')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
-              {applyStepStates.map((state, i) => {
-                const step = applySteps[i];
-                const mark = UPDATE_STEP_MARKS[state.status];
-                const stepLabel = state.status === 'skipped' ? step.skipMessage : step.label;
-                return (
-                  <div key={step.key} style={{ display: 'flex', gap: 8, fontSize: 13, padding: '2px 0', color: mark ? mark.color : '#6c6f72', fontWeight: state.status === 'current' ? 600 : 400, opacity: state.status === 'pending' || state.status === 'skipped' ? 0.75 : 1 }}>
-                    <span aria-hidden="true" style={{ width: 12 }}>{mark ? mark.symbol : ''}</span>
-                    <span>{stepLabel}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {applyError ? (
-            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                {/* The headline replaces the sentence when there is one: it says
-                    the same thing in counts, which is the part that decides
-                    whether the patch is worth rescuing. Without a breakdown the
-                    original sentence is still the whole story. */}
-                <span style={{ flex: '1 1 auto' }}>
-                  {applyConflict?.headline || (/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`)} The checkout was not changed.
-                </span>
-                <Button
-                  variant="tertiary"
-                  isSmall
-                  aria-label="Dismiss"
-                  onClick={() => clearApplyError()}
-                  style={{ color: '#8a1f21' }}
-                >✕</Button>
-              </div>
-
-              {applyConflict ? (
-                <div style={{ marginTop: 8 }}>
-                  {applyConflict.items.map((item, i) => (
-                    <div key={i} style={{ marginTop: i ? 8 : 0 }}>
-                      {item.kind === 'note' ? (
-                        <div>{item.text}</div>
-                      ) : (
-                        <>
-                          <div style={{ fontWeight: 600, wordBreak: 'break-all' }}>
-                            {item.path} — {item.failed} of {item.total} {item.total === 1 ? 'change' : 'changes'}
-                          </div>
-                          {item.regions.map((region) => (
-                            // index, not line: a concatenated patch can carry
-                            // two hunks whose oldStart coincides.
-                            <div key={region.index} style={{ marginTop: 4, paddingLeft: 10, borderLeft: '2px solid #d63638' }}>
-                              {/* A searchable line, not a line number: the patch's
-                                  numbers are coordinates in the file as its author
-                                  had it, and on an old patch they miss by dozens.
-                                  Text survives the drift — copy it into the
-                                  editor's search and land on the region. */}
-                              <div>
-                                {region.anchor
-                                  ? <>near <code style={{ fontSize: 11, wordBreak: 'break-all' }}>{region.anchor}</code></>
-                                  : `line ${region.line} of the patch`} · {region.reason}
-                              </div>
-                              {/* The lines themselves, because a location alone
-                                  cannot answer the question that decides the
-                                  next ten minutes: is this the change that
-                                  matters, or reformatting that came with it. */}
-                              {region.lines.length ? (
-                                <pre style={{ margin: '2px 0 0', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                                  {region.lines.join('\n')}{region.more ? `\n… ${region.more} more ${region.more === 1 ? 'line' : 'lines'}` : ''}
-                                </pre>
-                              ) : null}
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  ))}
-
-                  {applyConflict.advice ? (
-                    <div style={{ marginTop: 8 }}>{applyConflict.advice}</div>
-                  ) : null}
-
-                  {applyConflict.offerOtherPatches || applyConflict.prUrl || applyConflict.offerDiscardToBase ? (
-                    <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {applyConflict.offerDiscardToBase ? (
-                        <>
-                          <Button variant="secondary" isSmall onClick={savePatch} disabled={layerExitBlocked}>Save a copy of your work</Button>
-                          <Button variant="secondary" isSmall onClick={discardAllChanges} disabled={layerExitBlocked}>Discard this ticket to its base</Button>
-                        </>
-                      ) : null}
-                      {applyConflict.offerOtherPatches ? (
-                        <Button
-                          variant="secondary"
-                          isSmall
-                          onClick={() => {
-                            // Choosing another patch is walking away from this
-                            // one, so everything about it goes: the preview
-                            // (whose presence keeps the lists' Apply buttons
-                            // disabled) and the failure banner itself — an
-                            // error describing an abandoned attempt would sit
-                            // above the new one as noise.
-                            setApplyPreview(null);
-                            clearApplyError();
-                            ticketPatchesRef.current?.scrollIntoView({
-                              block: 'center',
-                              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
-                            });
-                          }}
-                        >Try another patch on this ticket</Button>
-                      ) : null}
-                      {applyConflict.prUrl && applyConflict.prButton ? (
-                        <Button variant="secondary" isSmall onClick={() => window.api.openExternal(applyConflict.prUrl)}>
-                          {applyConflict.prButton}
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {applyConflict.offerDiscardToBase && layerExit.message ? (
-                    <div style={{ marginTop: 8 }}>{layerExit.message}</div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {applyNotice ? (
-            // Dismissible, like the update summary above: the notice reports
-            // something already resolved, so it outlives its usefulness the
-            // moment it has been read, and nothing else in this panel takes it
-            // down until the next patch.
-            <div role="status" style={{ marginTop: 12, padding: '8px 10px', background: '#f0f6fc', border: '1px solid #3582c4', borderRadius: 6, fontSize: 12, color: '#1d3a5f', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ flex: '1 1 auto' }}>{applyNotice}</span>
-              <Button
-                variant="tertiary"
-                isSmall
-                aria-label="Dismiss"
-                onClick={() => setApplyNotice('')}
-                style={{ color: '#1d3a5f' }}
-              >✕</Button>
-            </div>
-          ) : null}
-
-          {!applyPreview && !isApplying ? (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-                <div style={{ minWidth: 280, flex: '1 1 280px' }}>
-                  <TextControl
-                    value={prUrlInput}
-                    onChange={(value) => { setPrUrlInput(value); clearApplyError(); setApplyNotice(''); }}
-                    onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
-                    disabled={isUpdating || installing || building}
-                    placeholder="Paste a pull request URL or number"
-                    aria-label="Pull request URL or number"
-                  />
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={previewPrFromInput}
-                  disabled={isUpdating || installing || building || !prUrlInput.trim()}
-                  style={{ padding: '10px 16px', borderRadius: 10 }}
-                >Apply PR</Button>
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
-                  or choose a .diff / .patch file…
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Terminal</div>
-          <div
-            ref={terminalContainerRef}
-            style={{
-              height: 220,
-              background: '#111',
-              borderRadius: 6,
-              overflow: 'hidden',
-              border: '1px solid #1b1b1f'
-            }}
-          />
-          <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
-            {showTerminalHints ? (
+        <Notice.Root intent="success" spokenMessage={SILENT}>
+          <Notice.Title>{__('Up to date with trunk as of today.')}</Notice.Title>
+          <Notice.Description>
+            {/* Each sentence whole, and in an element of its own. */}
+            <span>{updateSummarySentence({
+              lockfileChanged: lastUpdateSummary.lockfileChanged,
+              elapsed: typeof lastUpdateSummary.elapsedSeconds === 'number' ? formatElapsed(lastUpdateSummary.elapsedSeconds) : null
+            })}</span>
+            {lastUpdateSummary.savedPatchPath ? (
               <>
-                <div>Edited files in <code>src/</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</div>
-                <div style={{ marginTop: 2, marginBottom: 6 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
+                {' '}
+                <span>{
+                  // translators: %s: the path of the patch file the changes were saved to.
+                  sprintf(__('Your changes were saved to %s before the reset.'), lastUpdateSummary.savedPatchPath)
+                }</span>
               </>
             ) : null}
-            <div>
-              Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
-            </div>
-          </div>
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Logs</div>
-          <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
-            {(tab) => {
-              if (tab.name === 'runtime') {
-                return <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={LOG_PANE_STYLE}><LogText text={runtimeLogs} /></div>;
-              }
-              if (tab.name === 'watch') {
-                return (
-                  <div ref={watchRef} onScroll={makeOnScroll('watch')} style={LOG_PANE_STYLE}>
-                    {watchLogs ? <LogText text={watchLogs} /> : (
-                      <span style={{ color:'#888', fontFamily:'-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>The build watch compiles <code>src/</code> edits into <code>build/</code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.</span>
-                    )}
-                  </div>
-                );
-              }
-              return (
-                <>
-                <div ref={debugRef} onScroll={makeOnScroll('debug')} style={LOG_PANE_STYLE}>
-                  {debugLogs ? <LogText text={debugLogs} /> : (
-                    // An empty pane reads as broken, which is what this one was
-                    // for as long as WP_DEBUG_LOG was never set. Say what fills
-                    // it instead. In the app's own font, not the terminal's:
-                    // this is interface copy rather than log output, and it is
-                    // what keeps the `<code>` bits in it distinguishable.
-                    <span style={{ color:'#888', fontFamily:'-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
-                  )}
-                </div>
-                <div style={{ display:'flex', gap:8, marginTop:8, alignItems:'center', justifyContent:'space-between', flexWrap:'wrap' }}>
-                  {/* The file is under build/, while the file being edited when
-                      it filled up is under src/ — so it cannot be guessed, and
-                      it is what someone needs to tail it in a terminal or attach
-                      it to a ticket. Selectable rather than truncated with an
-                      ellipsis: a path you cannot copy is decoration. */}
-                  <code style={{ fontSize:11, color:'#666', userSelect:'text', wordBreak:'break-all', flex:'1 1 240px' }}>{debugLogPath || 'The log file appears once the dev server has run.'}</code>
-                  <div style={{ display:'flex', gap:8 }}>
-                    <Button size="small" variant="secondary" onClick={revealDebugLog} disabled={!debugLogPath}>Show in folder</Button>
-                    <Button size="small" variant="secondary" onClick={copyDebugLog} disabled={!debugLogs}>{COPY_BUTTON_LABELS[debugCopied] || COPY_BUTTON_LABELS.idle}</Button>
-                    <Button size="small" variant="secondary" onClick={clearDebugLog} disabled={!debugLogs}>Clear</Button>
-                  </div>
-                </div>
-                </>
-              );
-            }}
-          </TabPanel>
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-            <div style={{ fontSize:12, color:'#666' }}>{smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : 'SMTP will start with the dev server.'}</div>
-            <div><Button size="small" variant="secondary" onClick={clearEmails}>Clear emails</Button></div>
-          </div>
-          <div style={{ border:'1px solid #ddd', borderRadius:6, maxHeight:220, overflow:'auto' }}>
-            {emails && emails.length ? emails.map((m)=>{
-              const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
-              return (
-                <div key={m.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={()=>openEmail(m)}
-                  onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEmail(m); } }}
-                  style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
-                >
-                  <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
-                  <div style={{ flex:'0 0 220px', color:'#333', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.from || ''}</div>
-                  <div style={{ flex:'1 1 auto', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.subject || '(no subject)'}</div>
-                </div>
-              );
-            }) : (
-              <div style={{ padding:12, color:'#666' }}>No emails yet.</div>
-            )}
-          </div>
-        </div>
+          </Notice.Description>
+          <Notice.CloseIcon onClick={() => setLastUpdateSummary(null)} />
+        </Notice.Root>
+      ) : null}
+      {!skipInit ? (
+        <SetupChecklist
+          steps={stepItems}
+          cueId={nextActionId}
+          running={isSettingUp ? {
+            // The step counter comes from the same `updateStepStatuses` the
+            // update card uses.
+            title: sprintf(
+              // translators: 1: the step setup is on. 2: how many steps it has.
+              __('Setting this site up for you — step %1$d of %2$d'),
+              setupStepStates.filter((s) => s.status === 'complete').length + 1,
+              setupSteps.length
+            ),
+            body: setupChainState === 'installing'
+              ? __('Installing dependencies. You can leave this running — the build follows on its own.')
+              : __('Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.'),
+            onStop: stopSetupChain
+          } : null}
+          stopped={setupChainEnd === 'stopped'}
+          onSkip={markSkipWizard}
+        />
+      ) : null}
+      {/* The server, the build watch and the way to the changes are in the
+          page's header and in the details (#557). What the changes note says
+          when it has no card of its own to sit in stays here. */}
+      {skipInit && changesNote && changesNote.placement === 'buttons' ? (
+        <Text variant="body-md">{changesNoteBody}</Text>
+      ) : null}
+      {/* Above the ticket panel rather than inside it, and outside the wizard
+          gate: a link can arrive whether or not this site already has a ticket,
+          and a site still in the setup wizard shows no ticket panel at all —
+          which is exactly when a ticket that vanished silently would be worst. */}
+      {deepLinkNote ? (
+        <Notice.Root intent="warning" role="status" spokenMessage={SILENT}>
+          <Notice.Title>{deepLinkNote.title}</Notice.Title>
+          <Notice.Description>{deepLinkNote.body}</Notice.Description>
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => setDeepLinkNoteHidden(true)}>{__('Hide')}</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
+      ) : null}
+      {deepLinkPrompt ? (
+        <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
+          <Notice.Title>{deepLinkPrompt.title}</Notice.Title>
+          <Notice.Description>{deepLinkPrompt.body}</Notice.Description>
+          <Notice.Actions>
+            {/* No `loading`: answering clears the App's deep-link value, so this
+                button is gone in the same tick it is pressed. What the link
+                started is then reported where every other ticket link reports
+                it — the panel's own progress line and `ticketError`. */}
+            <ReasonedUiButton
+              size="compact"
+              onClick={acceptDeepLink}
+              reason={skipInit ? ticketActionsReason : __('Finish setting this site up first.')}
+            >{deepLinkPrompt.confirmLabel}</ReasonedUiButton>
+            <UiButton variant="minimal" tone="neutral" size="compact" onClick={dismissDeepLink}>{__('Not now')}</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
+      ) : null}
+      {skipInit ? (
+        <TicketCard
+          cue={cueProps('link-ticket')}
+          provider={project.workItem.provider}
+          ticketId={tracTicket || null}
+          ticketUrl={tracTicket ? workItem.urlFor(tracTicket) : ''}
+          onOpen={openSiteLink}
+          link={{
+            value: ticketInput,
+            onChange: (value) => { setTicketInput(value); setTicketError(''); },
+            onSubmit: linkTicket,
+            saving: ticketSaving,
+            reason: ticketActionsReason,
+            browseUrl: project.workItem.browseUrl
+          }}
+          unlink={{ onUnlink: unlinkTicket, reason: ticketActionsReason }}
+          details={showTracCards ? { info: tracInfo, loading: tracAttachmentsLoading, onRead: loadTracAttachments } : null}
+          staleNotice={staleTicketNotice ? {
+            ...staleTicketNotice,
+            busy: ticketSaving,
+            reason: rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding, noun: workItem.noun }),
+            onAction: rebaseTicket
+          } : null}
+          feedback={ticketFeedback}
+          changesNote={ticketChangesNote}
+          banner={prCheckoutBanner}
+          pullRequests={{
+            list: ticketPatches,
+            loading: ticketPatchesLoading,
+            onRefresh: loadTicketPatches,
+            latest: latestPatch,
+            appliedNumber: pullRequest ? pullRequest.number : null,
+            apply: { hidden: Boolean(pullRequest), disabled: patchReadBlocked, fetching: fetchingPr, onApply: previewPr }
+          }}
+          pullRequestsRef={ticketPatchesRef}
+          attachments={showTracCards ? {
+            result: tracAttachments,
+            loading: tracAttachmentsLoading,
+            items: patchAttachments,
+            latest: latestPatch,
+            onLoad: loadTracAttachments,
+            loadDisabled: isApplying || isUpdating || installing || building,
+            apply: { hidden: Boolean(pullRequest), disabled: patchReadBlocked, fetching: fetchingAttachment, onApply: previewAttachment }
+          } : null}
+          latestIsAttachment={latestIsAttachment}
+        />
+      ) : null}
+      {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
+        <ApplyCard
+          cardRef={applyCardRef}
+          patchFiles={Boolean(project.cards.patchFiles)}
+          entry={!pullRequest && !isApplying ? {
+            value: prUrlInput,
+            onChange: (value) => { setPrUrlInput(value); clearApplyError(); setApplyNotice(''); },
+            onSubmit: previewPrFromInput,
+            onChooseFile: choosePatchFile,
+            // A patch already read is being looked at, or waits on a
+            // question: one at a time.
+            disabled: isUpdating || installing || building || Boolean(applyPreview)
+          } : null}
+          applied={appliedLayer && !isApplying ? {
+            layer: appliedLayer,
+            watchMessage: watchBusyMessage(watchState, watchCompiling),
+            onRevert: () => runApply({ reverse: true }),
+            revertDisabled: isUpdating || installing || building,
+            exits: layerExits
+          } : null}
+          progress={isApplying ? { steps: applySteps, states: applyStepStates, cue: cueProps('applying-patch') } : null}
+          failure={applyError ? {
+            error: applyError,
+            kind: applyKind,
+            conflict: applyConflict,
+            exits: layerExits,
+            onDismiss: () => clearApplyError(),
+            onTryAnother: tryAnotherPatch,
+            onOpen: openSiteLink
+          } : null}
+          notice={applyNotice ? { text: applyNotice, onDismiss: () => setApplyNotice('') } : null}
+        />
+      ) : null}
+      {skipInit ? (
+        <ApplyPreviewDialog
+          preview={previewShown({ preview: applyPreview, active: isActive, applying: isApplying, asking: Boolean(blockedByTrunkWork) })}
+          pr={prPreview}
+          warnings={applyPreview && applyPreview.kind !== 'pr' ? previewAttribution.sentences : []}
+          cueId="apply-preview"
+          applyDisabled={isUpdating || installing || building}
+          applyReason={applyHeldReason({ terminalRunning })}
+          focusAfter={applyCardRef}
+          onApply={() => runApply()}
+          onCancel={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}
+        />
+      ) : null}
+      {skipInit && ticketsCard ? (
+        <TicketListCard
+          words={ticketsCard}
+          rows={branchRows}
+          reason={ticketActionsReason}
+          deleting={deletingBranch}
+          onSwitch={(row) => saveTicket(String(row.ticketId))}
+          onDelete={(row) => askFirst(deleteWorkQuestion(row.ticketId, project.workItem.provider), () => deleteTicketWork(row.ref))}
+        />
+      ) : null}
+      </div>
+      <SiteDetails
+        id={detailsId}
+        open={detailsOpen}
+        siteName={displayName}
+        facts={{
+          initialized,
+          created: createdLabel,
+          trunk: age,
+          path: sitePath,
+          checkout: project.label,
+          // What every site's server starts with (#559), from the settings:
+          // the PHP it will start on, which is not always the one set.
+          phpVersion: startingPhp,
+          debug: settings ? { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug } : null
+        }}
+        pathCopied={pathCopied}
+        onCopyPath={copyPath}
+        server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
+        watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
+      />
       </div>
       {dirtyModalOpen ? (
-        <Modal
-          title="Update to latest trunk?"
-          onRequestClose={() => { if (!dirtySaving) setDirtyModalOpen(false); }}
-          shouldCloseOnClickOutside={!dirtySaving}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-              You&apos;ve changed {dirtyFiles.length === 1 ? '1 file' : `${dirtyFiles.length} files`} in this site. Resetting to trunk would throw them away.
-            </p>
-            {dirtyFiles.length ? (
-              <div style={{ border: '1px solid #dcdcde', borderRadius: 6, padding: '10px 12px', maxHeight: 140, overflowY: 'auto' }}>
-                {dirtyFiles.map((f) => (
-                  <div key={f} style={{ fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere' }}>{f}</div>
-                ))}
-              </div>
-            ) : null}
-            {[
-              { key: 'save', label: 'Save them as a patch first (as a local file)', detail: 'a .diff on your machine — nothing is sent to Trac' },
-              { key: 'discard', label: 'Discard them', detail: 'your changes are lost; this cannot be undone', destructive: true }
-            ].map((opt) => {
-              const selected = dirtyChoice === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setDirtyChoice(opt.key)}
-                  disabled={dirtySaving}
-                  aria-pressed={selected}
-                  style={{
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    font: 'inherit',
-                    fontSize: 13,
-                    padding: '10px 12px',
-                    borderRadius: 6,
-                    border: selected ? '2px solid #3858e9' : '1px solid #dcdcde',
-                    background: selected ? '#f0f3ff' : '#fff',
-                    color: opt.destructive ? '#b32d2e' : '#1d2327'
-                  }}
-                >
-                  <span style={{ fontWeight: 600 }}>{opt.label}</span>
-                  <span style={{ color: opt.destructive ? '#b32d2e' : '#6c6f72' }}> — {opt.detail}</span>
-                </button>
-              );
-            })}
-            {dirtyError ? (
-              <div role="alert" style={{ padding: '10px 12px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 13, lineHeight: 1.5, color: '#8a2424', overflowWrap: 'anywhere' }}>
-                {dirtyError}
-              </div>
-            ) : null}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-              <Button variant="secondary" onClick={() => setDirtyModalOpen(false)} disabled={dirtySaving}>Cancel</Button>
-              <Button
-                variant="primary"
-                isDestructive={dirtyChoice === 'discard'}
-                isBusy={dirtySaving}
-                disabled={dirtySaving}
-                onClick={() => (dirtyChoice === 'discard' ? dirtyDiscardAndUpdate() : dirtySaveAndUpdate())}
-              >{dirtyChoice === 'discard' ? 'Discard & update' : 'Save patch & update'}</Button>
-            </div>
-          </div>
-        </Modal>
+        <DirtyTreeModal
+          files={dirtyFiles}
+          saving={dirtySaving}
+          error={dirtyError}
+          onSave={dirtySaveAndUpdate}
+          onDiscard={dirtyDiscardAndUpdate}
+          onClose={() => setDirtyModalOpen(false)}
+        />
       ) : null}
-      {renameModalOpen ? (
-        <Modal
-          title="Rename site"
-          onRequestClose={closeRenameModal}
-          shouldCloseOnClickOutside={!renaming}
-        >
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape-to-close/Enter-to-submit on the modal form is standard, intentional behavior. */}
-          <form
-            onSubmit={handleRenameSubmit}
-            onKeyDown={handleRenameFormKeyDown}
-            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
-          >
-            <TextControl
-              id={RENAME_INPUT_ID}
-              label="Site name"
-              value={renameValue}
-              onChange={(value) => setRenameValue(value)}
-              disabled={renaming}
-              // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the only field of a just-opened modal.
-              autoFocus
-            />
-            {renameError ? <div style={{ color: '#d63638', fontSize: 12 }}>{renameError}</div> : null}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button type="button" variant="secondary" onClick={closeRenameModal} disabled={renaming}>Cancel</Button>
-              <Button type="submit" variant="primary" isBusy={renaming} disabled={renaming}>Save</Button>
-            </div>
-          </form>
-        </Modal>
-      ) : null}
+      <RenameSiteDialog open={renameModalOpen} sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
+      <ConfirmDialog question={asking ? asking.question : null} onConfirm={() => asking.action()} onClose={() => setAsking(null)} />
       {isPatchOpen && (
-        <Modal
-          title="Review & submit changes"
-          onRequestClose={()=>setIsPatchOpen(false)}
-          shouldCloseOnClickOutside
-          isFullScreen
-          headerClassName="patch-modal-header"
+        <ReviewDialog
+          onClose={()=>setIsPatchOpen(false)}
+          age={age}
+          loading={patchLoading}
+          loadFailed={patchLoadFailed}
+          hasChanges={patchHasChanges}
+          emptyMessage={reviewContext.empty}
+          pullRequest={pullRequest}
+          appliedPatch={appliedPatch}
+          appliedPatchLabel={appliedPatchLabel}
+          diff={
+            <PatchDiffPane
+              heading={reviewContext.heading}
+              description={reviewContext.description}
+              patchText={patchText}
+              patchLoading={patchLoading}
+              patchLoadFailed={patchLoadFailed}
+              patchSaved={patchSaved}
+              patchSaveError={patchSaveError}
+              copyLabel={copyButtonLabel(patchCopied)}
+              copied={patchCopied === 'copied'}
+              discardReason={modalDiscardReason}
+              discardError={discardError}
+              onSave={savePatch}
+              onCopy={copyPatch}
+              onDiscard={discardAllChanges}
+            />
+          }
         >
-          <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
-            {!patchLoading && age.stale && (
-              <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
-                This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
-              </div>
-            )}
-            {!patchLoading && !patchHasChanges && (
-              <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                There is nothing to send yet — this site has no changes against its copy of trunk.
-              </div>
-            )}
-{/*
-              Diff on the left, destinations on the right (#186).
+          {/*
+            Alone in its own group, because it is the one destination
+            that acts for the contributor: it signs them in, forks, and
+            pushes. That is also where the signup cliff is (#167), named
+            here before anything happens rather than sprung after they
+            have left the venue.
+          */}
+          <DestinationGroup>
+            <PullRequestDestination
+              pr={prSubmission}
+              project={project}
+              workItem={workItem}
+              ticket={tracTicket}
+              refusal={prSubmissionBlocked({ pullRequest, appliedPatch, appliedPatchLabel })}
+              onSavePatch={savePatch}
+            />
+          </DestinationGroup>
 
-              The patch used to sit under the destinations, which put the
-              choice above the thing being chosen for: a contributor scrolled
-              past three cards to read their own code, then scrolled back. The
-              code is what they came to look at and the largest thing on the
-              screen, so it takes the room, and where it can go stands beside
-              it — visible the whole time they are reading, rather than
-              something to scroll back to.
+          <DestinationGroup>
+            {showTracCards ? (
+            <TracDestination
+              ticket={tracTicket}
+              saveDisabled={Boolean(appliedPatch || pullRequest)}
+              onSave={saveForTrac}
+              ticketInput={ticketInput}
+              onTicketInputChange={(value) => { setTicketInput(value); setTicketError(''); }}
+              onLinkTicket={linkTicket}
+              linking={ticketSaving}
+              linkReason={ticketActionsReason}
+              ticketError={ticketError}
+            >
+              {switchProgressLine}
+              {savedCleanNotice}
+              {blockedPanel}
+            </TracDestination>
+            ) : null}
 
-              This is the shape of an earlier take on the same screen (#6),
-              revived here on top of the destinations this app has now.
-            */}
-            <div className="patch-columns">
-
-              {/*
-                The column widths, the stacking breakpoint and what scrolls in
-                each case are in index.html — a media query can express them and
-                an inline style cannot. `min-width: 0` there is load-bearing on
-                a flex child holding a <pre>: without it the diff's longest line
-                sets the column's floor and pushes the destinations off the
-                modal instead of scrolling.
-              */}
-              <div className="patch-diff">
-                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
-                  <div>
-                    <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
-                      {tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes'}
-                      <span style={{ fontWeight:400 }}>
-                        {'('}
-                        <DiscardChangesLink
-                          label="Discard all changes"
-                          onClick={discardAllChanges}
-                          reason={modalDiscardReason}
-                          style={{ fontSize: 12 }}
-                        />
-                        {')'}
-                      </span>
-                    </div>
-                    <div style={{ fontSize:12, color:'#6c6f72' }}>Everything this site has that its copy of trunk does not.</div>
-                    {discardError ? <div style={{ color:'#d63638', fontSize:12, marginTop:4 }}>{discardError}</div> : null}
-                  </div>
-                  {/*
-                    Out of the diff and into the header: these used to float
-                    over the top-right of the code, which was survivable at
-                    full width and covers the first line of a hunk once the
-                    pane is a column.
-                  */}
-                  <div style={{ display:'flex', gap:8 }}>
-                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading}>Save</Button>
-                    <Button
-                      variant="secondary"
-                      icon={patchCopied === 'copied' ? checkIcon : copyIcon}
-                      onClick={copyPatch}
-                      disabled={patchLoading}
-                      // The label carries the outcome rather than a tooltip or
-                      // a toast: it is the thing that was just pressed, so it
-                      // is where the eye already is, and a screen reader
-                      // announces the change on the focused control.
-                    >{COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}</Button>
-                  </div>
-                </div>
-                {/*
-                  Under the diff rather than beside the destinations that
-                  trigger it: this is the outcome for the file, the file is
-                  what this column is, and the header's own Save button needs
-                  somewhere to report even when there are no destinations to
-                  show.
-                */}
-                {patchSaved ? (
-                  <div style={{ fontSize:13, color:'#0f5132' }}>Saved to {patchSaved}</div>
-                ) : null}
-                {patchSaveError ? (
-                  <div role="alert" style={{ fontSize:13, color:'#d63638' }}>Could not save the patch: {patchSaveError}</div>
-                ) : null}
-                <div style={{ position:'relative', flex:1, minHeight:0 }}>
-              {patchLoading ? (
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
-                  <Spinner />
-                  <div style={{ color:'#666', fontSize:14 }}>Generating patch...</div>
-                </div>
-              ) : (
-                <>
-                  {/*
-                      `boxSizing: border-box` with `height: 100%` and a
-                      padding: without it the pane is its container plus
-                      24px of padding, and it overflows by exactly that.
-                      Invisible while the diff spanned the modal and the
-                      overflow fell off the bottom; beside a sidebar it
-                      sits on top of the destinations.
-                    */}
-                    <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', boxSizing:'border-box', overflowY:'auto' }}>
-                    {patchText && patchText.trim().length ? <DiffText text={patchText} /> : 'No changes.'}
-                  </pre>
-                </>
-              )}
-                </div>
-              </div>
-
-              {/*
-                Where the patch goes, named at the moment it exists (#166),
-                each destination with what it costs — a tool that emits a file
-                and stops leaves the contributor to work that out alone.
-
-                Grouped by who does the sending, and stacked rather than laid
-                side by side: in a column the grouping is what the shared card
-                says, and the sidebar can scroll on its own while the diff
-                stays put.
-              */}
-              {!patchLoading && patchHasChanges && (
-                <div className="patch-destinations">
-                  <div>
-                  <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The other two save a file for you to send.</div>
-                  </div>
-
-                  {appliedPatch ? (
-                    <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-                      <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
-                      The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
-                    </div>
-                  ) : null}
-
-                  {/*
-                    Alone in its own group, because it is the one destination
-                    that acts for the contributor: it signs them in, forks, and
-                    pushes. That is also where the signup cliff is (#167), named
-                    here before anything happens rather than sprung after they
-                    have left the venue.
-                  */}
-                  <DestinationGroup>
-                    <Destination
-                      title="Open a pull request"
-                      cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
-                      after="Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen."
-                    >
-                      {/*
-                        Absent from every shipped build. When a test switch is
-                        set it sits above the button, because that is where the
-                        decision is made — a mode set in a terminal minutes
-                        earlier, in an app that otherwise looks identical, is how
-                        a dry run that silently was not one opened a real pull
-                        request during testing.
-                      */}
-                      {githubAccount?.testMode ? (
-                        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#f0f0f1', border:'1px dashed #949494', borderRadius:6, fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                          <span style={{ fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', fontSize:10, color:'#1d2327' }}>Test mode</span>
-                          <span>
-                            {githubAccount.testMode.dryRun
-                              ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
-                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
-                          </span>
-                        </div>
-                      ) : null}
-                      {renderPullRequestBody()}
-                      {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
-                      {prError ? (
-                        <>
-                          <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
-                            {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
-                          </div>
-                          {/*
-                            Every failure lands here, and every failure has the
-                            same floor: the file exists regardless of what GitHub
-                            did.
-                          */}
-                          <Button variant="secondary" onClick={savePatch} style={{ justifyContent:'center' }}>Save the patch file instead</Button>
-                        </>
-                      ) : null}
-                    </Destination>
-                  </DestinationGroup>
-
-                  <DestinationGroup>
-                    <Destination
-                      title="Attach to Trac"
-                      cost="A WordPress.org account — needed anyway, for props and to comment."
-                      after="No automated checks. Often followed by a request to open a pull request."
-                    >
-                      {tracTicket ? (
-                        <Button variant="primary" onClick={saveForTrac} disabled={Boolean(appliedPatch)} style={{ justifyContent:'center' }}>
-                          Save, then open #{tracTicket}
-                        </Button>
-                      ) : (
-                        <>
-                          <div style={{ fontSize:12, color:'#6c6f72' }}>
-                            No ticket is linked to this site, so there is nowhere to attach it yet.
-                          </div>
-                          <TextControl
-                            value={ticketInput}
-                            onChange={(value) => { setTicketInput(value); setTicketError(''); }}
-                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                            disabled={ticketActionsBlocked}
-                            placeholder="Ticket number or URL, e.g. 62281"
-                            aria-label="Trac ticket number or URL"
-                          />
-                          <Button
-                            variant="secondary"
-                            onClick={linkTicket}
-                            isBusy={ticketSaving}
-                            disabled={ticketActionsBlocked || !ticketInput.trim()}
-                            style={{ justifyContent:'center' }}
-                          >Link ticket</Button>
-                          {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
-                          {switchProgressLine}
-                          {savedCleanNotice}
-                          {blockedPanel}
-                        </>
-                      )}
-                    </Destination>
-
-                    <Destination
-                      title="Hand it to a mentor"
-                      cost="No accounts at all. The patch carries your WordPress.org username, and the event you are at."
-                      after="Someone else pushes it; the props still land on you."
-                    >
-                      {wporg?.handle && !editingHandle ? (
-                        <>
-                          <Button variant="primary" onClick={saveForHandoff} disabled={Boolean(appliedPatch)} style={{ justifyContent:'center' }}>
-                            Save patch as {wporg.handle}
-                          </Button>
-                          {/*
-                            The event is shown on every save rather than only when
-                            it is set: a remembered WordCamp from last year would
-                            otherwise keep stamping patches with nobody seeing it.
-                          */}
-                          <div style={{ fontSize:12, color:'#6c6f72' }}>
-                            {wporg.event ? <>The patch will say it was written at <strong>{wporg.event}</strong>.</> : 'No event on the patch.'}
-                          </div>
-                          <Button
-                            variant="link"
-                            onClick={() => {
-                              setHandleInput(wporg.handle);
-                              setEventInput(wporg.event || '');
-                              setHandleError('');
-                              setEditingHandle(true);
-                            }}
-                            style={{ fontSize:12 }}
-                          >Change these</Button>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ fontSize:12, color:'#6c6f72' }}>
-                            Asked once and remembered for every site — these are facts about you, not about this checkout.
-                          </div>
-                          <TextControl
-                            value={handleInput}
-                            onChange={(value) => { setHandleInput(value); setHandleError(''); }}
-                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
-                            disabled={handleSaving}
-                            placeholder="WordPress.org username, e.g. janedoe"
-                            aria-label="WordPress.org username"
-                          />
-                          <TextControl
-                            value={eventInput}
-                            onChange={(value) => { setEventInput(value); setHandleError(''); }}
-                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
-                            disabled={handleSaving}
-                            placeholder="Event, e.g. WordCamp Europe 2026 (optional)"
-                            aria-label="Event this patch was written at"
-                          />
-                          <Button
-                            variant="secondary"
-                            onClick={rememberContributor}
-                            isBusy={handleSaving}
-                            // Empty is a valid answer only when there is
-                            // something to clear — a shared laptop at a
-                            // contributor day, the next person taking over.
-                            // Before the first answer it would just be a button
-                            // that does nothing.
-                            disabled={handleSaving || (!handleInput.trim() && !wporg?.handle)}
-                            style={{ justifyContent:'center' }}
-                          >Remember this</Button>
-                          {handleError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{handleError}</div> : null}
-                        </>
-                      )}
-                    </Destination>
-                  </DestinationGroup>
-                  </div>
-              )}
-            </div>
-          </div>
-        </Modal>
+            <MentorHandoff wporg={wporg} saveDisabled={Boolean(appliedPatch || pullRequest)} onSave={saveForHandoff} />
+          </DestinationGroup>
+        </ReviewDialog>
       )}
-      {isEmailOpen && activeEmail && (
-        <Modal
-          title={activeEmail.subject || 'Email'}
-          onRequestClose={()=>{ setIsEmailOpen(false); setActiveEmail(null); }}
-          shouldCloseOnClickOutside
-          isFullScreen
-        >
-          <div style={{ padding: 8 }}>
-            <div style={{ marginBottom: 8, fontSize:12, color:'#444' }}>
-              <div><strong>From:</strong> {activeEmail.from || ''}</div>
-              <div><strong>To:</strong> {activeEmail.to || ''}</div>
-              {activeEmail.cc ? (<div><strong>CC:</strong> {activeEmail.cc}</div>) : null}
-              <div><strong>Date:</strong> {formatEmailDate(activeEmail)}</div>
-            </div>
-            <TabPanel className="email-tabs" activeClass="is-active" onSelect={(n)=>setEmailViewTab(n)} tabs={[{name:'rendered',title:'Rendered'},{name:'raw',title:'Raw'}]}>
-              {(tab)=> tab.name==='rendered' ? (
-                <div style={{ border:'1px solid #ddd', borderRadius:6, padding:12, minHeight:'60vh', background:'#fff' }}>
-                  {activeEmail.html ? (
-                    <div dangerouslySetInnerHTML={{ __html: String(activeEmail.html) }} />
-                  ) : (
-                    <pre style={{ whiteSpace:'pre-wrap', margin:0 }}>{activeEmail.text || ''}</pre>
-                  )}
-                </div>
-              ) : (
-                <pre style={{ whiteSpace:'pre-wrap', margin:0, background:'#111', color:'#eee', padding:12, borderRadius:6, minHeight:'60vh', overflow:'auto' }}>{activeEmail.raw || activeEmail.text || ''}</pre>
-              )}
-            </TabPanel>
-          </div>
-        </Modal>
+      {mail.activeEmail && (
+        <EmailModal email={mail.activeEmail} onClose={mail.close} />
       )}
     </section>
   );
 }
 
-const root = createRoot(document.getElementById('root'));
-root.render(<App />);
+// The locale loads before the first render, so no string is ever painted in
+// English and then swapped. A failed read leaves the page in English.
+async function loadLocale() {
+  let reply;
+  try {
+    reply = await window.api.getLocale();
+  } catch (err) {
+    // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.
+    console.error('Could not load the locale; showing English:', err);
+  }
+  document.documentElement.lang = applyLocale(reply, { setLocaleData, addFilter });
+  document.documentElement.dir = textDirection(_x);
+  document.title = __('WordPress Contributor Toolkit');
+  // @wordpress/a11y wrote the line a screen reader says before each
+  // announcement at DOM-ready, before there was a locale, so it is written
+  // again in this one (#648).
+  const announcementsIntro = document.getElementById('a11y-speak-intro-text');
+  if (announcementsIntro) announcementsIntro.textContent = __('Notifications');
+}
+
+// The settings load before the first render too, beside the locale (#560):
+// the theme is one of them, and a custom theme painted after a first render
+// in the standard theme of its scheme was a flash of the wrong colours at
+// every launch. A failed read leaves them to be read again once mounted,
+// as they were.
+async function loadSettings() {
+  try {
+    const reply = await window.api.getSettings();
+    return reply?.ok ? reply.settings : null;
+  } catch (err) {
+    // eslint-disable-next-line no-console -- see the note in loadLocale.
+    console.error('Could not read the settings before the first render:', err);
+    return null;
+  }
+}
+
+// Under the design system's provider, in the theme the window is in (#560):
+// see app-theme.jsx. The settings are held here, above the provider, since
+// the theme is one of them; the app is handed what was read.
+function Root({ initialSettings }) {
+  const settingsState = useSettings(initialSettings);
+  return <AppTheme settings={settingsState.settings}><App settingsState={settingsState} /></AppTheme>;
+}
+
+Promise.all([loadLocale(), loadSettings()]).then(([, initialSettings]) => {
+  const root = createRoot(document.getElementById('root'));
+  root.render(<Root initialSettings={initialSettings} />);
+});

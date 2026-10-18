@@ -1,12 +1,19 @@
 'use strict';
 
 /**
- * The two pieces of logic behind the debug.log panel.
+ * The logic behind the debug.log panel: the buffer it keeps, and which of its
+ * lines count as not yet seen.
  *
- * Kept as a pure, dependency-free module so it can be unit tested without a
- * DOM: the renderer bundle imports it, `node --test` requires it directly
- * (same convention as dev-server-command.cjs and setup-steps.cjs).
+ * Kept as a pure module so it can be unit tested without a DOM: the renderer
+ * bundle imports it, `node --test` requires it directly (same convention as
+ * dev-server-command.cjs and setup-steps.cjs).
  */
+
+const { _n, sprintf } = require('@wordpress/i18n');
+
+// The most the footer's badge counts to. Past it the badge says there are
+// more, and the words beside it still say how many.
+const MAX_BADGE_COUNT = 99;
 
 /**
  * How much of the log the panel keeps in memory.
@@ -79,4 +86,54 @@ function countLines(chunk) {
 	return count;
 }
 
-module.exports = { MAX_LOG_CHARACTERS, appendBounded, countLines };
+/**
+ * Whether debug.log's pane is in front of someone, so that a line arriving in
+ * it is seen as it arrives. It is while the Logs are what the tray shows for
+ * the open site and Debug.log is the tab selected in them (#558). A tab left
+ * selected in a tray that is closed, or showing the terminal, or belonging to
+ * a site that is not the open one, is not being read.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.shown]     The site's Logs are on screen.
+ * @param {string}  [root0.activeTab] The tab selected in them.
+ * @return {boolean} A line arriving now is seen.
+ */
+function debugLogOnScreen({ shown = false, activeTab = '' } = {}) {
+	return Boolean(shown) && activeTab === 'debug';
+}
+
+/**
+ * How many unseen lines a chunk adds to the count. None while its pane is in
+ * front of someone, and none for the backlog: what the file already held when
+ * the tail started is shown, and is not news, or every start of the server
+ * would report the last run's notices as unseen.
+ *
+ * @param {string}  chunk            What arrived.
+ * @param {Object}  root0
+ * @param {boolean} [root0.backlog]  The main process says the file held it before the tail started.
+ * @param {boolean} [root0.onScreen] debug.log's pane is in front of someone (`debugLogOnScreen`).
+ * @return {number} Lines to add.
+ */
+function unseenIn(chunk, { backlog = false, onScreen = false } = {}) {
+	if (backlog || onScreen) return 0;
+	return countLines(chunk);
+}
+
+/**
+ * What the footer's Logs button says of lines not yet seen: a number to draw
+ * on it, and the words that say what the number counts, which are the
+ * button's description. Nothing when every line has been seen.
+ *
+ * @param {number} count The lines that arrived unseen.
+ * @return {?{badge: string, note: string}} What to show, or null.
+ */
+function unseenLinesNote(count) {
+	if (!Number.isInteger(count) || count <= 0) return null;
+	return {
+		badge: count > MAX_BADGE_COUNT ? `${MAX_BADGE_COUNT}+` : String(count),
+		// translators: %d: a number of lines. "Debug.log" is the name of a tab and of the file it shows, and stays as it is.
+		note: sprintf(_n('%d unseen line in Debug.log', '%d unseen lines in Debug.log', count), count)
+	};
+}
+
+module.exports = { MAX_LOG_CHARACTERS, MAX_BADGE_COUNT, appendBounded, countLines, debugLogOnScreen, unseenIn, unseenLinesNote };

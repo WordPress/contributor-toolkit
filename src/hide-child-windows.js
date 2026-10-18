@@ -22,9 +22,17 @@
 // the patch ran, which is exactly the kind of thing nobody should have to
 // reason about. "Hide the console flashes everywhere, once at startup" is the
 // plausible-looking change that reinstates that bug; the ipc-wiring suite
-// asserts main.js does not make it. Only the four runners — install, script,
-// server, playground-web — take this patch, and only because they load npm's or
-// Playground's CLI in-process.
+// asserts main.js does not make it. The four runners — install, script,
+// server, playground-web — take this patch because they load npm's or
+// Playground's CLI in-process; and since #497 so does every Node process below
+// them, through the win-spawn-patch.js preload, which requires the copy of this
+// file that ensureNodeShimDir() puts beside it. Those descendants are Electron
+// running as Node, consoleless like the runners, and Gutenberg's build scripts
+// spawn cmd.exe from one of them (cross-spawn around the tsc and wp-build .cmd
+// stubs) — without this, each of those was a visible black window.
+//
+// Self-contained (child_process only): the copy in the shim dir has no
+// neighbours from src/ but the patch itself.
 
 const PATCHED = Symbol.for('wp-dev-env.windowsHidePatched');
 

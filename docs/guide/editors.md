@@ -2,7 +2,7 @@
 
 The app is not an editor. To change WordPress code you open the site's directory in whatever editor you already use, and the site header gives you one control for that.
 
-![The site view, with the site path and the Open directory in menu in the header](/screenshots/site-view.png)
+![The site view, with the site's path under Local path in the details and the site's menu button at the end of the page's header](/screenshots/site-view.png)
 
 ## The Open directory in menu
 
@@ -37,4 +37,4 @@ If an application fails to open the directory — it was uninstalled, or the lau
 
 ## What to edit
 
-WordPress source lives under `src/` in the site directory. While the [build watch](./running-the-site#the-build-watch) is running, your edits are rebuilt into `build/` as you save them. It runs on its own control, so it does not need the dev server up — though starting the server starts it too. When your change is ready, see [Submitting changes](./submitting-changes).
+The source you edit lives in the site directory: under `src/` on a WordPress Core site, under `packages/` on a Gutenberg site. While the [build watch](./running-the-site#the-build-watch) is running, your edits are rebuilt into `build/` as you save them. It runs on its own control, so it does not need the dev server up. On a WordPress Core site starting the server starts it too; on a built Gutenberg site the server starts without it, so start it yourself when you want `packages/` edits compiled on save. When your change is ready, see [Submitting changes](./submitting-changes).

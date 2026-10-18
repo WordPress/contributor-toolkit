@@ -3,7 +3,10 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { planDevServerStart, formatElapsed, watchTabLabel } = require('../../src/renderer/dev-server-command.cjs');
+const { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } = require('../../src/renderer/dev-server-command.cjs');
+const { getProjectType } = require('../../src/project-type.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 test('a built site skips the build and goes straight to the watcher (issue #72)', () => {
 	const plan = planDevServerStart({ hasBuilt: true });
@@ -30,6 +33,127 @@ test("the watcher args carry npm's `--` separator explicitly", () => {
 
 	assert.strictEqual(plan.watch.args[0], '--');
 	assert.ok(plan.watch.args.indexOf('_watch') > plan.watch.args.indexOf('--'), '`_watch` must come after the separator');
+});
+
+// The watcher is the target's (#251). A Gutenberg site runs its own
+// incremental watcher and must not inherit Core's `--` passthrough: `npm run
+// dev -- _watch` would hand Gutenberg's build script an argument it does not
+// know.
+test("a Gutenberg site's watcher is npm run dev, with no passthrough separator", () => {
+	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('gutenberg').build);
+
+	assert.strictEqual(plan.watch.script, 'dev');
+	assert.deepStrictEqual(plan.watch.args, []);
+	assert.strictEqual(plan.watch.label, 'npm run dev');
+	assert.strictEqual(plan.needsBuild, false);
+});
+
+// Gutenberg's `npm run dev` removes build/ and rebuilds it before it watches,
+// writing the PHP registries lib/ calls into last (#488). The plan carries the
+// line that says that build is done, so the server start can wait for it.
+test("a Gutenberg site's watcher is not ready until it prints that it is watching", () => {
+	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('gutenberg').build);
+
+	assert.strictEqual(plan.watch.readyPattern, 'Watching for changes');
+});
+
+// Core's grunt _watch touches nothing on start; a server behind it is safe at
+// once, and a pattern there would make it wait for a line grunt never prints.
+test("Core's watcher has no ready pattern, so the server starts with it", () => {
+	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('core').build);
+
+	assert.strictEqual(plan.watch.readyPattern, null);
+	assert.strictEqual(createWatchReadyDetector(plan.watch.readyPattern).immediate, true);
+});
+
+// A built Gutenberg site has nothing to gain from the watch before the server:
+// `npm run dev` would remove build/ and rebuild it (20 s on macOS, minutes on
+// Windows, #499) to arrive at the same build/ the site already has. The server
+// starts at once, and the watch is left for Start build watch or an apply.
+test('a built Gutenberg site with no watch starts the server without it (#499)', () => {
+	const build = getProjectType('gutenberg').build;
+
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'idle' }, build), true);
+	// A paused watch is an apply building on its own; serving meanwhile is fine.
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'paused' }, build), true);
+});
+
+// Without a completed build there is nothing to serve: the one-shot build and
+// the watch come first, and the server waits for the ready line as before.
+test('an unbuilt Gutenberg site still builds and watches before the server', () => {
+	const build = getProjectType('gutenberg').build;
+
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: false, watchState: 'idle' }, build), false);
+	assert.strictEqual(planDevServerStart({ hasBuilt: false }, build).needsBuild, true);
+});
+
+// A watch already up is used as it is: the server hangs off its readiness,
+// ready at once when it is watching, after the rebuild when it is building.
+test('a Gutenberg watch that is watching or building is not bypassed', () => {
+	const build = getProjectType('gutenberg').build;
+
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'watching' }, build), false);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'building' }, build), false);
+});
+
+// The status's "built" is one marker file, and a rebuild that was cut short
+// (the watch stopped or crashed while building) can leave that file in place
+// with the rest of build/ missing. The watch goes first there and completes
+// build/, as it did before #499; the marker is not trusted over the history.
+test('a Gutenberg build cut short sends the watch first again', () => {
+	const build = getProjectType('gutenberg').build;
+
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'exited' }, build), false);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'idle', buildInterrupted: true }, build), false);
+});
+
+// Core's watch is free (no pattern, touches nothing on start), so it keeps
+// starting with the server: src/ edits compile on save from the first click.
+test('a built Core site keeps starting the watch with the server', () => {
+	const build = getProjectType('core').build;
+
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'idle' }, build), false);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'paused' }, build), false);
+});
+
+test('with no pattern the detector is ready before any output', () => {
+	const detector = createWatchReadyDetector(null);
+
+	assert.strictEqual(detector.immediate, true);
+	assert.strictEqual(detector.ready, true);
+	assert.strictEqual(detector.feed('anything'), false, 'an immediate detector never fires from output');
+});
+
+test('with a pattern the detector waits for it and fires once', () => {
+	const detector = createWatchReadyDetector('Watching for changes');
+
+	assert.strictEqual(detector.immediate, false);
+	assert.strictEqual(detector.ready, false);
+	assert.strictEqual(detector.feed('🔨 Starting development build...\n'), false);
+	assert.strictEqual(detector.feed('✅ Initial build completed! (19s)\n'), false, 'the orchestrator\'s own line comes before wp-build is watching');
+	assert.strictEqual(detector.feed('\n👀 Watching for changes...\n'), true);
+	assert.strictEqual(detector.ready, true);
+	assert.strictEqual(detector.feed('👀 Watching for changes...\n'), false, 'wp-build prints the line after every rebuild; the server must start once');
+});
+
+// The pipe delivers whatever it has; the line can arrive in two pieces.
+test('the detector sees a pattern split across two chunks', () => {
+	const detector = createWatchReadyDetector('Watching for changes');
+
+	assert.strictEqual(detector.feed('👀 Watching for'), false);
+	assert.strictEqual(detector.feed(' changes...\n'), true);
+});
+
+test('the detector does not grow with output it has ruled out', () => {
+	const detector = createWatchReadyDetector('Watching for changes');
+	for (let i = 0; i < 10000; i++) detector.feed('a line of build output that is not the one\n');
+
+	assert.strictEqual(detector.ready, false);
+	assert.strictEqual(detector.feed('Watching for changes'), true);
+});
+
+test('a caller that passes no build config gets Core, the same plan every site got before', () => {
+	assert.deepStrictEqual(planDevServerStart({ hasBuilt: true }), planDevServerStart({ hasBuilt: true }, getProjectType('core').build));
 });
 
 test('missing flags behave as unbuilt, never as built', () => {
@@ -66,29 +190,46 @@ test('formatElapsed clamps negatives and non-numbers to 0s', () => {
 });
 
 // The watcher runs decoupled from the dev server (issue #247), so its tab title
-// is the only place its state is shown. Each lifecycle state gets its own label.
+// says its state beside its output. Each lifecycle state gets its own label.
 test('watchTabLabel names each watcher lifecycle state', () => {
-	assert.strictEqual(watchTabLabel('idle'), 'Build watcher');
-	assert.strictEqual(watchTabLabel('watching'), 'Build watcher (watching)');
-	assert.strictEqual(watchTabLabel('building'), 'Build watcher (building)');
-	assert.strictEqual(watchTabLabel('paused'), 'Build watcher (paused)');
+	assert.strictEqual(watchTabLabel('idle'), 'Build watch');
+	assert.strictEqual(watchTabLabel('watching'), 'Build watch (watching)');
+	assert.strictEqual(watchTabLabel('building'), 'Build watch (building)');
+	assert.strictEqual(watchTabLabel('paused'), 'Build watch (paused)');
+});
+
+// While the watch compiles a change just applied, the tab says so; the
+// contributor is told to wait for it to go quiet (#492).
+test('watchTabLabel says compiling only on a watching watch', () => {
+	assert.strictEqual(watchTabLabel('watching', null, true), 'Build watch (compiling)');
+	assert.strictEqual(watchTabLabel('watching', null, false), 'Build watch (watching)');
+	assert.strictEqual(watchTabLabel('building', null, true), 'Build watch (building)');
+	assert.strictEqual(watchTabLabel('paused', null, true), 'Build watch (paused)');
+	assert.strictEqual(watchTabLabel('idle', null, true), 'Build watch');
 });
 
 test('watchTabLabel shows the exit code when the watcher has exited', () => {
-	assert.strictEqual(watchTabLabel('exited', 0), 'Build watcher (exited 0)');
-	assert.strictEqual(watchTabLabel('exited', 1), 'Build watcher (exited 1)');
+	assert.strictEqual(watchTabLabel('exited', 0), 'Build watch (exited 0)');
+	assert.strictEqual(watchTabLabel('exited', 1), 'Build watch (exited 1)');
 });
 
 // A watcher we killed on purpose (pause, dev-server stop) has no meaningful
 // exit code to show — 'stopped' reads better than 'exited null'.
 test('watchTabLabel falls back to "stopped" when the exit code is unknown', () => {
-	assert.strictEqual(watchTabLabel('exited'), 'Build watcher (stopped)');
-	assert.strictEqual(watchTabLabel('exited', null), 'Build watcher (stopped)');
-	assert.strictEqual(watchTabLabel('exited', NaN), 'Build watcher (stopped)');
+	assert.strictEqual(watchTabLabel('exited'), 'Build watch (stopped)');
+	assert.strictEqual(watchTabLabel('exited', null), 'Build watch (stopped)');
+	assert.strictEqual(watchTabLabel('exited', NaN), 'Build watch (stopped)');
 });
 
 // An unknown state must never blank the tab or throw — it stays identifiable.
 test('watchTabLabel falls back to the bare name for unknown states', () => {
-	assert.strictEqual(watchTabLabel(undefined), 'Build watcher');
-	assert.strictEqual(watchTabLabel('bogus'), 'Build watcher');
+	assert.strictEqual(watchTabLabel(undefined), 'Build watch');
+	assert.strictEqual(watchTabLabel('bogus'), 'Build watch');
+});
+
+test('watchTabLabel is translated when it is read, the exit code put into it (#627)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	assert.strictEqual(watchTabLabel('paused'), pseudoLocalize('Build watch (paused)'));
+	assert.strictEqual(watchTabLabel('exited', 2), pseudoLocalize('Build watch (exited %d)').replace('%d', '2'));
 });

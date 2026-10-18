@@ -1,6 +1,43 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Subscribe before invoking: a validation refusal can arrive before the reply
+// carrying its id. Keep those early events until the id is known, then apply
+// the same correlation as later events. Never expose the Electron event.
+async function runPullRequest(channel, idKey, args, onLog, onDone) {
+	let id;
+	let pending = [];
+	const cleanup = () => {
+		ipcRenderer.removeListener(`${channel}:log`, logHandler);
+		ipcRenderer.removeListener(`${channel}:done`, doneHandler);
+	};
+	const deliver = (done, payload) => {
+		if (id === undefined) { pending.push([done, payload]); return; }
+		if (payload[idKey] !== id) return;
+		if (done) {
+			cleanup();
+			if (onDone) onDone(payload);
+		} else if (onLog) onLog(payload);
+	};
+	const logHandler = (_e, payload) => deliver(false, payload);
+	const doneHandler = (_e, payload) => deliver(true, payload);
+	ipcRenderer.on(`${channel}:log`, logHandler);
+	ipcRenderer.on(`${channel}:done`, doneHandler);
+	try {
+		const reply = await ipcRenderer.invoke(channel, ...args);
+		id = reply[idKey];
+		for (const [done, payload] of pending) deliver(done, payload);
+		pending = [];
+		return reply;
+	} catch (e) {
+		cleanup();
+		throw e;
+	}
+}
+
 contextBridge.exposeInMainWorld('api', {
+	previewPullRequest: (sitePath, number) => ipcRenderer.invoke('git:preview-pr', sitePath, number),
+	checkoutPullRequest: (sitePath, number, onLog, onDone) => runPullRequest('git:checkout-pr', 'checkoutId', [sitePath, number], onLog, onDone),
+	leavePullRequest: (sitePath, onLog, onDone) => runPullRequest('git:leave-pr', 'leaveId', [sitePath], onLog, onDone),
 	// Only so the window can name things the way the platform does — "Show in
 	// Finder" against "Show in Explorer". Nothing branches on it in the main
 	// process, where `process.platform` is read directly.
@@ -61,6 +98,33 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	setContributionEvent: (ref) => ipcRenderer.invoke('provenance:set-event', ref)
 ,
+	// The app's settings (#559), app-wide like the two above. `setSetting`
+	// writes one, checked by main, and answers with all of them as they
+	// then are, or with why not.
+	getSettings: () => ipcRenderer.invoke('settings:get')
+,
+	setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value)
+,
+	// The languages the app can show, for the settings; and the relaunch a
+	// change of language takes.
+	listLanguages: () => ipcRenderer.invoke('i18n:languages')
+,
+	relaunch: () => ipcRenderer.invoke('app:relaunch')
+,
+	// The PHP versions a site's server can run on, for the settings.
+	listPhpVersions: () => ipcRenderer.invoke('playground:php-versions')
+,
+	// The sites whose server or watch the last quit stopped and is to start
+	// again (#559). Read once: the list is forgotten as it is read.
+	takeResumeList: () => ipcRenderer.invoke('sites:resume')
+,
+	// The menu's "Settings…" asked for the dialog.
+	subscribeSettingsOpen: (handler) => {
+		const h = () => handler && handler();
+		ipcRenderer.on('settings:open', h);
+		return () => ipcRenderer.removeListener('settings:open', h);
+	}
+,
 	showSiteInFileManager: (sitePath) => ipcRenderer.invoke('dir:show', sitePath)
 ,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)
@@ -76,6 +140,10 @@ contextBridge.exposeInMainWorld('api', {
 	listBranches: (sitePath) => ipcRenderer.invoke('branches:list', sitePath)
 ,
 	switchBranch: (sitePath, ref) => ipcRenderer.invoke('branches:switch', sitePath, ref)
+,
+	// The active ticket's work moved onto the current trunk (#385); progress
+	// rides the switch channel.
+	rebaseBranch: (sitePath) => ipcRenderer.invoke('branches:rebase', sitePath)
 ,
 	deleteBranch: (sitePath, ref) => ipcRenderer.invoke('branches:delete', sitePath, ref)
 ,
@@ -99,6 +167,21 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('ticket:carried-work', h);
 	}
 ,
+	// A ticket handed to the app by a `wpct://` link (#464). Subscribe first,
+	// then call `deepLinkReady` — main holds a ticket that arrived during
+	// startup until that call, because a send to a page still loading is
+	// dropped silently.
+	subscribeDeepLinkTicket: (handler) => {
+		const h = (_e, payload) => handler && handler(payload);
+		ipcRenderer.on('deep-link:ticket', h);
+		return () => ipcRenderer.removeListener('deep-link:ticket', h);
+	}
+,
+	deepLinkReady: () => ipcRenderer.invoke('deep-link:ready')
+,
+	// The locale and its catalog, read once before the first render.
+	getLocale: () => ipcRenderer.invoke('i18n:locale')
+,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
 		ipcRenderer.on('download:progress', h);
@@ -110,8 +193,6 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on('download:status', h);
 		return () => ipcRenderer.removeListener('download:status', h);
 	}
-,
-	createPatchWindow: (sitePath) => ipcRenderer.invoke('git:create-patch', sitePath)
 ,
 	getPatch: (sitePath) => ipcRenderer.invoke('git:get-patch', sitePath)
 ,
@@ -190,8 +271,6 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	listTicketPatches: (sitePath) => ipcRenderer.invoke('git:list-ticket-patches', sitePath)
 ,
-	fetchPrDiff: (number) => ipcRenderer.invoke('git:fetch-pr-diff', number)
-,
 	listTracAttachments: (sitePath) => ipcRenderer.invoke('trac:list-attachments', sitePath)
 ,
 	fetchTracAttachment: (url) => ipcRenderer.invoke('trac:fetch-attachment', url)
@@ -234,7 +313,7 @@ contextBridge.exposeInMainWorld('api', {
 	// path, and only the main process can compose it correctly on both platforms.
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {
-			if (payload.sitePath === sitePath && onData) onData(payload.data);
+			if (payload.sitePath === sitePath && onData) onData(payload.data, { backlog: Boolean(payload.backlog) });
 		};
 		ipcRenderer.on('wp:debug-log:data', handler);
 		const started = await ipcRenderer.invoke('wp-debug:start', sitePath);
@@ -260,11 +339,14 @@ contextBridge.exposeInMainWorld('api', {
 		const urlHandler = (_e, payload) => {
 			if (payload.sitePath === sitePath && onUrl) onUrl(payload.url);
 		};
+		const cleanup = () => {
+			ipcRenderer.removeListener('playground:log', logHandler);
+			ipcRenderer.removeListener('playground:url', urlHandler);
+			ipcRenderer.removeListener('playground:stopped', stoppedHandler);
+		};
 		const stoppedHandler = (_e, payload) => {
 			if (payload.sitePath === sitePath) {
-				ipcRenderer.removeListener('playground:log', logHandler);
-				ipcRenderer.removeListener('playground:url', urlHandler);
-				ipcRenderer.removeListener('playground:stopped', stoppedHandler);
+				cleanup();
 				if (onStopped) onStopped();
 			}
 		};
@@ -272,8 +354,15 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on('playground:url', urlHandler);
 		ipcRenderer.on('playground:stopped', stoppedHandler);
 
-		// Invoke AFTER listeners are attached so early logs/URL are captured
-		return await ipcRenderer.invoke('playground:start', sitePath);
+		// Invoke AFTER listeners are attached so early logs/URL are captured.
+		// A start that throws has no server, so no 'stopped' is coming to
+		// remove them: left on, they answer the site's next server too (#604).
+		try {
+			return await ipcRenderer.invoke('playground:start', sitePath);
+		} catch (e) {
+			cleanup();
+			throw e;
+		}
 	},
 	stopServer: async (sitePath) => {
 		return await ipcRenderer.invoke('playground:stop', sitePath);
@@ -339,4 +428,3 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('smtp:started', h);
 	}
 });
-

@@ -3,9 +3,14 @@
 
 const path = require('path');
 const { hideChildWindows } = require('./hide-child-windows');
+const { provideShake256 } = require('./electron-node-compat');
 
 // Must run before npm's CLI is required — install scripts spawn cmd.exe too.
 hideChildWindows();
+// npm's isolated installer hashes with SHAKE256, which Electron lacks. This
+// process loads npm itself rather than through the shim, so it never gets the
+// preload. See electron-node-compat.js.
+provideShake256();
 
 async function main() {
 	const targetDir = process.argv[2];

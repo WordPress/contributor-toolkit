@@ -1,5 +1,8 @@
 'use strict';
 
+const { __, sprintf } = require('@wordpress/i18n');
+const { getProjectType } = require('../project-type.cjs');
+
 /**
  * Derives the done/ready/disabled state of every step in the site setup
  * checklist.
@@ -31,8 +34,21 @@ function computeSetupStepState(flags = {}) {
 	// node_modules existing is not evidence the install succeeded: a failed
 	// install leaves a partial one behind, and treating that as a completed
 	// step disabled the retry and unlocked a build that could not work (#42).
-	// The recorded outcome of the last install run overrides existence.
-	const installOk = hasNodeModules && !installFailed;
+	// The recorded outcome of the last install run overrides existence. So
+	// does an install still running: a status refresh mid-install (switching
+	// back to the window is enough) sees a half-written node_modules, and
+	// read it as done, with the build unlocked over it (#495).
+	const installOk = hasNodeModules && !installFailed && !installing;
+	// The same for the build: "built" is one marker file, and on Gutenberg
+	// that file (block-library's bundle) lands mid-way through npm run build,
+	// with later phases still writing build/. A status refresh during the
+	// build read the step as done and unlocked the server over a half-written
+	// build/ (#502). A build still running overrides the marker, and so does
+	// one that failed or was stopped: it may have cleaned build/ and rewritten
+	// only part of it, and every build path clears the flag on a later success
+	// (runScript's done handler), so a flag still set means the last attempt
+	// lost, whatever the marker says.
+	const builtOk = hasBuilt && !building && !buildFailed;
 
 	return {
 		download: {
@@ -50,15 +66,15 @@ function computeSetupStepState(flags = {}) {
 			disabled: isPending || statusLoading || installing || installOk || isUpdating
 		},
 		build: {
-			done: hasBuilt,
+			done: builtOk,
 			ready: installOk,
-			failed: buildFailed && !building && !hasBuilt,
-			disabled: statusLoading || building || !installOk || hasBuilt || isUpdating
+			failed: buildFailed && !building,
+			disabled: statusLoading || building || !installOk || builtOk || isUpdating
 		},
 		dev: {
 			done: false,
-			ready: hasBuilt,
-			disabled: statusLoading || starting || !hasBuilt || isUpdating
+			ready: builtOk,
+			disabled: statusLoading || starting || !builtOk || isUpdating
 		}
 	};
 }
@@ -130,15 +146,36 @@ function setupStepStatuses(steps = []) {
 function setupStepLabel(status, isRunning) {
 	switch (status) {
 		case 'complete':
-			return 'Completed';
+			return __('Completed');
 		case 'failed':
-			return 'Failed';
+			return __('Failed');
 		case 'pending':
-			return 'Pending';
+			return __('Pending');
 		case 'locked':
-			return 'Locked';
+			return __('Locked');
 		default:
-			return isRunning ? 'In progress' : 'Ready';
+			return isRunning ? __('In progress') : __('Ready');
+	}
+}
+
+/**
+ * The colour a step's state is said in, as a badge's intent (#557): green
+ * for one that is done, red for one that failed, blue for the one that is
+ * next or under way, and none of them for one still waiting its turn.
+ *
+ * @param {string} status One of complete|failed|current|pending|locked.
+ * @return {string} A badge's intent.
+ */
+function setupStepBadge(status) {
+	switch (status) {
+		case 'complete':
+			return 'stable';
+		case 'failed':
+			return 'high';
+		case 'current':
+			return 'informational';
+		default:
+			return 'draft';
 	}
 }
 
@@ -151,38 +188,51 @@ function setupStepLabel(status, isRunning) {
  * same flags as `computeSetupStepState` so the words and the button state can
  * never disagree.
  *
- * @param {Object} flags The flags computeSetupStepState takes.
+ * `setup` is the registry's `setup` entry for the site's type (#251): what
+ * the build step says before and after it ran. It defaults to Core's, so a
+ * caller that does not know the type reads what every site read before.
+ *
+ * @param {Object} [flags] The flags computeSetupStepState takes.
+ * @param {Object} [setup]
  * @return {{installLabel: string, installDescription: string, buildLabel: string, buildDescription: string}}
  */
-function setupStepCopy(flags = {}) {
+function setupStepCopy(flags = {}, setup = getProjectType().setup) {
 	const state = computeSetupStepState(flags);
 	const installFailed = Boolean(flags.installFailed);
-	const hasBuilt = Boolean(flags.hasBuilt);
+	const hasBuilt = state.build.done;
 
-	let installLabel = 'Install npm dependencies';
-	if (state.install.done) installLabel = 'Dependencies installed';
-	else if (installFailed) installLabel = 'Retry npm install';
+	let installLabel = __('Install npm dependencies');
+	if (state.install.done) installLabel = __('Dependencies installed');
+	else if (installFailed) {
+		// translators: %s: the command that installs dependencies, npm install.
+		installLabel = sprintf(__('Retry %s'), 'npm install');
+	}
 
-	let installDescription = 'Install npm packages so commands can run.';
+	let installDescription = __('Install npm packages so commands can run.');
 	if (state.install.done) {
 		// Once done, this button never re-enables (#182), so the step says where a
 		// later install lives rather than leaving a dead control unexplained.
-		installDescription = 'Installed. Added a dependency to package.json since? Run npm install in the Terminal below.';
+		installDescription = sprintf(
+			// translators: 1: a file name, package.json. 2: the command that installs dependencies, npm install.
+			__('Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.'),
+			'package.json',
+			'npm install'
+		);
 	} else if (state.install.failed) {
 		// A failure the contributor did not start (the chain runs install on its
 		// own now) has to say where the evidence is, or "Failed" is all they get.
-		installDescription = 'The install did not finish. Its output is in the Terminal below — retry when you have read it.';
+		installDescription = __('The install did not finish. Its output is in the Terminal — retry when you have read it.');
 	}
 
-	let buildLabel = 'Run full build';
-	if (hasBuilt) buildLabel = 'Build complete';
-	else if (state.build.failed) buildLabel = 'Retry the build';
+	let buildLabel = __('Run full build');
+	if (hasBuilt) buildLabel = __('Build complete');
+	else if (state.build.failed) buildLabel = __('Retry the build');
 
-	let buildDescription = 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.';
+	let buildDescription = setup.buildDescription;
 	if (hasBuilt) {
-		buildDescription = 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.';
+		buildDescription = setup.builtDescription;
 	} else if (state.build.failed) {
-		buildDescription = 'The build did not finish. Its output is in the Terminal below — retry when you have read it.';
+		buildDescription = __('The build did not finish. Its output is in the Terminal — retry when you have read it.');
 	}
 
 	return { installLabel, installDescription, buildLabel, buildDescription };
@@ -231,5 +281,6 @@ module.exports = {
 	setupStepStatuses,
 	setupStepCopy,
 	setupAutoStartDecision,
-	setupStepLabel
+	setupStepLabel,
+	setupStepBadge
 };

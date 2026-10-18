@@ -1,0 +1,93 @@
+# Re-runs the unit and E2E suites when a pull request's base moves.
+#
+# Moving the base changes a PR's diff without a new commit: a Markdown-only PR stacked on a
+# code PR and moved onto trunk now carries that PR's code, so its stub passes from
+# unit-tests.yml and e2e.yml no longer hold. Those workflows do not listen for `edited`
+# themselves. GitHub reports the newest run of a workflow on a commit as that commit's checks,
+# and a run started by a title or description edit, with nothing to do, skipped every job and
+# left the six required checks "Expected" in place of the passes before it (seen on #675).
+#
+# A re-run is an attempt of the same run, not a newer one, so a title or description edit now
+# starts nothing in those workflows and a base move replaces their results with fresh ones.
+# Their `changes` job reads the PR's file list from the API at run time, so the re-run sees
+# the new base. Everything else in a re-run comes from the original event, including the
+# merge commit the suites check out: the code is tested merged into the old base, which is
+# what every PR run already does once its base branch moves on.
+#
+# Never checks out or runs the PR's code.
+
+name: Re-run on base change
+
+on:
+  pull_request:
+    types: [edited]
+
+permissions: {}
+
+# A second base move cancels this one; the run it starts re-runs whatever this one left
+# behind. Any other edit gets a group of its own, so it cannot cancel a base move.
+concurrency:
+  group: base-change-${{ github.event.pull_request.number }}${{ !github.event.changes.base && format('-{0}', github.run_id) || '' }}
+  cancel-in-progress: true
+
+jobs:
+  rerun:
+    if: github.event.changes.base && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: write
+      pull-requests: read
+    steps:
+      # The latest run for the head, not the latest successful one: that is the run GitHub
+      # reports. One still running may have read the old file list already, so it is
+      # cancelled and re-run rather than left to finish. No run means none is left to re-run,
+      # which on a live PR means one is about to start and will read the new base itself.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          failed=0
+          for workflow in unit-tests.yml e2e.yml; do
+            run=$(gh run list --workflow "$workflow" --event pull_request \
+              --commit "$SHA" --branch "$BRANCH" --limit 1 \
+              --json databaseId,status --jq '.[] | "\(.databaseId) \(.status)"')
+            if [ -z "$run" ]; then
+              echo "$workflow: no run for $SHA."
+              continue
+            fi
+            read -r id status <<< "$run"
+            if [ "$status" != completed ]; then
+              # It may finish between the list and the cancel; the wait covers both.
+              gh run cancel "$id" || true
+              until [ "$(gh run view "$id" --json status --jq .status)" = completed ]; do
+                sleep 10
+              done
+            fi
+            # A push since the base moved has a run of its own, which reads the new base. Re-running
+            # the old head's run would join that run's concurrency group and cancel it. Checked
+            # here, after the wait, because a push can land during it.
+            head=$(gh api "repos/$GH_REPO/pulls/$PR" --jq .head.sha)
+            if [ "$head" != "$SHA" ]; then
+              echo "The head moved to $head since the base changed; its own runs cover the new base."
+              exit "$failed"
+            fi
+            echo "$workflow: re-running run $id."
+            # GitHub refuses to re-run a run older than 30 days. Nothing required fails here, so
+            # say plainly what clears it.
+            if ! gh run rerun "$id"; then
+              echo "::error::Could not re-run $workflow run $id, so its checks still describe the old base. Push a commit, or close and reopen the pull request, to start a fresh run."
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+  # A fork's token is read-only, so it cannot re-run anything.
+  fork:
+    if: github.event.changes.base && github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::This pull request comes from a fork, so its unit and E2E checks were not re-run for the new base. A maintainer can re-run them from the Actions tab, or the author can push a commit."

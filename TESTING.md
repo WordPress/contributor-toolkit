@@ -5,21 +5,22 @@ Everything about tests in this repository: what to run, what the suite is made o
 ## What to run
 
 ```
-npm test                    # the fast suite — layers 1–3, under three seconds
+npm test                    # the fast suite — layers 1–3, a few seconds
 npm run test:e2e            # the app, driven — layer 4, seconds
-npm run lint                # ESLint over the whole repo
+npm run lint                # ESLint over the whole repo, Stylelint over the window's stylesheet
 ```
 
-`npm test` is the one to run without thinking about it. It touches no network: the single suite that needs a Git remote starts a loopback server and serves the repository to itself.
+`npm test` is the one to run without thinking about it. It touches no network: every suite that needs a Git remote reaches a repository on disk over `file://`.
 
 Two more, for when you need them:
 
 ```
 npm run test:electron       # the fast suite again, on the Node that Electron bundles
+npm run test:e2e:hidden     # the journeys without the app taking your screen, see below
 npm run test:e2e:packaged   # the built artifact — needs a build first, see below
 ```
 
-To run one file: `node --test tests/unit/azure-sign.test.cjs`. To run one journey: `npx playwright test --project=journeys -g "switching back"`. A journey opens and closes the app as it goes; there is no headless mode and nothing to turn off. To advance a journey a step at a time instead of letting it run, see [Stepping through a journey by hand](#stepping-through-a-journey-by-hand).
+To run one file: `node --test tests/unit/azure-sign.test.cjs`. To run one journey: `npx playwright test --project=journeys -g "switching back"`. A journey opens and closes the app as it goes. To run the journeys without the app taking your screen, for example while an agent runs them and you keep working, run `npm run test:e2e:hidden` from the repository root, and `npm run test:e2e:hidden -- -g "switching back"` for one journey. It sets `TOOLKIT_HIDE_WINDOWS=1` through `cross-env`, so the same command works in bash, PowerShell and cmd.exe: the window is made hidden, and on macOS the app stays out of the Dock and never takes the focus, though each launch can blink a Dock icon for a moment before the app's own code runs. The Trac window that opens when a journey links a ticket stays hidden too. The variable only works beside the throwaway profile the journeys launch with, so one left exported does nothing to `npm start`. On macOS the journeys pass the same way hidden, because Playwright drives the page and not the screen; nobody has run them hidden on Windows yet, where a hidden window never gets the OS focus. What a hidden run cannot see is the window itself becoming visible and focused, so CI runs them visible and that run is the one of record. To advance a journey a step at a time instead of letting it run, see [Stepping through a journey by hand](#stepping-through-a-journey-by-hand).
 
 ## The five layers
 
@@ -27,12 +28,14 @@ To run one file: `node --test tests/unit/azure-sign.test.cjs`. To run one journe
 
 ```
 tests/
-  unit/            layers 1-3 — npm test — under three seconds
+  unit/            layers 1-3 — npm test — a few seconds
     fixtures/      package.json trees the integration tests copy; not tests themselves
+    helpers/       the bundled-Git driver and fixture builder the Git suites share; not a test either
   e2e/
     journeys/      layer 4 — npm run test:e2e
     packaged/      layer 5 — npm run test:e2e:packaged, and it needs a build first
-    helpers/       the app session fixture and the Git site builder; not tests either
+    real-setup/    opt-in layer 4 — real network setup, manual workflow only
+    helpers/       the app session fixture, the Git site builder and the names of what is on screen; not tests either
 ```
 
 Two directories, because the split that matters is what a test costs to run, not what it covers: everything in `unit/` is a function call, and everything in `e2e/` launches the app. The layers below subdivide that, and the file name says which — a layer-2 test is `*.integration.test.cjs`, and anything under `e2e/` is `*.spec.js`.
@@ -41,7 +44,7 @@ They are listed cheapest first, and that ordering is the rule: **write a test at
 
 **1. Unit** — `tests/unit/`. Starts nothing; calls plain functions. Pure logic: parsing a ticket reference, deriving a status, building a command line. Blind to anything touching disk, a process or a window.
 
-**2. Integration** — the files named `*.integration.test.cjs`. Runs the real modules against real Git repositories in a temporary directory. Proves Git does what the code assumes when it switches a branch, applies a patch or updates trunk. Blind to everything above the module boundary.
+**2. Integration** — the files named `*.integration.test.cjs`. Runs the real modules against real Git repositories, or real processes, in a temporary directory. Proves Git does what the code assumes when it switches a branch, applies a patch or updates trunk, and that a process tree behaves the way the kill and let-go paths assume (`kill-tree`, `orphan-pipe`). Blind to everything above the module boundary.
 
 **3. IPC wiring** — one file, `tests/unit/ipc-wiring.test.cjs`. Loads the real `src/main.js` with `electron` replaced by a double, and exercises every handler: what each returns, what it rejects, what error it gives. Blind to the window, and its store is a stand-in rather than the real one.
 
@@ -53,13 +56,15 @@ Layers 1–3 are `npm test`. Layers 4 and 5 are the two `test:e2e` commands. Tha
 
 ## Where to put a new test
 
-- **A pure function, a derived string, a decision with branches** → layer 1. If it lives inside `src/renderer/index.jsx` today, move it to a `src/renderer/*.cjs` module first: that component mounts at module scope and nothing in the suite can load it, so a decision made there is untestable by construction.
-- **Anything that asks Git a question** → layer 2, against a real repository. There is a local Git server fixture in `tests/unit/trunk-update-fetch.integration.test.cjs` for cases that need a remote, because `isomorphic-git` has no `file://` transport.
+- **A pure function, a derived string, a decision with branches** → layer 1. If it lives inside `src/renderer/index.jsx` today, or in a `.jsx` under `src/renderer/components/` or `src/renderer/hooks/`, move it to a `src/renderer/*.cjs` module first: the entry point mounts at module scope, the rest is JSX and React state, and nothing in the suite can load either, so a decision made there is untestable by construction.
+- **Anything that asks Git a question** → layer 2, against a real repository. A remote is a repository on disk reached over `file://`, as in `tests/unit/git-clone.integration.test.cjs` and `tests/unit/trunk-update-fetch.integration.test.cjs`; nothing starts a server.
 - **A new IPC handler** → layer 3, plus the `contextBridge` entry in `src/preload.js`, which layer 5 checks is actually exposed.
 - **A flow that spans the interface, the main process, Git and the store at once** → layer 4.
 - **Something that can only break during packaging** → layer 5.
 
 Keep layer 4 small on purpose. Every test there costs an app launch, and any assertion that does not need a window belongs one layer down.
+
+**A journey earns its place in the default suite by being a path a contributor walks, not a state someone had to fabricate.** That is the question to ask, rather than whether the bug that prompted it was specific: "update trunk while a ticket is linked, then come back to trunk" is one bug's reproduction and also the crossing of the app's two main flows, so it belongs here; a state reachable only by editing the store by hand, or by failing a checkout part-way, does not, however real the bug. The cost is the reason the bar exists at all — every journey runs on macOS and Windows for every non-draft pull request — so a journey that costs a second and covers a flow is cheap, and one that costs a minute to pin a single branch of one handler is not, and belongs at layer 3 where that branch can be reached directly. When something genuinely needs an app launch but not on every pull request, the opt-in lane below is where it goes: `tests/e2e/real-setup/` runs only from its own manual workflow, and can be pointed at Windows from any machine.
 
 The failures worth layer 4 are the ones that fall *between* the other layers, where every piece works and the whole does not. One example, found while writing the first journeys: the integration tests prove branch switching restores work correctly, and the wiring tests prove the delete handler returns the checkout to trunk when the deleted branch was the current one — but the interface leaves the currently linked ticket out of the list it offers delete controls for, so that branch of the handler cannot be reached by a contributor at all. Three layers passing, one path dead.
 
@@ -88,7 +93,39 @@ npm run test:e2e:packaged
 
 `CSC_IDENTITY_AUTO_DISCOVERY=false` is mandatory on macOS — electron-builder signs during `--dir` without it — and harmless everywhere else. The test tells you if you forgot the build.
 
+Two of its tests read the payload against the allow-list in `build.files` (package.json): the root of `app.asar`, through Electron's own fs from inside the packaged app, and the root of `app.asar.unpacked` on disk, must hold nothing outside that list. That is what keeps a directory from shipping itself: to widen what ships, edit both the list in package.json and the one in `tests/e2e/packaged/smoke.spec.js`, on purpose. CI seeds a signing key, Playwright output, a leftover `dist/` and the VitePress build under `docs/` before packaging so the run proves they stay out (#387, #390). Locally the seeding is not automatic: a checkout that has run the suites or the docs build carries `test-results/` and `docs/.vitepress/dist/` already and a green run proves the same thing for those two, but `.codesigning` exists only on a signing machine, so the full proof is the CI run.
+
+Every copy of this app shares one bundle identifier, so on macOS several builds are one app as far as the OS is concerned — an installed copy, and a `dist/mac-arm64` build in each worktree. Launch Services resolves a URL scheme to that identifier and then picks a copy itself, which need not be the one whose `Info.plist` claimed the scheme, or even one that carries the feature under test. Testing a `wpct://` link therefore means naming the build: `open -a "<path>/dist/mac-arm64/WordPress Contributor Toolkit.app" "wpct://ticket/62281"`, with every other copy quit first. Clicking a link in a browser, or a bare `open "wpct://…"`, tests whichever copy the OS happens to prefer, and a build with no deep-link code in it answers by doing nothing at all. `grep deep-link ~/Library/Logs/electron-setup-wordpress-core/*.log` says whether the build you meant to test is the one that ran.
+
+Quit the installed app before running it. Since #464 the app takes a single-instance lock, keyed on the user-data directory, and `isPackaged` is true here — so the artifact uses the same real profile as an installed copy and quits on startup if one is already open. The failure looks like packaging and is not. The journeys are unaffected: each runs on its own throwaway profile through `TOOLKIT_USER_DATA_DIR`. `npm run shots` is affected in the same way as the packaged test, because its live tier launches against the real profile too.
+
 Neither end-to-end command downloads a browser. The only thing they launch is the Electron already in the tree, which is why CI has no `playwright install` step. The one exception is the Inspector, and it is opt-in — see above.
+
+## Running a real setup on demand
+
+The **[Real WordPress setup](.github/workflows/real-setup.yml)** workflow is manual only: it never runs on a pull request, push or schedule, and is not a required PR check. Once the workflow exists on `trunk`, open **Actions → Real WordPress setup → Run workflow**, select the branch to test and choose macOS, Windows or both. Download the `playwright-real-setup-<platform>` artifact to read the HTML report and app log; failures also include the fixture's screenshot, settings and trace.
+
+This drives the source app through **Create site**, lets it clone the current `wordpress-develop` and automatically install dependencies and build, then starts the dev server and checks that PHP serves the WordPress login form over HTTP. Only the native folder chooser is answered by the harness; Git, npm, the build and the server are real. It uses a throwaway profile and site directory, closes the app and attempts to remove those directories afterwards. Forced cancellation can interrupt cleanup; hosted runners are disposable. It does not test the signed installer or the native folder dialog itself.
+
+Allow tens of minutes, network access and several GB of free disk. The test has a 45-minute limit, the job has a 60-minute limit including dependency installation, and there are no automatic retries. GitHub, npm or upstream WordPress changes can break a run without a Toolkit regression; inspect the failed step and logs before assigning a cause. No WordPress checkout or site dependency cache is reused between runs.
+
+To run locally, install this worktree's dependencies and run `npm run build:once`, then opt in explicitly:
+
+```sh
+# macOS / POSIX shell
+TOOLKIT_REAL_SETUP=1 npx --no-install playwright test --config tests/e2e/real-setup.config.js
+```
+
+```powershell
+# Windows PowerShell
+$env:TOOLKIT_REAL_SETUP = '1'
+npx --no-install playwright test --config tests/e2e/real-setup.config.js
+Remove-Item Env:TOOLKIT_REAL_SETUP
+```
+
+The separate config keeps this test out of both default Playwright projects and `npm test`; without the environment opt-in, even an explicit run of this config skips the network setup.
+
+This is also the only test that starts the Playground server on Electron's bundled Node. Nothing that runs on a pull request does: the packaged smoke never clicks **Start development server**, the journeys that do (in `mail.spec.js` and `logs.spec.js`, to bring the mail list and the logs to life, in `dev-server.spec.js`, for the button itself, in `site-links.spec.js`, to show the links to the site, in `auto-start.spec.js`, for the settings that start it, and in `i18n.spec.js`, to read what it shows in the pseudo-locale) answer the server's start with a stub in place of the handler, and the unit suite reaches the server handler only with a stubbed `child_process`. A crash inside that child, such as the V8 WebAssembly fault that Electron 43.7.0 introduced on Apple Silicon (see the Electron pin in AGENTS.md), passes every automatic check. So any change to the `electron` version, or to `src/server-runner.js` and what it loads, needs this workflow run on macOS, or a manual **Start development server** on an Apple Silicon Mac, and the pull request should say which. A plain php-wasm run does not reproduce that crash; it needs the full Playground boot against a real WordPress build, which is why it lives here and not at layer 2.
 
 ## Auditing an end-to-end test
 
@@ -168,11 +205,13 @@ For an Electron test that trace is an action log rather than a replay: each step
 
 A failing journey also attaches the screen at the moment it failed and the state the app had persisted, because the interesting half of a failure in this app is usually on disk rather than on screen. In CI both come back as a workflow artifact.
 
+A launch that gives the test no window has no screen to attach, so its error carries what the main process said of itself instead: whether Electron became ready, and each window it had with its address and whether its page was still loading or had crashed. "did not answer" in its place means the main process could still be reached and gave nothing back in five seconds, most likely because it was stuck; "could not be asked", with the reason, means it could not be reached at all, which is what an app that exited during its launch looks like. Whichever it is, an app still running five seconds after it was asked to quit is ended by force, so one such launch costs its test a retry and not the run.
+
 ## What CI runs
 
 Three workflows, on every pull request and on push to `trunk`. None needs a secret.
 
-**[`lint.yml`](.github/workflows/lint.yml)** — `eslint . --max-warnings=0` over the whole repo. It installs with `npm ci --ignore-scripts`, so linting never executes the pull request's code.
+**[`lint.yml`](.github/workflows/lint.yml)** — `eslint . --max-warnings=0` over the whole repo, then `stylelint` over `src/renderer/shell.css`, where the rules are about tokens and colours and nothing else: a design-system token that is used has to exist, is not given a value here and is written with no fallback beside it, and a colour is never written by hand. A gap or a font that is not a token passes. `tests/unit/stylelint-config.test.cjs` runs the configuration over styles that must pass and styles that must not. It installs with `npm ci --ignore-scripts`, so linting never executes the pull request's code.
 
 **[`unit-tests.yml`](.github/workflows/unit-tests.yml)** — layers 1–3 on macOS and Windows, and on each platform **twice**: once on the system Node pinned in `.nvmrc`, once on the Node that Electron bundles. That second pass is not redundant. Child processes in this app run on Electron's own Node, and the two versions are set independently and have drifted before (#37/#46).
 
@@ -184,7 +223,11 @@ Every matrix uses `fail-fast: false`, so a Windows failure never hides the macOS
 
 - **`npm test` is separated from the end-to-end suite by filename, not by directory.** `node --test` is run with no path at all, so it walks the whole repository and collects by name: `*.test.cjs` and four other shapes Node treats as test files — `*-test.cjs`, `*_test.cjs`, `test-*.cjs`, `test.cjs`. The journeys are `*.spec.js`, which matches none of them. Now that both suites live under `tests/`, that naming is the only thing keeping them apart, and a file under `tests/e2e/` named any of the five would silently join the fast suite and cost it an app launch. **End-to-end files are `.spec.js`.** The separation is worth defending: the fast suite has to stay something you run without thinking.
 - End-to-end selectors read the text and roles already on screen. No `data-testid` — the visible copy is the contract, and renaming a button is a change worth noticing.
+- Journeys run in the `en-US` locale, the source language, so no translation catalog loads and they read English text as written. The exception is `tests/e2e/journeys/i18n.spec.js`, which launches with `lang: 'en-XA'` (Chromium's pseudo-locale) and fails on any visible text that did not go through `__()`. See [Translatable strings](CONTRIBUTING.md#translatable-strings).
+- What is on screen is named once, in `tests/e2e/helpers/ui.cjs`, for the journeys, the other end-to-end specs and `scripts/screenshots/` alike, so renaming a button or rebuilding a card is one change. It holds every control that more than one of those files reaches, and the locators that find a part of the screen rather than something to press: the rendered app, an entry of the sites list, what a window with no site says, the open site's heading, a card, the work-item card with its heading and its ticket's number, a ticket's row, the question asked before a deletion or a discard, the window's confirmations, and the tray along the bottom of the window with the footer's button for it. A sentence one journey asserts, a button only one journey presses, and a selector only one file needs stay in that file: they are what it is about.
+- No test reads a component's source, the `.jsx` under `src/renderer/`, as text. A test that greps the component for a call, a literal or the order of two strings pins the file rather than the screen: it goes red when the code moves and stays green when the screen is wrong. What is on the page and where, a journey asserts, with order read as document order rather than from bounding boxes (the page scrolls as cards appear). How a component is allowed to be written, a lint rule asserts: `react-hooks/refs` is on for the renderer for that reason, and so are this repository's own two, `toolkit/no-hardcoded-colors` and `toolkit/no-inline-styles`, now that the window is painted from classes in `src/renderer/shell.css` with the design system's tokens. The first reports a hex colour or a function that takes a colour's channels, `rgb()` and the like, written in a string, and the second a `style` attribute on a JSX element. Neither sees a colour's name, or a style that reaches an element some other way; each rule's header says what it does not read. The repository's rules are in `eslint-rules/`, and `tests/unit/eslint-rules.test.cjs` runs each over code that must pass and code that must not, since a rule that stopped reporting would turn nothing else red.
 - Journeys mark each assertion as an **invariant** (must hold under any model of how work is stored) or a **characterisation** (true because of how the app stores things today). A red invariant is a bug; a red characterisation is a prompt to read it and update it deliberately.
+- A journey that needs something only a running process would say, a mail caught or a server's address, says it itself: `webContents.send` from `app.evaluate`, on the channel and in the shape the real sender uses. Check the payload against both ends, the handler in `src/preload.js` and the place `src/main.js` sends it, and say in the test what the stand-in leaves out, such as the store write the real sender makes first. To assert that the page did *not* react, wait until it has heard: after the telling, ask the main process one more question from the page (`window.api.getSitesWithMeta()` is a plain read) and assert once that answer is back. An absence read before then passes whatever the app does.
 - A bugfix's test must fail on the old code. A test written after the fix pins whatever the current behaviour is, rather than the correction.
 - No test counts in this document. A number here is wrong the moment somebody adds a test, and nothing makes it go red — this file already carried a stale one. Say what a layer covers and roughly what it costs; `npm test` prints the total, and it is the only place that can be trusted to.
 

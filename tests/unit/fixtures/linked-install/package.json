@@ -1,0 +1,9 @@
+{
+  "name": "linked-install-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reproduces the 'Digest method not supported' failure from issue #586 without cloning Gutenberg.",
+  "dependencies": {
+    "local-dep": "file:./local-dep"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "local-dep",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A local folder is enough: npm still computes the SHAKE256 store key for it, so the install fails on Electron without the fix, and the test stays offline."
+}

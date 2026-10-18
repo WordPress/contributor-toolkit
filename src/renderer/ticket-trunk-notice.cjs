@@ -1,21 +1,153 @@
 'use strict';
 
+const { __, _n, sprintf } = require('@wordpress/i18n');
+
 /**
- * The intentionally limited 1.0 answer when a ticket predates current trunk.
- * Detection is useful; rewriting a contributor's checkout is not required.
- * The main process performs the recorded-base comparison. Unknown stays silent.
+ * The ticket card's answer when a ticket predates current trunk (#305, #385).
+ * The main process performs the recorded-base comparison; unknown stays
+ * silent. Since the bundled Git the notice offers the move itself, one click
+ * that replays the ticket's work onto trunk (`branches:rebase`), and this
+ * module also words its refusals: a conflict names the files and hands the
+ * contributor the manual path, which is still the way to review the result.
+ *
+ * Every sentence is written once per kind of work item rather than with the
+ * noun spliced in, so a translation can agree with it.
  *
  * @param {Object}             root0
  * @param {string|number|null} root0.ticketId Ticket currently linked.
  * @param {boolean}            root0.behind   Whether its base differs from trunk.
- * @return {{title: string, body: string}|null}
+ * @param {string}             [root0.noun]   What the site calls its work item (#251): `ticket` or `issue`.
+ * @return {{title: string, body: string, action: string}|null}
  */
-function ticketTrunkNotice({ ticketId = null, behind = false } = {}) {
+function ticketTrunkNotice({ ticketId = null, behind = false, noun = 'ticket' } = {}) {
 	if (!ticketId || !behind) return null;
+	if (noun === 'issue') {
+		return {
+			title: __('Trunk has moved since this issue started.'),
+			body: __('Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.'),
+			action: __('Update this issue to the current trunk')
+		};
+	}
 	return {
-		title: 'Trunk has moved since this ticket started.',
-		body: `Newer patches may not apply cleanly. Save a copy of your work, unlink the ticket, delete its work from the site, then link #${ticketId} again to start from the current trunk.`
+		title: __('Trunk has moved since this ticket started.'),
+		body: __('Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.'),
+		action: __('Update this ticket to the current trunk')
 	};
 }
 
-module.exports = { ticketTrunkNotice };
+// Gutenberg has no patch importer. Keep the branch until a mentor can resolve
+// the conflict; deleting it would leave only a copy the app cannot restore.
+function manualPath(ticketId, noun = 'ticket') {
+	if (noun === 'issue') {
+		return __("Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.");
+	}
+	if (!ticketId) {
+		return __('Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.');
+	}
+	return sprintf(
+		// translators: %s: a Trac ticket number.
+		__('Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.'),
+		ticketId
+	);
+}
+
+// One sentence per kind of conflict Git reports, in the contributor's terms
+// (#351). `content` is the classic clash; the other two are what a mentor
+// looking at the same merge would call them, and "changed the same lines"
+// would be false for both. `modify/delete` is the same word whichever side
+// deleted (trunk removing a file the ticket edits, or the ticket removing
+// one trunk edits), so its sentence names no side. Anything Git names that is
+// not listed here (`rename/delete`, `rename/rename`, `distinct types`)
+// reads generically.
+const KIND_SENTENCES = {
+	content: (paths) => sprintf(
+		// translators: %s: the paths of the files in conflict, separated by commas.
+		__('Trunk changed the same lines as your work in: %s.'),
+		paths.join(', ')
+	),
+	'modify/delete': (paths) => sprintf(
+		// translators: %s: the paths of the files in conflict, separated by commas.
+		__('Deleted on one side and changed on the other: %s.'),
+		paths.join(', ')
+	),
+	'add/add': (paths) => sprintf(
+		// translators: %s: the paths of the files in conflict, separated by commas.
+		_n(
+			'Trunk added a file your work also adds, with different content: %s.',
+			'Trunk added files your work also adds, with different content: %s.',
+			paths.length
+		),
+		paths.join(', ')
+	)
+};
+const OTHER_SENTENCE = (paths) => sprintf(
+	// translators: %s: the paths of the files in conflict, separated by commas.
+	__('Trunk and your work disagree in: %s.'),
+	paths.join(', ')
+);
+
+/**
+ * What the panel says when the move is refused.
+ *
+ * @param {Object}             root0
+ * @param {string}             [root0.code]      `rebase-conflict`, `no-base`, `on-trunk`, or anything main returns.
+ * @param {string[]}           [root0.conflicts] Paths, for `rebase-conflict`.
+ * @param {Object}             [root0.kinds]     Path → kind of conflict, for `rebase-conflict`; a path with no kind reads generically.
+ * @param {string}             [root0.error]     Main's sentence, used for codes this module has no words for.
+ * @param {string|number|null} [root0.ticketId]
+ * @param {string}             [root0.noun]      `ticket` or `issue` (#251).
+ * @return {string}
+ */
+function rebaseRefusal({ code = '', conflicts = [], kinds = {}, error = '', ticketId = null, noun = 'ticket' } = {}) {
+	const issue = noun === 'issue';
+	if (code === 'rebase-conflict') {
+		// No paths means Git reported the conflict in a shape the parser did
+		// not read: the one case where the app knows least, so it claims least.
+		if (!conflicts.length) return [__('Trunk and your work disagree.'), __('Nothing was moved.'), manualPath(ticketId, noun)].join(' ');
+		const grouped = new Map();
+		for (const p of conflicts) {
+			// Own property only: a kind that names something inherited
+			// (`constructor`) must not slip into a group nothing renders.
+			const kind = kinds && Object.hasOwn(KIND_SENTENCES, kinds[p]) ? kinds[p] : 'other';
+			if (!grouped.has(kind)) grouped.set(kind, []);
+			grouped.get(kind).push(p);
+		}
+		// Known kinds first, in the order they are declared, so the classic
+		// clash leads when the list is mixed.
+		const sentences = [...Object.keys(KIND_SENTENCES), 'other']
+			.filter((kind) => grouped.has(kind))
+			.map((kind) => (KIND_SENTENCES[kind] || OTHER_SENTENCE)(grouped.get(kind)));
+		return [...sentences, __('Nothing was moved.'), manualPath(ticketId, noun)].join(' ');
+	}
+	if (code === 'no-base') {
+		let unknown;
+		if (ticketId) {
+			unknown = sprintf(
+				// translators: %s: the number of the ticket or issue.
+				__('The app does not know which trunk #%s started from, so it cannot move the work safely.'),
+				ticketId
+			);
+		} else if (issue) {
+			unknown = __('The app does not know which trunk the issue started from, so it cannot move the work safely.');
+		} else {
+			unknown = __('The app does not know which trunk the ticket started from, so it cannot move the work safely.');
+		}
+		return `${unknown} ${manualPath(ticketId, noun)}`;
+	}
+	// Main's sentences for these two name a ticket whatever the site; the
+	// card words them itself so a Gutenberg site reads its own noun (#251).
+	if (code === 'on-trunk') {
+		return issue
+			? __('Link an issue first: trunk is what issues are measured against.')
+			: __('Link a ticket first: trunk is what tickets are measured against.');
+	}
+	if (code === 'not-a-ticket-branch') {
+		return issue
+			? __('Only an issue branch can be moved onto the current trunk.')
+			: __('Only a ticket branch can be moved onto the current trunk.');
+	}
+	if (error) return error;
+	return issue ? __('Could not move the issue onto the current trunk.') : __('Could not move the ticket onto the current trunk.');
+}
+
+module.exports = { ticketTrunkNotice, rebaseRefusal };
