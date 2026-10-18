@@ -74,7 +74,7 @@ import { AppFooter, LogsToggleNote, trayToggleId } from './components/app-footer
 import { BottomTray, SiteTrayActionsFill, SiteTrayFill } from './components/bottom-tray.jsx';
 import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
-import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
+import { SiteContextMenu, SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
@@ -178,6 +178,17 @@ function App({ settingsState }) {
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
   // Whether the sites list is showing. Closed, it gives its width to the page.
   const [sitesListOpen, setSitesListOpen] = useState(true);
+  // A request belongs to the site that was pressed, not necessarily the one
+  // open on the page. The serial makes a second request remount the menu even
+  // when it is for the same site and position.
+  const [siteContextMenu, setSiteContextMenu] = useState(null);
+  const openSiteContextMenu = useCallback((sitePath, position, returnFocus) => {
+    setSiteContextMenu((current) => ({ sitePath, position, returnFocus, serial: (current?.serial || 0) + 1 }));
+  }, []);
+  const closeSiteContextMenu = useCallback(() => {
+    siteContextMenu?.returnFocus?.focus();
+    setSiteContextMenu(null);
+  }, [siteContextMenu]);
   // Whether the open site's details are showing. One answer for the window,
   // not one per site: it is how the contributor likes the page, and it should
   // not change as they move between sites.
@@ -656,6 +667,7 @@ function App({ settingsState }) {
               rows={sitesRows}
               selectedId={openRow ? openRow.id : null}
               onChangeSelection={handleChangeSelection}
+              onContextMenu={openSiteContextMenu}
               onCreateSite={chooseAndSetup}
               creating={createSubmitting}
             />
@@ -729,6 +741,8 @@ function App({ settingsState }) {
                         onToggleDetails={toggleDetails}
                         tray={tray}
                         onShowTray={showTray}
+                        contextMenu={siteContextMenu?.sitePath === s ? siteContextMenu : null}
+                        onCloseContextMenu={closeSiteContextMenu}
                       />
                     </div>
                   ))}
@@ -764,7 +778,7 @@ function App({ settingsState }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -2109,6 +2123,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             reviewCue: cueProps('review-changes')
           } : null}
         />
+      ) : null}
+      {contextMenu ? createPortal(
+        <SiteContextMenu
+          key={contextMenu.serial}
+          position={contextMenu.position}
+          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld }}
+          onMenuOpen={loadDetected}
+          onAction={runSiteMenuAction}
+          onClose={onCloseContextMenu}
+        />,
+        document.body
       ) : null}
       <div className={detailsOpen ? 'dashboard' : 'dashboard is-sidebar-collapsed'}>
       <div className="dashboard-main">

@@ -152,6 +152,21 @@ body {
   background: transparent;
 }
 
+/* A context menu needs a real trigger for the menu library's positioning and
+   focus contract. This one is only its one-pixel anchor at the requested
+   point; the site entry remains the control a contributor presses. */
+.site-context-menu-trigger {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* One line, the dots then the name, cut with an ellipsis when the name is
    too long. The dots are inline boxes and not flex items so that
    `vertical-align: middle` can place them: it centres a box on the parent's
