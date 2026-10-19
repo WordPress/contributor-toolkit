@@ -124,7 +124,8 @@ test('changesNoteParts stays true when the count is missing', () => {
 
 test('changesNoteParts always offers a discard, in the same words', () => {
 	// By the buttons the discard is a link in the sentence; in the card it is
-	// a button, saying what the question's own button says.
+	// a button, saying what its question's own button says. Its question is
+	// the one that keeps an applied patch or a pull request (#669).
 	for (const state of [{ tracTicket: null }, { pullRequest: { number: 7 } }, { tracTicket: null, workItemNoun: 'issue' }]) {
 		for (const changedCount of [undefined, 1, 2]) {
 			const parts = changesNoteParts({ dirty: true, changedCount, ...state });
@@ -133,7 +134,7 @@ test('changesNoteParts always offers a discard, in the same words', () => {
 		}
 	}
 	assert.equal(discardLabel(), 'Discard changes');
-	assert.equal(discardLabel(), discardQuestion().confirm);
+	assert.equal(discardLabel(), discardYourChangesQuestion().confirm);
 });
 
 test('the question before a discard asks it, and its button says what it does', () => {
