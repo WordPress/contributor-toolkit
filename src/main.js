@@ -2511,7 +2511,7 @@ async function prNeedsInstall(sitePath, target) {
 }
 
 // `files` are the paths the pull request changed at this head (#669), the
-// list its preview showed, for "Affected files" while it is checked out.
+// list its preview showed, for "Changed files" while it is checked out.
 // Measured before the store is read, so nothing yields between that read and
 // the write (#172). A head that cannot be described records no list rather
 // than keeping the one an earlier head left.
@@ -3138,7 +3138,7 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const pullRequest = prNumber === null ? null : {
 			number: prNumber, returnTo: work.returnTo || TRUNK, headOid: work.headOid || null,
 			hasEdits: Boolean(work.headOid && (await resolveRef(sitePath, active.ref)) !== work.headOid),
-			// What it changed, for "Affected files" (#669); null for a branch
+			// What it changed, for "Changed files" (#669); null for a branch
 			// checked out before the app recorded it.
 			files: Array.isArray(work.files) ? work.files : null
 		};

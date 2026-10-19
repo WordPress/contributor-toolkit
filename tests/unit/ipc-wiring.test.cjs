@@ -8590,7 +8590,7 @@ test('deleting a return ticket redirects PRs to trunk without changing their hea
 
 // The files the pull request changed, recorded with the head they describe
 // (#669): the same list its preview showed, measured locally from the head
-// the branch was put at, and what "Affected files" lists while it is out.
+// the branch was put at, and what "Changed files" lists while it is out.
 test('git:checkout-pr records the files the pull request changed, and site:status hands them on (#669)', async () => {
 	const describePullRequestHead = spy(async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }, { path: 'src/old.php', kind: 'deleted' }], needsInstall: false, base: 'c'.repeat(40) }));
 	const f = prWiring({ pr: { describePullRequestHead } });

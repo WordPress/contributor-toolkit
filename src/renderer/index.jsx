@@ -973,7 +973,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
-  // A file under "Affected files" (#669): one click, into the first editor
+  // A file under "Changed files" (#669): one click, into the first editor
   // detection finds, or the file manager when it finds none. Detection is asked
   // here rather than read from `detectedEditors`, which holds nothing until the
   // site's menu has been opened once; it stats a dozen paths and spawns nothing.
