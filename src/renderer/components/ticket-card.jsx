@@ -214,6 +214,8 @@ function Attachments({ attachments, onOpen }) {
 export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, unlink, details, staleNotice, feedback, changesNote, banner, pullRequests, pullRequestsRef, attachments, latestIsAttachment }) {
   const words = ticketCardWords(provider);
   const titleId = useId();
+  const readAtId = useId();
+  const refreshId = useId();
   const cardClass = ['ticket-card', cue.className].filter(Boolean).join(' ');
 
   if (!ticketId) {
@@ -288,7 +290,17 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
             </OutLink>
           </Text>
           {facts ? <Facts facts={facts} onOpen={onOpen} /> : null}
-          {readAt ? <Text variant="body-md" className="muted-label">{readAt}</Text> : null}
+          {readAt ? (
+            // The way to read the ticket again, beside when it was read. The
+            // same read as the attachments' Refresh, which fetches both;
+            // named like it, by its word and the text it stands beside.
+            <Stack direction="row" align="center" gap="sm" wrap="wrap">
+              <Text id={readAtId} variant="body-md" className="muted-label">{readAt}</Text>
+              <Button id={refreshId} aria-labelledby={`${refreshId} ${readAtId}`} variant="minimal" tone="neutral" size="compact" loading={details.loading} loadingAnnouncement={__('Opening the ticket on Trac')} onClick={details.onRead}>
+                {__('Refresh')}
+              </Button>
+            </Stack>
+          ) : null}
           {details && !details.info ? (
             <Stack direction="row">
               <Button variant="outline" tone="neutral" size="compact" loading={details.loading} loadingAnnouncement={__('Reading the ticket on Trac')} onClick={details.onRead}>

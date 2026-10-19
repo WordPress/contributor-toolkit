@@ -349,6 +349,7 @@ test( 'the ticket’s details from Trac are still there after a restart, with wh
 	await session.close();
 
 	// The app runs in UTC (helpers/app.cjs), so the time it writes is UTC's.
+	const when = ( iso ) => new Date( iso ).toLocaleString( 'en-US', { timeZone: 'UTC' } );
 	const checkedAt = '2026-10-18T15:30:00.000Z';
 	const { ok, ...read } = FROM_TRAC;
 	session.writeSettings( { ...session.readSettings(), [ `tracRead:${ TICKET }` ]: { checkedAt, ...read } } );
@@ -361,11 +362,20 @@ test( 'the ticket’s details from Trac are still there after a restart, with wh
 
 	// INVARIANT — what was read is shown again, and says when it was read.
 	await expect( card.getByRole( 'button', { name: `#${ TICKET } ${ FROM_TRAC.ticket.summary }`, exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( card.getByText( `Read from Trac ${ new Date( checkedAt ).toLocaleString( 'en-US', { timeZone: 'UTC' } ) }`, { exact: true } ) ).toBeVisible();
+	await expect( card.getByText( `Read from Trac ${ when( checkedAt ) }`, { exact: true } ) ).toBeVisible();
 	await expect( card.getByRole( 'listitem' ).filter( { hasText: `${ TICKET }.diff` } ) ).toBeVisible();
 	await expect( ui.readTicketDetailsButton( card ) ).toHaveCount( 0 );
 
 	// INVARIANT — and Trac was not opened to show it: its window may ask for
 	// the human-check, so it opens only when asked (#109).
 	expect( ( await outside.asked() ).trac ).toBe( 0 );
+
+	// INVARIANT — and beside when it was read is the way to read it again,
+	// which asks Trac once and says the new time. The stand-in answers for
+	// the handler, so it stamps the time the handler would.
+	const later = '2026-10-19T09:15:00.000Z';
+	await outside.tracAnswers( { ...FROM_TRAC, checkedAt: later } );
+	await card.getByRole( 'button', { name: `Refresh Read from Trac ${ when( checkedAt ) }`, exact: true } ).click();
+	await expect( card.getByText( `Read from Trac ${ when( later ) }`, { exact: true } ) ).toBeVisible();
+	expect( ( await outside.asked() ).trac ).toBe( 1 );
 } );
