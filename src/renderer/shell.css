@@ -1605,3 +1605,28 @@ body {
 .change-list li + li {
   margin-block-start: var(--wpds-dimension-gap-xs);
 }
+
+/* A Trac ticket's facts on the work-item card: a label column sized to its
+   longest label, and the values beside it. */
+.ticket-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--wpds-dimension-gap-xs) var(--wpds-dimension-gap-lg);
+  margin: 0;
+}
+
+.ticket-facts dd {
+  margin: 0;
+}
+
+/* The ticket's heading comes first in the page, for a screen reader that
+   jumps to it; its number and status are drawn above it. */
+.ticket-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-sm);
+}
+
+.ticket-heading-above {
+  order: -1;
+}

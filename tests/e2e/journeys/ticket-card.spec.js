@@ -50,7 +50,7 @@ const FROM_TRAC = {
 		milestone: '7.2',
 		component: { label: 'General', url: COMPONENT_URL },
 		keywords: [ { label: 'has-patch', url: 'https://core.trac.wordpress.org/query?keywords=~has-patch' } ],
-		opened: { relative: '4 weeks ago', absolute: 'Sep 1, 2026' },
+		opened: { relative: '4 weeks ago', absolute: '09/01/2026 10:00:00 AM' },
 	},
 	items: [ { filename: `${ TICKET }.diff`, url: ATTACHMENT_URL, applyable: true, author: 'janedoe', dateText: '6 weeks ago', sizeText: '3.2 KB' } ],
 };
@@ -133,9 +133,10 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	await outside.heard();
 	expect( await outside.asked() ).toMatchObject( { prs: 1, trac: 1 } );
 
-	// INVARIANT — the ticket is its number and what Trac calls it, and that
-	// is the way to it on Trac.
-	const ticket = button( `#${ TICKET } ${ FROM_TRAC.ticket.summary }` );
+	// INVARIANT — the ticket is its number and what Trac calls it, said in
+	// that order by its heading, and its title is the way to it on Trac.
+	await expect( card.getByRole( 'heading', { name: `#${ TICKET } ${ FROM_TRAC.ticket.summary }`, exact: true } ) ).toBeVisible();
+	const ticket = button( FROM_TRAC.ticket.summary );
 	await expect( ticket ).toHaveAttribute( 'title', 'Open in Trac' );
 	await ticket.click();
 	await expect.poll( async () => ( await outside.asked() ).opened ).toHaveLength( 2 );
@@ -145,10 +146,14 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	// the facts a contributor would otherwise find out on Trac (#292).
 	await expect( said( 'reviewing' ) ).toBeVisible();
 	await expect( card.getByText( 'defect (bug)' ) ).toBeVisible();
-	await expect( card.getByText( 'Milestone: 7.2' ) ).toBeVisible();
-	await expect( card.getByText( 'Opened 4 weeks ago' ) ).toHaveAttribute( 'title', 'Sep 1, 2026' );
+	// Each fact is a row, its label beside its value.
+	const fact = ( label ) => card.getByRole( 'term' ).filter( { hasText: new RegExp( `^${ label }$` ) } ).locator( 'xpath=following-sibling::dd[1]' );
+	await expect( fact( 'Type' ) ).toHaveText( 'defect (bug)' );
+	await expect( fact( 'Milestone' ) ).toHaveText( '7.2' );
+	await expect( fact( 'Opened' ) ).toHaveText( '09/01/2026 10:00:00 AM' );
+	await expect( fact( 'Keywords' ) ).toHaveText( 'has-patch' );
 	await expect( button( 'has-patch' ) ).toBeVisible();
-	await button( 'Component: General' ).click();
+	await fact( 'Component' ).getByRole( 'button', { name: 'General', exact: true } ).click();
 	await expect.poll( async () => ( await outside.asked() ).opened ).toHaveLength( 3 );
 	expect( ( await outside.asked() ).opened[ 2 ] ).toBe( COMPONENT_URL );
 	// Read, so there is nothing left to read.
@@ -259,7 +264,7 @@ test( 'a site opened with a ticket already linked waits to be asked before it go
 
 	// INVARIANT — asked once, from either place, it fills in both.
 	await ui.readTicketDetailsButton( card ).click();
-	await expect( button( `#${ TICKET } ${ FROM_TRAC.ticket.summary }` ) ).toBeVisible();
+	await expect( button( FROM_TRAC.ticket.summary ) ).toBeVisible();
 	await expect( card.getByRole( 'listitem' ).filter( { hasText: `${ TICKET }.diff` } ) ).toHaveCount( 1 );
 	await expect( ui.readTicketDetailsButton( card ) ).toHaveCount( 0 );
 	await expect( button( 'Show Trac attachments' ) ).toHaveCount( 0 );
@@ -334,4 +339,48 @@ test( 'while the site is being built the card\'s actions are held, say why, and 
 	await expect( ui.ticketField( card ) ).toBeDisabled();
 	await expect( ui.linkTicketButton( card ) ).toBeDisabled();
 	await expect( ui.linkTicketButton( card ) ).toHaveAccessibleDescription( reason );
+} );
+
+// The last read is kept by the main process (#695). The stand-in for Trac
+// answers in place of the handler that saves a read, so the saved read is
+// put in the store by hand, the shape the unit suite proves the handler
+// writes; what this follows is the way back: the store, the channel that
+// reads it, and the card that shows it, without Trac being asked.
+test( 'the ticket’s details from Trac are still there after a restart, with when they were read', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	await standIn( app, page );
+	await ui.linkTicket( page, TICKET );
+	await session.close();
+
+	// The app runs in UTC (helpers/app.cjs), so the time it writes is UTC's.
+	const when = ( iso ) => new Date( iso ).toLocaleString( 'en-US', { timeZone: 'UTC' } );
+	const checkedAt = '2026-10-18T15:30:00.000Z';
+	const { ok, ...read } = FROM_TRAC;
+	session.writeSettings( { ...session.readSettings(), [ `tracRead:${ TICKET }` ]: { checkedAt, ...read } } );
+	let outside;
+	const { page: reopened } = await session.restart( { beforeWindow: async ( relaunched ) => {
+		await install( relaunched );
+		outside = standIns( relaunched, null );
+	} } );
+	const card = ui.workItemCard( reopened, 'Trac ticket' );
+
+	// INVARIANT — what was read is shown again, and says when it was read.
+	await expect( card.getByRole( 'heading', { name: `#${ TICKET } ${ FROM_TRAC.ticket.summary }`, exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( card.getByText( `Read from Trac ${ when( checkedAt ) }`, { exact: true } ) ).toBeVisible();
+	await expect( card.getByRole( 'listitem' ).filter( { hasText: `${ TICKET }.diff` } ) ).toBeVisible();
+	await expect( ui.readTicketDetailsButton( card ) ).toHaveCount( 0 );
+
+	// INVARIANT — and Trac was not opened to show it: its window may ask for
+	// the human-check, so it opens only when asked (#109).
+	expect( ( await outside.asked() ).trac ).toBe( 0 );
+
+	// INVARIANT — and beside when it was read is the way to read it again,
+	// which asks Trac once and says the new time. The stand-in answers for
+	// the handler, so it stamps the time the handler would.
+	const later = '2026-10-19T09:15:00.000Z';
+	await outside.tracAnswers( { ...FROM_TRAC, checkedAt: later } );
+	await card.getByRole( 'button', { name: `Refresh Read from Trac ${ when( checkedAt ) }`, exact: true } ).click();
+	await expect( card.getByText( `Read from Trac ${ when( later ) }`, { exact: true } ) ).toBeVisible();
+	expect( ( await outside.asked() ).trac ).toBe( 1 );
 } );

@@ -47,7 +47,7 @@ import { mergeInProgressNotice } from './merge-in-progress.cjs';
 import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
-import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion } from './changes-note.cjs';
+import { patchReviewContext, changesNoteParts, discardLabel, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
@@ -1737,29 +1737,27 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     }
   });
 
-  // The sentence is one thing wherever it renders; only the wrapper differs.
-  // Its two links are marked in it, so it reaches a translator whole.
-  const changesNoteBody = changesNote ? (
+  // By the buttons the note is one sentence with its two links marked in it,
+  // so it reaches a translator whole. In the ticket card it is a notice with
+  // the same two actions as buttons (below).
+  const discardReason = discardDisabledReason({
+    patchHasChanges: true,
+    isUpdating,
+    installing,
+    building,
+    devServerActive: isDevProcessActive,
+    discarding
+  });
+  const discardErrorText = discardError ? <Text variant="body-sm" className="error-text">{discardError}</Text> : null;
+  const changesNoteBody = changesNote && changesNote.placement === 'buttons' ? (
     <>
       <span>
         {createInterpolateElement(changesNote.sentence, {
           review: <Button variant="link" onClick={openPatchModal} disabled={isUpdating} />,
-          discard: (
-            <DiscardChangesLink
-              onClick={discardAllChanges}
-              reason={discardDisabledReason({
-                patchHasChanges: true,
-                isUpdating,
-                installing,
-                building,
-                devServerActive: isDevProcessActive,
-                discarding
-              })}
-            />
-          )
+          discard: <DiscardChangesLink onClick={discardAllChanges} reason={discardReason} />
         })}
       </span>
-      {discardError ? <Text variant="body-sm" className="error-text">{discardError}</Text> : null}
+      {discardErrorText}
     </>
   ) : null;
 
@@ -1994,8 +1992,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   ) : null;
   const ticketChangesNote = changesNote && changesNote.placement === 'ticket' ? (
     <Stack direction="column" gap="xs">
-      <Text variant="body-md">{changesNoteBody}</Text>
-      <Text variant="body-sm" className="muted-label">{changesNote.unlinkNote}</Text>
+      <Notice.Root intent="info" spokenMessage={SILENT}>
+        <Notice.Title>{changesNote.title}</Notice.Title>
+        <Notice.Description>{changesNote.body}</Notice.Description>
+        <Notice.Actions>
+          <UiButton variant="outline" tone="neutral" size="compact" disabled={isUpdating} onClick={openPatchModal}>{changesNote.review}</UiButton>
+          <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={discardReason} onClick={discardAllChanges}>{discardLabel()}</ReasonedUiButton>
+        </Notice.Actions>
+      </Notice.Root>
+      {discardErrorText}
     </Stack>
   ) : null;
   const patchReadBlocked = isApplying || isUpdating || installing || building || Boolean(applyPreview);
@@ -2269,7 +2274,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             browseUrl: project.workItem.browseUrl
           }}
           unlink={{ onUnlink: unlinkTicket, reason: ticketActionsReason }}
-          details={showTracCards ? { info: tracInfo, loading: tracAttachmentsLoading, onRead: loadTracAttachments } : null}
+          details={showTracCards ? { info: tracInfo, readAt: tracAttachments?.checkedAt || null, loading: tracAttachmentsLoading, onRead: loadTracAttachments } : null}
           staleNotice={staleTicketNotice ? {
             ...staleTicketNotice,
             busy: ticketSaving,
