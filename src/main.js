@@ -2511,6 +2511,13 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
 // Trac attachments (#109/#11). Read on demand: opening a real Trac window can
 // show the proof-of-work challenge, so it happens when the contributor asks,
 // not on every ticket. See src/trac-view.js for the window and scrape.
+//
+// The last read that answered is kept per ticket (#695), facts and
+// attachments together, so a relaunch shows what was read without opening
+// Trac again. Trac tickets only, so the bare number is the key.
+const tracReadKey = (ticketId) => `tracRead:${ticketId}`;
+const TRAC_READ_STATUSES = new Set(['ok', 'no-attachments']);
+
 ipcMain.handle('trac:list-attachments', async (_e, sitePath) => {
     try {
         const s = await getStore();
@@ -2524,10 +2531,36 @@ ipcMain.handle('trac:list-attachments', async (_e, sitePath) => {
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, status: 'no-ticket', items: [] };
         const result = await openAndScrape(ticketId, { backgroundColor: currentTheme().background, hidden: hideWindowsForTests });
-        return { ok: true, ...result };
+        if (TRAC_READ_STATUSES.has(result.status)) {
+            const saved = { checkedAt: new Date().toISOString(), status: result.status, items: result.items, ticket: result.ticket || null };
+            s.set(tracReadKey(ticketId), saved);
+            return { ok: true, ...saved };
+        }
+        // A read that did not answer keeps the last one that did, shown with
+        // its failure and the time it was read, like the pull requests.
+        const saved = s.get(tracReadKey(ticketId));
+        if (!saved) return { ok: true, ...result };
+        return { ok: true, ...result, items: saved.items, ticket: saved.ticket, checkedAt: saved.checkedAt };
     } catch (e) {
         logError('trac:list-attachments', String(e && e.stack ? e.stack : e));
         return { ok: false, status: 'error', items: [], error: String(e) };
+    }
+});
+
+// The last read of the linked ticket, from the store alone: never opens Trac,
+// so the site can show it as it loads, under the on-demand rule above.
+ipcMain.handle('trac:cached-attachments', async (_e, sitePath) => {
+    try {
+        const s = await getStore();
+        const meta = (s.get('siteMeta') || {})[sitePath] || {};
+        if (projectTypeForSite(meta).workItem.provider !== 'trac' || !meta.tracTicket) return null;
+        const saved = s.get(tracReadKey(meta.tracTicket));
+        return saved ? { ok: true, ...saved } : null;
+    } catch (e) {
+        // Nothing to show is what the card shows anyway, with its button to
+        // read the ticket; the log is where the reason goes.
+        logError('trac:cached-attachments', String(e && e.stack ? e.stack : e));
+        return null;
     }
 });
 

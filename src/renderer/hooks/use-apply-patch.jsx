@@ -5,6 +5,7 @@ import { describeApplyFailure, otherPatchCount } from '../apply-conflict.cjs';
 import { applyDoneMessage } from '../confirmations.cjs';
 import { prCheckoutRefusal } from '../pr-checkout.cjs';
 import { savedPrForSwitch } from '../ticket-branch-list.cjs';
+import { tracReadToShow } from '../ticket-card.cjs';
 import { planApplySteps, updateStepStatuses, planWatchImpact, planTicketSwitchImpact, skipInstallMessage, APPLY_STATE_TO_STEP } from '../update-plan.cjs';
 import { applyLines, applyFinishMessage, resumedWatchHandOff } from '../watch-activity.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
@@ -286,6 +287,15 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     setTracAttachmentsLoading(false);
     loadedTicketRef.current = tracTicket;
     loadTicketPatches();
+    // The last read of this ticket, kept by the main process (#695), shown
+    // without opening Trac. Which read wins is tracReadToShow's.
+    if (showTracCards) {
+      const gen = scrapeGenRef.current;
+      window.api.cachedTracAttachments(sitePath).then((saved) => {
+        const sameTicket = gen === scrapeGenRef.current;
+        setTracAttachments((current) => tracReadToShow({ current, saved, sameTicket }));
+      });
+    }
     // Auto-read the ticket's own facts when this ticket was just linked by
     // hand (#292). Only then: the contributor just acted on this ticket, so a
     // human-check window appearing has context. On mount or re-activation the
@@ -299,7 +309,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
       // SiteRow's metaPatchRef.
       if (tracScrapeRef.current) tracScrapeRef.current();
     }
-  }, [tracTicket, isActive, loadTicketPatches, showTracCards, autoReadTicketRef]);
+  }, [tracTicket, isActive, loadTicketPatches, showTracCards, autoReadTicketRef, sitePath]);
 
   // Fetches the PR head through the site's origin and previews its own file
   // list. No diff text crosses the renderer boundary: checkout retains the

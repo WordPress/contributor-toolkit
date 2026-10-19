@@ -50,7 +50,7 @@ const FROM_TRAC = {
 		milestone: '7.2',
 		component: { label: 'General', url: COMPONENT_URL },
 		keywords: [ { label: 'has-patch', url: 'https://core.trac.wordpress.org/query?keywords=~has-patch' } ],
-		opened: { relative: '4 weeks ago', absolute: 'Sep 1, 2026' },
+		opened: { relative: '4 weeks ago', absolute: '09/01/2026 10:00:00 AM' },
 	},
 	items: [ { filename: `${ TICKET }.diff`, url: ATTACHMENT_URL, applyable: true, author: 'janedoe', dateText: '6 weeks ago', sizeText: '3.2 KB' } ],
 };
@@ -146,7 +146,7 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	await expect( said( 'reviewing' ) ).toBeVisible();
 	await expect( card.getByText( 'defect (bug)' ) ).toBeVisible();
 	await expect( card.getByText( 'Milestone: 7.2' ) ).toBeVisible();
-	await expect( card.getByText( 'Opened 4 weeks ago' ) ).toHaveAttribute( 'title', 'Sep 1, 2026' );
+	await expect( card.getByText( 'Opened 09/01/2026 10:00:00 AM' ) ).toBeVisible();
 	await expect( button( 'has-patch' ) ).toBeVisible();
 	await button( 'Component: General' ).click();
 	await expect.poll( async () => ( await outside.asked() ).opened ).toHaveLength( 3 );
@@ -334,4 +334,38 @@ test( 'while the site is being built the card\'s actions are held, say why, and 
 	await expect( ui.ticketField( card ) ).toBeDisabled();
 	await expect( ui.linkTicketButton( card ) ).toBeDisabled();
 	await expect( ui.linkTicketButton( card ) ).toHaveAccessibleDescription( reason );
+} );
+
+// The last read is kept by the main process (#695). The stand-in for Trac
+// answers in place of the handler that saves a read, so the saved read is
+// put in the store by hand, the shape the unit suite proves the handler
+// writes; what this follows is the way back: the store, the channel that
+// reads it, and the card that shows it, without Trac being asked.
+test( 'the ticket’s details from Trac are still there after a restart, with when they were read', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	await standIn( app, page );
+	await ui.linkTicket( page, TICKET );
+	await session.close();
+
+	// The app runs in UTC (helpers/app.cjs), so the time it writes is UTC's.
+	const checkedAt = '2026-10-18T15:30:00.000Z';
+	const { ok, ...read } = FROM_TRAC;
+	session.writeSettings( { ...session.readSettings(), [ `tracRead:${ TICKET }` ]: { checkedAt, ...read } } );
+	let outside;
+	const { page: reopened } = await session.restart( { beforeWindow: async ( relaunched ) => {
+		await install( relaunched );
+		outside = standIns( relaunched, null );
+	} } );
+	const card = ui.workItemCard( reopened, 'Trac ticket' );
+
+	// INVARIANT — what was read is shown again, and says when it was read.
+	await expect( card.getByRole( 'button', { name: `#${ TICKET } ${ FROM_TRAC.ticket.summary }`, exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( card.getByText( `Read from Trac ${ new Date( checkedAt ).toLocaleString( 'en-US', { timeZone: 'UTC' } ) }`, { exact: true } ) ).toBeVisible();
+	await expect( card.getByRole( 'listitem' ).filter( { hasText: `${ TICKET }.diff` } ) ).toBeVisible();
+	await expect( ui.readTicketDetailsButton( card ) ).toHaveCount( 0 );
+
+	// INVARIANT — and Trac was not opened to show it: its window may ask for
+	// the human-check, so it opens only when asked (#109).
+	expect( ( await outside.asked() ).trac ).toBe( 0 );
 } );

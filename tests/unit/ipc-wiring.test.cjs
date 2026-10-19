@@ -3754,6 +3754,59 @@ test('trac:list-attachments opens the Trac window for a Trac site, and refuses a
 	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: LIGHT_BACKGROUND, hidden: false }]], 'opened in the colour of the app\'s theme');
 });
 
+// The last read that answered is kept per ticket (#695), so a relaunch can
+// show the ticket's facts and attachments without opening Trac again.
+test('trac:list-attachments keeps a read that answered, and a failed read keeps it in view', async (t) => {
+	const dir = await fixtureRepo(t);
+	let call = 0;
+	const openAndScrape = spy(async () => (++call === 1
+		? { status: 'ok', items: [{ name: 'a.diff' }], ticket: { summary: 'A Core ticket' } }
+		: { status: 'challenge-timeout', items: [] }));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { tracTicket: 49661 } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+
+	const read = await main.invoke('trac:list-attachments', dir);
+	assert.ok(read.checkedAt, 'stamped with when it was read');
+	assert.deepEqual(settings.values['tracRead:49661'], { checkedAt: read.checkedAt, status: 'ok', items: [{ name: 'a.diff' }], ticket: { summary: 'A Core ticket' } });
+
+	const failed = await main.invoke('trac:list-attachments', dir);
+	assert.equal(failed.status, 'challenge-timeout');
+	assert.deepEqual(failed.items, [{ name: 'a.diff' }], 'the last read is shown, not emptied');
+	assert.deepEqual(failed.ticket, { summary: 'A Core ticket' });
+	assert.equal(failed.checkedAt, read.checkedAt);
+	assert.equal(settings.values['tracRead:49661'].checkedAt, read.checkedAt, 'a failed read does not replace the saved one');
+});
+
+test('trac:list-attachments keeps a read with no attachments, and a failed read with nothing kept is only its failure', async (t) => {
+	const dir = await fixtureRepo(t);
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { tracTicket: 49661 } } });
+	const failing = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape: async () => ({ status: 'closed', items: [] }), fetchAttachment: async () => ({}) } } });
+
+	assert.deepEqual(await failing.invoke('trac:list-attachments', dir), { ok: true, status: 'closed', items: [] });
+	assert.equal(settings.values['tracRead:49661'], undefined, 'a read that did not answer is not kept');
+
+	const empty = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape: async () => ({ status: 'no-attachments', items: [], ticket: { summary: 'A Core ticket' } }), fetchAttachment: async () => ({}) } } });
+	await empty.invoke('trac:list-attachments', dir);
+	assert.equal(settings.values['tracRead:49661'].status, 'no-attachments', 'a ticket with nothing attached was still read');
+	assert.deepEqual(settings.values['tracRead:49661'].ticket, { summary: 'A Core ticket' });
+});
+
+test('trac:cached-attachments hands back the saved read without opening Trac, on a Trac site only', async () => {
+	const openAndScrape = spy(async () => ({ status: 'ok', items: [] }));
+	const saved = { checkedAt: '2026-10-18T12:00:00.000Z', status: 'no-attachments', items: [], ticket: { summary: 'A Core ticket' } };
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp', '/sites/gb', '/sites/none'],
+		siteMeta: { '/sites/wp': { tracTicket: 49661 }, '/sites/gb': { projectType: 'gutenberg', tracTicket: 49661 }, '/sites/none': {} },
+		'tracRead:49661': saved
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+
+	assert.deepEqual(await main.invoke('trac:cached-attachments', '/sites/wp'), { ok: true, ...saved });
+	assert.equal(await main.invoke('trac:cached-attachments', '/sites/gb'), null, 'a Gutenberg issue is not the Core ticket with its number');
+	assert.equal(await main.invoke('trac:cached-attachments', '/sites/none'), null);
+	assert.deepEqual(openAndScrape.calls, []);
+});
+
 // git:list-ticket-patches reads the stored ticket, then delegates to github-prs
 // and caches the result — reachable through the same fakeSettingsStore seam.
 test('git:list-ticket-patches fetches the linked PRs for the stored ticket', async () => {
@@ -7239,6 +7292,7 @@ const WIRED = new Set([
 const NO_DELEGATION = new Map([
 	['deep-link:ready', 'flushes a ticket main queued for the renderer; the parse it depends on is wired above, on open-url and second-instance'],
 	['sites:mark-update-complete', 'electron-store write'],
+	['trac:cached-attachments', 'electron-store read'],
 	['sites:get', 'electron-store read'],
 	['sites:getAll', 'electron-store read'],
 	['sites:set-skip-init', 'electron-store write'],

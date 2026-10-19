@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { __ } from '@wordpress/i18n';
 import { Badge, Button, Card, InputControl, Link, Notice, Spinner, Stack, Text } from '@wordpress/ui';
-import { attachmentRows, attachmentsStatus, pullRequestRows, pullRequestsStatus, ticketCardWords, ticketFacts } from '../ticket-card.cjs';
+import { attachmentRows, attachmentsStatus, pullRequestRows, pullRequestsStatus, ticketCardWords, ticketFacts, tracReadAt } from '../ticket-card.cjs';
 import { ReasonedUiButton } from './reasoned-button.jsx';
 
 // The way to a page outside the app, drawn as a link. It is a button: the
@@ -62,7 +62,7 @@ function Facts({ facts, onOpen }) {
           {facts.status ? <Badge intent={facts.status.intent}>{facts.status.label}</Badge> : null}
           <Text variant="body-md" className="muted-label">
             {facts.facts.map((fact, index) => (
-              <span key={fact.id} title={fact.title || undefined}>
+              <span key={fact.id}>
                 {index ? ' · ' : ''}
                 {fact.url ? <OutLink url={fact.url} onOpen={onOpen} tone="neutral">{fact.text}</OutLink> : fact.text}
               </span>
@@ -201,7 +201,7 @@ function Attachments({ attachments, onOpen }) {
  * @param {Function} props.onOpen             Opens a page outside the app, given its address.
  * @param {Object}   props.link               Linking: `{ value, onChange, onSubmit, saving, reason, browseUrl }`.
  * @param {Object}   props.unlink             Unlinking: `{ onUnlink, reason }`.
- * @param {?Object}  props.details            The ticket's facts, on Trac: `{ info, loading, onRead }`. Null where there are none to read.
+ * @param {?Object}  props.details            The ticket's facts, on Trac: `{ info, readAt, loading, onRead }`. Null where there are none to read.
  * @param {?Object}  props.staleNotice        The ticket being behind trunk: `{ title, body, action, busy, reason, onAction }`, or null.
  * @param {*}        props.feedback
  * @param {*}        props.changesNote
@@ -265,6 +265,7 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
   }
 
   const facts = details ? ticketFacts(details.info) : null;
+  const readAt = details ? tracReadAt({ checkedAt: details.readAt }) : '';
   return (
     <Card.Root {...cue} className={cardClass} render={<section aria-labelledby={titleId} />}>
       <Card.Header>
@@ -287,6 +288,7 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
             </OutLink>
           </Text>
           {facts ? <Facts facts={facts} onOpen={onOpen} /> : null}
+          {readAt ? <Text variant="body-md" className="muted-label">{readAt}</Text> : null}
           {details && !details.info ? (
             <Stack direction="row">
               <Button variant="outline" tone="neutral" size="compact" loading={details.loading} loadingAnnouncement={__('Reading the ticket on Trac')} onClick={details.onRead}>

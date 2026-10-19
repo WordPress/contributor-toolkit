@@ -59,7 +59,7 @@ function ticketCardWords(provider) {
  * status is the ticket being worked on.
  *
  * @param {Object|null} info What `parseTicketInfo` read, or null before the ticket has been read.
- * @return {{summary: string, status: ({label: string, intent: string}|null), facts: Array<{id: string, text: string, url?: string, title?: string}>, keywords: Array<{label: string, url?: string}>}|null} Null before the ticket has been read.
+ * @return {{summary: string, status: ({label: string, intent: string}|null), facts: Array<{id: string, text: string, url?: string}>, keywords: Array<{label: string, url?: string}>}|null} Null before the ticket has been read.
  */
 function ticketFacts(info) {
 	if (!info) return null;
@@ -70,8 +70,12 @@ function ticketFacts(info) {
 	if (info.component && info.component.label) facts.push({ id: 'component', text: sprintf(__('Component: %s'), info.component.label), url: info.component.url || '' });
 	// translators: %s: the milestone a ticket is set for, such as "7.2" or "Awaiting Review".
 	if (info.milestone) facts.push({ id: 'milestone', text: sprintf(__('Milestone: %s'), info.milestone) });
-	// translators: %s: how long ago, as Trac says it, such as "4 weeks ago".
-	if (info.opened && info.opened.relative) facts.push({ id: 'opened', text: sprintf(__('Opened %s'), info.opened.relative), title: info.opened.absolute || '' });
+	// The date Trac gives, not its "4 weeks ago": a read is kept across a
+	// relaunch (#695), and the relative words would stop being true while the
+	// date stays so. The relative words only when Trac gave no date.
+	const opened = info.opened ? info.opened.absolute || info.opened.relative : '';
+	// translators: %s: when the ticket was opened, as Trac writes it, such as "08/28/2023 11:50:14 PM", or "4 weeks ago" when Trac gave no date.
+	if (opened) facts.push({ id: 'opened', text: sprintf(__('Opened %s'), opened) });
 	return {
 		summary: info.summary || '',
 		status: badge ? { label: badge.label, intent: badge.tone === 'closed' ? 'none' : 'informational' } : null,
@@ -200,6 +204,37 @@ function attachmentRows({ items = [], latest = null } = {}) {
 }
 
 /**
+ * When the ticket's details were read from Trac (#695), said wherever they
+ * are shown, since a relaunch shows the last read and not a new one.
+ *
+ * @param {Object}   root0
+ * @param {string}   [root0.checkedAt]      When the read answered, as an ISO time.
+ * @param {Function} [root0.formatDateTime] Writes a time the way the reader's locale does.
+ * @return {string} The sentence, or '' before any read.
+ */
+function tracReadAt({ checkedAt = null, formatDateTime = localDateTime } = {}) {
+	if (!checkedAt) return '';
+	// translators: %s: a date and time.
+	return sprintf(__('Read from Trac %s'), formatDateTime(checkedAt));
+}
+
+/**
+ * What the Trac sections show once the last read of the ticket has come back
+ * from the store (#695): the saved read only while the ticket it was asked
+ * for is still the one linked, and never over a read that has already
+ * answered, which is newer.
+ *
+ * @param {Object}  root0
+ * @param {?Object} root0.current    What the sections show now, or null.
+ * @param {?Object} root0.saved      The saved read, or null when there is none.
+ * @param {boolean} root0.sameTicket The ticket is still the one the saved read was asked for.
+ * @return {?Object} What to show.
+ */
+function tracReadToShow({ current, saved, sameTicket }) {
+	return !current && saved && sameTicket ? saved : current;
+}
+
+/**
  * Where the attachments' section is: nothing asked of Trac yet, asking,
  * read, or read and failed, with the sentence that says how.
  *
@@ -239,4 +274,4 @@ function attachmentsStatus({ result = null, loading = false, count = 0 } = {}) {
 	};
 }
 
-module.exports = { ticketCardWords, ticketFacts, pullRequestState, pullRequestRows, pullRequestsStatus, attachmentRows, attachmentsStatus };
+module.exports = { ticketCardWords, ticketFacts, pullRequestState, pullRequestRows, pullRequestsStatus, attachmentRows, attachmentsStatus, tracReadAt, tracReadToShow };

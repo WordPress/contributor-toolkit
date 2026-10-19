@@ -273,6 +273,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	listTracAttachments: (sitePath) => ipcRenderer.invoke('trac:list-attachments', sitePath)
 ,
+	cachedTracAttachments: (sitePath) => ipcRenderer.invoke('trac:cached-attachments', sitePath)
+,
 	fetchTracAttachment: (url) => ipcRenderer.invoke('trac:fetch-attachment', url)
 ,
 	applyPatch: async (sitePath, options, onLog, onDone) => {

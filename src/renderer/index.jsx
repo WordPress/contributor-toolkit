@@ -2269,7 +2269,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             browseUrl: project.workItem.browseUrl
           }}
           unlink={{ onUnlink: unlinkTicket, reason: ticketActionsReason }}
-          details={showTracCards ? { info: tracInfo, loading: tracAttachmentsLoading, onRead: loadTracAttachments } : null}
+          details={showTracCards ? { info: tracInfo, readAt: tracAttachments?.checkedAt || null, loading: tracAttachmentsLoading, onRead: loadTracAttachments } : null}
           staleNotice={staleTicketNotice ? {
             ...staleTicketNotice,
             busy: ticketSaving,
