@@ -173,8 +173,8 @@ const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry 
 //
 // The tray is the window's and holds one thing at a time, for the site that
 // is open (#558). The footer has a button for each thing it can hold, pressed
-// while that one is showing, and the tray is named for what it holds.
-const trayToggle = ( page, name ) => page.getByRole( 'button', { name: `Toggle ${ name }`, exact: true } );
+// while that one is showing, and both are named for what it holds.
+const trayToggle = ( page, name ) => page.locator( '.app-footer' ).getByRole( 'button', { name, exact: true } );
 const tray = ( page, name ) => page.getByRole( 'complementary', { name, exact: true } );
 
 /**

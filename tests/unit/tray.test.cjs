@@ -19,19 +19,18 @@ const {
 	terminalGrid,
 } = require( '../../src/renderer/tray.cjs' );
 
-test( 'each tray has an id of its own, a heading and a name for its button', () => {
+test( 'each tray has an id of its own and a name, for its heading and its button', () => {
 	const trays = trayList();
 	assert.ok( trays.length > 0 );
 	assert.equal( new Set( trays.map( ( tray ) => tray.id ) ).size, trays.length );
 	for ( const tray of trays ) {
 		assert.ok( tray.title );
-		assert.notEqual( tray.toggle, tray.title );
 	}
 	// In the order the footer offers them.
 	assert.deepEqual( trays, [
-		{ id: 'terminal', title: 'Terminal', toggle: 'Toggle Terminal' },
-		{ id: 'logs', title: 'Logs', toggle: 'Toggle Logs' },
-		{ id: 'email', title: 'Email', toggle: 'Toggle Email' },
+		{ id: 'terminal', title: 'Terminal' },
+		{ id: 'logs', title: 'Logs' },
+		{ id: 'email', title: 'Email' },
 	] );
 } );
 

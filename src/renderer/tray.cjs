@@ -26,15 +26,17 @@ const TRAY_KEY_STEP = 24;
 
 /**
  * What the tray can hold, in the order the footer offers them. Each is named
- * twice: as the tray's heading, and as what its button in the footer does.
+ * once, and the name is both the tray's heading and its button's label in
+ * the footer (#691): the button is a toggle, which its pressed state says,
+ * so its name is what it shows and nothing more.
  *
- * @return {{id: string, title: string, toggle: string}[]} The trays.
+ * @return {{id: string, title: string}[]} The trays.
  */
 function trayList() {
 	return [
-		{ id: 'terminal', title: __( 'Terminal' ), toggle: __( 'Toggle Terminal' ) },
-		{ id: 'logs', title: __( 'Logs' ), toggle: __( 'Toggle Logs' ) },
-		{ id: 'email', title: __( 'Email' ), toggle: __( 'Toggle Email' ) },
+		{ id: 'terminal', title: __( 'Terminal' ) },
+		{ id: 'logs', title: __( 'Logs' ) },
+		{ id: 'email', title: __( 'Email' ) },
 	];
 }
 
