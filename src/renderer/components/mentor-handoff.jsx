@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button, TextControl } from '@wordpress/components';
 import { createInterpolateElement } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
-import { Text } from '@wordpress/ui';
+import { Button as UiButton, Text } from '@wordpress/ui';
 import { Destination } from './destination.jsx';
 
 // "Hand it to a mentor": the one destination for a patch that needs no account
@@ -61,12 +61,12 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
     >
       {wporg?.handle && !editingHandle ? (
         <>
-          <Button variant="primary" onClick={onSave} disabled={saveDisabled}>
+          <UiButton variant="solid" tone="brand" size="compact" onClick={onSave} disabled={saveDisabled}>
             {
               // translators: %s: the contributor's WordPress.org username.
               sprintf(__('Save patch as %s'), wporg.handle)
             }
-          </Button>
+          </UiButton>
           {/*
             The event is shown on every save rather than only when
             it is set: a remembered WordCamp from last year would
@@ -116,17 +116,19 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
             placeholder={__('Event, e.g. WordCamp Europe 2026 (optional)')}
             aria-label={__('Event this patch was written at')}
           />
-          <Button
-            variant="secondary"
+          <UiButton
+            variant="outline"
+            tone="neutral"
+            size="compact"
             onClick={rememberContributor}
-            isBusy={handleSaving}
+            loading={handleSaving}
             // Empty is a valid answer only when there is
             // something to clear — a shared laptop at a
             // contributor day, the next person taking over.
             // Before the first answer it would just be a button
             // that does nothing.
             disabled={handleSaving || (!handleInput.trim() && !wporg?.handle)}
-          >{__('Remember this')}</Button>
+          >{__('Remember this')}</UiButton>
           {handleError ? <Text variant="body-sm" className="problem-text" role="alert">{handleError}</Text> : null}
         </>
       )}

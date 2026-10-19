@@ -1,8 +1,8 @@
-import { Button, TextControl } from '@wordpress/components';
+import { TextControl } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
-import { Text } from '@wordpress/ui';
+import { Button, Text } from '@wordpress/ui';
 import { Destination } from './destination.jsx';
-import { ReasonedButton } from './reasoned-button.jsx';
+import { ReasonedUiButton } from './reasoned-button.jsx';
 
 // "Attach to Trac": the destination that saves the patch and opens the
 // ticket's attach page for the contributor to upload it themselves.
@@ -33,7 +33,7 @@ export function TracDestination({
       after={__('No automated checks. Often followed by a request to open a pull request.')}
     >
       {ticket ? (
-        <Button variant="primary" onClick={onSave} disabled={saveDisabled}>
+        <Button variant="solid" tone="brand" size="compact" onClick={onSave} disabled={saveDisabled}>
           {
             // translators: %d: a Trac ticket number.
             sprintf(__('Save, then open #%d'), ticket)
@@ -52,13 +52,15 @@ export function TracDestination({
             placeholder={__('Ticket number or URL, e.g. 62281')}
             aria-label={__('Trac ticket number or URL')}
           />
-          <ReasonedButton
-            variant="secondary"
+          <ReasonedUiButton
+            variant="outline"
+            tone="neutral"
+            size="compact"
             onClick={onLinkTicket}
-            isBusy={linking}
+            loading={linking}
             reason={linkReason}
             disabled={!ticketInput.trim()}
-          >{__('Link ticket')}</ReasonedButton>
+          >{__('Link ticket')}</ReasonedUiButton>
           {ticketError ? <Text variant="body-sm" className="problem-text" role="alert">{ticketError}</Text> : null}
           {children}
         </>

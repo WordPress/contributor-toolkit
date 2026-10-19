@@ -1,7 +1,7 @@
-import { Button, Spinner } from '@wordpress/components';
+import { Spinner } from '@wordpress/components';
 import { createInterpolateElement } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
-import { Stack, Text } from '@wordpress/ui';
+import { Button, Stack, Text } from '@wordpress/ui';
 import { copy as copyIcon, check as checkIcon, download } from '@wordpress/icons';
 import { DiscardChangesLink } from './discard-changes-link.jsx';
 import { DiffText } from './diff-text.jsx';
@@ -70,17 +70,24 @@ export function PatchDiffPane({
           pane is a column.
         */}
         <Stack direction="row" gap="sm">
-          <Button variant="secondary" icon={download} onClick={onSave} disabled={patchLoading || patchLoadFailed}>{__('Save')}</Button>
+          <Button variant="outline" tone="neutral" size="compact" onClick={onSave} disabled={patchLoading || patchLoadFailed}>
+            <Button.Icon icon={download} />
+            {__('Save')}
+          </Button>
           <Button
-            variant="secondary"
-            icon={copied ? checkIcon : copyIcon}
+            variant="outline"
+            tone="neutral"
+            size="compact"
             onClick={onCopy}
             disabled={patchLoading || patchLoadFailed}
             // The label carries the outcome rather than a tooltip or
             // a toast: it is the thing that was just pressed, so it
             // is where the eye already is, and a screen reader
             // announces the change on the focused control.
-          >{copyLabel}</Button>
+          >
+            <Button.Icon icon={copied ? checkIcon : copyIcon} />
+            {copyLabel}
+          </Button>
         </Stack>
       </Stack>
       {/*
