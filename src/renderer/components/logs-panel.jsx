@@ -30,7 +30,13 @@ export function LogsPanel({ hidden, tabs, logs, copyLabel }) {
         {tabs.map((tab) => <Tabs.Tab key={tab.name} value={tab.name}>{tab.title}</Tabs.Tab>)}
       </Tabs.List>
       <Tabs.Panel value="runtime" tabIndex={-1} className="tray-log-panel">
-        <div ref={runtimePane} onScroll={logs.makeOnScroll('runtime')} className="log-pane"><LogText text={logs.runtimeLogs} /></div>
+        <div ref={runtimePane} onScroll={logs.makeOnScroll('runtime')} className="log-pane">
+          {logs.runtimeLogs ? <LogText text={logs.runtimeLogs} /> : (
+            // The tab the tray opens on, so the first empty pane a newcomer
+            // meets. It is also where a failed start explains itself.
+            <span className="log-pane-note">{__('No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.')}</span>
+          )}
+        </div>
       </Tabs.Panel>
       <Tabs.Panel value="watch" tabIndex={-1} className="tray-log-panel">
         <div ref={watchPane} onScroll={logs.makeOnScroll('watch')} className="log-pane">
