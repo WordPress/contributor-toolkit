@@ -1036,6 +1036,9 @@ test( 'the Logs are fully translatable: their tabs, the notes in an empty pane, 
 	await expect( tray.getByText( pseudoLocalize( 'No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	expect( await inTray() ).toEqual( [] );
 	await tab( pseudoLocalize( 'Build watch' ) ).click();
+	// The server's pane has a note too, so the watch's is the one on screen
+	// only once its tab is the selected one.
+	await expect( tab( pseudoLocalize( 'Build watch' ) ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( tray.locator( '.log-pane-note' ) ).toBeVisible( { timeout: 30_000 } );
 	expect( await inTray() ).toEqual( [] );
 	await tab( pseudoLocalize( 'Debug.log' ) ).click();
