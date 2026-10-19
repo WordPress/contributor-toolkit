@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Button, Modal } from '@wordpress/components';
+import { Modal } from '@wordpress/components';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { Notice, Stack, Text } from '@wordpress/ui';
+import { Button, Notice, Stack, Text } from '@wordpress/ui';
 
 // The failure is read by its role, and is not also spoken.
 const SILENT = '';
@@ -79,12 +79,14 @@ export function DirtyTreeModal({ files, saving, error, onSave, onDiscard, onClos
           </Notice.Root>
         ) : null}
         <Stack direction="row" justify="flex-end" gap="sm" wrap="wrap">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>{__('Cancel')}</Button>
+          <Button variant="outline" tone="neutral" size="compact" onClick={onClose} disabled={saving}>{__('Cancel')}</Button>
           <Button
-            variant="primary"
-            isDestructive={dirtyChoice === 'discard'}
-            isBusy={saving}
-            disabled={saving}
+            variant="solid"
+            tone="brand"
+            size="compact"
+            // Not red for a discard: this button asks again, in the design
+            // system's irreversible dialog, and the red is that dialog's.
+            loading={saving}
             onClick={() => (dirtyChoice === 'discard' ? onDiscard() : onSave())}
           >{dirtyChoice === 'discard' ? __('Discard & update') : __('Save patch & update')}</Button>
         </Stack>

@@ -710,12 +710,6 @@ body {
     var(--wpds-color-stroke-surface-neutral-weak);
 }
 
-/* A destination's buttons are as wide as its column, and say what they do
-   in the middle of it. */
-.destination-actions .components-button:not(.is-link) {
-  justify-content: center;
-}
-
 /* A link said inside a sentence is the sentence's size, in every dialog of
    the older library. */
 .components-modal__frame .components-button.is-link {
