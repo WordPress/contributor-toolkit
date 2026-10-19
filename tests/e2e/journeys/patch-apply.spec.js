@@ -512,6 +512,29 @@ test( 'while the build after an apply runs, the patch\'s files are the patch\'s 
 	await expect( ui.revertPatchButton( page ) ).toHaveCount( 0 );
 } );
 
+test( 'a file that leaves the list does not take its tree out of the tab order (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	write( site.dir, 'src/other-helper.php', '<?php // mine too\n' );
+	await refocus( page );
+	await expect( affectedFile( page, 'src/other-helper.php' ) ).toBeVisible( { timeout: 30_000 } );
+
+	// The tree remembers the last button focused in it, and gives every other
+	// one no tab stop. That file goes, undone in the editor, and the list is
+	// walked again on the way back.
+	await affectedFile( page, 'src/new-helper.php' ).focus();
+	fs.rmSync( path.join( site.dir, 'src/new-helper.php' ) );
+	await refocus( page );
+	await expect( affectedFile( page, 'src/new-helper.php' ) ).toHaveCount( 0, { timeout: 30_000 } );
+
+	// INVARIANT — the tree keeps a button Tab can stop at.
+	expect( await details( page ).getByRole( 'treegrid' ).evaluateAll( ( trees ) => trees.map(
+		( tree ) => [ ...tree.querySelectorAll( 'button' ) ].some( ( button ) => button.tabIndex >= 0 )
+	) ) ).toEqual( [ true ] );
+} );
+
 test( 'discarding the contributor\'s changes takes them out of the list, with no refocus (#669)', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );

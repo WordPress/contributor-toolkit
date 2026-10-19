@@ -215,8 +215,14 @@ function ChangedFileTree({ label, files, onOpenFile, revertReason }) {
   const byPath = new Map(files.map((file) => [file.path, file]));
   const rows = visibleAffectedRows(affectedFileTree(files.map((file) => file.path)), collapsed);
   return (
+    // Keyed by its files: the tree remembers the last button focused in it
+    // and gives every other one no tab stop, so a file that leaves the list,
+    // after a revert or a refresh, would take the tree out of the tab order
+    // with it. A new list is a new tree; closing a folder is not a new list.
     <TreeGrid
+      key={files.map((file) => file.path).join('\n')}
       className="affected-files"
+      aria-label={label}
       applicationAriaLabel={label}
       onExpandRow={(row) => setOpen(row.dataset.key, true)}
       onCollapseRow={(row) => setOpen(row.dataset.key, false)}
