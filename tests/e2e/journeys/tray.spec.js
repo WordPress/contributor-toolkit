@@ -744,26 +744,31 @@ test( 'the tray holds one thing at a time: each footer button puts its own in it
 	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'false', email: 'false' } );
 
 	// INVARIANT — each button shows the name of what it holds beside its
-	// icon (#691), where the footer has room for every name.
+	// icon (#691), where the footer has room for every name: here, a window
+	// as wide as the smallest screen the suite runs on, with the sites list
+	// open.
 	const names = [ 'Terminal', 'Logs', 'Email' ];
 	const footer = page.locator( '.app-footer' );
 	const labelWidth = async ( name ) => ( await ui.trayToggle( page, name ).locator( '.app-footer-tray-label' ).boundingBox() ).width;
-	const footerHeight = ( await footer.boundingBox() ).height;
+	const resizeTo = ( width ) => app.evaluate( ( { BrowserWindow }, wanted ) => {
+		const win = BrowserWindow.getAllWindows()[ 0 ];
+		const [ minWidth, minHeight ] = win.getMinimumSize();
+		win.setSize( Math.max( wanted, minWidth ), Math.max( win.getSize()[ 1 ], minHeight ) );
+	}, width );
+	await resizeTo( 1024 );
+	await expect.poll( () => page.evaluate( () => window.innerWidth ) ).toBeLessThanOrEqual( 1024 );
 	for ( const name of names ) {
 		await expect( ui.trayToggle( page, name ) ).toHaveText( name );
-		expect( await labelWidth( name ) ).toBeGreaterThan( 1 );
+		await expect.poll( () => labelWidth( name ) ).toBeGreaterThan( 1 );
 	}
+	const footerHeight = ( await footer.boundingBox() ).height;
 
 	// INVARIANT — at the window's smallest, with the sites list open, the
 	// names are clipped for the eye and the buttons are their icons, still
 	// named for a screen reader, all in the window, and the footer is as
 	// tall as it was: a name broken across two lines would take the height
 	// from the tray.
-	await app.evaluate( ( { BrowserWindow } ) => {
-		const win = BrowserWindow.getAllWindows()[ 0 ];
-		const [ minWidth, minHeight ] = win.getMinimumSize();
-		win.setSize( minWidth, Math.max( win.getSize()[ 1 ], minHeight ) );
-	} );
+	await resizeTo( 0 );
 	await expect.poll( () => page.evaluate( () => window.innerWidth ) ).toBeLessThanOrEqual( 800 );
 	for ( const name of names ) {
 		await expect( ui.trayToggle( page, name ) ).toBeInViewport( { ratio: 1 } );

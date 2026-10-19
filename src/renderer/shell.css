@@ -525,7 +525,7 @@ body {
   white-space: nowrap;
 }
 
-@container app-footer (max-width: 680px) {
+@container app-footer (max-width: 640px) {
   .app-footer-tray-label {
     position: absolute;
     width: 1px;
