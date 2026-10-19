@@ -129,6 +129,10 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
   };
 
   const runApplyInstallAndBuild = (needsInstall, verb, { buildBy = null, noun = 'patch' } = {}) => {
+    // The tree has changed already; the install and the build only follow it.
+    // The status is read again with the walk, so "Changed files" groups the
+    // walk's answer by the change now on disk rather than the one before it.
+    loadStatus().catch(() => {});
     forgetChangedFiles();
     const lines = applyLines(verb, noun);
     const finishTryIt = () => finishApply(`\n${lines.tryIt}\n`, `\n${lines.settled}\n`);

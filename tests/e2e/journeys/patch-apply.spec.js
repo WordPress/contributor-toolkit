@@ -485,6 +485,33 @@ test( 'a ticket with no patch lists only the contributor\'s own changes (#669)',
 	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByRole( 'img', { name: 'You created this file', exact: true } ) ).toHaveCount( 0 );
 } );
 
+test( 'while the build after an apply runs, the patch\'s files are the patch\'s (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+	// A build that runs until the test ends: the stand-in answers with the
+	// run's name and starts no process, so the apply stays at its build.
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'npm:run-script' );
+		ipcMain.handle( 'npm:run-script', () => ( { runId: 'e2e-run-1' } ) );
+	} );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+
+	// INVARIANT — the file list is walked as soon as the patch is on disk, and
+	// grouped by the patch now applied rather than by the nothing before it:
+	// the patched file is the patch's, not the contributor's, for the minutes
+	// an install and a build take. It fails if the status is read only once
+	// the build is over.
+	await expect( group( page, 'From the patch' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toBeVisible();
+	await expect( group( page, 'Your changes' ) ).toHaveCount( 0 );
+	await expect( ui.revertPatchButton( page ) ).toHaveCount( 0 );
+} );
+
 test( 'discarding the contributor\'s changes takes them out of the list, with no refocus (#669)', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
