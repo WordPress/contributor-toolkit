@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-19T13:21:49+00:00\n"
+"POT-Creation-Date: 2026-10-19T15:08:30+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -220,100 +220,100 @@ msgstr ""
 msgid "Restoring the files of your previous branch…"
 msgstr ""
 
-#: src/main.js:2578
+#: src/main.js:2611
 msgid "Could not check your work for conflicts, so the preview was not shown."
 msgstr ""
 
-#: src/main.js:2589
+#: src/main.js:2622
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2592
+#: src/main.js:2625
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2593
+#: src/main.js:2626
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:2637
+#: src/main.js:2670
 msgid "There is no stored patch to revert."
 msgstr ""
 
-#: src/main.js:2648
+#: src/main.js:2681
 #. %s: the name of the applied patch, such as a file name.
 msgid "%s is already applied. Revert it before applying another patch."
 msgstr ""
 
-#: src/main.js:2654
+#: src/main.js:2687
 #. %s: the name of the patch, such as a file name.
 msgid "Reverting %s…"
 msgstr ""
 
-#: src/main.js:2657
+#: src/main.js:2690
 #. %s: the name of the patch, such as a file name.
 msgid "Applying %s…"
 msgstr ""
 
-#: src/main.js:2687
+#: src/main.js:2720
 msgid "This patch is too large to keep for an undo, so Revert will not be offered."
 msgstr ""
 
-#: src/main.js:2708
+#: src/main.js:2741
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved, so it was "
 "undone. %s"
 msgstr ""
 
-#: src/main.js:2711
+#: src/main.js:2744
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved and it could not "
 "be undone — the checkout has the patch and the app cannot revert it. %s"
 msgstr ""
 
-#: src/main.js:2720
+#: src/main.js:2753
 #. %s: what went wrong, as the system said it.
 msgid "Applying the patch failed: %s"
 msgstr ""
 
-#: src/main.js:3308
+#: src/main.js:3341
 msgid ""
 "There is uncommitted work on trunk — decide what happens to it before "
 "starting the ticket"
 msgstr ""
 
-#: src/main.js:3402
+#: src/main.js:3435
 msgid ""
 "Link a ticket first: trunk is what tickets are measured against, not a "
 "ticket."
 msgstr ""
 
-#: src/main.js:3404
+#: src/main.js:3437
 #: src/renderer/ticket-trunk-notice.cjs:147
 msgid "Only a ticket branch can be moved onto the current trunk."
 msgstr ""
 
-#: src/main.js:3406
+#: src/main.js:3439
 msgid ""
 "This ticket has no recorded starting point, so the app cannot move its work "
 "onto the current trunk."
 msgstr ""
 
-#: src/main.js:3551
+#: src/main.js:3584
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3552
+#: src/main.js:3585
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3558
+#: src/main.js:3591
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/main.js:3699
+#: src/main.js:3732
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
@@ -321,7 +321,7 @@ msgid ""
 "finishes on its own."
 msgstr ""
 
-#: src/main.js:3702
+#: src/main.js:3735
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
@@ -329,60 +329,60 @@ msgid ""
 "its own."
 msgstr ""
 
-#: src/main.js:3706
+#: src/main.js:3739
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
 "running and holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3709
+#: src/main.js:3742
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
 "holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3713
+#: src/main.js:3746
 msgid "This site requires a newer Node.js than this app bundles."
 msgstr ""
 
-#: src/main.js:3713
+#: src/main.js:3746
 msgid "Retrying with engine checks relaxed…"
 msgstr ""
 
-#: src/main.js:3800
+#: src/main.js:3833
 #. %s: why npm could not be started.
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4111
+#: src/main.js:4144
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4114
+#: src/main.js:4147
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4144
+#: src/main.js:4177
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.js:4206
+#: src/main.js:4239
 #. %s: the name of the folder the web server serves, local-playground-web.
 msgid "%s directory not found."
 msgstr ""
 
-#: src/main.js:4254
+#: src/main.js:4287
 msgid "Server exited before becoming ready"
 msgstr ""
 
-#: src/main.js:4286
+#: src/main.js:4319
 msgid "Timed out starting web server"
 msgstr ""
 
@@ -1473,57 +1473,78 @@ msgstr ""
 msgid "it no longer fits"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:108
-#. %s: a GitHub issue number. <review> and <discard> are links.
-msgid ""
-"You have unsubmitted changes for issue #%s. You can <review>review and "
-"submit</review> or <discard>discard your changes</discard>."
+#: src/renderer/changes-note.cjs:109
+#. %d: a pull request number.
+msgid "Changes on top of PR #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:115
-#. %s: a Trac ticket number. <review> and <discard> are links.
-msgid ""
-"You have unsubmitted changes for ticket #%s. You can <review>review and "
-"submit</review> or <discard>discard your changes</discard>."
-msgstr ""
-
-#: src/renderer/changes-note.cjs:122
-#. 1: how many files have changes. 2: a GitHub issue number. <review> and <discard> are links.
-msgid ""
-"You have %1$d unsubmitted change for issue #%2$s. You can <review>review "
-"and submit</review> or <discard>discard your changes</discard>."
-msgid_plural ""
-"You have %1$d unsubmitted changes for issue #%2$s. You can <review>review "
-"and submit</review> or <discard>discard your changes</discard>."
+#: src/renderer/changes-note.cjs:113
+#. 1: how many files have changes. 2: a pull request number.
+msgid "%1$d change on top of PR #%2$d"
+msgid_plural "%1$d changes on top of PR #%2$d"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:133
-#. 1: how many files have changes. 2: a Trac ticket number. <review> and <discard> are links.
-msgid ""
-"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review "
-"and submit</review> or <discard>discard your changes</discard>."
-msgid_plural ""
-"You have %1$d unsubmitted changes for ticket #%2$s. You can <review>review "
-"and submit</review> or <discard>discard your changes</discard>."
+#: src/renderer/changes-note.cjs:123
+#. %s: a GitHub issue number.
+msgid "Unsubmitted changes for issue #%s"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:127
+#. %s: a Trac ticket number.
+msgid "Unsubmitted changes for ticket #%s"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:132
+#. 1: how many files have changes. 2: a GitHub issue number.
+msgid "%1$d unsubmitted change for issue #%2$s"
+msgid_plural "%1$d unsubmitted changes for issue #%2$s"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:147
+#: src/renderer/changes-note.cjs:139
+#. 1: how many files have changes. 2: a Trac ticket number.
+msgid "%1$d unsubmitted change for ticket #%2$s"
+msgid_plural "%1$d unsubmitted changes for ticket #%2$s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/changes-note.cjs:150
+#. %d: a pull request number. <review> and <discard> are links.
+msgid ""
+"You have changes on top of PR #%d. You can <review>review them</review> or "
+"<discard>discard your changes</discard>. They stay with this pull request's "
+"local copy when you revert this PR."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:156
+#. 1: how many files have changes. 2: a pull request number. <review> and <discard> are links.
+msgid ""
+"You have %1$d change on top of PR #%2$d. You can <review>review "
+"them</review> or <discard>discard your changes</discard>. They stay with "
+"this pull request's local copy when you revert this PR."
+msgid_plural ""
+"You have %1$d changes on top of PR #%2$d. You can <review>review "
+"them</review> or <discard>discard your changes</discard>. They stay with "
+"this pull request's local copy when you revert this PR."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/changes-note.cjs:170
 #. <review> and <discard> are links.
 msgid ""
 "You have changes not assigned to any issue. You can <review>create and save "
 "a patch</review> or <discard>discard your changes</discard>."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:151
+#: src/renderer/changes-note.cjs:174
 #. <review> and <discard> are links.
 msgid ""
 "You have changes not assigned to any ticket. You can <review>create and "
 "save a patch</review> or <discard>discard your changes</discard>."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:156
+#: src/renderer/changes-note.cjs:179
 #. %d: how many files have changes. <review> and <discard> are links.
 msgid ""
 "You have %d change not assigned to any issue. You can <review>create and "
@@ -1534,7 +1555,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:166
+#: src/renderer/changes-note.cjs:189
 #. %d: how many files have changes. <review> and <discard> are links.
 msgid ""
 "You have %d change not assigned to any ticket. You can <review>create and "
@@ -1545,15 +1566,15 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:199
+#: src/renderer/changes-note.cjs:222
 #: src/renderer/hooks/use-trunk-update.jsx:293
 #. %s: why the changes could not be discarded.
 msgid "Failed to discard changes: %s"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:200
+#: src/renderer/changes-note.cjs:223
 #: src/renderer/hooks/use-trunk-update.jsx:291
-#: src/renderer/index.jsx:1828
+#: src/renderer/index.jsx:1826
 msgid "Unknown error"
 msgstr ""
 
@@ -1570,108 +1591,99 @@ msgstr ""
 msgid "Discard changes"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:286
+#: src/renderer/changes-note.cjs:309
 msgid "Changes are already being discarded."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:287
+#: src/renderer/changes-note.cjs:310
 msgid "Wait for your changes to finish loading."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:288
+#: src/renderer/changes-note.cjs:311
 msgid "Changes could not be loaded."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:289
+#: src/renderer/changes-note.cjs:312
 msgid "There are no changes to discard."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:290
+#: src/renderer/changes-note.cjs:313
 msgid "Wait for the trunk update to finish before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:291
+#: src/renderer/changes-note.cjs:314
 msgid "Wait for the installation to finish before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:292
+#: src/renderer/changes-note.cjs:315
 msgid "Wait for the build to finish before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:293
+#: src/renderer/changes-note.cjs:316
 msgid "Stop the dev server before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:301
+#: src/renderer/changes-note.cjs:324
 #. %d: a GitHub issue number.
 msgid "Your changes for issue #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:303
+#: src/renderer/changes-note.cjs:326
 #. %d: a Trac ticket number.
 msgid "Your changes for ticket #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:310
+#: src/renderer/changes-note.cjs:333
 #. %d: a pull request number.
 msgid "Your changes on top of PR #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:311
+#: src/renderer/changes-note.cjs:334
 msgid "Edits to this local copy, compared with the original PR commits."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:313
+#: src/renderer/changes-note.cjs:336
 #. %d: a pull request number.
 msgid "There are no changes on top of PR #%d."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:316
+#: src/renderer/changes-note.cjs:339
 msgid "Your changes"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:317
+#: src/renderer/changes-note.cjs:340
 msgid "Everything this site has that its copy of trunk does not."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:318
+#: src/renderer/changes-note.cjs:341
 msgid ""
 "There is nothing to send yet — this site has no changes against its copy of "
 "trunk."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:75
+#: src/renderer/changes-note.cjs:78
+msgid "They stay with this pull request's local copy when you revert this PR."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:79
+msgid "Review changes"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:86
+msgid "Review and submit"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:88
 msgid ""
 "Unlinking this issue doesn't affect your local changes for this issue — "
 "they remain attached to it in this site, ready for when you link it again."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:76
+#: src/renderer/changes-note.cjs:89
 msgid ""
 "Unlinking this ticket doesn't affect your local changes for this ticket — "
 "they remain attached to it in this site, ready for when you link it again."
 msgstr ""
-
-#: src/renderer/changes-note.cjs:87
-#. %d: a pull request number. <review> and <discard> are links.
-msgid ""
-"You have changes on top of PR #%d. You can <review>review them</review> or "
-"<discard>discard your changes</discard>. They stay with this pull request's "
-"local copy when you revert this PR."
-msgstr ""
-
-#: src/renderer/changes-note.cjs:93
-#. 1: how many files have changes. 2: a pull request number. <review> and <discard> are links.
-msgid ""
-"You have %1$d change on top of PR #%2$d. You can <review>review "
-"them</review> or <discard>discard your changes</discard>. They stay with "
-"this pull request's local copy when you revert this PR."
-msgid_plural ""
-"You have %1$d changes on top of PR #%2$d. You can <review>review "
-"them</review> or <discard>discard your changes</discard>. They stay with "
-"this pull request's local copy when you revert this PR."
-msgstr[0] ""
-msgstr[1] ""
 
 #: src/renderer/components/app-footer.jsx:111
 msgid "Give feedback"
@@ -1735,7 +1747,7 @@ msgid "Resize tray"
 msgstr ""
 
 #: src/renderer/components/create-site-dialog.jsx:136
-#: src/renderer/index.jsx:2134
+#: src/renderer/index.jsx:2139
 msgid "Create site"
 msgstr ""
 
@@ -2125,7 +2137,7 @@ msgid "Sign in with GitHub"
 msgstr ""
 
 #: src/renderer/components/pull-request-destination.jsx:302
-#: src/renderer/index.jsx:2252
+#: src/renderer/index.jsx:2257
 msgid "Not now"
 msgstr ""
 
@@ -2551,94 +2563,90 @@ msgstr ""
 msgid "(Deleting)"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:116
+#: src/renderer/components/ticket-card.jsx:110
 msgid "Applied"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:140
+#: src/renderer/components/ticket-card.jsx:134
 msgid "Trac attachments"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:141
-msgid "Opening the ticket on Trac"
-msgstr ""
-
-#: src/renderer/components/ticket-card.jsx:144
+#: src/renderer/components/ticket-card.jsx:138
 msgid ""
 "Patch files are sometimes attached on Trac instead of a PR. Reading them "
 "opens the ticket so you can pass its human-check once."
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:149
+#: src/renderer/components/ticket-card.jsx:143
 msgid "Show Trac attachments"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:153
+#: src/renderer/components/ticket-card.jsx:147
 msgid "Opening the ticket on Trac…"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:154
+#: src/renderer/components/ticket-card.jsx:148
 msgid "No patch files attached to this ticket."
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:171
+#: src/renderer/components/ticket-card.jsx:165
 msgid "Latest"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:246
+#: src/renderer/components/ticket-card.jsx:242
 msgid ""
 "If you have edited anything already, you will be asked what should happen "
 "to those edits."
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:256
+#: src/renderer/components/ticket-card.jsx:252
 msgid "Not sure yet?"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:27
-msgid "Refresh"
-msgstr ""
-
-#: src/renderer/components/ticket-card.jsx:274
+#: src/renderer/components/ticket-card.jsx:272
 msgid "Unlink"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:292
+#: src/renderer/components/ticket-card.jsx:303
+msgid "Refresh"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:303
+msgid "Opening the ticket on Trac"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:308
 msgid "Reading the ticket on Trac"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:293
+#: src/renderer/components/ticket-card.jsx:309
 msgid "Read details from Trac"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:325
+#: src/renderer/components/ticket-card.jsx:341
 msgid ""
 "The most recent patch on this ticket is a file attachment, not a pull "
 "request — see Trac attachments below."
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:50
+#: src/renderer/components/ticket-card.jsx:51
 msgid "Apply…"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:75
-msgid "Keywords:"
-msgstr ""
-
-#: src/renderer/components/ticket-card.jsx:95
+#: src/renderer/components/ticket-card.jsx:89
 msgid "Linked pull requests"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:96
+#: src/renderer/components/ticket-card.jsx:90
 msgid "Checking GitHub"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:99
+#: src/renderer/components/ticket-card.jsx:93
 msgid "Checking GitHub…"
 msgstr ""
 
 #: src/renderer/components/toast-stack.jsx:47
-#: src/renderer/index.jsx:2488
+#: src/renderer/index.jsx:2493
 msgid "Notifications"
 msgstr ""
 
@@ -2883,7 +2891,7 @@ msgstr ""
 msgid "Only %s issues are supported."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:132
+#: src/renderer/hooks/use-apply-patch.jsx:133
 #: src/renderer/hooks/use-build-watch.jsx:141
 #: src/renderer/hooks/use-site-terminal.jsx:256
 #: src/renderer/hooks/use-trunk-update.jsx:99
@@ -2892,37 +2900,37 @@ msgstr ""
 msgid "Running %s…"
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:218
+#: src/renderer/hooks/use-apply-patch.jsx:219
 #. %s: why the file could not be read, as the system said it.
 msgid "Could not read that file: %s"
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:359
+#: src/renderer/hooks/use-apply-patch.jsx:369
 #. %s: the file name of a Trac attachment.
 msgid "Could not download %s."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:364
+#: src/renderer/hooks/use-apply-patch.jsx:374
 msgid "Could not read that patch."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:467
+#: src/renderer/hooks/use-apply-patch.jsx:477
 msgid "A command is already running. Stop it before switching tickets."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:569
+#: src/renderer/hooks/use-apply-patch.jsx:579
 #. %s: why the patch could not be reverted, a sentence of its own.
 msgid "%s The applied-patch record has been cleared."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:572
+#: src/renderer/hooks/use-apply-patch.jsx:582
 #. %s: why the patch could not be reverted, a sentence of its own.
 msgid ""
 "%s The record of it could not be cleared, so this site still thinks it is "
 "applied."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:583
+#: src/renderer/hooks/use-apply-patch.jsx:593
 msgid "The patch could not be applied."
 msgstr ""
 
@@ -3226,144 +3234,144 @@ msgstr ""
 msgid "All changes discarded."
 msgstr ""
 
-#: src/renderer/index.jsx:1875
+#: src/renderer/index.jsx:1873
 msgid ""
 "Cloning the repository… install and build start on their own when it "
 "finishes."
 msgstr ""
 
-#: src/renderer/index.jsx:1882
+#: src/renderer/index.jsx:1880
 #: src/renderer/setup-steps.cjs:204
 msgid "Install npm dependencies"
 msgstr ""
 
-#: src/renderer/index.jsx:1898
+#: src/renderer/index.jsx:1896
 #: src/renderer/setup-steps.cjs:227
 #: src/renderer/update-plan.cjs:187
 msgid "Run full build"
 msgstr ""
 
-#: src/renderer/index.jsx:1914
+#: src/renderer/index.jsx:1912
 msgid "Start dev server & finish wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:1929
+#: src/renderer/index.jsx:1927
 msgid "Stop dev server"
 msgstr ""
 
-#: src/renderer/index.jsx:1929
+#: src/renderer/index.jsx:1927
 msgid "Start dev server and finish the wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:1934
+#: src/renderer/index.jsx:1932
 #. %s: how long the server has been starting, such as 12s.
 msgid "Starting… (%s)"
 msgstr ""
 
-#: src/renderer/index.jsx:2033
+#: src/renderer/index.jsx:2038
 #. %s: what to do next, a sentence.
 msgid "Next step: %s"
 msgstr ""
 
-#: src/renderer/index.jsx:2053
+#: src/renderer/index.jsx:2058
 #. <folder /> is the folder the project's source is in, such as src/. <command /> is the command that builds it, npm run build, which types it into the terminal when clicked.
 msgid ""
 "Edited files in <code><folder /></code>? Run <command /> so the site picks "
 "them up."
 msgstr ""
 
-#: src/renderer/index.jsx:2058
+#: src/renderer/index.jsx:2063
 #. <file /> is the file dependencies are listed in, package.json. <command /> is the command that installs them, npm install, which types it into the terminal when clicked.
 msgid "Added a dependency to <code><file /></code>? Run <command />."
 msgstr ""
 
-#: src/renderer/index.jsx:2066
+#: src/renderer/index.jsx:2071
 #. <command /> is the command that lists the others, help. <keys /> is the keys that stop a command, Ctrl+C.
 msgid ""
 "Type <code><command /></code> to list supported commands. Press <code><keys "
 "/></code> to stop the current command."
 msgstr ""
 
-#: src/renderer/index.jsx:2124
+#: src/renderer/index.jsx:2129
 msgid "Choose application…"
 msgstr ""
 
-#: src/renderer/index.jsx:2146
+#: src/renderer/index.jsx:2151
 msgid "Update incomplete"
 msgstr ""
 
-#: src/renderer/index.jsx:2147
+#: src/renderer/index.jsx:2152
 msgid ""
 "The code is new but the built assets are old. The site may not run "
 "correctly until install and build succeed."
 msgstr ""
 
-#: src/renderer/index.jsx:2149
+#: src/renderer/index.jsx:2154
 msgid "Retry install & build"
 msgstr ""
 
-#: src/renderer/index.jsx:2157
+#: src/renderer/index.jsx:2162
 #. %d: how many days old the site's copy of WordPress is.
 msgid "This site's WordPress code is %d day old"
 msgid_plural "This site's WordPress code is %d days old"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:2160
+#: src/renderer/index.jsx:2165
 msgid "Patches you create now may not apply on Trac. Updating takes a few minutes."
 msgstr ""
 
-#: src/renderer/index.jsx:2162
+#: src/renderer/index.jsx:2167
 #: src/renderer/site-menu.cjs:118
 msgid "Update to latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:2171
+#: src/renderer/index.jsx:2176
 #. 1: the step the update is on. 2: how many steps it has.
 msgid "step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2172
+#: src/renderer/index.jsx:2177
 msgid ""
 "Most packages are already cached, so this is a download of the difference — "
 "not the whole tree."
 msgstr ""
 
-#: src/renderer/index.jsx:2177
+#: src/renderer/index.jsx:2182
 msgid "Up to date with trunk as of today."
 msgstr ""
 
-#: src/renderer/index.jsx:2189
+#: src/renderer/index.jsx:2194
 #. %s: the path of the patch file the changes were saved to.
 msgid "Your changes were saved to %s before the reset."
 msgstr ""
 
-#: src/renderer/index.jsx:2206
+#: src/renderer/index.jsx:2211
 #. 1: the step setup is on. 2: how many steps it has.
 msgid "Setting this site up for you — step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2211
+#: src/renderer/index.jsx:2216
 msgid ""
 "Installing dependencies. You can leave this running — the build follows on "
 "its own."
 msgstr ""
 
-#: src/renderer/index.jsx:2212
+#: src/renderer/index.jsx:2217
 msgid ""
 "Running the full build. This can take up to half an hour on Windows; the "
 "Terminal shows what it is doing."
 msgstr ""
 
-#: src/renderer/index.jsx:2234
+#: src/renderer/index.jsx:2239
 msgid "Hide"
 msgstr ""
 
-#: src/renderer/index.jsx:2250
+#: src/renderer/index.jsx:2255
 msgid "Finish setting this site up first."
 msgstr ""
 
-#: src/renderer/index.jsx:2483
+#: src/renderer/index.jsx:2488
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
@@ -4378,71 +4386,61 @@ msgstr[1] ""
 msgid "Edited on %s"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:100
+#: src/renderer/ticket-card.cjs:132
+msgid "Merged"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:133
+msgid "Closed"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:134
 msgid "Open"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:121
+#: src/renderer/ticket-card.cjs:155
 #. %s: a date.
 msgid "Last commit %s"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:124
+#: src/renderer/ticket-card.cjs:158
 #. %s: a date.
 msgid "Updated %s"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:162
+#: src/renderer/ticket-card.cjs:196
 msgid "Could not read the pull requests from GitHub."
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:163
+#: src/renderer/ticket-card.cjs:197
 msgid "GitHub is rate-limiting this connection."
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:164
+#: src/renderer/ticket-card.cjs:198
 msgid "Could not reach GitHub."
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:165
+#: src/renderer/ticket-card.cjs:199
 msgid "No cached list to fall back on."
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:168
+#: src/renderer/ticket-card.cjs:202
 #. %s: a date and a time.
 msgid "Showing what was last seen %s."
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:191
+#: src/renderer/ticket-card.cjs:225
 #. %s: the WordPress.org username of whoever uploaded a file.
 msgid "by %s"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:221
-#. “I am human” is what Trac's own page calls its button, in English whatever the reader's language; leave it as it is.
-msgid ""
-"Trac’s human-check did not complete in time. Try again, and click “I am "
-"human” if it appears."
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:226
-#. “Refresh” is the button beside the section's heading; use the word that button has in this language.
-msgid ""
-"The Trac window was closed before the attachments finished loading. Click "
-"“Refresh” to try again."
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:228
-msgid "Could not read the attachments from Trac."
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:231
-#. %s: an error message, as the system gave it.
-msgid "Could not read the attachments from Trac. (%s)"
-msgstr ""
-
 #: src/renderer/ticket-card.cjs:24
 msgid "GitHub issue"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:248
+#. %s: a date and time.
+msgid "Read from Trac %s"
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:25
@@ -4458,8 +4456,31 @@ msgstr ""
 msgid "e.g. 71234"
 msgstr ""
 
+#: src/renderer/ticket-card.cjs:286
+#. “I am human” is what Trac's own page calls its button, in English whatever the reader's language; leave it as it is.
+msgid ""
+"Trac’s human-check did not complete in time. Try again, and click “I am "
+"human” if it appears."
+msgstr ""
+
 #: src/renderer/ticket-card.cjs:29
 msgid "Link issue"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:291
+#. “Refresh” is the button beside the section's heading; use the word that button has in this language.
+msgid ""
+"The Trac window was closed before the attachments finished loading. Click "
+"“Refresh” to try again."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:293
+msgid "Could not read the attachments from Trac."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:296
+#. %s: an error message, as the system gave it.
+msgid "Could not read the attachments from Trac. (%s)"
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:30
@@ -4520,26 +4541,28 @@ msgid "No pull requests cite this ticket yet."
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:70
-#. %s: the part of WordPress a ticket is about, as Trac names it, such as "General" or "Editor".
-msgid "Component: %s"
+#. The label of a Trac ticket's type, such as "defect (bug)".
+msgid "Type"
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:72
-#. %s: the milestone a ticket is set for, such as "7.2" or "Awaiting Review".
-msgid "Milestone: %s"
+#. The label of the part of WordPress a ticket is about, as Trac names it, such as "General" or "Editor".
+msgid "Component"
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:74
-#. %s: how long ago, as Trac says it, such as "4 weeks ago".
-msgid "Opened %s"
+#. The label of the milestone a ticket is set for, such as "7.2" or "Awaiting Review".
+msgid "Milestone"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:98
-msgid "Merged"
+#: src/renderer/ticket-card.cjs:80
+#. The label of when a Trac ticket was opened, such as "08/28/2023 11:50:14 PM".
+msgid "Opened"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:99
-msgid "Closed"
+#: src/renderer/ticket-card.cjs:82
+#. The label of a Trac ticket's keywords, such as "has-patch".
+msgid "Keywords"
 msgstr ""
 
 #: src/renderer/ticket-trunk-notice.cjs:106
