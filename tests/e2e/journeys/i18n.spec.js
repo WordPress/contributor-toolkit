@@ -1031,7 +1031,10 @@ test( 'the Logs are fully translatable: their tabs, the notes in an empty pane, 
 	// debug.log's path, once there is one, is the machine's.
 	const inTray = async () => ( await unwrapped( tray ) ).filter( ( text ) => ! text.startsWith( site.dir ) );
 
-	// The watch's pane and debug.log's, empty: each says what fills it.
+	// The server's pane, the watch's and debug.log's, empty: each says what
+	// fills it.
+	await expect( tray.getByText( pseudoLocalize( 'No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await inTray() ).toEqual( [] );
 	await tab( pseudoLocalize( 'Build watch' ) ).click();
 	await expect( tray.locator( '.log-pane-note' ) ).toBeVisible( { timeout: 30_000 } );
 	expect( await inTray() ).toEqual( [] );
