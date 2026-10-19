@@ -412,11 +412,11 @@ test( 'the apply card and its preview are fully translatable', async ( { session
 	expect( ( await unwrapped( preview ) ).filter( ( text ) => text !== 'src/wp-login.php' ) ).toEqual( [] );
 
 	// Once applied, the details list the files it changed under a heading of
-	// their own (#669). The paths are the checkout's and stay as they are.
+	// their own (#669). The names are the checkout's and stay as they are.
 	await preview.getByRole( 'button', { name: pseudoLocalize( 'Apply and rebuild' ), exact: true } ).click();
 	const details = page.getByRole( 'complementary', { name: /e2e-site/ } ).filter( { visible: true } );
 	await expect( details.getByRole( 'heading', { name: pseudoLocalize( 'Changed files' ), exact: true } ) ).toBeVisible( { timeout: 60_000 } );
-	await expect( details.getByRole( 'button', { name: 'src/wp-login.php', exact: true } ) ).toBeVisible();
+	await expect( details.getByRole( 'button', { name: 'wp-login.php', exact: true } ) ).toBeVisible();
 
 	// Edited since, the file is marked and offers its revert, both by names a
 	// translator gave them (#669).

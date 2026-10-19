@@ -190,7 +190,7 @@ test( 'each file a checked-out pull request changed opens in the editor from the
 	// editor detection found, inside the site.
 	const file = page
 		.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } )
-		.getByRole( 'button', { name: 'src/wp-login.php', exact: true } );
+		.getByRole( 'button', { name: 'wp-login.php', exact: true } );
 	await file.click();
 	await expect.poll( () => app.evaluate( () => global.__e2eOpens ) ).toEqual( [
 		{ sitePath: site.dir, editorPath: editor.path, relPath: 'src/wp-login.php' },
@@ -204,7 +204,7 @@ test( 'each file a checked-out pull request changed opens in the editor from the
 	await page.evaluate( () => window.dispatchEvent( new Event( 'focus' ) ) );
 	const details = page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } );
 	await expect( file.locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	const mine = details.getByRole( 'button', { name: 'src/new-helper.php', exact: true } );
+	const mine = details.getByRole( 'button', { name: 'new-helper.php', exact: true } );
 	await expect( mine.locator( '..' ).getByRole( 'img', { name: 'You created this file', exact: true } ) ).toBeVisible();
 	expect( await ui.inDocumentOrder( page, [
 		details.getByRole( 'heading', { level: 3, name: `From PR #${ PR }`, exact: true } ),

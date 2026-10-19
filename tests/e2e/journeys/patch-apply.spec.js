@@ -160,12 +160,15 @@ async function standInForApplications( app, editors, answers = [] ) {
 	return () => app.evaluate( () => global.__e2eApplications );
 }
 
-// The file in the open site's details, and nowhere else: the preview names
-// the same path while it is up. Drawn as a link, it is a button, because it
-// opens an application rather than going anywhere.
+// The file in the open site's details, by its path, and nowhere else: the
+// preview names the same path while it is up. Drawn as a link, it is a
+// button, because it opens an application rather than going anywhere. It is
+// named by the file's own name, its folders being the rows above it in the
+// tree, and carries its whole path as its tooltip.
 const affectedFile = ( page, file ) => page
 	.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } )
-	.getByRole( 'button', { name: file, exact: true } );
+	.getByRole( 'button', { name: file.split( '/' ).pop(), exact: true } )
+	.and( page.locator( `[title="${ file }"]` ) );
 
 // The open site's details, and a file in them by its path.
 const details = ( page ) => page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } );
@@ -191,11 +194,20 @@ test( 'each file the applied patch changed opens in the editor from the details 
 	// own, and without one the path read as plain text.
 	const file = affectedFile( page, 'src/wp-login.php' );
 	await expect( file ).toHaveCSS( 'text-decoration-line', 'underline' );
-	// And it leads the details, above the facts about the checkout: while a
-	// change is applied, its files are what the contributor came for.
-	await expect(
-		page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } ).getByRole( 'heading', { level: 2 } ).first()
-	).toHaveText( 'Changed files' );
+	// And it ends the details, so a long list never pushes the server and the
+	// build watch out of reach; its folder is a row of the tree above it.
+	await expect( details( page ).getByRole( 'heading', { level: 2 } ).last() ).toHaveText( 'Changed files' );
+	const tree = details( page ).getByRole( 'treegrid' );
+	await expect( tree.getByRole( 'row' ) ).toHaveText( [ 'src', 'wp-login.php' ] );
+	// INVARIANT — a folder closes and opens, by its button and by the arrow
+	// keys, and Down moves from a folder to the file under it.
+	const folder = tree.getByRole( 'button', { name: 'src', exact: true } );
+	await folder.click();
+	await expect( tree.getByRole( 'row' ) ).toHaveText( [ 'src' ] );
+	await folder.press( 'ArrowRight' );
+	await expect( tree.getByRole( 'row' ) ).toHaveText( [ 'src', 'wp-login.php' ] );
+	await folder.press( 'ArrowDown' );
+	await expect( file ).toBeFocused();
 	await expect( file.locator( '..' ).locator( 'svg' ) ).toHaveCount( 1 );
 
 	// INVARIANT — the file is listed once the patch is applied, and one click
@@ -417,6 +429,16 @@ test( 'each file the contributor changed can be reverted on its own (#669)', asy
 	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
 	await refocus( page );
 	await expect( revertButton( 'src/new-helper.php' ) ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — the revert button is in the tree's reach of the arrow keys:
+	// Right from the file's name moves to it, Left goes back, and the mark is
+	// the name's description, since it cannot be reached itself.
+	await affectedFile( page, 'src/wp-login.php' ).focus();
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveAccessibleDescription( 'You edited this file' );
+	await page.keyboard.press( 'ArrowRight' );
+	await expect( revertButton( 'src/wp-login.php' ) ).toBeFocused();
+	await page.keyboard.press( 'ArrowLeft' );
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toBeFocused();
 
 	// INVARIANT — a file the contributor created is deleted, after asking so.
 	await revertButton( 'src/new-helper.php' ).click();

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { affectedFiles, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome } = require('../../src/renderer/affected-files.cjs');
+const { affectedFiles, affectedFileTree, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, visibleAffectedRows } = require('../../src/renderer/affected-files.cjs');
 
 const VSCODE = { id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' };
 const CURSOR = { id: 'cursor', name: 'Cursor', path: '/Applications/Cursor.app' };
@@ -31,6 +31,54 @@ test('the files a checked-out pull request changed are listed', () => {
 test('a pull request with no recorded files lists nothing', () => {
 	assert.deepEqual(affectedFiles({ pullRequest: { number: 7, files: null } }), []);
 	assert.deepEqual(affectedFiles({ pullRequest: { number: 7 } }), []);
+});
+
+// The tree a reviewer drew on #677: subfolders before files, every folder on
+// its own row, and a file's row knowing its whole path to open.
+test('the files are drawn as a tree, each folder on a row of its own', () => {
+	const rows = affectedFileTree([
+		'src/wp-admin/this.php',
+		'src/wp-login.php',
+		'src/wp-admin/and-that.php',
+		'src/wp-includes/class-wp.php',
+		'tests/phpunit/tests/formatting/escHtml.php',
+	]);
+	assert.deepEqual(rows.map(({ kind, name, level, positionInSet, setSize }) => [kind, name, level, positionInSet, setSize]), [
+		['folder', 'src', 1, 1, 2],
+		['folder', 'wp-admin', 2, 1, 3],
+		['file', 'this.php', 3, 1, 2],
+		['file', 'and-that.php', 3, 2, 2],
+		['folder', 'wp-includes', 2, 2, 3],
+		['file', 'class-wp.php', 3, 1, 1],
+		['file', 'wp-login.php', 2, 3, 3],
+		['folder', 'tests', 1, 2, 2],
+		['folder', 'phpunit', 2, 1, 1],
+		['folder', 'tests', 3, 1, 1],
+		['folder', 'formatting', 4, 1, 1],
+		['file', 'escHtml.php', 5, 1, 1],
+	]);
+	assert.equal(rows[2].path, 'src/wp-admin/this.php');
+	assert.equal(new Set(rows.map((row) => row.key)).size, rows.length);
+});
+
+// A file at the root, and a folder holding one file, keep their own rows.
+test('a file at the root has no folder, and a folder over one file keeps its row', () => {
+	const rows = affectedFileTree(['wp-config-sample.php', 'src/index.php']);
+	assert.deepEqual(rows.map(({ kind, name, level }) => [kind, name, level]), [
+		['folder', 'src', 1],
+		['file', 'index.php', 2],
+		['file', 'wp-config-sample.php', 1],
+	]);
+});
+
+// A closed folder keeps its row and hides all it holds, folders and files at
+// any depth, and nothing beside it: "src/" does not hide "src-other/".
+test('a closed folder hides everything under it and nothing else', () => {
+	const rows = affectedFileTree(['src/wp-admin/this.php', 'src/wp-login.php', 'src-other/a.php']);
+	const names = (collapsed) => visibleAffectedRows(rows, new Set(collapsed)).map((row) => row.name);
+	assert.deepEqual(names([]), ['src', 'wp-admin', 'this.php', 'wp-login.php', 'src-other', 'a.php']);
+	assert.deepEqual(names(['src/']), ['src', 'src-other', 'a.php']);
+	assert.deepEqual(names(['src/wp-admin/']), ['src', 'wp-admin', 'wp-login.php', 'src-other', 'a.php']);
 });
 
 // Detection's order is the site menu's order, which puts Visual Studio Code

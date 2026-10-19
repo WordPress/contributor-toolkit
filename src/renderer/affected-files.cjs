@@ -119,6 +119,53 @@ function revertOutcome(res) {
 }
 
 /**
+ * The paths as the rows of a tree, every folder open and each on a row of its
+ * own: a folder's subfolders before its files, each in the order the patch
+ * first reached it.
+ *
+ * @param {string[]} files Repository-relative paths, `/`-separated.
+ * @return {Array<{kind: 'folder'|'file', key: string, name: string, path?: string, level: number, positionInSet: number, setSize: number}>}
+ */
+function affectedFileTree(files) {
+	const root = { folders: new Map(), files: [] };
+	for (const file of files) {
+		let node = root;
+		for (const part of file.split('/').slice(0, -1)) {
+			if (!node.folders.has(part)) node.folders.set(part, { folders: new Map(), files: [] });
+			node = node.folders.get(part);
+		}
+		node.files.push(file);
+	}
+	const rows = [];
+	const walk = (node, prefix, level) => {
+		const children = [...node.folders.keys(), ...node.files];
+		children.forEach((child, index) => {
+			const position = { level, positionInSet: index + 1, setSize: children.length };
+			if (index >= node.folders.size) {
+				rows.push({ kind: 'file', key: child, name: child.split('/').pop(), path: child, ...position });
+				return;
+			}
+			rows.push({ kind: 'folder', key: `${prefix}${child}/`, name: child, ...position });
+			walk(node.folders.get(child), `${prefix}${child}/`, level + 1);
+		});
+	};
+	walk(root, '', 1);
+	return rows;
+}
+
+/**
+ * The rows still in view with some folders closed: a closed folder keeps its
+ * own row and hides everything under it, however deep.
+ *
+ * @param {Array}       rows      From affectedFileTree.
+ * @param {Set<string>} collapsed The keys of the closed folders.
+ * @return {Array}
+ */
+function visibleAffectedRows(rows, collapsed) {
+	return rows.filter((row) => ![...collapsed].some((key) => row.key !== key && row.key.startsWith(key)));
+}
+
+/**
  * Where a click on a file sends it: the first editor detection found, which
  * is the first the site menu's "Open in" offers, or the file manager when
  * there is none. The file manager rather than nothing, so the link always
@@ -133,4 +180,4 @@ function fileOpenTarget({ editors = [] } = {}) {
 	return first ? { kind: 'editor', path: first.path } : { kind: 'reveal' };
 }
 
-module.exports = { affectedFiles, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome };
+module.exports = { affectedFiles, affectedFileTree, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, visibleAffectedRows };
