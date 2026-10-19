@@ -338,7 +338,7 @@ test( 'the work-item card is fully translatable, with nothing linked and with a 
 	// ticket's summary and its facts, a pull request's title, a file's name,
 	// whoever uploaded it. They are answered by stand-ins, as in
 	// ticket-card.spec.js, and left out of the scan by name.
-	const THEIRS = [ '#60001', 'A summary from Trac', 'reviewing', 'defect (bug)', 'has-patch', '#7', 'A title from GitHub', '60001.diff', '·' ];
+	const THEIRS = [ '#60001', 'A summary from Trac', 'reviewing', 'defect (bug)', 'General', '7.2', '4 weeks ago', 'has-patch', '#7', 'A title from GitHub', '60001.diff' ];
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
 	await app.evaluate( ( { ipcMain } ) => {
@@ -1160,24 +1160,9 @@ function filled( text, ...values ) {
 	return out;
 }
 
-/**
- * The words of a link inside a translated sentence, as the pseudo-locale
- * shows them: accented, and without the sentence's brackets, which are the
- * sentence's and not the link's.
- *
- * @param {string} text
- * @return {string}
- */
-function inSentence( text ) {
-	return pseudoLocalize( text ).replace( /^\[/, '' ).replace( /~*\]$/, '' );
-}
-
 test( 'the ticket card\'s questions and notices are fully translatable: a refused number, loose edits on trunk, the edits carried or saved, and a trunk that moved', async ( { session } ) => {
-	// A ticket's number is the ticket's, and is left out of the scan. So are
-	// the two links inside the changes note: their words are part of its
-	// sentence, which is checked whole.
+	// A ticket's number is the ticket's, and is left out of the scan.
 	const NUMBERS = [ '#60001', '#60002' ];
-	const LINKS = [ inSentence( 'review and submit' ), inSentence( 'discard your changes' ) ];
 	const site = await gitSite.makeSite( session );
 	const savedTo = path.join( session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-saved-' ) ) ), 'trunk-edits.diff' );
 	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
@@ -1198,7 +1183,7 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 	const linkButton = card.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } );
 	const button = ( name ) => card.getByRole( 'button', { name, exact: true } );
 	const unlink = button( pseudoLocalize( 'Unlink' ) );
-	const inCard = async () => ( await unwrapped( card ) ).filter( ( text ) => ! NUMBERS.includes( text ) && ! LINKS.includes( text ) );
+	const inCard = async () => ( await unwrapped( card ) ).filter( ( text ) => ! NUMBERS.includes( text ) );
 
 	// A number that is not one: main's refusal.
 	await expect( card ).toBeVisible( { timeout: 30_000 } );
@@ -1223,13 +1208,14 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
 	await expect( question ).toHaveCount( 0 );
 
-	// Carried: where they went, and the note about them on the ticket, whose
-	// sentence holds its two links. The note's discard asks first too.
+	// Carried: where they went, and the notice about them on the ticket, with
+	// its two buttons. The notice's discard asks first too.
 	await carry.click();
 	await expect( card.getByText( filled( 'Your %1$d uncommitted change came along into #%2$s, and will go into its patch.', 1, 60001 ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	const discard = button( LINKS[ 1 ] );
+	const discard = button( pseudoLocalize( 'Discard changes' ) );
 	await expect( discard ).toBeVisible( { timeout: 30_000 } );
-	await expect( discard.locator( 'xpath=..' ) ).toHaveText( filled( 'You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.', 1, 60001 ).replace( /<\/?(?:review|discard)>/g, '' ) );
+	await expect( card.getByText( filled( '%1$d unsubmitted change for ticket #%2$s', 1, 60001 ), { exact: true } ) ).toBeVisible();
+	await expect( button( pseudoLocalize( 'Review and submit' ) ) ).toBeVisible();
 	await expect( card.getByText( pseudoLocalize( 'Unlinking this ticket doesn\'t affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.' ), { exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
 	await discard.click();

@@ -79,7 +79,7 @@ If you started editing before you linked a ticket or issue, those edits are on t
 
 When the edits do come along, the panel says where they went: *Your 1 uncommitted change came along into #62281, and will go into its patch.*
 
-![The top of the Trac ticket card after the carry: under the ticket's facts, a blue notice reading "Your 1 uncommitted change came along into #60000, and will go into its patch.", and then that there is 1 unsubmitted change for ticket #60000](/screenshots/carried-work-notice.png)
+![The top of the Trac ticket card after the carry: under the ticket's facts, a blue notice reading "Your 1 uncommitted change came along into #60000, and will go into its patch.", and below it a notice titled "1 unsubmitted change for ticket #60000" with Review and submit and Discard changes buttons](/screenshots/carried-work-notice.png)
 
 If you saved them instead, the confirmation names the file — *Your edits were saved to … and are no longer in the working tree* — and stays on screen after the switch, so the path does not vanish with the panel that offered it.
 
@@ -87,9 +87,11 @@ Linking a work item from a clean tree asks nothing and shows nothing. A standing
 
 ## Unsubmitted work for the item you are on
 
-Once a work item has changes that have not been submitted anywhere, its card says so. On Core it reads:
+Once a work item has changes that have not been submitted anywhere, its card says so in a notice. On Core it is titled:
 
-> You have 1 unsubmitted change for ticket #29798. You can **review and submit** or **discard your changes**.
+> **1 unsubmitted change for ticket #29798**
+
+with **Review and submit** and **Discard changes** buttons under it.
 
 This counts the work item's whole body of work — including everything parked when you last switched away. It is measured the same way [the patch](./submitting-changes) is, so the note and the diff are two readings of one walk rather than two answers. The count includes files the patch can only [name rather than carry](./submitting-changes#what-a-patch-can-and-cannot-carry): change nothing but an image and the note still says one unsubmitted change, while the diff itself is empty.
 

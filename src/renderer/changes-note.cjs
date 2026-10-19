@@ -37,26 +37,32 @@ function discardQuestion() {
 const WORK_ITEM_BRANCH = /^(?:ticket|issue)\//;
 
 /**
- * The changes note, as one sentence with its two links marked in it, or null
- * when there is nothing to say. `<review>` is the link that opens the review,
- * `<discard>` the one that discards; the component fills them in with
- * `createInterpolateElement`, so each sentence is whole for a translator.
+ * The changes note, or null when there is nothing to say. Where it renders
+ * decides its shape.
+ *
+ * By the buttons (`placement: 'buttons'`) it is one sentence with its two
+ * links marked in it: `<review>` opens the review, `<discard>` discards. The
+ * component fills them in with `createInterpolateElement`, so each sentence
+ * is whole for a translator. There the modal has not been named yet, so the
+ * review link says what it produces: a patch.
+ *
+ * In the ticket card (`placement: 'ticket'`) it is a notice: a `title` that
+ * says how much is waiting and for what, a `body` under it, and the words of
+ * its review button (`review`); the discard button says `discardLabel()`.
+ * The card already says where the changes are going, so the review button
+ * borrows the modal's own name. The card also carries a reassurance the
+ * buttons never need: Unlink sits right above, and the changes must not look
+ * like they hang on it. That is its body; on top of a pull request the body
+ * says where the changes go when the PR is reverted instead.
  *
  * `changedCount` can be missing: the dirty probe may have answered before a
  * count existed, and "You have changes" is still true then.
  *
- * The review link's words move with the placement. By the buttons the modal
- * has not been named yet, so the link says what it produces — a patch. In the
- * ticket card the sentence already says where the changes are going, so the
- * link borrows the modal's own name, "review and submit". The ticket card
- * also carries a reassurance the buttons never need: Unlink sits right
- * above, and the changes must not look like they hang on it.
- *
  * `workItemNoun` is what the site calls its work item (#251), `ticket` unless
- * told otherwise; every sentence that names it is written once per kind.
+ * told otherwise; every line that names it is written once per kind.
  *
  * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *, pullRequest?: Object, workItemNoun?: string}} state
- * @return {{placement: 'buttons'|'ticket', sentence: string, unlinkNote?: string}|null}
+ * @return {{placement: 'buttons', sentence: string}|{placement: 'ticket', title: string, body: string, review: string}|null}
  */
 function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest, workItemNoun = 'ticket' } = {}) {
 	if (!dirty) return null;
@@ -65,18 +71,75 @@ function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest, workIt
 	if (pullRequest && Number.isInteger(pullRequest.number)) {
 		const hasReturnDestination = typeof pullRequest.returnTo === 'string' && pullRequest.returnTo.length > 0;
 		const returnsToTicket = hasReturnDestination ? WORK_ITEM_BRANCH.test(pullRequest.returnTo) : Boolean(tracTicket);
-		return { placement: returnsToTicket ? 'ticket' : 'buttons', sentence: pullRequestChangesSentence({ count, number: pullRequest.number }) };
+		if (!returnsToTicket) return { placement: 'buttons', sentence: pullRequestChangesSentence({ count, number: pullRequest.number }) };
+		return {
+			placement: 'ticket',
+			title: pullRequestChangesTitle({ count, number: pullRequest.number }),
+			body: __("They stay with this pull request's local copy when you revert this PR."),
+			review: __('Review changes')
+		};
 	}
 	if (tracTicket) {
 		return {
 			placement: 'ticket',
-			sentence: workItemChangesSentence({ count, issue, number: tracTicket }),
-			unlinkNote: issue
+			title: workItemChangesTitle({ count, issue, number: tracTicket }),
+			review: __('Review and submit'),
+			body: issue
 				? __("Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.")
 				: __("Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.")
 		};
 	}
 	return { placement: 'buttons', sentence: unassignedChangesSentence({ count, issue }) };
+}
+
+/**
+ * What the ticket card's discard button says: the same words as the
+ * question's own button, since it is the same action.
+ *
+ * @return {string} The label.
+ */
+function discardLabel() {
+	return discardQuestion().confirm;
+}
+
+// The card's title for changes on top of a checked-out pull request.
+function pullRequestChangesTitle({ count, number }) {
+	if (count === null) {
+		// translators: %d: a pull request number.
+		return sprintf(__('Changes on top of PR #%d'), number);
+	}
+	return sprintf(
+		// translators: 1: how many files have changes. 2: a pull request number.
+		_n('%1$d change on top of PR #%2$d', '%1$d changes on top of PR #%2$d', count),
+		count,
+		number
+	);
+}
+
+// The card's title for changes on a linked ticket or issue.
+function workItemChangesTitle({ count, issue, number }) {
+	if (count === null && issue) {
+		// translators: %s: a GitHub issue number.
+		return sprintf(__('Unsubmitted changes for issue #%s'), number);
+	}
+	if (count === null) {
+		// translators: %s: a Trac ticket number.
+		return sprintf(__('Unsubmitted changes for ticket #%s'), number);
+	}
+	if (issue) {
+		return sprintf(
+			// translators: 1: how many files have changes. 2: a GitHub issue number.
+			_n('%1$d unsubmitted change for issue #%2$s', '%1$d unsubmitted changes for issue #%2$s', count),
+			count,
+			number
+		);
+	}
+	return sprintf(
+		// translators: 1: how many files have changes. 2: a Trac ticket number.
+		_n('%1$d unsubmitted change for ticket #%2$s', '%1$d unsubmitted changes for ticket #%2$s', count),
+		count,
+		number
+	);
 }
 
 // The note's sentence for changes on top of a checked-out pull request.
@@ -93,46 +156,6 @@ function pullRequestChangesSentence({ count, number }) {
 		_n(
 			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.",
 			"You have %1$d changes on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.",
-			count
-		),
-		count,
-		number
-	);
-}
-
-// The note's sentence for changes on a linked ticket or issue.
-function workItemChangesSentence({ count, issue, number }) {
-	if (count === null && issue) {
-		return sprintf(
-			// translators: %s: a GitHub issue number. <review> and <discard> are links.
-			__('You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.'),
-			number
-		);
-	}
-	if (count === null) {
-		return sprintf(
-			// translators: %s: a Trac ticket number. <review> and <discard> are links.
-			__('You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.'),
-			number
-		);
-	}
-	if (issue) {
-		return sprintf(
-			// translators: 1: how many files have changes. 2: a GitHub issue number. <review> and <discard> are links.
-			_n(
-				'You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.',
-				'You have %1$d unsubmitted changes for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.',
-				count
-			),
-			count,
-			number
-		);
-	}
-	return sprintf(
-		// translators: 1: how many files have changes. 2: a Trac ticket number. <review> and <discard> are links.
-		_n(
-			'You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.',
-			'You have %1$d unsubmitted changes for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.',
 			count
 		),
 		count,
@@ -319,4 +342,4 @@ function patchReviewContext({ pullRequest, tracTicket, workItemNoun = 'ticket' }
 	};
 }
 
-module.exports = { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion };
+module.exports = { patchReviewContext, changesNoteParts, discardLabel, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion };

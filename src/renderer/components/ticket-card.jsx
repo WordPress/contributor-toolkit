@@ -1,7 +1,8 @@
-import { useId } from 'react';
+import { Fragment, useId } from 'react';
 import { __ } from '@wordpress/i18n';
-import { Badge, Button, Card, InputControl, Link, Notice, Spinner, Stack, Text } from '@wordpress/ui';
-import { attachmentRows, attachmentsStatus, pullRequestRows, pullRequestsStatus, ticketCardWords, ticketFacts, tracReadAt } from '../ticket-card.cjs';
+import { update } from '@wordpress/icons';
+import { Badge, Button, Card, IconButton, InputControl, Link, Notice, Spinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
+import { attachmentRows, attachmentsStatus, pullRequestRows, pullRequestsStatus, ticketCardWords, ticketFacts, ticketHeading, tracReadAt } from '../ticket-card.cjs';
 import { ReasonedUiButton } from './reasoned-button.jsx';
 
 // The way to a page outside the app, drawn as a link. It is a button: the
@@ -53,35 +54,28 @@ function ApplyButton({ apply, row, item }) {
   );
 }
 
-// What Trac said of the ticket, under its number.
+// What Trac said of the ticket, under its title: one labelled row per fact,
+// so each reads on its own instead of in a run-on line.
 function Facts({ facts, onOpen }) {
+  if (!facts.facts.length) return null;
   return (
-    <>
-      {facts.status || facts.facts.length ? (
-        <Stack direction="row" align="center" gap="sm" wrap="wrap">
-          {facts.status ? <Badge intent={facts.status.intent}>{facts.status.label}</Badge> : null}
-          <Text variant="body-md" className="muted-label">
-            {facts.facts.map((fact, index) => (
-              <span key={fact.id}>
-                {index ? ' · ' : ''}
-                {fact.url ? <OutLink url={fact.url} onOpen={onOpen} tone="neutral">{fact.text}</OutLink> : fact.text}
+    <dl className="ticket-facts">
+      {facts.facts.map((fact) => (
+        <Fragment key={fact.id}>
+          <Text variant="body-md" className="muted-label" render={<dt />}>{fact.label}</Text>
+          <Text variant="body-md" render={<dd />}>
+            {fact.links ? fact.links.map((link, index) => (
+              <span key={link.label}>
+                {index ? ' ' : ''}
+                {link.url ? <OutLink url={link.url} onOpen={onOpen} tone="neutral">{link.label}</OutLink> : link.label}
               </span>
-            ))}
+            )) : null}
+            {!fact.links && fact.url ? <OutLink url={fact.url} onOpen={onOpen} tone="neutral">{fact.value}</OutLink> : null}
+            {!fact.links && !fact.url ? fact.value : null}
           </Text>
-        </Stack>
-      ) : null}
-      {facts.keywords.length ? (
-        <Text variant="body-md" className="muted-label">
-          {__('Keywords:')}
-          {facts.keywords.map((keyword) => (
-            <span key={keyword.label}>
-              {' '}
-              {keyword.url ? <OutLink url={keyword.url} onOpen={onOpen} tone="neutral">{keyword.label}</OutLink> : keyword.label}
-            </span>
-          ))}
-        </Text>
-      ) : null}
-    </>
+        </Fragment>
+      ))}
+    </dl>
   );
 }
 
@@ -267,6 +261,7 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
   }
 
   const facts = details ? ticketFacts(details.info) : null;
+  const heading = ticketHeading({ ticketId, facts });
   const readAt = details ? tracReadAt({ checkedAt: details.readAt }) : '';
   return (
     <Card.Root {...cue} className={cardClass} render={<section aria-labelledby={titleId} />}>
@@ -281,24 +276,31 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
       <Card.Content render={<Stack direction="column" gap="xl" />}>
         {banner}
         <Stack direction="column" gap="sm">
-          {/* The number is what the site is for once one is linked, and under
-              #108 it also names the branch it is on. */}
-          <Text variant="heading-md" render={<h3 />}>
-            <OutLink url={ticketUrl} onOpen={onOpen} title={words.open}>
-              <span>{`#${ticketId}`}</span>
-              {facts && facts.summary ? <> {facts.summary}</> : null}
-            </OutLink>
-          </Text>
+          {/* The heading comes first in the page, so a screen reader that
+              jumps to it hears the status after it; the number and status
+              are drawn above it. What each holds is ticketHeading's. */}
+          <div className="ticket-heading">
+            <Text variant="heading-md" render={<h3 />}>
+              {heading.hiddenPrefix ? <VisuallyHidden>{heading.hiddenPrefix}</VisuallyHidden> : null}
+              <OutLink url={ticketUrl} onOpen={onOpen} title={words.open}>{heading.linkText}</OutLink>
+            </Text>
+            {heading.numberAbove || heading.status ? (
+              <Stack direction="row" align="center" gap="sm" wrap="wrap" className="ticket-heading-above">
+                {heading.numberAbove ? <Text variant="body-md" className="muted-label" aria-hidden="true">{heading.numberAbove}</Text> : null}
+                {heading.status ? <Badge intent={heading.status.intent}>{heading.status.label}</Badge> : null}
+              </Stack>
+            ) : null}
+          </div>
           {facts ? <Facts facts={facts} onOpen={onOpen} /> : null}
           {readAt ? (
-            // The way to read the ticket again, beside when it was read. The
-            // same read as the attachments' Refresh, which fetches both;
-            // named like it, by its word and the text it stands beside.
-            <Stack direction="row" align="center" gap="sm" wrap="wrap">
-              <Text id={readAtId} variant="body-md" className="muted-label">{readAt}</Text>
-              <Button id={refreshId} aria-labelledby={`${refreshId} ${readAtId}`} variant="minimal" tone="neutral" size="compact" loading={details.loading} loadingAnnouncement={__('Opening the ticket on Trac')} onClick={details.onRead}>
-                {__('Refresh')}
-              </Button>
+            // When the details were read, quietly, and the way to read them
+            // again beside it: the same read as the attachments' Refresh,
+            // which fetches both.
+            // Named like the card's other Refresh buttons, by its word and
+            // the text it stands beside.
+            <Stack direction="row" align="center" gap="xs">
+              <Text id={readAtId} variant="body-sm" className="muted-label">{readAt}</Text>
+              <IconButton id={refreshId} aria-labelledby={`${refreshId} ${readAtId}`} icon={update} label={__('Refresh')} variant="minimal" tone="neutral" size="compact" loading={details.loading} loadingAnnouncement={__('Opening the ticket on Trac')} onClick={details.onRead} />
             </Stack>
           ) : null}
           {details && !details.info ? (

@@ -51,36 +51,66 @@ function ticketCardWords(provider) {
 
 /**
  * What Trac said of the ticket, as the card shows it under the ticket's
- * number: its status as a badge, and a line of facts. The values are Trac's
- * own words and stay as Trac wrote them; only what the app adds around them
- * is translated.
+ * title: its status as a badge, and its facts as labelled rows, one per fact,
+ * so each can be read without parsing a run-on line. The values are Trac's
+ * own words and stay as Trac wrote them; only the labels are translated.
+ * The keywords are a row too, of links rather than one value.
  *
  * A closed ticket is not an error, so its badge has no colour; any other
  * status is the ticket being worked on.
  *
  * @param {Object|null} info What `parseTicketInfo` read, or null before the ticket has been read.
- * @return {{summary: string, status: ({label: string, intent: string}|null), facts: Array<{id: string, text: string, url?: string}>, keywords: Array<{label: string, url?: string}>}|null} Null before the ticket has been read.
+ * @return {{summary: string, status: ({label: string, intent: string}|null), facts: Array<{id: string, label: string, value?: string, url?: string, links?: Array<{label: string, url?: string}>}>}|null} Null before the ticket has been read.
  */
 function ticketFacts(info) {
 	if (!info) return null;
 	const badge = statusBadge(info);
 	const facts = [];
-	if (info.type) facts.push({ id: 'type', text: info.type });
-	// translators: %s: the part of WordPress a ticket is about, as Trac names it, such as "General" or "Editor".
-	if (info.component && info.component.label) facts.push({ id: 'component', text: sprintf(__('Component: %s'), info.component.label), url: info.component.url || '' });
-	// translators: %s: the milestone a ticket is set for, such as "7.2" or "Awaiting Review".
-	if (info.milestone) facts.push({ id: 'milestone', text: sprintf(__('Milestone: %s'), info.milestone) });
+	// translators: The label of a Trac ticket's type, such as "defect (bug)".
+	if (info.type) facts.push({ id: 'type', label: __('Type'), value: info.type });
+	// translators: The label of the part of WordPress a ticket is about, as Trac names it, such as "General" or "Editor".
+	if (info.component && info.component.label) facts.push({ id: 'component', label: __('Component'), value: info.component.label, url: info.component.url || '' });
+	// translators: The label of the milestone a ticket is set for, such as "7.2" or "Awaiting Review".
+	if (info.milestone) facts.push({ id: 'milestone', label: __('Milestone'), value: info.milestone });
 	// The date Trac gives, not its "4 weeks ago": a read is kept across a
 	// relaunch (#695), and the relative words would stop being true while the
 	// date stays so. The relative words only when Trac gave no date.
 	const opened = info.opened ? info.opened.absolute || info.opened.relative : '';
-	// translators: %s: when the ticket was opened, as Trac writes it, such as "08/28/2023 11:50:14 PM", or "4 weeks ago" when Trac gave no date.
-	if (opened) facts.push({ id: 'opened', text: sprintf(__('Opened %s'), opened) });
+	// translators: The label of when a Trac ticket was opened, such as "08/28/2023 11:50:14 PM".
+	if (opened) facts.push({ id: 'opened', label: __('Opened'), value: opened });
+	// translators: The label of a Trac ticket's keywords, such as "has-patch".
+	if (Array.isArray(info.keywords) && info.keywords.length) facts.push({ id: 'keywords', label: __('Keywords'), links: info.keywords });
 	return {
 		summary: info.summary || '',
 		status: badge ? { label: badge.label, intent: badge.tone === 'closed' ? 'none' : 'informational' } : null,
-		facts,
-		keywords: Array.isArray(info.keywords) ? info.keywords : []
+		facts
+	};
+}
+
+/**
+ * The top of the card once a ticket is linked: the heading, and what sits
+ * above it.
+ *
+ * Once Trac has given a summary, the summary is the heading's visible text
+ * and its link to Trac, with the number small above it. The heading still
+ * begins with the number for a screen reader (`hiddenPrefix`): under #108 the
+ * number names the branch the site is on. The number above is then hidden
+ * from it, so it is not said twice. Before a summary the number is the
+ * heading. The status badge sits above the heading whenever Trac gave one.
+ *
+ * @param {Object}  root0
+ * @param {*}       root0.ticketId The linked ticket's number.
+ * @param {?Object} root0.facts    What `ticketFacts` made of the read, or null before one.
+ * @return {{numberAbove: string, status: ({label: string, intent: string}|null), hiddenPrefix: string, linkText: string}} What to draw.
+ */
+function ticketHeading({ ticketId, facts = null }) {
+	const number = `#${ticketId}`;
+	const summary = facts && facts.summary ? facts.summary : '';
+	return {
+		numberAbove: summary ? number : '',
+		status: facts ? facts.status : null,
+		hiddenPrefix: summary ? `${number} ` : '',
+		linkText: summary || number
 	};
 }
 
@@ -274,4 +304,4 @@ function attachmentsStatus({ result = null, loading = false, count = 0 } = {}) {
 	};
 }
 
-module.exports = { ticketCardWords, ticketFacts, pullRequestState, pullRequestRows, pullRequestsStatus, attachmentRows, attachmentsStatus, tracReadAt, tracReadToShow };
+module.exports = { ticketCardWords, ticketFacts, ticketHeading, pullRequestState, pullRequestRows, pullRequestsStatus, attachmentRows, attachmentsStatus, tracReadAt, tracReadToShow };
