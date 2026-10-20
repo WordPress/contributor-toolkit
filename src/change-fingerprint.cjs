@@ -29,9 +29,10 @@ function fingerprint(buf) {
  * change's order.
  *
  * For a patch, `fingerprints` (what it wrote, recorded at apply) against
- * `now` (the same paths' fingerprints read now). A patch recorded before
- * fingerprints were has none, and nothing is marked rather than everything.
- * For a pull request, its files that are among the `unsubmitted` changes.
+ * `now` (the same paths' fingerprints read now). For a pull request, its
+ * files that are among the `unsubmitted` changes; a kept patch recorded
+ * before fingerprints were is passed in the same way, as `prFiles`, by the
+ * caller. With neither, nothing is marked.
  *
  * @param {Object}   root0
  * @param {?Object}  [root0.fingerprints] Path → fingerprint or null, from the patch's record.

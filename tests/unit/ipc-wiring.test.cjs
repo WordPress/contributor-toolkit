@@ -1509,9 +1509,10 @@ test('git:revert-file leaves the file as it was when its part of the patch will 
 	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // mine\n// the patch\n// more\n');
 });
 
-// A record from before fingerprints is not given a list of one: that would
-// say the patch's other files, edited too, are as it left them.
-test('git:revert-file on a kept patch with no fingerprints leaves its other edited files revertable (#669)', async (t) => {
+// A record from before fingerprints is given one for each of its files: the
+// reverted one is as the patch left it and no longer marked, and the others,
+// edited or not, stay marked and revertable.
+test('git:revert-file on a kept patch with no fingerprints unmarks that file and leaves the others revertable (#669)', async (t) => {
 	const { dir, main, record } = patchSite(t, {
 		base: { 'src/a.php': '<?php // base\n' },
 		worktree: { 'src/a.php': '<?php // base\n// the patch\n// mine\n', 'src/new.php': '<?php // new\n// mine\n' },
@@ -1522,8 +1523,8 @@ test('git:revert-file on a kept patch with no fingerprints leaves its other edit
 
 	assert.equal((await main.invoke('git:revert-file', dir, 'src/a.php')).ok, true);
 	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n// the patch\n');
-	assert.equal(record().fingerprints, undefined);
-	assert.ok((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange.includes('src/new.php'));
+	assert.deepEqual(record().fingerprints, { 'src/a.php': fingerprint(Buffer.from('<?php // base\n// the patch\n')), 'src/new.php': '' });
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, ['src/new.php']);
 	assert.equal((await main.invoke('git:revert-file', dir, 'src/new.php')).ok, true);
 	assert.equal(fs.readFileSync(path.join(dir, 'src', 'new.php'), 'utf8'), '<?php // new\n');
 });

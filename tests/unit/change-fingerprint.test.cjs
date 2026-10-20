@@ -25,7 +25,9 @@ test('a patched file whose content no longer matches what the patch wrote is edi
 	assert.deepEqual(editedSinceChange({ fingerprints, now }), ['src/b.php', 'src/back.php']);
 });
 
-// Recorded before fingerprints were: nothing can be said, so nothing is.
+// Given neither fingerprints nor a pull request's files, nothing can be
+// said, so nothing is. A kept patch from before fingerprints is passed as
+// `prFiles` by main.js instead.
 test('a patch with no fingerprints marks nothing', () => {
 	assert.deepEqual(editedSinceChange({ fingerprints: null, now: {} }), []);
 	assert.deepEqual(editedSinceChange({}), []);

@@ -2248,14 +2248,15 @@ ipcMain.handle('git:revert-file', async (_e, sitePath, relPath) => {
             // before the store is, and written only over the same record (#172).
             // The file is reverted whatever happens here: a record that could
             // not be written only means the list may still mark it. A record
-            // with no fingerprints keeps none: a list of this file alone would
-            // say the patch's other files are as it left them.
+            // from before fingerprints gets one for each of its files: this
+            // file's as it is now, and for the rest one nothing matches, so
+            // they stay marked as edited until they are reverted too.
             try {
                 const { ref } = await activeBranch(sitePath);
                 const [now] = Object.values(await fingerprintsNow(sitePath, [relPath]));
                 await changeWorkMetaOn(sitePath, ref, (work) => (
-                    work.appliedPatch?.fingerprints && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
-                        ? { appliedPatch: { ...work.appliedPatch, fingerprints: { ...work.appliedPatch.fingerprints, [relPath]: now } } }
+                    work.appliedPatch && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
+                        ? { appliedPatch: { ...work.appliedPatch, fingerprints: { ...(work.appliedPatch.fingerprints || Object.fromEntries((work.appliedPatch.files || []).map((file) => [file, '']))), [relPath]: now } } }
                         : null
                 ));
             } catch (e) {
