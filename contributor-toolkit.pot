@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-19T17:01:45+00:00\n"
+"POT-Creation-Date: 2026-10-20T13:10:11+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -1685,25 +1685,25 @@ msgid ""
 "they remain attached to it in this site, ready for when you link it again."
 msgstr ""
 
-#: src/renderer/components/app-footer.jsx:111
+#: src/renderer/components/app-footer.jsx:112
 msgid "Give feedback"
 msgstr ""
 
-#: src/renderer/components/app-footer.jsx:112
+#: src/renderer/components/app-footer.jsx:113
 msgid "Your feedback helps decide what to build next."
 msgstr ""
 
-#: src/renderer/components/app-footer.jsx:113
+#: src/renderer/components/app-footer.jsx:114
 msgid ""
 "Responses go into a shared form the team reviews regularly. Submissions are "
 "anonymous unless you add your email."
 msgstr ""
 
-#: src/renderer/components/app-footer.jsx:121
+#: src/renderer/components/app-footer.jsx:122
 msgid "Open the feedback form ↗"
 msgstr ""
 
-#: src/renderer/components/app-footer.jsx:128
+#: src/renderer/components/app-footer.jsx:129
 #: src/renderer/components/settings-dialog.jsx:520
 msgid "Settings"
 msgstr ""
@@ -1821,7 +1821,7 @@ msgid "Save patch & update"
 msgstr ""
 
 #: src/renderer/components/email-modal.jsx:44
-#: src/renderer/tray.cjs:37
+#: src/renderer/tray.cjs:39
 msgid "Email"
 msgstr ""
 
@@ -4702,24 +4702,12 @@ msgstr ""
 msgid "Enter a ticket number or URL."
 msgstr ""
 
-#: src/renderer/tray.cjs:35
+#: src/renderer/tray.cjs:37
 msgid "Terminal"
 msgstr ""
 
-#: src/renderer/tray.cjs:35
-msgid "Toggle Terminal"
-msgstr ""
-
-#: src/renderer/tray.cjs:36
+#: src/renderer/tray.cjs:38
 msgid "Logs"
-msgstr ""
-
-#: src/renderer/tray.cjs:36
-msgid "Toggle Logs"
-msgstr ""
-
-#: src/renderer/tray.cjs:37
-msgid "Toggle Email"
 msgstr ""
 
 #: src/renderer/update-handoff.cjs:55
