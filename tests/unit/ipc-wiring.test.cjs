@@ -7730,6 +7730,7 @@ function prWiring({ head = 'ticket/59234', meta = {}, reads = {}, pr = {}, ticke
 		branches: { 'ticket/59234': { baseOid: 'b'.repeat(40) }, 'pr/7': { headOid: oid, baseOid: oid, returnTo: 'ticket/59234' } }, ...meta
 	} } });
 	const fetchPullRequestHead = spy(async () => ({ oid }));
+	const fetchOriginTrunk = spy(async () => ({ oid: 't'.repeat(40) }));
 	const checkoutPullRequest = spy(async (_dir, number) => { const from = head; head = `pr/${number}`; return { from, to: head, parked: true }; });
 	const leavePullRequest = spy(async (_dir, { returnTo }) => { const from = head; head = returnTo; return { from, to: head, parked: true }; });
 	const resumeSwitch = spy(async (_dir, to) => { head = to; return { to, parked: false }; });
@@ -7738,9 +7739,9 @@ function prWiring({ head = 'ticket/59234', meta = {}, reads = {}, pr = {}, ticke
 		...silentLogging(), ...settings.stubs,
 		'./git-read.cjs': { isLegacySite: async () => false, mergeInProgress: async () => null, remoteUrl: async () => 'file:///origin', blobOid: async () => oid, resolveRef: async () => oid, listBranches: async () => ['trunk', 'ticket/59234', 'pr/7'], ...reads },
 		'./ticket-branches': { currentBranchName: async () => head, listTicketBranches: async () => ['ticket/59234', 'pr/7'], countChangesAgainst: async () => 3, resumeSwitch, ...tickets },
-		'./pr-checkout': { fetchPullRequestHead, checkoutPullRequest, leavePullRequest, describePullRequestHead: async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }], needsInstall: false, base: oid }), pullRequestBranchState: async () => state, ...pr }
+		'./pr-checkout': { fetchPullRequestHead, fetchOriginTrunk, checkoutPullRequest, leavePullRequest, describePullRequestHead: async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }], needsInstall: false, base: oid }), pullRequestBranchState: async () => state, ...pr }
 	} });
-	return { main, settings, oid, state, fetchPullRequestHead, checkoutPullRequest, leavePullRequest, resumeSwitch };
+	return { main, settings, oid, state, fetchPullRequestHead, fetchOriginTrunk, checkoutPullRequest, leavePullRequest, resumeSwitch };
 }
 
 async function runPr(main, action, ...args) {
@@ -7764,6 +7765,25 @@ test('git:preview-pr fetches by number and describes the fetched head without re
 	assert.equal(typeof f.fetchPullRequestHead.calls[0][2].onChild, 'function');
 	assert.deepEqual(f.settings.values, before);
 	assert.equal(f.checkoutPullRequest.calls.length, 0);
+});
+
+// The site's trunk can be months behind the one the pull request was written
+// on; its files are measured from origin's, fetched first (#701).
+test('git:preview-pr measures the files from origin\'s trunk as just fetched (#701)', async () => {
+	const describePullRequestHead = spy(async () => ({ files: [], needsInstall: false, base: null }));
+	const f = prWiring({ pr: { describePullRequestHead } });
+	assert.equal((await f.main.invoke('git:preview-pr', '/sites/wp', 7)).ok, true);
+	assert.equal(typeof f.fetchOriginTrunk.calls[0][1].onChild, 'function');
+	assert.equal(describePullRequestHead.calls[0][2].trunkRef, 't'.repeat(40));
+});
+
+// Origin's trunk is only a better yardstick: when it cannot be fetched, the
+// preview still answers, measured from the site's own trunk.
+test('git:preview-pr falls back to the site\'s trunk when origin\'s cannot be fetched (#701)', async () => {
+	const describePullRequestHead = spy(async () => ({ files: [], needsInstall: false, base: null }));
+	const f = prWiring({ pr: { describePullRequestHead, fetchOriginTrunk: async () => { throw new Error('offline'); } } });
+	assert.equal((await f.main.invoke('git:preview-pr', '/sites/wp', 7)).ok, true);
+	assert.equal(describePullRequestHead.calls[0][2].trunkRef, 'trunk');
 });
 
 for (const head of ['ticket/59234', 'trunk']) {

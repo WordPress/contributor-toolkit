@@ -18,6 +18,7 @@ const { pathToFileURL } = require('node:url');
 const {
 	fetchPullRequestHead,
 	describePullRequestHead,
+	fetchOriginTrunk,
 	pullRequestBranchState,
 	checkoutPullRequest,
 	leavePullRequest
@@ -134,6 +135,36 @@ test('describePullRequestHead: the files are the pull request\'s own diff from w
 	assert.deepEqual(after.files, before.files);
 	assert.equal(after.needsInstall, true);
 	assert.equal((await describePullRequestHead(dir, prOid, { currentHead: baseOid })).needsInstall, false, 'currentHead is honoured over HEAD');
+});
+
+// A site whose trunk is behind the commit the pull request left from (#701):
+// trunk's commits in between are not the pull request's either.
+test('describePullRequestHead: a pull request newer than the site\'s trunk lists only its own files (#701)', async (t) => {
+	const { origin, dir, baseOid } = await makeSiteAndOrigin(t);
+	gitOk(['rm', '-q', README], origin);
+	const trunkOid = commitFiles(origin, writeFiles(origin, { [LOCKFILE]: '{"lockfileVersion":2}\n' }), 'trunk moves');
+	const prOid = addPullRequest(origin, 8, { 'src/new.php': '<?php // new\n' });
+	const { oid: fetchedTrunk } = await fetchOriginTrunk(dir);
+	await fetchPullRequestHead(dir, 8);
+
+	assert.equal(fetchedTrunk, trunkOid);
+	const described = await describePullRequestHead(dir, prOid, { trunkRef: fetchedTrunk });
+	assert.equal(described.base, trunkOid);
+	assert.deepEqual(described.files, [{ path: 'src/new.php', kind: 'added' }]);
+	// Measuring from origin's trunk moved nothing the contributor has.
+	assert.equal(gitOk(['rev-parse', TRUNK], dir).trim(), baseOid);
+	assert.equal(gitOk(['rev-parse', 'HEAD'], dir).trim(), baseOid);
+});
+
+// A site added from disk need not track origin's trunk at all: no fetch
+// refspec, no remote-tracking ref. The commit comes from the fetch itself.
+test('fetchOriginTrunk: returns origin\'s trunk on a site that does not track it (#701)', async (t) => {
+	const { origin, dir } = await makeSiteAndOrigin(t);
+	const trunkOid = commitFiles(origin, writeFiles(origin, { [LOCKFILE]: '{"lockfileVersion":2}\n' }), 'trunk moves');
+	gitOk(['config', '--unset-all', 'remote.origin.fetch'], dir);
+	gitOk(['update-ref', '-d', `refs/remotes/origin/${TRUNK}`], dir);
+
+	assert.equal((await fetchOriginTrunk(dir)).oid, trunkOid);
 });
 
 test('describePullRequestHead: commit ids are validated before Git reads them (#458)', async (t) => {
