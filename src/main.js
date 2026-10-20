@@ -2334,9 +2334,11 @@ ipcMain.handle('git:preview-pr', async (_event, sitePath, value) => withRegister
     // Origin's trunk first, so the files listed are the pull request's own
     // however far behind the site's trunk is (#701). Without it, the site's.
     let trunkRef = TRUNK;
+    let measuredFromSite = false;
     try {
         ({ oid: trunkRef } = await fetchOriginTrunk(sitePath, { onChild: trackGitChild(sitePath) }));
     } catch (e) {
+        measuredFromSite = true;
         logError('git:preview-pr', `could not fetch trunk, so #${number}'s files are measured from the site's: ${String(e && e.message || e)}`);
     }
     const { oid: headOid } = await fetchPrHead(sitePath, number);
@@ -2344,7 +2346,7 @@ ipcMain.handle('git:preview-pr', async (_event, sitePath, value) => withRegister
     const recorded = (active.site.branches || {})[prBranchRef(number)] || {};
     const description = await describePullRequestHead(sitePath, headOid, { trunkRef });
     const state = await pullRequestBranchState(sitePath, number, { headOid, recordedHeadOid: recorded.headOid });
-    return { ok: true, number, headOid, ...description, ...state, returnTo: recorded.returnTo || active.ref };
+    return { ok: true, number, headOid, ...description, ...state, measuredFromSite, returnTo: recorded.returnTo || active.ref };
 }));
 
 // The same invoke/log/done contract as update-trunk. All refusals, including an

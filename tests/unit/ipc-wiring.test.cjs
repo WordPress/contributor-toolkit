@@ -7775,6 +7775,7 @@ test('git:preview-pr measures the files from origin\'s trunk as just fetched (#7
 	assert.equal((await f.main.invoke('git:preview-pr', '/sites/wp', 7)).ok, true);
 	assert.equal(typeof f.fetchOriginTrunk.calls[0][1].onChild, 'function');
 	assert.equal(describePullRequestHead.calls[0][2].trunkRef, 't'.repeat(40));
+	assert.equal((await f.main.invoke('git:preview-pr', '/sites/wp', 7)).measuredFromSite, false);
 });
 
 // Origin's trunk is only a better yardstick: when it cannot be fetched, the
@@ -7782,7 +7783,9 @@ test('git:preview-pr measures the files from origin\'s trunk as just fetched (#7
 test('git:preview-pr falls back to the site\'s trunk when origin\'s cannot be fetched (#701)', async () => {
 	const describePullRequestHead = spy(async () => ({ files: [], needsInstall: false, base: null }));
 	const f = prWiring({ pr: { describePullRequestHead, fetchOriginTrunk: async () => { throw new Error('offline'); } } });
-	assert.equal((await f.main.invoke('git:preview-pr', '/sites/wp', 7)).ok, true);
+	const result = await f.main.invoke('git:preview-pr', '/sites/wp', 7);
+	assert.equal(result.ok, true);
+	assert.equal(result.measuredFromSite, true);
 	assert.equal(describePullRequestHead.calls[0][2].trunkRef, 'trunk');
 });
 

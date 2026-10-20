@@ -105,9 +105,8 @@ async function fetchPullRequestHead(dir, number, { onStderr = null, onProgress =
 
 /**
  * Fetches origin's trunk without moving any branch, and returns its commit,
- * so a pull request's file list can be measured against the trunk it was
- * written on rather than the site's own, which can be months behind it
- * (#701). Read from `FETCH_HEAD` rather than a remote-tracking ref, which a
+ * so a pull request's file list can be measured against origin's current
+ * trunk rather than the site's own, which can be months behind it (#701). Read from `FETCH_HEAD` rather than a remote-tracking ref, which a
  * site added from disk may not have.
  *
  * @param {string}   dir
