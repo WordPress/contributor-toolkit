@@ -437,15 +437,24 @@ test( 'each file the contributor changed can be reverted on its own (#669)', asy
 	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveAccessibleDescription( 'You edited this file' );
 	await page.keyboard.press( 'ArrowRight' );
 	await expect( revertButton( 'src/wp-login.php' ) ).toBeFocused();
-	// INVARIANT — its focus ring, drawn outside it, is not cut off by the
-	// edge of the details, which clip what passes it.
-	expect( await revertButton( 'src/wp-login.php' ).evaluate( ( button ) => {
-		const style = window.getComputedStyle( button );
-		const ringEnd = button.getBoundingClientRect().right + parseFloat( style.outlineWidth ) + parseFloat( style.outlineOffset );
-		return ringEnd <= button.closest( '.dashboard-sidebar-slot' ).getBoundingClientRect().right;
-	} ) ).toBe( true );
+	// INVARIANT — a focus ring, drawn outside what has the focus, is not cut
+	// off by either edge of the details, which clip what passes them: not the
+	// revert button's at the end of a row, nor a file's or a folder's.
+	const ringInside = ( locator ) => locator.evaluate( ( element ) => {
+		const style = window.getComputedStyle( element );
+		const ring = parseFloat( style.outlineWidth ) + parseFloat( style.outlineOffset );
+		const box = element.getBoundingClientRect();
+		const slot = element.closest( '.dashboard-sidebar-slot' ).getBoundingClientRect();
+		return box.left - ring >= slot.left && box.right + ring <= slot.right;
+	} );
+	expect( await ringInside( revertButton( 'src/wp-login.php' ) ) ).toBe( true );
 	await page.keyboard.press( 'ArrowLeft' );
 	await expect( affectedFile( page, 'src/wp-login.php' ) ).toBeFocused();
+	expect( await ringInside( affectedFile( page, 'src/wp-login.php' ) ) ).toBe( true );
+	const folder = details( page ).locator( '.affected-files-folder' ).first();
+	await folder.focus();
+	expect( await ringInside( folder ) ).toBe( true );
+	await affectedFile( page, 'src/wp-login.php' ).focus();
 
 	// INVARIANT — a file the contributor created is deleted, after asking so.
 	await revertButton( 'src/new-helper.php' ).click();
