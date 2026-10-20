@@ -62,6 +62,19 @@ function changedFileGroups({ appliedPatch = null, pullRequest = null, unsubmitte
 }
 
 /**
+ * A `git:unsubmitted-work` reply as `changedFileGroups` reads it, or null
+ * when there is no answer. Every field it reads is carried, so none is lost
+ * between the handler and the list.
+ *
+ * @param {*} res
+ * @return {?{entries: Array, editedSinceChange: string[], renamedByChange: string[]}}
+ */
+function unsubmittedFromReply(res) {
+	if (!res?.ok) return null;
+	return { entries: res.entries || [], editedSinceChange: res.editedSinceChange || [], renamedByChange: res.renamedByChange || [] };
+}
+
+/**
  * What a file's revert button asks first (#669): what the file goes back to,
  * or, for a file the contributor created, that it goes.
  *
@@ -163,14 +176,17 @@ function affectedFileTree(files) {
 
 /**
  * The rows still in view with some folders closed: a closed folder keeps its
- * own row and hides everything under it, however deep.
+ * own row and hides everything under it, however deep. A closed folder that
+ * is no longer a row, since it now shares a longer one, hides nothing: there
+ * would be no row left to open it from.
  *
  * @param {Array}       rows      From affectedFileTree.
  * @param {Set<string>} collapsed The keys of the closed folders.
  * @return {Array}
  */
 function visibleAffectedRows(rows, collapsed) {
-	return rows.filter((row) => ![...collapsed].some((key) => row.key !== key && row.key.startsWith(key)));
+	const closed = rows.filter((row) => row.kind === 'folder' && collapsed.has(row.key)).map((row) => row.key);
+	return rows.filter((row) => !closed.some((key) => row.key !== key && row.key.startsWith(key)));
 }
 
 /**
@@ -188,4 +204,4 @@ function fileOpenTarget({ editors = [] } = {}) {
 	return first ? { kind: 'editor', path: first.path } : { kind: 'reveal' };
 }
 
-module.exports = { affectedFiles, affectedFileTree, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, visibleAffectedRows };
+module.exports = { affectedFiles, affectedFileTree, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, unsubmittedFromReply, visibleAffectedRows };

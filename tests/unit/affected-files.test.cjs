@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { affectedFiles, affectedFileTree, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, visibleAffectedRows } = require('../../src/renderer/affected-files.cjs');
+const { affectedFiles, affectedFileTree, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, unsubmittedFromReply, visibleAffectedRows } = require('../../src/renderer/affected-files.cjs');
 
 const VSCODE = { id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' };
 const CURSOR = { id: 'cursor', name: 'Cursor', path: '/Applications/Cursor.app' };
@@ -96,6 +96,16 @@ test('a closed folder hides everything under it and nothing else', () => {
 	assert.deepEqual(names([]), ['src', 'wp-admin', 'this.php', 'wp-login.php', 'src-other', 'a.php']);
 	assert.deepEqual(names(['src/']), ['src', 'src-other', 'a.php']);
 	assert.deepEqual(names(['src/wp-admin/']), ['src', 'wp-admin', 'wp-login.php', 'src-other', 'a.php']);
+});
+
+// A closed folder that is no longer a row of its own, because a file left
+// the list and its folder joined a longer row, hides nothing: there would be
+// no row left to open it from.
+test('a closed folder that is no longer a row hides nothing', () => {
+	const rows = affectedFileTree(['src/wp-includes/blocks/b.php']);
+	assert.deepEqual(visibleAffectedRows(rows, new Set(['src/wp-includes/'])).map((row) => row.name), ['src/wp-includes/blocks', 'b.php']);
+	assert.deepEqual(visibleAffectedRows(rows, new Set(['src/'])).map((row) => row.name), ['src/wp-includes/blocks', 'b.php']);
+	assert.deepEqual(visibleAffectedRows(rows, new Set(['src/wp-includes/blocks/'])).map((row) => row.name), ['src/wp-includes/blocks']);
 });
 
 // Detection's order is the site menu's order, which puts Visual Studio Code
@@ -204,4 +214,17 @@ test('revertOutcome carries the recount, and the handler\'s own sentence on fail
 	assert.deepEqual(revertOutcome({ ok: true }), { ok: true });
 	assert.deepEqual(revertOutcome({ ok: false, code: 'failed', error: 'Could not revert src/a.php, so it was left as it was: x' }), { ok: false, message: 'Could not revert src/a.php, so it was left as it was: x' });
 	assert.deepEqual(revertOutcome(null), { ok: false, message: 'Could not revert the file: Unknown error' });
+});
+
+// The list reads the renamed paths too, so the reply carries them: without
+// them, both ends of a rename were offered a revert the handler refuses.
+test('a reply to the unsubmitted-work question keeps every field the list reads', () => {
+	const res = { ok: true, dirty: true, entries: [{ path: 'b.php', added: true }], editedSinceChange: ['a.php', 'b.php'], renamedByChange: ['a.php', 'b.php'] };
+	const kept = unsubmittedFromReply(res);
+	assert.deepEqual(kept, { entries: res.entries, editedSinceChange: res.editedSinceChange, renamedByChange: res.renamedByChange });
+	const { change } = changedFileGroups({ appliedPatch: { label: 'x.diff', files: ['a.php', 'b.php'], kept: true }, unsubmitted: kept });
+	assert.deepEqual(change.files.map((file) => file.canRevert), [false, false]);
+	assert.equal(unsubmittedFromReply({ ok: false }), null);
+	assert.equal(unsubmittedFromReply(null), null);
+	assert.deepEqual(unsubmittedFromReply({ ok: true }), { entries: [], editedSinceChange: [], renamedByChange: [] });
 });

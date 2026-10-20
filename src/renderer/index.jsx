@@ -76,7 +76,7 @@ import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
-import { changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome } from './affected-files.cjs';
+import { changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, unsubmittedFromReply } from './affected-files.cjs';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
@@ -798,7 +798,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // card never opens on a note that a clean tree then takes away.
   const [worktreeDirty, setWorktreeDirty] = useState(null);
   // Which files the branch has changed, from the same probe, for "Changed
-  // files" (#669): `{ entries, editedSinceChange }`, or null before an answer.
+  // files" (#669): `{ entries, editedSinceChange, renamedByChange }`, or null
+  // before an answer.
   const [unsubmitted, setUnsubmitted] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
@@ -1030,7 +1031,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           const res = await window.api.hasUnsubmittedWork(sitePath);
           if (probe.generation === generation) {
             setWorktreeDirty((current) => noteAfterProbe(current, res));
-            setUnsubmitted(res?.ok ? { entries: res.entries || [], editedSinceChange: res.editedSinceChange || [] } : null);
+            setUnsubmitted(unsubmittedFromReply(res));
           }
         } catch {}
       } while (probe.again);
