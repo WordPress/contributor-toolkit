@@ -2174,17 +2174,18 @@ test('the ready path makes a light window light, and a store that cannot be read
 	assert.ok(logged.some(([scope, message]) => scope === 'theme' && message.includes('settings.json is not JSON')), `logged: ${JSON.stringify(logged)}`);
 });
 
-// The menu's Settings… reaches the main window and brings it forward, and
-// not whichever window Electron lists first: the Trac window is one too.
-async function menuBuilt(main) {
+// The menu's Settings… and Create New Site… reach the main window and bring it
+// forward, and not whichever window Electron lists first: the Trac window is
+// one too.
+async function menuBuilt(main, id = 'settings') {
 	for (let turn = 0; turn < 50 && main.calls.applicationMenu.length === 0; turn++) {
 		await new Promise((resolve) => setImmediate(resolve));
 	}
 	assert.equal(main.calls.applicationMenu.length, 1, 'the ready path built the menu');
 	const item = main.calls.applicationMenu[0].template
 		.flatMap((menu) => menu.submenu || [])
-		.find((entry) => entry.id === 'settings');
-	assert.ok(item, 'the menu has a Settings… item');
+		.find((entry) => entry.id === id);
+	assert.ok(item, `the menu has a ${id} item`);
 	return item;
 }
 
@@ -2242,6 +2243,39 @@ test('the menu\'s Settings… with the main window closed opens one and sends no
 	closed.isDestroyed = () => true;
 
 	settings.click();
+
+	assert.equal(main.windows.length, 2, 'a window was opened');
+	assert.deepEqual(closed.sent, []);
+	assert.deepEqual(main.windows[1].sent, [], 'a page that has not subscribed is sent nothing');
+});
+
+test('the menu\'s Create New Site… opens the dialog in the main window, listed first or not (#661)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	const createSite = await menuBuilt(main, 'create-site');
+	const [mainWindow] = main.windows;
+	const brought = [];
+	mainWindow.isMinimized = () => true;
+	mainWindow.restore = () => brought.push('restore');
+	mainWindow.show = () => brought.push('show');
+	mainWindow.focus = () => brought.push('focus');
+	// The Trac window, and Electron lists it first.
+	const trac = new main.electron.BrowserWindow({});
+	main.windows.reverse();
+
+	createSite.click();
+
+	assert.deepEqual(mainWindow.sent, [{ channel: 'create-site:open', payload: undefined }]);
+	assert.deepEqual(trac.sent, []);
+	assert.deepEqual(brought, ['restore', 'show', 'focus']);
+});
+
+test('the menu\'s Create New Site… with the main window closed opens one and sends nothing into it (#661)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	const createSite = await menuBuilt(main, 'create-site');
+	const [closed] = main.windows;
+	closed.isDestroyed = () => true;
+
+	createSite.click();
 
 	assert.equal(main.windows.length, 2, 'a window was opened');
 	assert.deepEqual(closed.sent, []);

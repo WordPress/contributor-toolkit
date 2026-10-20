@@ -106,6 +106,7 @@ const EXPECTED_API_KEYS = [
 	'stopSmtp',
 	'stopWpDebug',
 	'subscribeCarriedWork',
+	'subscribeCreateSiteOpen',
 	'subscribeDeepLinkTicket',
 	'subscribePullRequestProgress',
 	'subscribeSettingsOpen',

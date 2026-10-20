@@ -620,13 +620,13 @@ function createWindow() {
 	mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 
-// The menu's "Settings…" (#559): the main window opens the dialog, and is
-// brought forward first, as it is for a deep link: the item can be pressed
-// with the window minimised or behind the Trac window. On macOS the menu is
-// there with no window, and the item then only opens one: the page it loads
-// has not subscribed yet, and a request sent into it would be lost. Pressed
-// again once the window is there, it opens the dialog.
-function openSettingsFromMenu() {
+// The menu's "Settings…" (#559) and "Create New Site…" (#661): the main
+// window opens the dialog, and is brought forward first, as it is for a deep
+// link: the item can be pressed with the window minimised or behind the Trac
+// window. On macOS the menu is there with no window, and the item then only
+// opens one: the page it loads has not subscribed yet, and a request sent into
+// it would be lost. Pressed again once the window is there, it opens the dialog.
+function openDialogFromMenu(channel) {
 	if (!mainWindow || mainWindow.isDestroyed?.()) {
 		createWindow();
 		return;
@@ -639,7 +639,7 @@ function openSettingsFromMenu() {
 			mainWindow.focus();
 		}
 	} catch {}
-	mainWindow.webContents.send('settings:open');
+	mainWindow.webContents.send(channel);
 }
 
 // --- wpct:// deep links (#464) -------------------------------------------
@@ -2794,7 +2794,8 @@ app.whenReady().then(async () => {
 	Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
 		onOpenLog: () => shell.openPath(getLogFilePath()),
 		onShowLogsFolder: () => shell.showItemInFolder(getLogFilePath()),
-		onOpenSettings: openSettingsFromMenu,
+		onOpenSettings: () => openDialogFromMenu('settings:open'),
+		onCreateSite: () => openDialogFromMenu('create-site:open'),
 		appName: app.name
 	})));
 

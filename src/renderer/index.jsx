@@ -362,6 +362,12 @@ function App({ settingsState }) {
     if (createSubmitting) return;
     setCreateModalOpen(true);
   }, [createSubmitting]);
+  // The menu's "Create New Site…" (#661) comes in through the same door, so it
+  // is refused the same way while a setup is running.
+  useEffect(() => {
+    const unsub = window.api.subscribeCreateSiteOpen(chooseAndSetup);
+    return () => { if (unsub) unsub(); };
+  }, [chooseAndSetup]);
 
   // What the create-site dialog hands over once it has every answer: the name,
   // trimmed, the parent folder and the project. The dialog closes here, and the
