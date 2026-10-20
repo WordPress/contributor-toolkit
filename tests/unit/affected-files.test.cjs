@@ -33,9 +33,10 @@ test('a pull request with no recorded files lists nothing', () => {
 	assert.deepEqual(affectedFiles({ pullRequest: { number: 7 } }), []);
 });
 
-// The tree a reviewer drew on #677: subfolders before files, every folder on
-// its own row, and a file's row knowing its whole path to open.
-test('the files are drawn as a tree, each folder on a row of its own', () => {
+// The tree a reviewer drew on #677: subfolders before files, a chain of
+// folders that hold only one another on one row, and a file's row knowing its
+// whole path to open.
+test('the files are drawn as a tree, a chain of lone folders on one row', () => {
 	const rows = affectedFileTree([
 		'src/wp-admin/this.php',
 		'src/wp-login.php',
@@ -51,13 +52,12 @@ test('the files are drawn as a tree, each folder on a row of its own', () => {
 		['folder', 'wp-includes', 2, 2, 3],
 		['file', 'class-wp.php', 3, 1, 1],
 		['file', 'wp-login.php', 2, 3, 3],
-		['folder', 'tests', 1, 2, 2],
-		['folder', 'phpunit', 2, 1, 1],
-		['folder', 'tests', 3, 1, 1],
-		['folder', 'formatting', 4, 1, 1],
-		['file', 'escHtml.php', 5, 1, 1],
+		['folder', 'tests/phpunit/tests/formatting', 1, 2, 2],
+		['file', 'escHtml.php', 2, 1, 1],
 	]);
 	assert.equal(rows[2].path, 'src/wp-admin/this.php');
+	assert.equal(rows[7].key, 'tests/phpunit/tests/formatting/');
+	assert.equal(rows[8].path, 'tests/phpunit/tests/formatting/escHtml.php');
 	assert.equal(new Set(rows.map((row) => row.key)).size, rows.length);
 });
 
@@ -69,6 +69,23 @@ test('a file at the root has no folder, and a folder over one file keeps its row
 		['file', 'index.php', 2],
 		['file', 'wp-config-sample.php', 1],
 	]);
+});
+
+// A chain stops at the first folder that holds a file or two folders: that
+// folder keeps the row, and what it holds goes under it.
+test('a lone folder joins its parent only while the parent holds nothing else', () => {
+	const rows = affectedFileTree(['src/wp-includes/blocks/a.php', 'src/wp-includes/b.php', 'src/wp-includes/c/d/e.php']);
+	assert.deepEqual(rows.map(({ kind, name, level }) => [kind, name, level]), [
+		['folder', 'src/wp-includes', 1],
+		['folder', 'blocks', 2],
+		['file', 'a.php', 3],
+		['folder', 'c/d', 2],
+		['file', 'e.php', 3],
+		['file', 'b.php', 2],
+	]);
+	const names = (collapsed) => visibleAffectedRows(rows, new Set(collapsed)).map((row) => row.name);
+	assert.deepEqual(names(['src/wp-includes/']), ['src/wp-includes']);
+	assert.deepEqual(names(['src/wp-includes/c/d/']), ['src/wp-includes', 'blocks', 'a.php', 'c/d', 'b.php']);
 });
 
 // A closed folder keeps its row and hides all it holds, folders and files at

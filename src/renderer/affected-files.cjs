@@ -119,9 +119,10 @@ function revertOutcome(res) {
 }
 
 /**
- * The paths as the rows of a tree, every folder open and each on a row of its
- * own: a folder's subfolders before its files, each in the order the patch
- * first reached it.
+ * The paths as the rows of a tree, every folder open: a folder's subfolders
+ * before its files, each in the order the patch first reached it. A folder
+ * whose only content is one folder shares that folder's row, as GitHub and
+ * VS Code draw them (#677), so `tests/phpunit/tests/ajax` is one row, not four.
  *
  * @param {string[]} files Repository-relative paths, `/`-separated.
  * @return {Array<{kind: 'folder'|'file', key: string, name: string, path?: string, level: number, positionInSet: number, setSize: number}>}
@@ -145,8 +146,15 @@ function affectedFileTree(files) {
 				rows.push({ kind: 'file', key: child, name: child.split('/').pop(), path: child, ...position });
 				return;
 			}
-			rows.push({ kind: 'folder', key: `${prefix}${child}/`, name: child, ...position });
-			walk(node.folders.get(child), `${prefix}${child}/`, level + 1);
+			let name = child;
+			let folder = node.folders.get(child);
+			while (folder.folders.size === 1 && !folder.files.length) {
+				const [[only, inner]] = folder.folders;
+				name = `${name}/${only}`;
+				folder = inner;
+			}
+			rows.push({ kind: 'folder', key: `${prefix}${name}/`, name, ...position });
+			walk(folder, `${prefix}${name}/`, level + 1);
 		});
 	};
 	walk(root, '', 1);
