@@ -101,4 +101,16 @@ function phpunitResult(run, { onTicket = false } = {}) {
 	return { status: 'online', text: sentences.join(' ') };
 }
 
-module.exports = { phpunitSummary, phpunitResult };
+/**
+ * The Tests section's last run: the dot and the sentence, and the command it
+ * was, empty before the first.
+ *
+ * @param {?{command: string}} run       As phpunitResult takes it.
+ * @param {Object}             [options] As phpunitResult takes them.
+ * @return {{command: string, status: string, text: string}} The section's `lastRun`.
+ */
+function phpunitLastRun(run, options) {
+	return { command: run ? run.command : '', ...phpunitResult(run, options) };
+}
+
+module.exports = { phpunitSummary, phpunitResult, phpunitLastRun };

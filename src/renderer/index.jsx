@@ -31,8 +31,8 @@ import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
-import { ticketArgs } from '../phpunit-plan.cjs';
-import { phpunitResult } from './phpunit-result.cjs';
+import { ticketArgs, phpunitCommandLine } from '../phpunit-plan.cjs';
+import { phpunitLastRun } from './phpunit-result.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -1248,7 +1248,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // would.
   const runTicketTests = useCallback(() => {
     revealTerminal();
-    runTerminalCommand(['phpunit', ...ticketArgs(tracTicket)].join(' '));
+    runTerminalCommand(phpunitCommandLine(ticketArgs(tracTicket)));
   }, [revealTerminal, runTerminalCommand, tracTicket]);
   const runAllPhpTests = useCallback(() => {
     revealTerminal();
@@ -2484,7 +2484,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         tests={skipInit && projectBuild.phpUnit ? {
           onRunTicket: tracTicket ? runTicketTests : null,
           onRunAllPhp: runAllPhpTests,
-          lastRun: phpunitRun ? { command: phpunitRun.command, ...phpunitResult(phpunitRun, { onTicket: Boolean(tracTicket) }) } : { command: '', ...phpunitResult(null) },
+          lastRun: phpunitLastRun(phpunitRun, { onTicket: Boolean(tracTicket) }),
           reason: testsDisabledReason({ terminalRunning, discarding, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })
         } : null}
         changed={{ ...changedGroups, onOpenFile: openAffectedFile, onRevertFile: revertFile, revertReason, revertError }}

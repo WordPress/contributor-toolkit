@@ -30,6 +30,8 @@ const SAMPLE = "<?php\ndefine( 'ABSPATH', dirname( __FILE__ ) . '/src/' );\ndefi
 const DB_COPY = "<?php\nactivate_plugin( '{SQLITE_PLUGIN}' );\n";
 const COMPOSER_BYTES = 'a stand-in for composer.phar';
 const COMPOSER_SHA = crypto.createHash('sha256').update(COMPOSER_BYTES).digest('hex');
+const COMPOSER_JSON = '{ "require-dev": { "yoast/phpunit-polyfills": "^1.1.0" } }';
+const PHP_VERSION = '8.3';
 // The plan the runner is given: the real one, with the stand-in's checksum.
 const PLAN = { ...plan, COMPOSER: { version: plan.COMPOSER.version, url: plan.COMPOSER.url, fileName: plan.COMPOSER.fileName, sha256: COMPOSER_SHA } };
 
@@ -39,9 +41,10 @@ function clearSrcCache() {
 	}
 }
 
-// A checkout with only the file the runner reads, and a toolkit directory
+// A checkout with only the files the runner reads, and a toolkit directory
 // with Composer cached unless a test says otherwise. `siteDir` is the site's
-// own folder in it, named the way the runner names it.
+// own folder in it, named the way the runner names it. `vendor` is PHPUnit as
+// the runner would have installed it, stamp and all.
 function makeFixture({ composer = COMPOSER_BYTES, vendor = false, plugin = false } = {}) {
 	const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'phpunit-runner-')));
 	const site = path.join(root, 'site with space');
@@ -50,9 +53,13 @@ function makeFixture({ composer = COMPOSER_BYTES, vendor = false, plugin = false
 	fs.mkdirSync(path.join(site, 'src', 'wp-content', 'plugins'), { recursive: true });
 	fs.mkdirSync(toolkitDir, { recursive: true });
 	fs.writeFileSync(path.join(site, 'wp-tests-config-sample.php'), SAMPLE);
+	fs.writeFileSync(path.join(site, 'composer.json'), COMPOSER_JSON);
 	if (composer !== null) fs.writeFileSync(path.join(toolkitDir, plan.COMPOSER.fileName), composer);
 	const fixture = { root, site, toolkitDir, siteDir };
-	if (vendor) makeVendor(fixture);
+	if (vendor) {
+		makeVendor(fixture);
+		makeStamp(fixture);
+	}
 	if (plugin) makePlugin(fixture);
 	return fixture;
 }
@@ -61,6 +68,14 @@ function makeVendor({ site }) {
 	fs.mkdirSync(path.join(site, 'vendor', 'bin'), { recursive: true });
 	fs.writeFileSync(path.join(site, 'vendor', 'bin', 'phpunit'), '');
 	fs.writeFileSync(path.join(site, 'vendor', 'autoload.php'), '');
+}
+
+// What the runner writes once an install succeeds: the PHP version and the
+// checkout's composer.json, hashed.
+function makeStamp({ site, siteDir }, phpVersion = PHP_VERSION) {
+	const composerJson = fs.readFileSync(path.join(site, 'composer.json'), 'utf8');
+	fs.mkdirSync(siteDir, { recursive: true });
+	fs.writeFileSync(path.join(siteDir, 'composer.stamp'), crypto.createHash('sha256').update(`${phpVersion}\n${composerJson}`).digest('hex'));
 }
 
 function makePlugin({ siteDir }) {
@@ -85,7 +100,7 @@ function mountsOf(options) {
 
 // Runs the runner to its exit. `codes` gives a step's exit code (0 when not
 // named); a step that succeeds leaves on disk what the real one would.
-async function runRunner(fixture, { args = [], codes = {}, fetchBody = null } = {}) {
+async function runRunner(fixture, { args = [], codes = {}, fetchBody = null, phpVersion = PHP_VERSION } = {}) {
 	const calls = [];
 	let fetches = 0;
 	let resolveExit;
@@ -105,7 +120,7 @@ async function runRunner(fixture, { args = [], codes = {}, fetchBody = null } = 
 	const originalExit = process.exit;
 	const originalFetch = global.fetch;
 	const output = [];
-	process.argv = [process.execPath, RUNNER, JSON.stringify({ site: fixture.site, toolkitDir: fixture.toolkitDir, phpVersion: '8.3', args })];
+	process.argv = [process.execPath, RUNNER, JSON.stringify({ site: fixture.site, toolkitDir: fixture.toolkitDir, phpVersion, args })];
 	process.exit = (code) => { resolveExit(code); };
 	global.fetch = async () => {
 		fetches += 1;
@@ -203,10 +218,22 @@ test('the empty mount points a run leaves are removed, and a db.php or plugin of
 	fs.writeFileSync(path.join(theirContent, 'db.php'), '<?php // theirs');
 	fs.mkdirSync(path.join(theirContent, 'plugins', plan.SQLITE_PLUGIN_SLUG));
 	fs.writeFileSync(path.join(theirContent, 'plugins', plan.SQLITE_PLUGIN_SLUG, 'load.php'), '<?php // theirs');
-	const { code } = await runRunner(theirs);
+	const { code, output } = await runRunner(theirs);
 	assert.equal(code, 0, 'their own drop-in is hidden for the run, not a reason to refuse it');
+	assert.doesNotMatch(output, /Could not remove/, 'a mount point that is not there, or not empty, is not a problem');
 	assert.equal(fs.readFileSync(path.join(theirContent, 'db.php'), 'utf8'), '<?php // theirs');
 	assert.ok(fs.existsSync(path.join(theirContent, 'plugins', plan.SQLITE_PLUGIN_SLUG, 'load.php')));
+});
+
+test('a mount point that cannot be removed is said in the run\'s log, and does not stop the run', async (t) => {
+	const fixture = makeFixture({ vendor: true, plugin: true });
+	t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+	// A file where the plugin folder would be: reading it as a folder fails
+	// with something other than "not there".
+	fs.writeFileSync(path.join(fixture.site, 'src', 'wp-content', 'plugins', plan.SQLITE_PLUGIN_SLUG), '');
+	const { code, output } = await runRunner(fixture);
+	assert.equal(code, 0);
+	assert.match(output, /Could not remove .*sqlite-database-integration/);
 });
 
 test('a checkout with no test config sample fails before anything slow runs', async (t) => {
@@ -243,6 +270,36 @@ test('an install stopped before Composer wrote its autoloader is installed again
 	fs.writeFileSync(path.join(fixture.site, 'vendor', 'bin', 'phpunit'), '');
 	const { steps } = await runRunner(fixture);
 	assert.deepEqual(steps, ['composer', 'install', 'phpunit']);
+});
+
+test('PHPUnit is installed again when composer.json changes, with update so a lock from the last install is not kept to', async (t) => {
+	const fixture = makeFixture({ vendor: true, plugin: true });
+	t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+	fs.writeFileSync(path.join(fixture.site, 'composer.json'), '{ "require-dev": { "yoast/phpunit-polyfills": "^1.1.5" } }');
+	const changed = await runRunner(fixture);
+	assert.equal(changed.code, 0);
+	assert.deepEqual(changed.steps, ['composer', 'install', 'phpunit']);
+	assert.equal(changed.calls[0].options._[2], 'update');
+	const next = await runRunner(fixture);
+	assert.deepEqual(next.steps, ['install', 'phpunit'], 'the new stamp holds for the next run');
+});
+
+test('PHPUnit is installed again when the site\'s PHP version changes', async (t) => {
+	const fixture = makeFixture({ vendor: true, plugin: true });
+	t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+	const { steps } = await runRunner(fixture, { phpVersion: '7.4' });
+	assert.deepEqual(steps, ['composer', 'install', 'phpunit']);
+});
+
+test('a vendor/ the app did not install is installed again once, and a failed install leaves no stamp', async (t) => {
+	const fixture = makeFixture({ plugin: true });
+	t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+	makeVendor(fixture);
+	const failed = await runRunner(fixture, { codes: { composer: 2 } });
+	assert.equal(failed.code, 2);
+	assert.equal(fs.existsSync(path.join(fixture.siteDir, 'composer.stamp')), false);
+	assert.deepEqual((await runRunner(fixture)).steps, ['composer', 'install', 'phpunit']);
+	assert.deepEqual((await runRunner(fixture)).steps, ['install', 'phpunit']);
 });
 
 test('Composer runs without its plugins and scripts, which would spawn a PHP that deadlocks', async (t) => {

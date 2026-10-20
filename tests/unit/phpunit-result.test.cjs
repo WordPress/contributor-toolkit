@@ -7,7 +7,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { phpunitSummary, phpunitResult } = require('../../src/renderer/phpunit-result.cjs');
+const { phpunitSummary, phpunitResult, phpunitLastRun } = require('../../src/renderer/phpunit-result.cjs');
 
 // What a red result adds after its count on a ticket's branch.
 const TRUNK_HINT = 'Some tests fail on this setup even without your change. Run a failing test on trunk to compare.';
@@ -61,4 +61,12 @@ test('a run stopped with Ctrl+C, one that never started, or one that never print
 	assert.deepEqual(phpunitResult({ running: false, code: 130, stopped: true, output: PASSED }), { status: 'offline', text: 'Stopped before it finished.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 1, output: 'Composer could not install PHPUnit (exit code 1).' }), { status: 'failed', text: 'The run did not finish (exit code 1).' });
 	assert.deepEqual(phpunitResult({ running: false, code: 0, output: '' }), { status: 'failed', text: 'The run did not finish (exit code 0).' });
+});
+
+test('the last run carries the command it was, and an empty one before the first', () => {
+	assert.deepEqual(phpunitLastRun(null), { command: '', status: 'offline', text: 'Not run yet.' });
+	assert.deepEqual(
+		phpunitLastRun({ command: 'phpunit --group 1', running: false, code: 1, output: FAILED }, { onTicket: true }),
+		{ command: 'phpunit --group 1', status: 'failed', text: `4 of 2133 tests failed. ${TRUNK_HINT}` }
+	);
 });

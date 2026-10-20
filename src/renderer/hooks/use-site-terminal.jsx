@@ -4,7 +4,7 @@ import { __, sprintf } from '@wordpress/i18n';
 import { terminalFont, terminalTheme, tokenName, TERMINAL_READABILITY } from '../terminal-theme.cjs';
 import { terminalGrid } from '../tray.cjs';
 import { useThemeKey } from '../components/app-theme.jsx';
-import { phpunitCommandArgs } from '../../phpunit-plan.cjs';
+import { phpunitCommandArgs, phpunitCommandLine } from '../../phpunit-plan.cjs';
 
 // What the terminal is painted with, read off the design system's tokens
 // where the terminal stands (#557). The terminal takes its colours and its
@@ -285,7 +285,7 @@ export function useSiteTerminal({ allowedScripts, phpUnit = false, runInstall, r
 
     const phpunitArgs = phpUnitRef.current ? phpunitCommandArgs(command) : null;
     if (phpunitArgs) {
-      const commandLine = ['phpunit', ...phpunitArgs].join(' ');
+      const commandLine = phpunitCommandLine(phpunitArgs);
       markTerminalRunning(true);
       terminalKillRef.current = () => { killCurrent().catch(() => {}); };
       // translators: %s: the command being run, such as phpunit --group 12345.

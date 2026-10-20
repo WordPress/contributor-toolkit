@@ -70,6 +70,11 @@ function phpunitCommandArgs(line) {
 	return (match[1] || '').split(/\s+/).filter(Boolean);
 }
 
+// The command line a run is shown as, in the terminal and the Tests section.
+function phpunitCommandLine(args) {
+	return ['phpunit', ...args].join(' ');
+}
+
 // The run a linked ticket's button starts: every test tagged `@ticket <id>`,
 // which PHPUnit treats as a group.
 function ticketArgs(ticketId) {
@@ -150,10 +155,12 @@ require '${SITE_VFS}/vendor/bin/phpunit';
 // The runCLI options for one PHP call: the checkout and the site's toolkit
 // folder mounted before install, WordPress neither installed nor given SQLite
 // by the CLI (the drop-in does that), and the site URL the tests expect.
-// `composerPath` mounts Composer, for the call that runs it; `sqlite` mounts
-// the drop-in and the plugin over src/wp-content, for the install and the
-// tests. Paths joined with '/', which Node accepts on Windows as well.
-function runOptions({ sitePath, siteDir, composerPath = null, sqlite = false, phpVersion, args }) {
+// `composerPath` mounts Composer, for the call that runs it; `sqlite`, the
+// host paths of the drop-in and the plugin as `{ dropInPath, pluginPath }`,
+// mounts them over src/wp-content, for the install and the tests. The runner
+// joins those paths, since this module is bundled into the window and has no
+// `path`.
+function runOptions({ sitePath, siteDir, composerPath = null, sqlite = null, phpVersion, args }) {
 	return {
 		command: 'php',
 		_: ['php', ...args],
@@ -162,8 +169,8 @@ function runOptions({ sitePath, siteDir, composerPath = null, sqlite = false, ph
 			{ hostPath: siteDir, vfsPath: TOOLKIT_VFS },
 			...(composerPath ? [{ hostPath: composerPath, vfsPath: COMPOSER_VFS }] : []),
 			...(sqlite ? [
-				{ hostPath: `${siteDir}/db.php`, vfsPath: `${SITE_VFS}/${DROP_IN_REL}` },
-				{ hostPath: `${siteDir}/${SQLITE_PLUGIN_SLUG}`, vfsPath: `${SITE_VFS}/${PLUGIN_REL}` }
+				{ hostPath: sqlite.dropInPath, vfsPath: `${SITE_VFS}/${DROP_IN_REL}` },
+				{ hostPath: sqlite.pluginPath, vfsPath: `${SITE_VFS}/${PLUGIN_REL}` }
 			] : [])
 		],
 		wordpressInstallMode: 'do-not-attempt-installing',
@@ -184,6 +191,7 @@ module.exports = {
 	DROP_IN_REL,
 	PLUGIN_REL,
 	phpunitCommandArgs,
+	phpunitCommandLine,
 	ticketArgs,
 	phpunitArgs,
 	testsConfig,

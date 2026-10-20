@@ -259,18 +259,24 @@ test('server-runner exits before loading the CLI when the serve config is not JS
 });
 
 // phpunit-runner.js runs `php`, which still binds a port for its request
-// handler, so it opens the same way. The checkout is given PHPUnit already, so
-// the runner's first wait is on runCLI (which never settles here), not on a
+// handler, so it opens the same way. The checkout is given PHPUnit already,
+// with the stamp of an install for no PHP version and no composer.json, so the
+// runner's first wait is on runCLI (which never settles here), not on a
 // Composer download.
 test('phpunit-runner patches loopback and hides child windows before loading the Playground CLI', () => {
 	const fs = require('node:fs');
 	const os = require('node:os');
+	const crypto = require('node:crypto');
+	const { phpunitSiteFolder } = require('../../src/phpunit-folder.cjs');
 	const toolkitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'phpunit-wiring-'));
 	const site = path.join(toolkitDir, 'site');
 	fs.mkdirSync(path.join(site, 'vendor', 'bin'), { recursive: true });
 	fs.writeFileSync(path.join(site, 'vendor', 'bin', 'phpunit'), '');
 	fs.writeFileSync(path.join(site, 'vendor', 'autoload.php'), '');
 	fs.writeFileSync(path.join(site, 'wp-tests-config-sample.php'), '');
+	const siteDir = phpunitSiteFolder(toolkitDir, site);
+	fs.mkdirSync(siteDir, { recursive: true });
+	fs.writeFileSync(path.join(siteDir, 'composer.stamp'), crypto.createHash('sha256').update('\n').digest('hex'));
 	try {
 		const { events, cliOptions } = loadRunner(path.join(SRC_DIR, 'phpunit-runner.js'), [JSON.stringify({ site, toolkitDir, args: [] })]);
 		assertPatchesPrecedeCli(events, 'phpunit-runner');

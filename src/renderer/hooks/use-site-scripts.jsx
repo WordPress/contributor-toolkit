@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { phpunitCommandLine } from '../../phpunit-plan.cjs';
 import { phpunitStart } from '../phpunit-start.cjs';
 import { runFailedInTerminal } from '../terminal-hints.cjs';
 
@@ -141,7 +142,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
   // did not start gets no done event, so it is settled here with -1.
   const runPhpUnit = useCallback((args, options = {}) => {
     const { onLog, onDone } = options;
-    const command = ['phpunit', ...args].join(' ');
+    const command = phpunitCommandLine(args);
     ensureStick('npm');
     currentRunIdRef.current = null;
     stopRequestedRef.current = false;

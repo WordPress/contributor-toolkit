@@ -38,6 +38,11 @@ test('phpunitCommandArgs takes the words after phpunit, and nothing else as a ph
 	assert.equal(plan.phpunitCommandArgs(''), null);
 });
 
+test('phpunitCommandLine is the command a run is shown as', () => {
+	assert.equal(plan.phpunitCommandLine([]), 'phpunit');
+	assert.equal(plan.phpunitCommandLine(plan.ticketArgs(12821)), 'phpunit --group 12821');
+});
+
 test('ticketArgs runs the tests tagged with the ticket, which PHPUnit groups by number', () => {
 	assert.deepEqual(plan.ticketArgs(12821), ['--group', '12821']);
 });
@@ -103,11 +108,11 @@ test('runOptions mounts before install, installs nothing, and serves the domain 
 test('runOptions mounts Composer, and the SQLite drop-in and plugin over src/wp-content, only when asked', () => {
 	const composer = plan.runOptions({ sitePath: '/s', siteDir: '/t', composerPath: '/data/composer.phar', args: [] });
 	assert.deepEqual(composer['mount-before-install'][2], { hostPath: '/data/composer.phar', vfsPath: '/composer.phar' });
-	const sqlite = plan.runOptions({ sitePath: '/s', siteDir: '/t', sqlite: true, args: [] });
+	const sqlite = plan.runOptions({ sitePath: '/s', siteDir: '/t', sqlite: { dropInPath: 'T:\\t\\db.php', pluginPath: 'T:\\t\\sqlite-database-integration' }, args: [] });
 	assert.deepEqual(sqlite['mount-before-install'].slice(2), [
-		{ hostPath: '/t/db.php', vfsPath: '/site/src/wp-content/db.php' },
-		{ hostPath: '/t/sqlite-database-integration', vfsPath: '/site/src/wp-content/plugins/sqlite-database-integration' }
-	]);
+		{ hostPath: 'T:\\t\\db.php', vfsPath: '/site/src/wp-content/db.php' },
+		{ hostPath: 'T:\\t\\sqlite-database-integration', vfsPath: '/site/src/wp-content/plugins/sqlite-database-integration' }
+	], 'the host paths are the runner\'s, used as given');
 });
 
 test('COMPOSER names one exact version and its checksum', () => {

@@ -58,12 +58,17 @@ async function ensureComposer(dest) {
 function removeMountPoints(sitePath) {
 	const dropIn = path.join(sitePath, ...plan.DROP_IN_REL.split('/'));
 	const plugin = path.join(sitePath, ...plan.PLUGIN_REL.split('/'));
-	try {
-		if (fs.statSync(dropIn).size === 0) fs.rmSync(dropIn);
-	} catch {}
-	try {
-		if (fs.readdirSync(plugin).length === 0) fs.rmdirSync(plugin);
-	} catch {}
+	// Nothing there is the usual case. Anything else is said in the run's log:
+	// the leftovers are harmless (core ignores both paths), but not invisible.
+	const tidy = (target, remove) => {
+		try {
+			remove();
+		} catch (err) {
+			if (err.code !== 'ENOENT') console.error(`[PHP tests] Could not remove ${target}: ${err.message}`);
+		}
+	};
+	tidy(dropIn, () => { if (fs.statSync(dropIn).size === 0) fs.rmSync(dropIn); });
+	tidy(plugin, () => { if (fs.readdirSync(plugin).length === 0) fs.rmdirSync(plugin); });
 }
 
 // The run, step by step. Returns the exit code; the caller tidies up and exits.
@@ -75,6 +80,7 @@ async function run({ sitePath, toolkitDir, phpVersion, args }) {
 
 	const { runCLI } = require('@wp-playground/cli');
 	const php = (phpArgs, mounts = {}) => runCLI(plan.runOptions({ sitePath, siteDir, phpVersion, args: phpArgs, ...mounts }));
+	const sqlite = { dropInPath: path.join(siteDir, 'db.php'), pluginPath: path.join(siteDir, plan.SQLITE_PLUGIN_SLUG) };
 	const fail = (code, line) => {
 		console.error(`[PHP tests] ${line}`);
 		return code || 1;
@@ -84,17 +90,28 @@ async function run({ sitePath, toolkitDir, phpVersion, args }) {
 	const samplePath = path.join(sitePath, 'wp-tests-config-sample.php');
 	if (!fs.existsSync(samplePath)) return fail(1, 'This checkout has no wp-tests-config-sample.php, so the tests cannot be configured.');
 
-	// 1. PHPUnit, once per checkout, with Composer. An existing vendor/ (from
-	// core's Docker setup, say) is used as it is. The autoloader is the last
+	// 1. PHPUnit, with Composer, whenever the checkout's composer.json or the
+	// PHP it runs on is not the one vendor/ was installed for: a trunk update
+	// that raises a minimum would otherwise stop core's bootstrap with a
+	// Composer command the contributor does not have. The stamp is written only
+	// once an install succeeds, so a vendor/ the app did not install (core's
+	// Docker setup's, say) is installed again once. The autoloader is the last
 	// thing Composer writes, so an install stopped part-way is installed again.
 	const hasPhpUnit = () => fs.existsSync(path.join(sitePath, 'vendor', 'bin', 'phpunit')) && fs.existsSync(path.join(sitePath, 'vendor', 'autoload.php'));
-	if (!hasPhpUnit()) {
+	const composerJson = path.join(sitePath, 'composer.json');
+	const stampPath = path.join(siteDir, 'composer.stamp');
+	const stamp = sha256(`${phpVersion || ''}\n${fs.existsSync(composerJson) ? fs.readFileSync(composerJson, 'utf8') : ''}`);
+	const installed = () => fs.existsSync(stampPath) && fs.readFileSync(stampPath, 'utf8') === stamp;
+	if (!hasPhpUnit() || !installed()) {
 		const composerPath = path.join(toolkitDir, plan.COMPOSER.fileName);
 		await ensureComposer(composerPath);
-		say('Installing PHPUnit with Composer. The first time takes a few minutes…');
+		say('Installing PHPUnit with Composer. This takes a few minutes…');
 		const code = await php([
 			plan.COMPOSER_VFS,
-			'install',
+			// update, not install: the first install writes a composer.lock
+			// (core ignores it), and install would keep to that lock after
+			// composer.json moves on. With no lock the two are the same.
+			'update',
 			`--working-dir=${plan.SITE_VFS}`,
 			'--no-interaction',
 			'--no-progress',
@@ -105,6 +122,7 @@ async function run({ sitePath, toolkitDir, phpVersion, args }) {
 			'--no-scripts'
 		], { composerPath });
 		if (code !== 0 || !hasPhpUnit()) return fail(code, `Composer could not install PHPUnit (exit code ${code}).`);
+		fs.writeFileSync(stampPath, stamp);
 	}
 
 	// 2. The SQLite plugin, once per site, from the archive the CLI ships.
@@ -134,11 +152,11 @@ async function run({ sitePath, toolkitDir, phpVersion, args }) {
 		configVfs,
 		multisite ? 'run_ms_tests' : 'no_ms_tests',
 		'run_core_tests'
-	], { sqlite: true });
+	], { sqlite });
 	if (installCode !== 0) return fail(installCode, `The test site could not be installed (exit code ${installCode}).`);
 
 	// 5. The tests.
-	const code = await php([`${plan.TOOLKIT_VFS}/run-phpunit.php`, ...plan.phpunitArgs(args)], { sqlite: true });
+	const code = await php([`${plan.TOOLKIT_VFS}/run-phpunit.php`, ...plan.phpunitArgs(args)], { sqlite });
 	return typeof code === 'number' ? code : 1;
 }
 
