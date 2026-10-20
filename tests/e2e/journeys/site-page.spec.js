@@ -89,4 +89,18 @@ test( 'a site whose code is old says so, why it matters, and has the way to upda
 	// notice carries the mark the cue looks for, and is ringed.
 	await expect( notice ).toHaveAttribute( 'data-next-action', 'update-trunk' );
 	await expect( notice ).toHaveClass( /(^| )next-action-cue( |$)/ );
+
+	// INVARIANT — and the ring can be seen against the notice, and is not
+	// keyboard focus: it is drawn, not in the colour of the border a warning
+	// notice already has, which is what it was drawn in when it could not be
+	// told from that border, and not in the focus ring's colour, which is
+	// what it was drawn in next, when it looked like focus.
+	const ring = await notice.evaluate( ( el ) => {
+		const style = window.getComputedStyle( el );
+		return { style: style.outlineStyle, width: parseFloat( style.outlineWidth ), color: style.outlineColor, border: style.borderTopColor };
+	} );
+	expect( ring.style ).toBe( 'solid' );
+	expect( ring.width ).toBeGreaterThan( 0 );
+	expect( ring.color ).not.toBe( ring.border );
+	expect( ring.color ).not.toBe( await ui.tokenColour( page, 'var(--wpds-color-stroke-focus)' ) );
 } );

@@ -19,7 +19,8 @@
 #
 # A pull request that changes only Markdown files skips both jobs. Their checks are
 # required, so the `*-skipped` jobs report the same names as passed on a cheap Linux
-# runner; unit-tests.yml explains why it is done this way and not with `paths-ignore`.
+# runner; unit-tests.yml explains why it is done this way and not with `paths-ignore`,
+# and how base-change.yml re-runs both workflows when a PR's base moves.
 
 name: E2E
 
@@ -28,25 +29,21 @@ on:
     # `ready_for_review` is not in the default set. Without it, a PR opened as a draft
     # and later marked ready never runs this workflow at all — the draft guard below
     # would skip the only run it ever gets.
-    # `edited` re-runs `changes` when the PR's base moves (see the `changes` job).
-    types: [opened, synchronize, reopened, ready_for_review, edited]
+    # Not `edited`: see unit-tests.yml.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [trunk]
 
 permissions:
   contents: read
 
-# A new push supersedes the previous run on the same ref. A title or description edit
-# gets a group of its own, so it cannot cancel a run that is still testing the code.
+# A new push supersedes the previous run on the same ref.
 concurrency:
-  group: e2e-${{ github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base && '-edit' || '' }}
+  group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   changes:
-    # Moving the PR's base changes its diff: a Markdown-only PR moved onto trunk from a
-    # stacked branch now carries that branch's code. Any other edit changes nothing here.
-    if: github.event.action != 'edited' || github.event.changes.base
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -54,7 +51,8 @@ jobs:
       code: ${{ steps.files.outputs.code }}
     steps:
       # A push to trunk always runs both jobs. On a pull request, any file that is
-      # not Markdown (including the old name of a renamed file) counts as code.
+      # not Markdown (including the old name of a renamed file) counts as code. The
+      # list is read live, so a re-run after the base moves sees the new diff.
       - id: files
         env:
           GH_TOKEN: ${{ github.token }}

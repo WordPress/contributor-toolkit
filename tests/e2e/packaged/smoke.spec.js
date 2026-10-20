@@ -38,6 +38,7 @@ const DIST = path.join( REPO_ROOT, 'dist' );
 const EXPECTED_API_KEYS = [
 	'addSite',
 	'applyPatch',
+	'cachedTracAttachments',
 	'cancelGithubSignIn',
 	'checkoutPullRequest',
 	'chooseDirectory',
@@ -83,6 +84,7 @@ const EXPECTED_API_KEYS = [
 	'rebaseBranch',
 	'relaunch',
 	'revealWpDebug',
+	'revertFile',
 	'runNpmInstall',
 	'runNpmScript',
 	'savePatch',

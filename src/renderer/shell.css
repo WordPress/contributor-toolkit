@@ -178,19 +178,22 @@ body {
   font-size: var(--wpds-typography-font-size-sm);
 }
 
-/* What a site has to report before it is opened (#94). */
+/* What a site has to report before it is opened (#94). A dot is a glyph,
+   as an icon is, so it takes the foreground role the icons beside it do, and
+   is filled with that colour. */
 .sites-sidebar-dot {
-  width: 8px;
-  height: 8px;
+  width: var(--wpds-dimension-size-4xs);
+  height: var(--wpds-dimension-size-4xs);
   border-radius: 50%;
+  background: currentColor;
 }
 
 .sites-sidebar-dot.is-stale {
-  background: var(--wpds-color-stroke-surface-warning-strong);
+  color: var(--wpds-color-foreground-content-warning-weak);
 }
 
 .sites-sidebar-dot.is-incomplete {
-  background: var(--wpds-color-stroke-surface-error-strong);
+  color: var(--wpds-color-foreground-content-error-weak);
 }
 
 /* The open site's page: it scrolls, and nothing else in the shell does. */
@@ -339,26 +342,28 @@ body {
 }
 
 /* A process's dot: grey for stopped, green for running, amber while it is
-   getting there, red for one that ended with an error. */
+   getting there, red for one that ended with an error. Painted as the
+   sites list's dots are, in the foreground role. */
 .process-status {
   display: block;
   flex-shrink: 0;
-  width: 8px;
-  height: 8px;
+  width: var(--wpds-dimension-size-4xs);
+  height: var(--wpds-dimension-size-4xs);
   border-radius: 50%;
-  background: var(--wpds-color-foreground-content-neutral-weak);
+  background: currentColor;
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .process-status.is-online {
-  background: var(--wpds-color-foreground-content-success-weak);
+  color: var(--wpds-color-foreground-content-success-weak);
 }
 
 .process-status.is-busy {
-  background: var(--wpds-color-stroke-surface-warning-strong);
+  color: var(--wpds-color-foreground-content-warning-weak);
 }
 
 .process-status.is-failed {
-  background: var(--wpds-color-stroke-surface-error-strong);
+  color: var(--wpds-color-foreground-content-error-weak);
 }
 
 .process-menu-trigger {
@@ -391,12 +396,75 @@ body {
   width: 100%;
   margin: 0;
   border: 0;
-  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-block-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 .sidebar-link {
   color: var(--wpds-color-foreground-content-neutral-weak);
 }
+
+/* "Changed files" (#669): each group a tree drawn as a table, one row a
+   folder or a file, each indented by the depth its row already tells a
+   screen reader. A file's revert button is in a cell of its own at the end. */
+.affected-files {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.affected-files tr {
+  --affected-files-level: attr(aria-level type(<integer>), 1);
+}
+
+/* Each cell keeps room on both sides for a focus ring, which is drawn
+   outside what has the focus, at most twice the ring's width: the details'
+   slot clips at both its edges, and a ring there came back cut off. */
+.affected-files td {
+  --affected-files-ring-room: calc(2 * var(--wpds-border-width-focus));
+  padding-block: var(--wpds-dimension-padding-xs);
+  padding-inline: calc((var(--affected-files-level) - 1) * var(--wpds-dimension-padding-lg) + var(--affected-files-ring-room)) var(--affected-files-ring-room);
+  vertical-align: top;
+}
+
+.affected-files td.affected-files-revert-cell {
+  width: 1px;
+  padding-inline: var(--wpds-dimension-padding-xs) var(--affected-files-ring-room);
+}
+
+.affected-files-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--wpds-dimension-gap-xs);
+}
+
+/* On the name's first line when a long one wraps. */
+.affected-files-icon {
+  flex-shrink: 0;
+  margin-block-start: 0.2em;
+}
+
+/* A folder: the whole row is the button that opens and closes it, in the
+   text's colour rather than a button's. Named with the link's own class,
+   which would otherwise make it inline. */
+.link-button.affected-files-folder {
+  display: flex;
+  color: inherit;
+}
+
+/* A file: a button drawn as a link, which the browser does not underline
+   the way it does an <a>. */
+.affected-file {
+  text-decoration-line: underline;
+}
+
+/* The pencil or plus after a file's name (#669), on the name's first line
+   when a long one wraps, like the page icon. */
+.affected-file-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-block-start: 0.2em;
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
 
 .sidebar-empty-state {
   box-sizing: border-box;
@@ -486,7 +554,14 @@ body {
   }
 }
 
+/* The footer is one line, whatever its language: a label broken across two
+   makes it taller and takes the height from the tray above. The trays'
+   buttons are labelled where there is room for every label (#691). Short
+   of it, at the window's smallest with the sites list open or in a longer
+   language, they are their icons, and each keeps its name for a screen
+   reader, since the label is clipped and not removed. */
 .app-footer {
+  container: app-footer / inline-size;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -508,14 +583,30 @@ body {
   gap: var(--wpds-dimension-gap-md);
 }
 
+.app-footer-actions,
+.app-footer-meta {
+  white-space: nowrap;
+}
+
+@container app-footer (max-width: 620px) {
+  .app-footer-tray-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
 /* A tray's button, and on the Logs button's corner the count of lines not
    yet seen (#558). The count is over the button's corner and not beside the
    button, so that its coming and going moves nothing. It starts at the
-   footer's top edge and is one line of text tall, which ends it where the
-   icons' drawing begins: however wide it is, it is clear of what they draw,
-   this button's and the next one's. It is drawn over the buttons, the next
-   one too, whose ground when pressed would otherwise cover it. It takes no
-   press of its own: a press on it is a press on what is under it. */
+   footer's top edge and is one line of text tall, which ends it above the
+   label's letters, and it starts where the label ends: however wide it is,
+   it is clear of what the buttons draw, this one's and the next one's. It is
+   drawn over the buttons, the next one too, whose ground when pressed would
+   otherwise cover it. It takes no press of its own: a press on it is a press
+   on what is under it. */
 .app-footer-tray {
   position: relative;
   display: flex;
@@ -535,7 +626,7 @@ body {
 }
 
 .app-footer-feedback {
-  width: 320px;
+  width: var(--wpds-dimension-surface-width-sm);
   padding: var(--wpds-dimension-padding-lg);
 }
 
@@ -550,16 +641,23 @@ body {
 
 /* The cue that points a contributor at the next thing to do (#252). The
    render puts `.next-action-cue` on exactly one block, whichever the resolver
-   named, and the cue hook scrolls it into view. A soft amber ring marks it:
-   no motion, and over the block's own background, so a coloured notice keeps
-   its meaning. The block's own text names the step, so the ring carries no
-   label. The ring is the design system's warning stroke, and rounded as its
-   cards and notices are. */
+   named, and the cue hook scrolls it into view. A ring outside the block marks
+   it: no motion, and over the block's own background, so a coloured notice
+   keeps its meaning. The block's own text names the step, so the ring carries
+   no label.
+
+   The ring is the design system's brand surface stroke, at its medium border
+   width, drawn against the block's edge. Brand, because pointing at the next
+   step is guidance and not a warning; and not the warning stroke it used to
+   be, which is the border a warning notice already has, so on the update
+   notice the ring was that border again and could not be seen. Not the
+   strong brand stroke either: that is the focus ring's colour, and at the
+   focus ring's width and offset the cue was keyboard focus to look at, on a
+   block or around a button that did not have it. The soft stroke and the
+   wider band are both unlike focus. An outline follows the block's own
+   corners, whatever they are, and leaves its border alone. */
 .next-action-cue {
-  border-radius: var(--wpds-border-radius-lg);
-  box-shadow:
-    0 0 0 3px var(--wpds-color-stroke-surface-warning),
-    0 0 14px 3px color-mix(in srgb, var(--wpds-color-stroke-surface-warning) 60%, transparent);
+  outline: var(--wpds-border-width-md) solid var(--wpds-color-stroke-surface-brand);
 }
 
 /* The review dialog's two columns (#186): the diff takes the room and where
@@ -698,12 +796,6 @@ body {
     var(--wpds-color-stroke-surface-neutral-weak);
 }
 
-/* A destination's buttons are as wide as its column, and say what they do
-   in the middle of it. */
-.destination-actions .components-button:not(.is-link) {
-  justify-content: center;
-}
-
 /* A link said inside a sentence is the sentence's size, in every dialog of
    the older library. */
 .components-modal__frame .components-button.is-link {
@@ -717,10 +809,10 @@ body {
    theme as everything else does. The modal's shadow stays as the library
    draws it: black, as the design system's own are under either theme. The
    ring the popover draws in the same property as its shadow is a light grey
-   of its own, so in the dark theme, and only there, the two are restated:
-   the hairline, and one soft layer mixed from the text's colour, which on a
-   dark surface is a faint light glow rather than a black shadow, since a
-   black shadow on a near-black page is no edge at all. In the light theme
+   of its own, so in the dark theme, and only there, it is restated as the
+   design system's own popover draws its edge: the surface's hairline and
+   nothing more. A black shadow on a near-black page is no edge, so the
+   hairline is the edge, there as on the system's popover. In the light theme
    the popover is as the library draws it. */
 .components-modal__frame,
 .components-popover__content {
@@ -736,9 +828,7 @@ body {
 
 @media (prefers-color-scheme: dark) {
   .components-popover__content {
-    box-shadow:
-      0 0 0 var(--wpds-border-width-xs) var(--wpds-color-stroke-surface-neutral),
-      0 4px 12px color-mix(in srgb, var(--wpds-color-foreground-content-neutral) 10%, transparent);
+    box-shadow: 0 0 0 var(--wpds-border-width-xs) var(--wpds-color-stroke-surface-neutral);
   }
 }
 
@@ -751,7 +841,7 @@ body {
 
 .destination-how > summary {
   color: var(--wpds-color-foreground-interactive-brand);
-  cursor: pointer;
+  cursor: var(--wpds-cursor-control);
 }
 
 .destination-how[open] > summary {
@@ -799,7 +889,7 @@ body {
   color: var(--wpds-color-foreground-content-neutral);
   font: inherit;
   text-align: start;
-  cursor: pointer;
+  cursor: var(--wpds-cursor-control);
 }
 
 .dirty-tree-choice[aria-pressed="true"] {
@@ -1305,13 +1395,13 @@ body {
 .ticket-pr::before {
   top: calc(var(--wpds-typography-line-height-sm) / 2);
   width: var(--wpds-dimension-padding-md);
-  border-top: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
 }
 
 .ticket-pr:not(:last-child)::after {
   top: calc(var(--wpds-typography-line-height-sm) / 2);
   bottom: calc(-1 * var(--wpds-dimension-gap-lg));
-  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-inline-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
 }
 
 .ticket-pr:last-child::before {
@@ -1322,8 +1412,8 @@ body {
   top: 0;
   width: var(--wpds-dimension-padding-md);
   height: calc(var(--wpds-typography-line-height-sm) / 2);
-  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral);
-  border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-inline-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+  border-bottom: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
   border-end-start-radius: var(--wpds-border-radius-md);
 }
 
@@ -1376,7 +1466,7 @@ body {
   border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
   border-radius: var(--wpds-border-radius-sm);
   background: none;
-  cursor: pointer;
+  cursor: var(--wpds-cursor-control);
 }
 
 .color-swatch::-webkit-color-swatch-wrapper {
@@ -1436,7 +1526,7 @@ body {
 }
 
 .ticket-list-row + .ticket-list-row {
-  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-block-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 .ticket-list-number {
@@ -1458,7 +1548,7 @@ body {
 .settings-tabs {
   overflow: visible;
   mask-image: none;
-  margin-block-end: -1px;
+  margin-block-end: calc(-1 * var(--wpds-border-width-xs));
 }
 
 /* The steps of an apply, or of an update of trunk, each with room before it
@@ -1468,7 +1558,7 @@ body {
   list-style: none;
   margin: 0;
   padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
-  border: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
   border-radius: var(--wpds-border-radius-md);
   display: flex;
   flex-direction: column;
@@ -1496,8 +1586,8 @@ body {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: var(--wpds-dimension-size-2xs);
+  height: var(--wpds-dimension-size-2xs);
 }
 
 .step-list-step.is-complete .step-list-mark {
@@ -1571,7 +1661,7 @@ body {
   flex-direction: column;
   gap: var(--wpds-dimension-gap-xs);
   padding-inline-start: var(--wpds-dimension-padding-md);
-  border-inline-start: 2px solid var(--wpds-color-stroke-surface-error);
+  border-inline-start: var(--wpds-border-width-sm) solid var(--wpds-color-stroke-surface-error);
 }
 
 .apply-conflict-lines {
@@ -1594,4 +1684,29 @@ body {
 
 .change-list li + li {
   margin-block-start: var(--wpds-dimension-gap-xs);
+}
+
+/* A Trac ticket's facts on the work-item card: a label column sized to its
+   longest label, and the values beside it. */
+.ticket-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--wpds-dimension-gap-xs) var(--wpds-dimension-gap-lg);
+  margin: 0;
+}
+
+.ticket-facts dd {
+  margin: 0;
+}
+
+/* The ticket's heading comes first in the page, for a screen reader that
+   jumps to it; its number and status are drawn above it. */
+.ticket-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-sm);
+}
+
+.ticket-heading-above {
+  order: -1;
 }

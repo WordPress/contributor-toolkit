@@ -112,7 +112,7 @@ function setAsideSentence(setAside, returnTo, noun) {
 	return sprintf(_n('Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.', 'Your edits to %1$d files stay with ticket #%2$d and come back when you return to it.', count), count, number);
 }
 
-function describePrPreview({ number, files = [], needsInstall = false, exists = false, moved = false, hasEdits = false, state = null, setAside = null, returnTo = '', noun = 'ticket' }) {
+function describePrPreview({ number, files = [], needsInstall = false, exists = false, moved = false, hasEdits = false, state = null, setAside = null, returnTo = '', noun = 'ticket', measuredFromSite = false }) {
 	const count = files.length;
 	// translators: 1: a pull request number. 2: how many files it changes.
 	let headline = sprintf(_n('PR #%1$d changes %2$d file.', 'PR #%1$d changes %2$d files.', count), number, count);
@@ -131,7 +131,10 @@ function describePrPreview({ number, files = [], needsInstall = false, exists = 
 		actionLabel: exists && moved && hasEdits ? __('Return to saved copy') : __('Apply and rebuild'),
 		closedNote: state === 'closed' ? __('This pull request is closed. You can still check out its last head to investigate it.') : '',
 		setAsideNote: setAsideSentence(setAside, returnTo, noun),
-		installNote: needsInstall ? __('It changes package-lock.json, so dependencies will be installed before the rebuild.') : ''
+		installNote: needsInstall ? __('It changes package-lock.json, so dependencies will be installed before the rebuild.') : '',
+		// The latest trunk could not be downloaded, so the list was measured
+		// from the site's own, which can carry trunk's changes as well (#701).
+		trunkNote: measuredFromSite ? __('Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.') : ''
 	};
 }
 

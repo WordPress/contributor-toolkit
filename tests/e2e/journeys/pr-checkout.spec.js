@@ -166,6 +166,79 @@ test( 'discarding loose trunk edits continues into the requested PR checkout', a
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
 } );
 
+test( 'each file a checked-out pull request changed opens in the editor from the details (#669)', async ( { session } ) => {
+	const site = await makeSite( session, { origin: true } );
+	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
+	const { app, page } = await session.start( site.settings );
+	const editor = { name: 'Example Editor', path: '/Applications/Example Editor.app' };
+	await app.evaluate( ( { ipcMain }, detected ) => {
+		global.__e2eOpens = [];
+		ipcMain.removeHandler( 'editor:list' );
+		ipcMain.handle( 'editor:list', () => ( { detected: [ detected ] } ) );
+		ipcMain.removeHandler( 'editor:open' );
+		ipcMain.handle( 'editor:open', ( event, sitePath, editorPath, relPath ) => {
+			global.__e2eOpens.push( { sitePath, editorPath, relPath } );
+			return { ok: true };
+		} );
+	}, editor );
+
+	await ui.prField( page ).fill( String( PR ) );
+	await ui.applyPrButton( page ).last().click();
+	await expect( page.getByText( `PR #${ PR } changes 1 file.`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.applyAndRebuildButton( page ).click();
+	await expect( ui.revertPrButton( page ) ).toBeVisible( { timeout: 60_000 } );
+
+	// INVARIANT — the pull request's files are listed while it is checked
+	// out, as an applied patch's are, and one click opens the file in the
+	// editor detection found, inside the site.
+	const file = page
+		.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } )
+		.getByRole( 'button', { name: 'wp-login.php', exact: true } );
+	await file.click();
+	await expect.poll( () => app.evaluate( () => global.__e2eOpens ) ).toEqual( [
+		{ sitePath: site.dir, editorPath: editor.path, relPath: 'src/wp-login.php' },
+	] );
+
+	// INVARIANT — work on top of the pull request is told apart from it (#669):
+	// its file, edited since, stays under the pull request, marked; a new
+	// file is the contributor's.
+	write( site.dir, LOGIN, PR_EDIT );
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	await page.evaluate( () => window.dispatchEvent( new Event( 'focus' ) ) );
+	const details = page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } );
+	await expect( file.locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	const mine = details.getByRole( 'button', { name: 'new-helper.php', exact: true } );
+	await expect( mine.locator( '..' ).getByRole( 'img', { name: 'You created this file', exact: true } ) ).toBeVisible();
+	expect( await ui.inDocumentOrder( page, [
+		details.getByRole( 'heading', { level: 3, name: `From PR #${ PR }`, exact: true } ),
+		file,
+		details.getByRole( 'heading', { level: 3, name: 'Your changes', exact: true } ),
+		mine,
+	] ) ).toBe( true );
+
+	// INVARIANT — the edited file's revert button puts it back as the pull
+	// request has it, after asking, and the mark goes with the edit (#669).
+	await details.getByRole( 'button', { name: 'Revert src/wp-login.php', exact: true } ).click();
+	const question = ui.confirmDialog( page );
+	await expect( question ).toHaveAccessibleName( 'Revert src/wp-login.php?' );
+	await expect( question.getByText( `Your edits to it are removed, and it goes back to how PR #${ PR } has it. This can’t be undone.`, { exact: true } ) ).toBeVisible();
+	await ui.confirmYesButton( page, 'Revert file' ).click();
+	await expect.poll( () => read( site.dir, LOGIN ), { timeout: 30_000 } ).toBe( PR_CONTENT );
+	await expect( file.locator( '..' ).getByRole( 'img', { name: 'You edited this file', exact: true } ) ).toHaveCount( 0, { timeout: 30_000 } );
+	await expect( details.getByRole( 'button', { name: 'Revert src/wp-login.php', exact: true } ) ).toHaveCount( 0 );
+	await expect( mine ).toBeVisible();
+
+	// INVARIANT — and the list goes when the contributor leaves the pull
+	// request, from details that can be read rather than behind a dialog.
+	await ui.revertPrButton( page ).click();
+	await expect( ui.prField( page ) ).toBeVisible( { timeout: 60_000 } );
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+	await expect( ui.confirmDialog( page ) ).toHaveCount( 0 );
+	await expect( details.getByRole( 'heading', { level: 2, name: 'Details', exact: true } ) ).toBeVisible();
+	await expect( file ).toHaveCount( 0 );
+	await expect( mine ).toHaveCount( 0 );
+} );
+
 test( 'a failed finish remains visible and offers no new patch source', async ( { session } ) => {
 	const site = await makeSite( session, { origin: true } );
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );

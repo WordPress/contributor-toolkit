@@ -329,6 +329,7 @@ export function ApplyPreviewDialog({ preview, pr, warnings, cueId, applyDisabled
                 {words.setAsideNote ? <Text variant="body-sm">{words.setAsideNote}</Text> : null}
                 {words.skipped ? <Text variant="body-sm">{words.skipped}</Text> : null}
                 {words.installNote ? <Text variant="body-sm">{words.installNote}</Text> : null}
+                {words.trunkNote ? <Text variant="body-sm">{words.trunkNote}</Text> : null}
               </Stack>
             </Dialog.Content>
             <Dialog.Footer>

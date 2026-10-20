@@ -1,0 +1,230 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const { affectedFiles, affectedFileTree, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, unsubmittedFromReply, visibleAffectedRows } = require('../../src/renderer/affected-files.cjs');
+
+const VSCODE = { id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' };
+const CURSOR = { id: 'cursor', name: 'Cursor', path: '/Applications/Cursor.app' };
+
+test('the files an applied patch changed are listed, in the order it changed them', () => {
+	const appliedPatch = { label: 'ticket-1.patch', files: ['src/wp-login.php', 'src/wp-includes/user.php'] };
+	assert.deepEqual(affectedFiles({ appliedPatch }), ['src/wp-login.php', 'src/wp-includes/user.php']);
+});
+
+// No patch, or a record with nothing usable in it, is no section at all
+// rather than a heading over nothing.
+test('with no patch applied there is nothing to list', () => {
+	assert.deepEqual(affectedFiles({ appliedPatch: null }), []);
+	assert.deepEqual(affectedFiles({}), []);
+	assert.deepEqual(affectedFiles({ appliedPatch: { label: 'x.patch' } }), []);
+	assert.deepEqual(affectedFiles({ appliedPatch: { label: 'x.patch', files: [] } }), []);
+});
+
+// A checked-out pull request lists what it changed, the same way (#669).
+test('the files a checked-out pull request changed are listed', () => {
+	const pullRequest = { number: 7, files: ['src/wp-login.php', 'src/old.php'] };
+	assert.deepEqual(affectedFiles({ pullRequest }), ['src/wp-login.php', 'src/old.php']);
+	assert.deepEqual(affectedFiles({ appliedPatch: null, pullRequest }), ['src/wp-login.php', 'src/old.php']);
+});
+
+// One checked out before the app recorded its files has none to list.
+test('a pull request with no recorded files lists nothing', () => {
+	assert.deepEqual(affectedFiles({ pullRequest: { number: 7, files: null } }), []);
+	assert.deepEqual(affectedFiles({ pullRequest: { number: 7 } }), []);
+});
+
+// The tree a reviewer drew on #677: subfolders before files, a chain of
+// folders that hold only one another on one row, and a file's row knowing its
+// whole path to open.
+test('the files are drawn as a tree, a chain of lone folders on one row', () => {
+	const rows = affectedFileTree([
+		'src/wp-admin/this.php',
+		'src/wp-login.php',
+		'src/wp-admin/and-that.php',
+		'src/wp-includes/class-wp.php',
+		'tests/phpunit/tests/formatting/escHtml.php',
+	]);
+	assert.deepEqual(rows.map(({ kind, name, level, positionInSet, setSize }) => [kind, name, level, positionInSet, setSize]), [
+		['folder', 'src', 1, 1, 2],
+		['folder', 'wp-admin', 2, 1, 3],
+		['file', 'this.php', 3, 1, 2],
+		['file', 'and-that.php', 3, 2, 2],
+		['folder', 'wp-includes', 2, 2, 3],
+		['file', 'class-wp.php', 3, 1, 1],
+		['file', 'wp-login.php', 2, 3, 3],
+		['folder', 'tests/phpunit/tests/formatting', 1, 2, 2],
+		['file', 'escHtml.php', 2, 1, 1],
+	]);
+	assert.equal(rows[2].path, 'src/wp-admin/this.php');
+	assert.equal(rows[7].key, 'tests/phpunit/tests/formatting/');
+	assert.equal(rows[8].path, 'tests/phpunit/tests/formatting/escHtml.php');
+	assert.equal(new Set(rows.map((row) => row.key)).size, rows.length);
+});
+
+// A file at the root, and a folder holding one file, keep their own rows.
+test('a file at the root has no folder, and a folder over one file keeps its row', () => {
+	const rows = affectedFileTree(['wp-config-sample.php', 'src/index.php']);
+	assert.deepEqual(rows.map(({ kind, name, level }) => [kind, name, level]), [
+		['folder', 'src', 1],
+		['file', 'index.php', 2],
+		['file', 'wp-config-sample.php', 1],
+	]);
+});
+
+// A chain stops at the first folder that holds a file or two folders: that
+// folder keeps the row, and what it holds goes under it.
+test('a lone folder joins its parent only while the parent holds nothing else', () => {
+	const rows = affectedFileTree(['src/wp-includes/blocks/a.php', 'src/wp-includes/b.php', 'src/wp-includes/c/d/e.php']);
+	assert.deepEqual(rows.map(({ kind, name, level }) => [kind, name, level]), [
+		['folder', 'src/wp-includes', 1],
+		['folder', 'blocks', 2],
+		['file', 'a.php', 3],
+		['folder', 'c/d', 2],
+		['file', 'e.php', 3],
+		['file', 'b.php', 2],
+	]);
+	const names = (collapsed) => visibleAffectedRows(rows, new Set(collapsed)).map((row) => row.name);
+	assert.deepEqual(names(['src/wp-includes/']), ['src/wp-includes']);
+	assert.deepEqual(names(['src/wp-includes/c/d/']), ['src/wp-includes', 'blocks', 'a.php', 'c/d', 'b.php']);
+});
+
+// A closed folder keeps its row and hides all it holds, folders and files at
+// any depth, and nothing beside it: "src/" does not hide "src-other/".
+test('a closed folder hides everything under it and nothing else', () => {
+	const rows = affectedFileTree(['src/wp-admin/this.php', 'src/wp-login.php', 'src-other/a.php']);
+	const names = (collapsed) => visibleAffectedRows(rows, new Set(collapsed)).map((row) => row.name);
+	assert.deepEqual(names([]), ['src', 'wp-admin', 'this.php', 'wp-login.php', 'src-other', 'a.php']);
+	assert.deepEqual(names(['src/']), ['src', 'src-other', 'a.php']);
+	assert.deepEqual(names(['src/wp-admin/']), ['src', 'wp-admin', 'wp-login.php', 'src-other', 'a.php']);
+});
+
+// A closed folder that is no longer a row of its own, because a file left
+// the list and its folder joined a longer row, hides nothing: there would be
+// no row left to open it from.
+test('a closed folder that is no longer a row hides nothing', () => {
+	const rows = affectedFileTree(['src/wp-includes/blocks/b.php']);
+	assert.deepEqual(visibleAffectedRows(rows, new Set(['src/wp-includes/'])).map((row) => row.name), ['src/wp-includes/blocks', 'b.php']);
+	assert.deepEqual(visibleAffectedRows(rows, new Set(['src/'])).map((row) => row.name), ['src/wp-includes/blocks', 'b.php']);
+	assert.deepEqual(visibleAffectedRows(rows, new Set(['src/wp-includes/blocks/'])).map((row) => row.name), ['src/wp-includes/blocks']);
+});
+
+// Detection's order is the site menu's order, which puts Visual Studio Code
+// first where it is installed: the file opens in the editor that menu offers
+// first.
+test('a file opens in the first editor detection found', () => {
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, CURSOR] }), { kind: 'editor', path: VSCODE.path });
+	assert.deepEqual(fileOpenTarget({ editors: [CURSOR] }), { kind: 'editor', path: CURSOR.path });
+});
+
+test('with no editor found, the file is shown in the file manager', () => {
+	assert.deepEqual(fileOpenTarget({ editors: [] }), { kind: 'reveal' });
+	assert.deepEqual(fileOpenTarget({}), { kind: 'reveal' });
+	assert.deepEqual(fileOpenTarget({ editors: null }), { kind: 'reveal' });
+});
+
+// --- "Changed files": the change's group and the contributor's (#669) ---------
+
+const unsubmitted = (entries, editedSinceChange = []) => ({ entries, editedSinceChange });
+
+test('with a patch applied, its files are one group and everything else changed is the contributor\'s', () => {
+	const groups = changedFileGroups({
+		appliedPatch: { label: 'x.patch', files: ['src/a.php', 'src/b.php'], kept: true },
+		unsubmitted: unsubmitted(
+			[{ path: 'src/a.php', added: false }, { path: 'src/b.php', added: false }, { path: 'src/mine.php', added: true }, { path: 'src/edit.php', added: false }],
+			['src/b.php']
+		)
+	});
+	assert.deepEqual(groups, {
+		change: { label: 'From the patch', files: [{ path: 'src/a.php', alsoEdited: false, canRevert: false }, { path: 'src/b.php', alsoEdited: true, canRevert: true }] },
+		yours: [{ path: 'src/mine.php', added: true, canRevert: true }, { path: 'src/edit.php', added: false, canRevert: true }]
+	});
+});
+
+test('with a pull request checked out, its group is named after it', () => {
+	const groups = changedFileGroups({
+		pullRequest: { number: 7, files: ['src/a.php'] },
+		unsubmitted: unsubmitted([{ path: 'src/a.php', added: false }], ['src/a.php'])
+	});
+	assert.deepEqual(groups.change, { label: 'From PR #7', files: [{ path: 'src/a.php', alsoEdited: true, canRevert: true }] });
+	assert.deepEqual(groups.yours, []);
+});
+
+// A fresh ticket: no change applied, so the contributor's group alone.
+test('with nothing applied, there is only the contributor\'s group', () => {
+	const groups = changedFileGroups({ unsubmitted: unsubmitted([{ path: 'src/mine.php', added: true }]) });
+	assert.deepEqual(groups, { change: null, yours: [{ path: 'src/mine.php', added: true, canRevert: true }] });
+});
+
+// Before the first answer about the tree arrives, the change's group still
+// shows; nothing is guessed about the rest.
+test('with no answer about the tree yet, the change is listed and nothing else', () => {
+	const groups = changedFileGroups({ appliedPatch: { label: 'x.patch', files: ['src/a.php'] }, unsubmitted: null });
+	assert.deepEqual(groups, { change: { label: 'From the patch', files: [{ path: 'src/a.php', alsoEdited: false, canRevert: false }] }, yours: [] });
+	assert.deepEqual(changedFileGroups({}), { change: null, yours: [] });
+});
+
+// A patch file the contributor edited goes back to the patch's version, which
+// needs the patch's text (#669); without it there is nothing to go back to.
+test('an edited patch file cannot be reverted when the patch\'s text was not kept', () => {
+	const groups = changedFileGroups({
+		appliedPatch: { label: 'big.patch', files: ['src/a.php'], kept: false },
+		unsubmitted: unsubmitted([{ path: 'src/a.php', added: false }], ['src/a.php'])
+	});
+	assert.deepEqual(groups.change.files, [{ path: 'src/a.php', alsoEdited: true, canRevert: false }]);
+});
+
+// What the revert button asks first (#669): what the file goes back to, or
+// that it goes, for one the contributor created.
+test('the question before reverting a file says what it goes back to', () => {
+	assert.deepEqual(revertFileQuestion({ path: 'src/a.php', added: false }), {
+		title: 'Revert src/a.php?',
+		description: 'Your changes to it are removed. This can’t be undone.',
+		confirm: 'Revert file',
+		done: 'src/a.php reverted.'
+	});
+	assert.deepEqual(revertFileQuestion({ path: 'src/new.php', added: true }), {
+		title: 'Delete src/new.php?',
+		description: 'You created this file. This can’t be undone.',
+		confirm: 'Delete file',
+		done: 'src/new.php deleted.'
+	});
+	assert.equal(
+		revertFileQuestion({ path: 'src/a.php', alsoEdited: true }, { fromChange: true }).description,
+		'Your edits to it are removed, and it goes back to how the patch left it. This can’t be undone.'
+	);
+	assert.equal(
+		revertFileQuestion({ path: 'src/a.php', alsoEdited: true }, { fromChange: true, pullRequest: { number: 7 } }).description,
+		'Your edits to it are removed, and it goes back to how PR #7 has it. This can’t be undone.'
+	);
+});
+
+// Either end of a file the patch renames goes back only with the whole patch
+// (#669), so neither has a button, whichever group it lands in.
+test('neither end of a renamed file can be reverted on its own', () => {
+	const groups = changedFileGroups({
+		appliedPatch: { label: 'x.patch', files: ['src/b.php'], kept: true },
+		unsubmitted: { entries: [{ path: 'src/a.php', added: false }, { path: 'src/b.php', added: true }], editedSinceChange: ['src/b.php'], renamedByChange: ['src/a.php', 'src/b.php'] }
+	});
+	assert.deepEqual(groups.change.files, [{ path: 'src/b.php', alsoEdited: true, canRevert: false }]);
+	assert.deepEqual(groups.yours, [{ path: 'src/a.php', added: false, canRevert: false }]);
+});
+
+test('revertOutcome carries the recount, and the handler\'s own sentence on failure', () => {
+	assert.deepEqual(revertOutcome({ ok: true, dirty: true, changedCount: 1 }), { ok: true, dirty: true, changedCount: 1 });
+	assert.deepEqual(revertOutcome({ ok: true }), { ok: true });
+	assert.deepEqual(revertOutcome({ ok: false, code: 'failed', error: 'Could not revert src/a.php, so it was left as it was: x' }), { ok: false, message: 'Could not revert src/a.php, so it was left as it was: x' });
+	assert.deepEqual(revertOutcome(null), { ok: false, message: 'Could not revert the file: Unknown error' });
+});
+
+// The list reads the renamed paths too, so the reply carries them: without
+// them, both ends of a rename were offered a revert the handler refuses.
+test('a reply to the unsubmitted-work question keeps every field the list reads', () => {
+	const res = { ok: true, dirty: true, entries: [{ path: 'b.php', added: true }], editedSinceChange: ['a.php', 'b.php'], renamedByChange: ['a.php', 'b.php'] };
+	const kept = unsubmittedFromReply(res);
+	assert.deepEqual(kept, { entries: res.entries, editedSinceChange: res.editedSinceChange, renamedByChange: res.renamedByChange });
+	const { change } = changedFileGroups({ appliedPatch: { label: 'x.diff', files: ['a.php', 'b.php'], kept: true }, unsubmitted: kept });
+	assert.deepEqual(change.files.map((file) => file.canRevert), [false, false]);
+	assert.equal(unsubmittedFromReply({ ok: false }), null);
+	assert.equal(unsubmittedFromReply(null), null);
+	assert.deepEqual(unsubmittedFromReply({ ok: true }), { entries: [], editedSinceChange: [], renamedByChange: [] });
+});

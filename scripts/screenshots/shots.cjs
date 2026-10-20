@@ -112,6 +112,9 @@ async function readTicketFromTrac(page) {
 	await ui.readTicketDetailsButton(page).click();
 	await page.getByText(TICKET_FROM_TRAC.ticket.summary).filter({ visible: true }).first().waitFor();
 	await page.getByText(TICKET_FROM_TRAC.items[0].filename).filter({ visible: true }).first().waitFor();
+	// The button clicked is gone and the ticket's title has taken its place,
+	// under the pointer: moved off, so the title is not photographed hovered.
+	await page.mouse.move(0, 0);
 }
 
 /**
@@ -383,12 +386,12 @@ const shots = [
 		slug: 'trac-ticket-panel',
 		tier: 'fixture',
 		variant: 'seeded',
-		// The ticket's facts and the pull requests that cite it: the card
-		// from its top to the foot of that list. The whole card is taller
-		// than the page has room for, and linked-pull-requests has the rest.
+		// The ticket and its facts: the card from its top to the line over
+		// the pull requests. The whole card is taller than the page has room
+		// for, and linked-pull-requests has the list.
 		clip: async (page) => {
 			const card = await ui.card(page, 'Trac ticket').boundingBox();
-			const next = await page.getByText('Trac attachments', { exact: true }).filter({ visible: true }).boundingBox();
+			const next = await page.getByText('Linked pull requests', { exact: true }).filter({ visible: true }).boundingBox();
 			return insideThePage(page, { x: card.x, y: card.y, width: card.width, height: next.y - 32 - card.y });
 		},
 		prepare: async (page) => {
@@ -575,7 +578,7 @@ const shots = [
 			// What the card says of the change is read after the link has
 			// ended, by a read of its own, and is the last thing in the
 			// picture to arrive.
-			await page.getByText(`You have 1 unsubmitted change for ticket #${LINKED_TICKET}`, { exact: false }).filter({ visible: true }).first().waitFor();
+			await page.getByText(`1 unsubmitted change for ticket #${LINKED_TICKET}`, { exact: true }).filter({ visible: true }).first().waitFor();
 		}
 	},
 

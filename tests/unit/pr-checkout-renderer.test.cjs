@@ -112,6 +112,13 @@ test('a closed PR is still available for investigation', () => {
 	assert.equal(describePrPreview({ number: 7, state: 'open' }).closedNote, '');
 });
 
+// When origin's trunk could not be fetched, the list was measured from the
+// site's own, so it can carry trunk's changes too, and the preview says so (#701).
+test('PR preview says when its file list was measured from the site\'s trunk', () => {
+	assert.match(describePrPreview({ number: 7, measuredFromSite: true }).trunkNote, /latest trunk.*not part of this pull request/);
+	assert.equal(describePrPreview({ number: 7 }).trunkNote, '');
+});
+
 // A Gutenberg site returns to an issue/ branch (#251): the box must say the
 // work is kept, not that reverting goes to trunk, and call it an issue.
 test('a PR checked out from an issue branch says the issue work returns on revert', () => {

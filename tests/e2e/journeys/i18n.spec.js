@@ -338,7 +338,7 @@ test( 'the work-item card is fully translatable, with nothing linked and with a 
 	// ticket's summary and its facts, a pull request's title, a file's name,
 	// whoever uploaded it. They are answered by stand-ins, as in
 	// ticket-card.spec.js, and left out of the scan by name.
-	const THEIRS = [ '#60001', 'A summary from Trac', 'reviewing', 'defect (bug)', 'has-patch', '#7', 'A title from GitHub', '60001.diff', '·' ];
+	const THEIRS = [ '#60001', 'A summary from Trac', 'reviewing', 'defect (bug)', 'General', '7.2', '4 weeks ago', 'has-patch', '#7', 'A title from GitHub', '60001.diff' ];
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
 	await app.evaluate( ( { ipcMain } ) => {
@@ -410,6 +410,20 @@ test( 'the apply card and its preview are fully translatable', async ( { session
 	await expect( preview.getByRole( 'button', { name: pseudoLocalize( 'Apply and rebuild' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( preview.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ) ).toBeVisible();
 	expect( ( await unwrapped( preview ) ).filter( ( text ) => text !== 'src/wp-login.php' ) ).toEqual( [] );
+
+	// Once applied, the details list the files it changed under a heading of
+	// their own (#669). The names are the checkout's and stay as they are.
+	await preview.getByRole( 'button', { name: pseudoLocalize( 'Apply and rebuild' ), exact: true } ).click();
+	const details = page.getByRole( 'complementary', { name: /e2e-site/ } ).filter( { visible: true } );
+	await expect( details.getByRole( 'heading', { name: pseudoLocalize( 'Changed files' ), exact: true } ) ).toBeVisible( { timeout: 60_000 } );
+	await expect( details.getByRole( 'button', { name: 'wp-login.php', exact: true } ) ).toBeVisible();
+
+	// Edited since, the file is marked and offers its revert, both by names a
+	// translator gave them (#669).
+	write( site.dir, LOGIN, '<?php // patched, then mine\n' );
+	await page.evaluate( () => window.dispatchEvent( new Event( 'focus' ) ) );
+	await expect( details.getByRole( 'img', { name: pseudoLocalize( 'You edited this file' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( details.getByRole( 'button', { name: filled( 'Revert %s', 'src/wp-login.php' ), exact: true } ) ).toBeVisible();
 } );
 
 test( 'the list of a site\'s tickets is fully translatable, with a ticket linked and with none', async ( { session } ) => {
@@ -961,7 +975,11 @@ test( 'the Terminal is fully translatable: what it prints, a command it does not
 	// commands.
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings, { lang: 'en-XA' } );
-	await page.getByRole( 'button', { name: pseudoLocalize( 'Toggle Terminal' ), exact: true } ).click();
+	const terminalToggle = page.locator( '.app-footer' ).getByRole( 'button', { name: pseudoLocalize( 'Terminal' ), exact: true } );
+	await expect( terminalToggle ).toBeVisible( { timeout: 30_000 } );
+	// A site's footer, with a button for each tray.
+	expect( await unwrapped( page.locator( '.app-footer' ) ) ).toEqual( [] );
+	await terminalToggle.click();
 	const tray = page.getByRole( 'complementary', { name: pseudoLocalize( 'Terminal' ), exact: true } );
 	const screen = tray.locator( '.xterm-rows' ).filter( { visible: true } );
 	// What is typed at the prompt is the contributor's, and the prompt is a
@@ -1025,14 +1043,20 @@ test( 'the Logs are fully translatable: their tabs, the notes in an empty pane, 
 			ipcMain.handle( channel, answer );
 		}
 	}, REFUSAL );
-	await page.getByRole( 'button', { name: pseudoLocalize( 'Toggle Logs' ), exact: true } ).click();
+	await page.locator( '.app-footer' ).getByRole( 'button', { name: pseudoLocalize( 'Logs' ), exact: true } ).click();
 	const tray = page.getByRole( 'complementary', { name: pseudoLocalize( 'Logs' ), exact: true } );
 	const tab = ( label ) => tray.getByRole( 'tab', { name: label, exact: true } );
 	// debug.log's path, once there is one, is the machine's.
 	const inTray = async () => ( await unwrapped( tray ) ).filter( ( text ) => ! text.startsWith( site.dir ) );
 
-	// The watch's pane and debug.log's, empty: each says what fills it.
+	// The server's pane, the watch's and debug.log's, empty: each says what
+	// fills it.
+	await expect( tray.getByText( pseudoLocalize( 'No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await inTray() ).toEqual( [] );
 	await tab( pseudoLocalize( 'Build watch' ) ).click();
+	// The server's pane has a note too, so the watch's is the one on screen
+	// only once its tab is the selected one.
+	await expect( tab( pseudoLocalize( 'Build watch' ) ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( tray.locator( '.log-pane-note' ) ).toBeVisible( { timeout: 30_000 } );
 	expect( await inTray() ).toEqual( [] );
 	await tab( pseudoLocalize( 'Debug.log' ) ).click();
@@ -1160,24 +1184,9 @@ function filled( text, ...values ) {
 	return out;
 }
 
-/**
- * The words of a link inside a translated sentence, as the pseudo-locale
- * shows them: accented, and without the sentence's brackets, which are the
- * sentence's and not the link's.
- *
- * @param {string} text
- * @return {string}
- */
-function inSentence( text ) {
-	return pseudoLocalize( text ).replace( /^\[/, '' ).replace( /~*\]$/, '' );
-}
-
 test( 'the ticket card\'s questions and notices are fully translatable: a refused number, loose edits on trunk, the edits carried or saved, and a trunk that moved', async ( { session } ) => {
-	// A ticket's number is the ticket's, and is left out of the scan. So are
-	// the two links inside the changes note: their words are part of its
-	// sentence, which is checked whole.
+	// A ticket's number is the ticket's, and is left out of the scan.
 	const NUMBERS = [ '#60001', '#60002' ];
-	const LINKS = [ inSentence( 'review and submit' ), inSentence( 'discard your changes' ) ];
 	const site = await gitSite.makeSite( session );
 	const savedTo = path.join( session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-saved-' ) ) ), 'trunk-edits.diff' );
 	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
@@ -1198,7 +1207,7 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 	const linkButton = card.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } );
 	const button = ( name ) => card.getByRole( 'button', { name, exact: true } );
 	const unlink = button( pseudoLocalize( 'Unlink' ) );
-	const inCard = async () => ( await unwrapped( card ) ).filter( ( text ) => ! NUMBERS.includes( text ) && ! LINKS.includes( text ) );
+	const inCard = async () => ( await unwrapped( card ) ).filter( ( text ) => ! NUMBERS.includes( text ) );
 
 	// A number that is not one: main's refusal.
 	await expect( card ).toBeVisible( { timeout: 30_000 } );
@@ -1223,17 +1232,18 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
 	await expect( question ).toHaveCount( 0 );
 
-	// Carried: where they went, and the note about them on the ticket, whose
-	// sentence holds its two links. The note's discard asks first too.
+	// Carried: where they went, and the notice about them on the ticket, with
+	// its two buttons. The notice's discard asks first too.
 	await carry.click();
 	await expect( card.getByText( filled( 'Your %1$d uncommitted change came along into #%2$s, and will go into its patch.', 1, 60001 ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	const discard = button( LINKS[ 1 ] );
+	const discard = button( pseudoLocalize( 'Discard changes' ) );
 	await expect( discard ).toBeVisible( { timeout: 30_000 } );
-	await expect( discard.locator( 'xpath=..' ) ).toHaveText( filled( 'You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.', 1, 60001 ).replace( /<\/?(?:review|discard)>/g, '' ) );
+	await expect( card.getByText( filled( '%1$d unsubmitted change for ticket #%2$s', 1, 60001 ), { exact: true } ) ).toBeVisible();
+	await expect( button( pseudoLocalize( 'Review and submit' ) ) ).toBeVisible();
 	await expect( card.getByText( pseudoLocalize( 'Unlinking this ticket doesn\'t affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.' ), { exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
 	await discard.click();
-	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Discard all local changes?' ) );
+	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Discard your changes?' ) );
 	await expect( question.getByRole( 'button', { name: pseudoLocalize( 'Discard changes' ), exact: true } ) ).toBeVisible();
 	expect( await unwrapped( question ) ).toEqual( [] );
 	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
@@ -1452,7 +1462,7 @@ test( 'a mail the site sent is fully translatable, on its Rendered and its Raw t
 		ipcMain.handle( 'playground:start', async () => ( { ok: true } ) );
 	} );
 	await page.getByRole( 'button', { name: pseudoLocalize( 'Start development server' ), exact: true } ).click( { timeout: 30_000 } );
-	await page.getByRole( 'button', { name: pseudoLocalize( 'Toggle Email' ), exact: true } ).click();
+	await page.locator( '.app-footer' ).getByRole( 'button', { name: pseudoLocalize( 'Email' ), exact: true } ).click();
 	await page.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } ).click( { timeout: 30_000 } );
 
 	const dialog = page.getByRole( 'dialog', { name: MAIL.subject } );

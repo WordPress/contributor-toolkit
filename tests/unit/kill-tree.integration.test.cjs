@@ -16,8 +16,10 @@ const { killChildTree, killTreeByPid } = require('../../src/kill-tree.js');
 const posixOnly = process.platform === 'win32' ? { skip: 'process groups are POSIX' } : {};
 
 // A grandchild that installs a SIGTERM handler doing nothing and stays alive,
-// and prints its pid so the test can watch it directly.
-const STUBBORN = 'process.on("SIGTERM", () => {}); console.log(process.pid); setInterval(() => {}, 1000);';
+// and prints its pid so the test can watch it directly. Written as a string,
+// not with console.log, which colours a number when the test runner sets
+// FORCE_COLOR for a terminal and hides the pid from the match below.
+const STUBBORN = 'process.on("SIGTERM", () => {}); process.stdout.write(process.pid + "\\n"); setInterval(() => {}, 1000);';
 
 function alive(pid) {
 	try { process.kill(pid, 0); return true; } catch { return false; }

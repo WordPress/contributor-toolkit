@@ -6,7 +6,7 @@ The Trac ticket card is on WordPress Core sites. A Gutenberg site works on a [Gi
 
 Every WordPress core change starts life on a [Trac](https://core.trac.wordpress.org/) ticket. The **Trac ticket** panel on the site view links your site to the ticket you are working on, and then shows you the work that already exists on it — pull requests on GitHub and patch files attached on Trac — so you can test it before adding your own.
 
-![The Trac ticket card, showing a linked ticket with its summary, status, type, component, milestone and keywords read from Trac, and the two pull requests that cite it](/screenshots/trac-ticket-panel.png)
+![The Trac ticket card, showing a linked ticket's number and status above its summary, then its type, component, milestone, opening date and keywords as labelled rows, and when it was read from Trac with a refresh button](/screenshots/trac-ticket-panel.png)
 
 ## Link a ticket
 
@@ -34,25 +34,26 @@ If you have edited anything before linking, the app asks what should happen to t
 Once a ticket is linked, the panel shows its number with these actions:
 
 - **Open in Trac** — opens the ticket in your browser.
-- **Read details from Trac** — fills in what the ticket actually says, described below. It is only there until the details are loaded; once they are on screen it has nothing left to do and goes.
+- **Read details from Trac** — fills in what the ticket actually says, described below. It is only there until the details are loaded. After that, a refresh button beside them reads them again.
 - **Unlink** — removes the link and puts the site back on trunk. Nothing on Trac is affected, and nothing you did for the ticket is lost: the work stays attached to the ticket in this site, and the ticket moves to the **Your tickets on this site** card, ready to continue.
 
 ## What the ticket says
 
 A ticket number on its own tells you nothing about the ticket. One closed `wontfix` three years ago reads exactly like one filed last week — and you find out on Trac, after the afternoon is spent.
 
-Click **Read details from Trac** and the panel fills in the ticket's own facts, under its number:
+Click **Read details from Trac** and the panel fills in the ticket's own facts:
 
-- Its **summary**.
-- A **status pill** with the resolution folded in — `closed (wontfix)` rather than a bare `closed`, because "closed (fixed)" and "closed (wontfix)" are opposite instructions to a contributor.
-- Its **type**, its **milestone**, and how long ago it was **opened** (the exact date is in the tooltip).
-- Its **component** and **keywords**, as links. These use Trac's own query URLs, lifted from the page rather than rebuilt, and open in your browser like any other link.
+- Its **summary**, as the title, with the ticket number above it.
+- A **status pill** beside the number, with the resolution folded in — `closed (wontfix)` rather than a bare `closed`, because "closed (fixed)" and "closed (wontfix)" are opposite instructions to a contributor.
+- Its **type**, **component**, **milestone**, the date it was **opened**, and its **keywords**, each on its own labelled row. The component and keywords are links. These use Trac's own query URLs, lifted from the page rather than rebuilt, and open in your browser like any other link.
+
+The app keeps what it read. Quit and reopen it, and the details are still there, with the time they were read: *Read from Trac 9/2/2026, 2:05:00 PM*. Click the refresh button beside that line to read the ticket again. A read that does not finish, for example because the Trac window was closed, keeps the last details on screen.
 
 This reads the same embedded Trac window the attachment list uses, so it costs the same single human check — see [Trac attachments](#trac-attachments) below. Clearing that check once serves both.
 
 ## Unsubmitted work
 
-When the linked ticket has changes you have not submitted anywhere, the panel says so — *You have 1 unsubmitted change for ticket #29798* — with links to **review and submit** or **discard your changes**.
+When the linked ticket has changes you have not submitted anywhere, the panel says so in a notice, *1 unsubmitted change for ticket #29798*, with **Review and submit** and **Discard changes** buttons.
 
 The count is the ticket's whole work, including everything parked when you last switched away from it, and it is measured the same way [the patch](./submitting-changes) is — the note and the diff read the same walk of your files.
 

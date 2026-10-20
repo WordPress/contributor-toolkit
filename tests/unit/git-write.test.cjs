@@ -15,7 +15,8 @@ const {
 	fetchBranch,
 	unstagePaths,
 	cleanUntracked,
-	applyPatch
+	applyPatch,
+	restoreWorktreePaths
 } = require('../../src/git-write.cjs');
 
 // The argument lists, without a Git: `run` and `spawn` are injected and record
@@ -90,6 +91,10 @@ test('on Windows the CRLF view and long paths prefix the commands that touch the
 	await stagePaths('C:\\Sites\\wp', ['a.php'], { platform: 'win32', run });
 	const add = calls.find((c) => c.args.includes('add'));
 	assert.deepEqual(add.args.slice(0, 4), ['-c', 'core.autocrlf=true', '-c', 'core.longpaths=true']);
+
+	await restoreWorktreePaths('C:\\Sites\\wp', 'abc', ['a.php'], { platform: 'win32', run });
+	const restore = calls.find((c) => c.args.includes('restore'));
+	assert.deepEqual(restore.args.slice(0, 4), ['-c', 'core.autocrlf=true', '-c', 'core.longpaths=true']);
 
 	const { spawn, calls: spawns } = recordingSpawn();
 	await checkoutBranch('C:\\Sites\\wp', 'ticket/1', { platform: 'win32', run, spawn });
@@ -240,6 +245,18 @@ test('unstagePaths hands Git exactly the paths on stdin, literally, through rese
 
 	calls.length = 0;
 	assert.equal(await unstagePaths('/sites/wp', [], { platform: 'darwin', run }), 0);
+	assert.deepEqual(calls, []);
+});
+
+test('restoreWorktreePaths restores the paths from the commit named, worktree only, literally, and runs nothing for none', async () => {
+	const { run, calls, last } = recordingRun();
+
+	assert.equal(await restoreWorktreePaths('/sites/wp', 'abc123', ['src/a.php', 'weird[1].txt'], { platform: 'darwin', run }), 2);
+	assert.deepEqual(last().args, ['--literal-pathspecs', 'restore', '--source=abc123', '--worktree', '--pathspec-from-file=-', '--pathspec-file-nul']);
+	assert.equal(last().options.input.toString('utf8'), 'src/a.php\0weird[1].txt\0');
+
+	calls.length = 0;
+	assert.equal(await restoreWorktreePaths('/sites/wp', 'abc123', [], { platform: 'darwin', run }), 0);
 	assert.deepEqual(calls, []);
 });
 

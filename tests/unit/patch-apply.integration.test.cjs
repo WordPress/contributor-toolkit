@@ -76,6 +76,20 @@ test('applyPatchToDir: a single-file patch applies (issue #11)', async (t) => {
 	assert.strictEqual(fs.readFileSync(path.join(dir, FOO), 'utf8'), 'one\nTWO\nthree\n');
 });
 
+// One file's part of a patch (#669): what a per-file revert puts back on a
+// file it first returned to the base. The other files are not touched.
+test('applyPatchToDir: `paths` applies only those files\' sections', async (t) => {
+	const BAR_PATCH = BAR_PATCH_THAT_FAILS.replace(' nothing\n-like\n+LIKE\n reality', ' alpha\n-beta\n+BETA\n gamma');
+	const dir = makeRepo(t, { [FOO]: FOO_BODY, [BAR]: BAR_BODY });
+
+	const res = await applyPatchToDir({ dir, patchText: FOO_PATCH + BAR_PATCH, paths: [BAR] });
+
+	assert.strictEqual(res.ok, true);
+	assert.deepStrictEqual(res.applied, [BAR]);
+	assert.strictEqual(fs.readFileSync(path.join(dir, BAR), 'utf8'), 'alpha\nBETA\ngamma\n');
+	assert.strictEqual(fs.readFileSync(path.join(dir, FOO), 'utf8'), FOO_BODY, 'the other file is untouched');
+});
+
 // The rule the whole module is built around. A patch where the second file
 // fails must not leave the first one rewritten.
 test('applyPatchToDir: one failing file leaves the whole tree untouched (issue #11)', async (t) => {
