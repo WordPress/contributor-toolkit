@@ -84,6 +84,7 @@ const EXPECTED_API_KEYS = [
 	'rebaseBranch',
 	'relaunch',
 	'revealWpDebug',
+	'revertFile',
 	'runNpmInstall',
 	'runNpmScript',
 	'savePatch',

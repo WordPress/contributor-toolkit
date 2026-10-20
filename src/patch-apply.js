@@ -472,9 +472,10 @@ function rollback(dir, snapshot) {
  * @param {Function} [root0.onLog]
  * @param {string}   [root0.platform] For the Windows worktree view; injection point for tests.
  * @param {string}   [root0.layout]   The site's patch layout (#251); wordpress-develop's when absent.
+ * @param {string[]} [root0.paths]    Only these files' sections, by the path they are written to (#669).
  * @return {Promise<Object>}
  */
-async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => {}, platform = process.platform, layout = undefined }) {
+async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => {}, platform = process.platform, layout = undefined, paths = null }) {
 	const parsed = parsePatchFiles(patchText, { layout });
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
@@ -485,7 +486,7 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 		// translators: %s: why the patch could not be read, often in English from the library that reads it.
 		return { ok: false, error: sprintf(__('Could not read the patch: %s'), String(e && e.message ? e.message : e)) };
 	}
-	const sections = splitPatchSections(text);
+	const sections = splitPatchSections(text).filter((section) => !paths || paths.includes(section.path));
 	const skipped = [];
 	const applicable = [];
 	for (const section of sections) {

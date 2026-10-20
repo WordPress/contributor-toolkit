@@ -88,7 +88,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	// With a path, opens the folder in that application — one of the detected
 	// ones, which main checks. Without one, the file dialog answers instead.
-	openInEditor: (sitePath, editorPath = null) => ipcRenderer.invoke('editor:open', sitePath, editorPath)
+	// `relPath` is a file of the site to open with it (#669).
+	openInEditor: (sitePath, editorPath = null, relPath = null) => ipcRenderer.invoke('editor:open', sitePath, editorPath, relPath)
 ,
 	// Who the patch came from and where, app-wide (#166). An empty ref forgets
 	// the field it is passed to.
@@ -125,7 +126,7 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('settings:open', h);
 	}
 ,
-	showSiteInFileManager: (sitePath) => ipcRenderer.invoke('dir:show', sitePath)
+	showSiteInFileManager: (sitePath, relPath = null) => ipcRenderer.invoke('dir:show', sitePath, relPath)
 ,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)
 ,
@@ -261,7 +262,9 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	discardChanges: (sitePath) => ipcRenderer.invoke('git:discard-changes', sitePath)
 ,
-	discardToBase: (sitePath) => ipcRenderer.invoke('git:discard-to-base', sitePath)
+	discardToBase: (sitePath, options) => ipcRenderer.invoke('git:discard-to-base', sitePath, options)
+,
+	revertFile: (sitePath, relPath) => ipcRenderer.invoke('git:revert-file', sitePath, relPath)
 ,
 	markUpdateComplete: (sitePath) => ipcRenderer.invoke('sites:mark-update-complete', sitePath)
 ,

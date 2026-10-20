@@ -27,8 +27,8 @@ const {
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree, killTreeByPid, killChildTreeAndWait } = require('./kill-tree');
 const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs');
-const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
-const { applyPatchToDir } = require('./patch-apply');
+const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, discardFile, updateToLatestTrunk } = require('./trunk-update');
+const { applyPatchToDir, snapshotFiles, rollback } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { fetchLinkedPrs } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
@@ -39,7 +39,7 @@ const { cloneSite } = require('./git-clone.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { pinToOwnPage } = require('./window-navigation');
-const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
+const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog, REVEAL_REASONS } = require('./site-registry');
 const { removeTree } = require('./remove-tree');
 const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
 const { createSetupTracker } = require('./setup-tracker');
@@ -97,7 +97,8 @@ const { SETTINGS, readSettings, acceptSetting } = require('./settings.cjs');
 const { resolveTheme, nativeThemeSource, THEME_KEYS } = require('./theme.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
-const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
+const { fingerprint, editedSinceChange } = require('./change-fingerprint.cjs');
+const { detectEditors, matchDetectedEditor, openSiteInEditor, existingSiteFile, REFUSAL_REASONS } = require('./editor-launch');
 const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
 const { mainWindowSize } = require('./window-size.cjs');
 
@@ -1999,11 +2000,54 @@ async function baseProvenance(dir, baseOid, meta) {
  * @param {string} sitePath
  * @return {Promise<Array<string>>} Paths, gitignored ones excluded.
  */
-async function collectUnsubmittedFiles(sitePath) {
+// Each changed file with whether it is new (#669): on the base's side or not,
+// which is the status codes' answer, as `classifyChangedFile` reads them.
+async function collectUnsubmittedEntries(sitePath) {
     const { files } = await collectChangedFiles(sitePath, await patchBaseOid(sitePath));
     return files
         .filter((file) => classifyChangedFile(file).kind !== 'unchanged')
-        .map((file) => file.path);
+        .map((file) => ({ path: file.path, added: !file.inHead && file.inWorkdir }));
+}
+
+async function collectUnsubmittedFiles(sitePath) {
+    return (await collectUnsubmittedEntries(sitePath)).map((entry) => entry.path);
+}
+
+// Each of these files' fingerprint now, or null for one that is not there.
+async function fingerprintsNow(sitePath, files) {
+    const now = {};
+    for (const file of files) {
+        now[file] = fingerprint(await fs.promises.readFile(path.join(sitePath, file)).catch(() => null));
+    }
+    return now;
+}
+
+// The applied patch's or checked-out pull request's files the contributor
+// has changed since (#669), for "also edited". `unsubmitted` is the branch's
+// changed paths, which is the whole answer for a pull request (its head is
+// the base); a patch is compared with what it wrote. A kept patch applied
+// before the app fingerprinted what it wrote is read the way a pull request
+// is: each of its files still changed may have been edited, so the discard
+// and the revert that keep it stay offered. Nothing to say, or a branch that
+// cannot be read, is none.
+async function editedSinceAppliedChange(sitePath, unsubmitted) {
+    try {
+        const active = await activeBranch(sitePath);
+        const work = active.ref === TRUNK || !active.meta ? active.site : active.meta;
+        const fingerprints = work.appliedPatch?.fingerprints;
+        if (fingerprints) {
+            return editedSinceChange({ fingerprints, now: await fingerprintsNow(sitePath, Object.keys(fingerprints)) });
+        }
+        if (work.appliedPatch?.text) {
+            return editedSinceChange({ prFiles: work.appliedPatch.files, unsubmitted });
+        }
+        if (prNumberFromRef(active.ref) !== null) {
+            return editedSinceChange({ prFiles: work.files, unsubmitted });
+        }
+    } catch (e) {
+        logError('git:unsubmitted-work', `could not compare with the applied change: ${String(e && e.message || e)}`);
+    }
+    return [];
 }
 
 // Two questions, deliberately two channels (#239). This one asks "are there
@@ -2027,16 +2071,29 @@ ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
 // ticket's work lives in its parked WIP commit, so the HEAD-relative reading
 // above is correctly "clean" for every change that has survived a ticket
 // switch — which is exactly the work the note exists to speak about.
+//
+// `entries` and `editedSinceChange` are for "Changed files" (#669): which of
+// the files are new, and which of the applied change's own the contributor
+// has changed since. `renamedByChange` names the paths the applied patch
+// renames, which have no revert button of their own.
 ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
     try {
-        const files = await collectUnsubmittedFiles(sitePath);
-        return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
+        const entries = await collectUnsubmittedEntries(sitePath);
+        const files = entries.map((entry) => entry.path);
+        const editedSince = await editedSinceAppliedChange(sitePath, files);
+        let renamed = [];
+        try {
+            const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+            renamed = renamedByPatch((await readWorkMeta(sitePath)).appliedPatch, layout);
+        } catch {}
+        return { ok: true, dirty: files.length > 0, changedCount: files.length, files, entries, editedSinceChange: editedSince, renamedByChange: renamed };
     } catch (e) {
         return { ok: false, error: String(e) };
     }
 });
 
-// "Discard all changes" in the review-and-submit modal: throws away everything
+// "Discard this ticket to its base", and "Discard your changes" with
+// `keepChange` below: throws away everything
 // the modal shows, which on a ticket branch is measured from the branch point
 // (#108/#239) and so includes the parked WIP commit. Rewinds to `patchBaseOid`
 // — the same base the diff was taken against — so the modal ends on "No
@@ -2048,17 +2105,164 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
 // reset is not a safe stand-in for it: it looks like a discard, leaves the
 // parked WIP commit untouched, and the modal would come back still listing the
 // work it just promised to throw away.
-ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
+//
+// `keepChange` is "Discard your changes" (#669): only the contributor's own
+// work goes. A pull request is its branch's base, so the rewind already keeps
+// it. An applied patch is put back from its stored text onto the base it was
+// applied over (a move onto trunk drops the text). That usually applies, but
+// not always: a patch applied over edits the contributor already had may have
+// needed them, and then it goes, and the reply says so. Put back, its files
+// are fingerprinted again, since the ones taken at apply included any such
+// edits. Without the text the patch goes too, as the question warned. Without
+// `keepChange` it is "Discard this ticket to its base", which removes the
+// patch as well: that is what it is for.
+ipcMain.handle('git:discard-to-base', async (_e, sitePath, options = {}) => {
     try {
         const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
         if (blocked) return blocked;
+        const applied = (await readWorkMeta(sitePath)).appliedPatch || null;
         const baseOid = await patchBaseOid(sitePath);
         if (baseOid) {
             await discardToBase(sitePath, baseOid, { onChild: trackGitChild(sitePath) });
         } else {
             await discardChanges(sitePath, { onChild: trackGitChild(sitePath) });
         }
-        await writeWorkMeta(sitePath, { appliedPatch: null });
+        let kept = false;
+        let patchLost = false;
+        if (options && options.keepChange && applied && applied.text) {
+            const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+            const reapplied = await applyPatchToDir({ dir: sitePath, patchText: applied.text, reverse: false, onLog: () => {}, layout });
+            kept = reapplied.ok;
+            if (!kept) {
+                patchLost = true;
+                logError('git:discard-to-base', `could not put ${applied.label} back: ${reapplied.error || 'unknown error'}`);
+            }
+        }
+        if (kept) {
+            // Read before the store is, and written only over the same record,
+            // so nothing yields between the read and the write (#172).
+            const { ref } = await activeBranch(sitePath);
+            const fingerprints = await fingerprintsNow(sitePath, applied.files || []);
+            await changeWorkMetaOn(sitePath, ref, (work) => (
+                work.appliedPatch && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
+                    ? { appliedPatch: { ...work.appliedPatch, fingerprints } }
+                    : null
+            ));
+        } else {
+            await writeWorkMeta(sitePath, { appliedPatch: null });
+        }
+        let patch = {};
+        if (kept) patch = { keptPatch: applied.label };
+        else if (applied) patch = patchLost ? { removedPatch: applied.label, patchLost } : { removedPatch: applied.label };
+        let files = null;
+        try { files = await collectUnsubmittedFiles(sitePath); } catch {}
+        return files
+            ? { ok: true, dirty: files.length > 0, changedCount: files.length, ...patch }
+            : { ok: true, ...patch };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+// Both ends of every rename in the applied patch (#669). A renamed file is
+// one change spread over two paths, and neither end can be put back alone:
+// the rename's section needs the old path present and the new one absent,
+// and putting back the old one alone half-undoes the rename and leaves a
+// patch that cannot be reverted either way. They go back with the whole
+// patch, through "Discard your changes". None when no text was kept, since
+// nothing is put back from it then.
+function renamedByPatch(appliedPatch, layout) {
+    if (!appliedPatch || !appliedPatch.text) return [];
+    const parsed = parsePatchFiles(appliedPatch.text, { layout });
+    if (!parsed.ok) return [];
+    return parsed.files.filter((file) => file.kind === 'rename').flatMap((file) => [file.oldPath, file.newPath]);
+}
+
+// One file of "Discard your changes" (#669), from the list's revert button:
+// the file ends as that discard would leave it. A file of the contributor's
+// goes back to the base, or goes if they created it; an applied patch's file
+// goes back to the base and has its own part of the patch put back; a pull
+// request's file is the base already.
+//
+// Only a file the contributor changed. A patch's file is the contributor's
+// when they edited it since (the answer the list marks it by); any other file
+// when the walk names it. A path that is neither is refused, which is also
+// what keeps it inside the site: both lists hold only paths Git reported.
+// An untouched patch file is refused, since reverting it would take the patch
+// out of it, and so is either end of a rename (see `renamedByPatch`).
+//
+// The file is snapshotted first, so a part of the patch that will not go back
+// on leaves it as it was.
+ipcMain.handle('git:revert-file', async (_e, sitePath, relPath) => {
+    try {
+        const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
+        if (blocked) return blocked;
+        const entries = await collectUnsubmittedEntries(sitePath);
+        const entry = entries.find((candidate) => candidate.path === relPath);
+        const applied = (await readWorkMeta(sitePath)).appliedPatch || null;
+        const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+        const fromPatch = Boolean(applied && Array.isArray(applied.files) && applied.files.includes(relPath));
+        if (renamedByPatch(applied, layout).includes(relPath)) {
+            // translators: %s: the path of a file in the site.
+            return { ok: false, code: 'renamed', error: sprintf(__('The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.'), relPath) };
+        }
+        if (fromPatch) {
+            const edited = await editedSinceAppliedChange(sitePath, entries.map((candidate) => candidate.path));
+            if (!edited.includes(relPath)) {
+                // translators: %s: the path of a file in the site.
+                return { ok: false, code: 'not-yours', error: sprintf(__('%s is as the patch left it, so there is nothing of yours to revert.'), relPath) };
+            }
+            if (!applied.text) {
+                // translators: %s: the path of a file in the site.
+                return { ok: false, code: 'no-patch-text', error: sprintf(__('The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.'), relPath) };
+            }
+        } else if (!entry) {
+            // translators: %s: the path of a file in the site.
+            return { ok: false, code: 'unchanged', error: sprintf(__('%s has no changes to revert.'), String(relPath)) };
+        }
+        const baseOid = await patchBaseOid(sitePath) || await resolveRef(sitePath, 'HEAD');
+        // A patch's file may not be in the walk at all (deleted since, or
+        // edited back to the base), so whether the base has it is asked.
+        const added = entry ? entry.added : (await treeEntryMode(sitePath, baseOid, relPath)) === null;
+        const snapshot = snapshotFiles(sitePath, [relPath]);
+        try {
+            await discardFile(sitePath, baseOid, relPath, { added });
+            if (fromPatch) {
+                const reapplied = await applyPatchToDir({ dir: sitePath, patchText: applied.text, layout, paths: [relPath] });
+                if (!reapplied.ok) throw new Error(reapplied.error || 'the patch did not apply');
+            }
+        } catch (e) {
+            const why = String(e && e.message || e);
+            const undone = rollback(sitePath, snapshot);
+            if (undone.length) {
+                logError('git:revert-file', `${relPath}: ${why}; could not put back: ${undone.join('; ')}`);
+                // translators: 1: the path of a file in the site. 2: why it could not be reverted. 3: why it could not be put back as it was.
+                return { ok: false, code: 'failed', error: sprintf(__('Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s'), relPath, why, undone.join('; ')) };
+            }
+            logError('git:revert-file', `${relPath}: ${why}`);
+            // translators: 1: the path of a file in the site. 2: why it could not be reverted.
+            return { ok: false, code: 'failed', error: sprintf(__('Could not revert %1$s, so it was left as it was: %2$s'), relPath, why) };
+        }
+        if (fromPatch) {
+            // Its part of the patch is back, so it is the patch's again. Read
+            // before the store is, and written only over the same record (#172).
+            // The file is reverted whatever happens here: a record that could
+            // not be written only means the list may still mark it. A record
+            // from before fingerprints gets one for each of its files: this
+            // file's as it is now, and for the rest one nothing matches, so
+            // they stay marked as edited until they are reverted too.
+            try {
+                const { ref } = await activeBranch(sitePath);
+                const [now] = Object.values(await fingerprintsNow(sitePath, [relPath]));
+                await changeWorkMetaOn(sitePath, ref, (work) => (
+                    work.appliedPatch && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
+                        ? { appliedPatch: { ...work.appliedPatch, fingerprints: { ...(work.appliedPatch.fingerprints || Object.fromEntries((work.appliedPatch.files || []).map((file) => [file, '']))), [relPath]: now } } }
+                        : null
+                ));
+            } catch (e) {
+                logError('git:revert-file', `${relPath} reverted, but its fingerprint was not recorded: ${String(e && e.message || e)}`);
+            }
+        }
         let files = null;
         try { files = await collectUnsubmittedFiles(sitePath); } catch {}
         return files
@@ -2315,12 +2519,23 @@ async function prNeedsInstall(sitePath, target) {
     return lockfileChangedFromBlobOids(before, after);
 }
 
+// `files` are the paths the pull request changed at this head (#669), the
+// list its preview showed, for "Changed files" while it is checked out.
+// Measured before the store is read, so nothing yields between that read and
+// the write (#172). A head that cannot be described records no list rather
+// than keeping the one an earlier head left.
 async function recordPrHead(sitePath, ref, number, headOid, returnTo) {
+    let files = null;
+    try {
+        files = (await describePullRequestHead(sitePath, headOid)).files.map((file) => file.path);
+    } catch (e) {
+        logError('git:checkout-pr', `could not list the files of ${ref}: ${String(e && e.message || e)}`);
+    }
     await changeSiteMeta(sitePath, (m) => {
         const branches = { ...(m.branches || {}) };
         const previous = branches[ref] || {};
         branches[ref] = {
-            ...previous, pullRequest: number, headOid, baseOid: headOid,
+            ...previous, pullRequest: number, headOid, baseOid: headOid, files,
             returnTo: previous.returnTo || returnTo, lastUsedAt: new Date().toISOString()
         };
         return { ...m, branches };
@@ -2719,12 +2934,17 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                 if (!revertable) {
                     sendLog(`${__('This patch is too large to keep for an undo, so Revert will not be offered.')}\n`);
                 }
+                // What the patch wrote, for telling a later edit to one of its
+                // files from the patch itself (#669). Read before the record is
+                // written, so nothing yields between the store's read and write.
+                const fingerprints = await fingerprintsNow(sitePath, result.applied);
                 try {
                     await writeWorkMeta(sitePath, {
                         appliedPatch: {
                             label,
                             appliedAt: new Date().toISOString(),
                             files: result.applied,
+                            fingerprints,
                             text: revertable ? patchText : null
                         }
                     });
@@ -2926,7 +3146,10 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const prNumber = prNumberFromRef(active.ref);
 		const pullRequest = prNumber === null ? null : {
 			number: prNumber, returnTo: work.returnTo || TRUNK, headOid: work.headOid || null,
-			hasEdits: Boolean(work.headOid && (await resolveRef(sitePath, active.ref)) !== work.headOid)
+			hasEdits: Boolean(work.headOid && (await resolveRef(sitePath, active.ref)) !== work.headOid),
+			// What it changed, for "Changed files" (#669); null for a branch
+			// checked out before the app recorded it.
+			files: Array.isArray(work.files) ? work.files : null
 		};
 		// A site the old engine made (#385): the card says so and the write
 		// handlers refuse. A detector that fails answers false, the same as a
@@ -3464,9 +3687,16 @@ ipcMain.handle('branches:rebase', async (event, sitePath) => withRegisteredSite(
 		// resolving the scope is a Git spawn, and an apply or a discard landing
 		// in that window used to be replaced by this record, leaving a revert
 		// banner for a patch that is not there (#172).
-		await changeWorkMetaOn(sitePath, ref, (work) => (work.appliedPatch && work.appliedPatch.text
-			? { appliedPatch: { ...work.appliedPatch, text: null } }
-			: null));
+		//
+		// Its fingerprints go too (#669): the merge brings trunk's changes into
+		// files the patch wrote, and a file trunk changed is not one the
+		// contributor edited. Without them the record marks nothing, like one
+		// from before they were kept.
+		await changeWorkMetaOn(sitePath, ref, (work) => {
+			if (!work.appliedPatch || !(work.appliedPatch.text || work.appliedPatch.fingerprints)) return null;
+			const { fingerprints: _dropped, ...kept } = work.appliedPatch;
+			return { appliedPatch: { ...kept, text: null } };
+		});
 	}
 	return { ok: true, ticket: ticketIdFromRef(ref), from: result.from, to: result.to, rebased: result.rebased, parked: result.parked };
 }));
@@ -3540,7 +3770,7 @@ async function statPath(targetPath) {
 	return { isDirectory: stats.isDirectory(), isFile: stats.isFile(), isExecutable };
 }
 
-const editorLaunchDeps = () => ({ platform: process.platform, statPath });
+const editorLaunchDeps = () => ({ platform: process.platform, statPath, realPath: (p) => fs.promises.realpath(p) });
 
 const detectionDeps = () => ({
 	platform: process.platform,
@@ -3566,7 +3796,10 @@ ipcMain.handle('editor:list', async () => ({ detected: await detectEditors(detec
 // plus the one a human picked in a native dialog.
 //
 // Everything after that is unchanged from when the path came out of the store.
-ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
+//
+// `relPath`, when there is one, is a file of the site to open in it (#669):
+// editor-launch checks it is inside the site and there.
+ipcMain.handle('editor:open', async (_e, sitePath, editorPath, relPath = null) => {
 	let target = typeof editorPath === 'string' && editorPath !== '' ? editorPath : null;
 
 	if (target) {
@@ -3605,7 +3838,8 @@ ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
 		sites: s.get('sites'),
 		pending: setupTracker.paths(),
 		spawn,
-		onRefused: (reason, description) => logEvent('editor', `refused to open ${description} — ${reason}`)
+		onRefused: (reason, description) => logEvent('editor', `refused to open ${description} — ${reason}`),
+		file: relPath ?? null
 	});
 });
 
@@ -3712,14 +3946,34 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 
 // The fallback that needs no configuration at all — see site-registry.js for why
 // it is behind the same boundary as `sites:delete`.
-ipcMain.handle('dir:show', async (_e, sitePath) => {
+//
+// With `relPath`, a file of the site is selected in its folder instead (#669),
+// behind the same boundary and then the one editor-launch puts on a file:
+// inside the site, links followed, and there. `showItemInFolder` does nothing
+// at all for a path that is not there, which would be a link that did nothing.
+ipcMain.handle('dir:show', async (_e, sitePath, relPath = null) => {
 	const s = await getStore();
-	return revealRegisteredSite(sitePath, {
+	let refused = null;
+	const result = await revealRegisteredSite(sitePath, {
 		sites: s.get('sites'),
 		pending: setupTracker.paths(),
-		reveal: (target) => shell.openPath(target),
+		reveal: async (target) => {
+			if (relPath === null) return shell.openPath(target);
+			const { file, error } = await existingSiteFile(target, relPath, editorLaunchDeps());
+			if (error) {
+				refused = { ok: false, reason: REVEAL_REASONS.UNREADABLE_FILE, error };
+			} else if (!file) {
+				refused = { ok: false, reason: REVEAL_REASONS.MISSING_FILE };
+			} else {
+				shell.showItemInFolder(file);
+				return '';
+			}
+			logEvent('sites', `refused to reveal ${describeRefused(relPath)} — ${refused.reason}${error ? ` (${error})` : ''}`);
+			return refused.reason;
+		},
 		onRefused: (description) => logEvent('sites', `refused to reveal ${description} — not a registered site`)
 	});
+	return refused || result;
 });
 
 // What the terminal says when npm has exited but something it started still

@@ -410,6 +410,20 @@ test( 'the apply card and its preview are fully translatable', async ( { session
 	await expect( preview.getByRole( 'button', { name: pseudoLocalize( 'Apply and rebuild' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( preview.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ) ).toBeVisible();
 	expect( ( await unwrapped( preview ) ).filter( ( text ) => text !== 'src/wp-login.php' ) ).toEqual( [] );
+
+	// Once applied, the details list the files it changed under a heading of
+	// their own (#669). The names are the checkout's and stay as they are.
+	await preview.getByRole( 'button', { name: pseudoLocalize( 'Apply and rebuild' ), exact: true } ).click();
+	const details = page.getByRole( 'complementary', { name: /e2e-site/ } ).filter( { visible: true } );
+	await expect( details.getByRole( 'heading', { name: pseudoLocalize( 'Changed files' ), exact: true } ) ).toBeVisible( { timeout: 60_000 } );
+	await expect( details.getByRole( 'button', { name: 'wp-login.php', exact: true } ) ).toBeVisible();
+
+	// Edited since, the file is marked and offers its revert, both by names a
+	// translator gave them (#669).
+	write( site.dir, LOGIN, '<?php // patched, then mine\n' );
+	await page.evaluate( () => window.dispatchEvent( new Event( 'focus' ) ) );
+	await expect( details.getByRole( 'img', { name: pseudoLocalize( 'You edited this file' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( details.getByRole( 'button', { name: filled( 'Revert %s', 'src/wp-login.php' ), exact: true } ) ).toBeVisible();
 } );
 
 test( 'the list of a site\'s tickets is fully translatable, with a ticket linked and with none', async ( { session } ) => {
@@ -1229,7 +1243,7 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 	await expect( card.getByText( pseudoLocalize( 'Unlinking this ticket doesn\'t affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.' ), { exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
 	await discard.click();
-	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Discard all local changes?' ) );
+	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Discard your changes?' ) );
 	await expect( question.getByRole( 'button', { name: pseudoLocalize( 'Discard changes' ), exact: true } ) ).toBeVisible();
 	expect( await unwrapped( question ) ).toEqual( [] );
 	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();

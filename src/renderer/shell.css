@@ -403,6 +403,69 @@ body {
   color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
+/* "Changed files" (#669): each group a tree drawn as a table, one row a
+   folder or a file, each indented by the depth its row already tells a
+   screen reader. A file's revert button is in a cell of its own at the end. */
+.affected-files {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.affected-files tr {
+  --affected-files-level: attr(aria-level type(<integer>), 1);
+}
+
+/* Each cell keeps room on both sides for a focus ring, which is drawn
+   outside what has the focus, at most twice the ring's width: the details'
+   slot clips at both its edges, and a ring there came back cut off. */
+.affected-files td {
+  --affected-files-ring-room: calc(2 * var(--wpds-border-width-focus));
+  padding-block: var(--wpds-dimension-padding-xs);
+  padding-inline: calc((var(--affected-files-level) - 1) * var(--wpds-dimension-padding-lg) + var(--affected-files-ring-room)) var(--affected-files-ring-room);
+  vertical-align: top;
+}
+
+.affected-files td.affected-files-revert-cell {
+  width: 1px;
+  padding-inline: var(--wpds-dimension-padding-xs) var(--affected-files-ring-room);
+}
+
+.affected-files-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--wpds-dimension-gap-xs);
+}
+
+/* On the name's first line when a long one wraps. */
+.affected-files-icon {
+  flex-shrink: 0;
+  margin-block-start: 0.2em;
+}
+
+/* A folder: the whole row is the button that opens and closes it, in the
+   text's colour rather than a button's. Named with the link's own class,
+   which would otherwise make it inline. */
+.link-button.affected-files-folder {
+  display: flex;
+  color: inherit;
+}
+
+/* A file: a button drawn as a link, which the browser does not underline
+   the way it does an <a>. */
+.affected-file {
+  text-decoration-line: underline;
+}
+
+/* The pencil or plus after a file's name (#669), on the name's first line
+   when a long one wraps, like the page icon. */
+.affected-file-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-block-start: 0.2em;
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+
 .sidebar-empty-state {
   box-sizing: border-box;
   display: flex;

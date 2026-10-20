@@ -47,7 +47,7 @@ import { mergeInProgressNotice } from './merge-in-progress.cjs';
 import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
-import { patchReviewContext, changesNoteParts, discardLabel, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion } from './changes-note.cjs';
+import { patchReviewContext, changesNoteParts, discardLabel, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion, discardYourChangesQuestion, ownEditCount, discardToast } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
@@ -76,6 +76,7 @@ import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
+import { changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, unsubmittedFromReply } from './affected-files.cjs';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
@@ -796,8 +797,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The unsubmitted-changes note. Null until the first probe answers, so a
   // card never opens on a note that a clean tree then takes away.
   const [worktreeDirty, setWorktreeDirty] = useState(null);
+  // Which files the branch has changed, from the same probe, for "Changed
+  // files" (#669): `{ entries, editedSinceChange, renamedByChange }`, or null
+  // before an answer.
+  const [unsubmitted, setUnsubmitted] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
+  const [revertError, setRevertError] = useState(null);
   // Opening a pull request (#167): the account, the sign-in, the form and the
   // attempt. Held here because all of it outlives the card that shows it.
   const prSubmission = usePullRequest({ sitePath, confirm });
@@ -934,16 +940,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // down — and a rejection here would leave the notice unset: the menu item
   // would appear to do nothing, which is the one outcome this feature is not
   // allowed to produce.
-  const openIn = useCallback(async (editorPath = null) => {
+  //
+  // `relPath` is a file of the site to open with it (#669).
+  const openIn = useCallback(async (editorPath = null, relPath = null) => {
     let result;
     try {
-      result = await window.api.openInEditor(sitePath, editorPath);
+      result = await window.api.openInEditor(sitePath, editorPath, relPath);
     } catch (err) {
       // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not open the site directory:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
-    const notice = noticeForOpenResult(result, { picked: editorPath === null });
+    const notice = noticeForOpenResult(result, { picked: editorPath === null, relPath });
     setEditorNotice(notice);
     // An application that was detected and then failed is one detection should be
     // asked about again, so the next menu does not offer it as if nothing had
@@ -954,10 +962,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Through the same function as `openIn` above, deliberately: this used to
   // build its own sentence out of `error` alone, so a refusal — which carries a
   // `reason` and no `error` — came out as the words "unknown error" (#180).
-  const showInFileManager = useCallback(async () => {
+  const showInFileManager = useCallback(async (relPath = null) => {
     let result;
     try {
-      result = await window.api.showSiteInFileManager(sitePath);
+      result = await window.api.showSiteInFileManager(sitePath, relPath);
     } catch (err) {
       // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not reveal the site folder:', err);
@@ -965,6 +973,23 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     }
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
+
+  // A file under "Changed files" (#669): one click, into the first editor
+  // detection finds, or the file manager when it finds none. Detection is asked
+  // here rather than read from `detectedEditors`, which holds nothing until the
+  // site's menu has been opened once; it stats a dozen paths and spawns nothing.
+  const openAffectedFile = useCallback(async (relPath) => {
+    let editors = [];
+    try {
+      editors = (await window.api.listEditors())?.detected || [];
+    } catch (err) {
+      // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
+      console.error('Could not list the editors on this machine:', err);
+    }
+    const target = fileOpenTarget({ editors });
+    if (target.kind === 'editor') await openIn(target.path, relPath);
+    else await showInFileManager(relPath);
+  }, [openIn, showInFileManager]);
 
   // The note's probe. It asks the wide question — unsubmitted work measured
   // from the ticket's branch point, the same measurement the patch makes —
@@ -986,17 +1011,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // before it, so a stale "dirty" cannot resurrect the note over a tree that
   // was just reset.
   const dirtyProbeRef = useRef({ inFlight: false, generation: 0, again: false });
-  // The local answer a discard supplies (#239) — what survived the reset,
-  // decided by the module so the card has one rule for it and a test to hold
-  // it. The generation bump is what makes it outrank a probe that started
-  // before the discard did.
-  // Memoised with nothing to depend on: it touches a ref and a setter. The
-  // ticket hook lists it among a callback's dependencies, and a new function
-  // here on every render would give that callback a new identity each time.
-  const applyDiscardToNote = useCallback((outcome) => {
-    dirtyProbeRef.current.generation++;
-    setWorktreeDirty(noteAfterDiscard(outcome));
-  }, []);
   const refreshDirty = useCallback(async () => {
     const probe = dirtyProbeRef.current;
     // A walk already running answers for the tree as it was when it started.
@@ -1017,11 +1031,39 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           const res = await window.api.hasUnsubmittedWork(sitePath);
           if (probe.generation === generation) {
             setWorktreeDirty((current) => noteAfterProbe(current, res));
+            setUnsubmitted(unsubmittedFromReply(res));
           }
         } catch {}
       } while (probe.again);
     } finally { probe.inFlight = false; }
   }, [sitePath]);
+
+  // The file list under "Changed files" (#669) has no local answer to take
+  // from a discard: what a discard leaves is a list only a walk can give. So
+  // it is forgotten, and walked again, wherever the app itself changes the
+  // tree. A list kept until the next focus would go on naming files that are
+  // gone, or call a reverted patch's files the contributor's.
+  const forgetChangedFiles = useCallback(() => {
+    dirtyProbeRef.current.generation++;
+    setUnsubmitted(null);
+    refreshDirty();
+  }, [refreshDirty]);
+  // The local answer a discard supplies (#239) — what survived the reset,
+  // decided by the module so the card has one rule for it and a test to hold
+  // it. The generation bump in `forgetChangedFiles` is what makes it outrank a
+  // probe that started before the discard did; the walk it starts then answers
+  // for the list, and for the note with it.
+  // Memoised on `forgetChangedFiles` alone, which changes only with the site:
+  // the ticket hook lists it among a callback's dependencies, and a new
+  // function here on every render would give that callback a new identity
+  // each time.
+  // A revert's failure is about the list it was shown under (#669), and goes
+  // with it: here, and on a branch change below.
+  const applyDiscardToNote = useCallback((outcome) => {
+    setRevertError(null);
+    forgetChangedFiles();
+    setWorktreeDirty(noteAfterDiscard(outcome));
+  }, [forgetChangedFiles]);
 
   // A branch change invalidates the note outright rather than staling it: the
   // count is measured from the ticket's branch point (#239), so the previous
@@ -1031,10 +1073,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // discard link — so the note is cleared while the new walk runs, and the
   // generation bump keeps the outgoing branch's answer from landing on it.
   const reprobeAfterBranchChange = useCallback(() => {
-    dirtyProbeRef.current.generation++;
+    setRevertError(null);
     setWorktreeDirty(null);
-    refreshDirty();
-  }, [refreshDirty]);
+    forgetChangedFiles();
+  }, [forgetChangedFiles]);
 
   // Only the open card probes, and only while it is open: the probe walks the
   // whole checkout, which is too much to pay for every card on the shelf. The
@@ -1342,7 +1384,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // ticket offers, the preview, and the chain. Called here because it runs
   // through everything above, and because what follows reads whether an
   // apply is under way.
-  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
+  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, forgetChangedFiles, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
 
   // The tickets with work on this site (#108), in a card of their own (#240)
   // below the Trac ticket card and the patch one — which ticket am I on, what
@@ -1490,6 +1532,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
+  // What "Discard your changes" would take (#669), and whether that is
+  // nothing: a patch or PR that stays, with no work of the contributor's on it.
+  const changedGroups = changedFileGroups({ appliedPatch, pullRequest, unsubmitted });
+  const editedByYou = ownEditCount(changedGroups, unsubmitted);
+  const nothingOfYours = editedByYou === 0 && Boolean(appliedPatch?.kept || pullRequest);
   const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket, pullRequest, workItemNoun: workItem.noun });
   const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
   const legacyNotice = legacySiteNotice({ legacy });
@@ -1529,6 +1576,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // they go through the same guard: a discard is a force checkout, and running
   // it under a live dev server or a half-finished install rewrites the tree
   // from under it. Not re-derived here — that is how a second answer starts.
+  // Why a file's revert button is held, if it is (#669): the guard and the
+  // sentences the discard link has, since it writes the tree the same way.
+  const revertReason = discardDisabledReason({ patchHasChanges: true, isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
   const layerExitBlocked = discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
   const layerExit = layerExitFailure({ patchSaveError, discardError });
 
@@ -1701,19 +1751,52 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     await loadPatchText();
   };
 
-  // One discard for both entry points — the note's link and the modal's. The
-  // question is the same one the dirty-update modal asks; the user has
-  // already chosen, this is the last chance to notice they chose wrong.
-  // Both links disable through discardBlocked; no re-check in here. The
-  // question's dialog is modal, so nothing the contributor can press starts
-  // what discardBlocked names while it is up.
-  const discardAllChanges = () => askFirst(discardQuestion(), async () => {
+  // Two discards, one flow. "Discard your changes" (the note's link and the
+  // modal's) keeps the applied patch or checked-out PR (#669), so its question
+  // says what stays. "Discard this ticket to its base" (the layer exits) is
+  // for when the patch itself is the problem, and takes it too; its question
+  // is the one the dirty-update modal asks. All three links disable through
+  // discardBlocked; no re-check in here. The question's dialog is modal, so
+  // nothing the contributor can press starts what discardBlocked names while
+  // it is up.
+  const discardYourChanges = () => {
+    runDiscard(discardYourChangesQuestion({ editedCount: editedByYou, appliedPatch, pullRequest }), { keepChange: true });
+  };
+  const discardTicketToBase = () => runDiscard(discardQuestion(), {});
+  // One file of "Discard your changes" (#669), from its row under "Changed
+  // files". It holds the same guard as a discard while it runs, since it
+  // writes the tree the same way, and the list follows it as it follows a
+  // discard.
+  const revertFile = (file, { fromChange }) => {
+    const question = revertFileQuestion(file, { fromChange, pullRequest: fromChange ? pullRequest : null });
+    askFirst(question, async () => {
+      setDiscarding(true);
+      setRevertError(null);
+      try {
+        let outcome;
+        try {
+          outcome = revertOutcome(await window.api.revertFile(sitePath, file.path));
+        } catch (e) {
+          outcome = revertOutcome({ ok: false, error: e && e.message ? e.message : String(e) });
+        }
+        if (!outcome.ok) {
+          setRevertError(outcome.message);
+          return;
+        }
+        applyDiscardToNote(outcome);
+        confirm(question.done);
+      } finally {
+        setDiscarding(false);
+      }
+    });
+  };
+  const runDiscard = (question, options) => askFirst(question, async () => {
     setDiscarding(true);
     setDiscardError(null);
     try {
       let outcome;
       try {
-        outcome = discardOutcome(await window.api.discardToBase(sitePath));
+        outcome = discardOutcome(await window.api.discardToBase(sitePath, options));
       } catch (e) {
         // A rejected invoke never returns a reply object; shape it into one so
         // the failure reaches the same red line instead of vanishing.
@@ -1724,13 +1807,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         return;
       }
       applyDiscardToNote(outcome);
-      const feedback = applyFeedbackAfterDiscard(outcome);
+      const feedback = applyFeedbackAfterDiscard(outcome, { appliedPatch, applyError, applyConflict, applyNotice });
       setAppliedPatch(feedback.appliedPatch);
       setApplyError(feedback.applyError);
       setApplyConflict(feedback.applyConflict);
       setApplyNotice(feedback.applyNotice);
       writeToTerminal(`\n${__('Discarded local changes.')}\n`);
-      confirm(__('All changes discarded.'));
+      confirm(discardToast(outcome, { pullRequest }));
       if (isPatchOpen) await loadPatchText();
     } finally {
       setDiscarding(false);
@@ -1742,6 +1825,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // the same two actions as buttons (below).
   const discardReason = discardDisabledReason({
     patchHasChanges: true,
+    nothingOfYours,
     isUpdating,
     installing,
     building,
@@ -1754,7 +1838,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       <span>
         {createInterpolateElement(changesNote.sentence, {
           review: <Button variant="link" onClick={openPatchModal} disabled={isUpdating} />,
-          discard: <DiscardChangesLink onClick={discardAllChanges} reason={discardReason} />
+          discard: <DiscardChangesLink onClick={discardYourChanges} reason={discardReason} />
         })}
       </span>
       {discardErrorText}
@@ -1796,6 +1880,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     patchLoading,
     patchLoadFailed,
     patchHasChanges,
+    nothingOfYours,
     isUpdating,
     installing,
     building,
@@ -1997,7 +2082,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <Notice.Description>{changesNote.body}</Notice.Description>
         <Notice.Actions>
           <UiButton variant="outline" tone="neutral" size="compact" disabled={isUpdating} onClick={openPatchModal}>{changesNote.review}</UiButton>
-          <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={discardReason} onClick={discardAllChanges}>{discardLabel()}</ReasonedUiButton>
+          <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={discardReason} onClick={discardYourChanges}>{discardLabel()}</ReasonedUiButton>
         </Notice.Actions>
       </Notice.Root>
       {discardErrorText}
@@ -2007,7 +2092,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The two ways out the apply card offers of a patch that cannot be lifted
   // back out, or that would not go on: the same two the changes note has,
   // behind the same guard, with what either said when it failed.
-  const layerExits = { blocked: layerExitBlocked, onSaveCopy: savePatch, onDiscard: discardAllChanges, message: layerExit.message };
+  const layerExits = { blocked: layerExitBlocked, onSaveCopy: savePatch, onDiscard: discardTicketToBase, message: layerExit.message };
   // Choosing another patch is walking away from this one, so everything
   // about it goes: the preview, whose presence holds the lists' Apply
   // buttons, and the failure itself, which would otherwise sit above the new
@@ -2126,7 +2211,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <Notice.Description>{editorNotice.message}</Notice.Description>
         {editorNotice.offerPicker ? (
           <Notice.Actions>
-            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null)}>{__('Choose application…')}</UiButton>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null, editorNotice.relPath)}>{__('Choose application…')}</UiButton>
           </Notice.Actions>
         ) : null}
       </Notice.Root>
@@ -2381,6 +2466,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
+        changed={{ ...changedGroups, onOpenFile: openAffectedFile, onRevertFile: revertFile, revertReason, revertError }}
       />
       </div>
       {dirtyModalOpen ? (
@@ -2421,7 +2507,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               discardError={discardError}
               onSave={savePatch}
               onCopy={copyPatch}
-              onDiscard={discardAllChanges}
+              onDiscard={discardYourChanges}
             />
           }
         >
