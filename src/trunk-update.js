@@ -29,7 +29,7 @@ const {
 	normalizeEolBuffer
 } = require('./git-update.cjs');
 const { readCommitInfo, resolveRef, currentBranch, isAncestor, statusRows, readBlobs, blobOid } = require('./git-read.cjs');
-const { fetchBranch, unstagePaths, updateBranch, checkoutBranch, cleanUntracked } = require('./git-write.cjs');
+const { fetchBranch, unstagePaths, updateBranch, checkoutBranch, cleanUntracked, restoreWorktreePaths } = require('./git-write.cjs');
 
 /**
  * The commit the site's `trunk` branch points at; its committer date is the age
@@ -147,9 +147,10 @@ async function discardChanges(dir, { onChild = null } = {}) {
  *
  * Kept separate from `discardChanges` on purpose: the trunk-update dirty flow
  * and the switch-off-trunk flow must reset only uncommitted edits and preserve
- * parked ticket work, so they stay on `discardChanges`. This one is the modal's
- * "Discard all changes", where the contributor has asked for the whole thing to
- * go. The branch is not deleted and the ticket stays linked — the substrate
+ * parked ticket work, so they stay on `discardChanges`. This one is "Discard
+ * your changes" and "Discard this ticket to its base", where the contributor
+ * has asked for the ticket's work to go (main.js puts an applied patch back
+ * afterwards for the first, #669). The branch is not deleted and the ticket stays linked — the substrate
  * survives, only its work is rewound; deleting the branch is what "Delete this
  * ticket's work" is for.
  *
@@ -175,6 +176,26 @@ async function discardToBase(dir, baseOid, { onChild = null } = {}) {
 		await updateBranch(dir, ref, baseOid);
 	}
 	await resetWorktree(dir, { onChild });
+}
+
+/**
+ * One file of `discardToBase` (#669): the file as `baseOid` has it, or gone
+ * when it is not there (`added`, a file the contributor created). Nothing
+ * else in the tree, the branch ref and the index are left alone; the file's
+ * difference from the base is what goes, parked or not.
+ *
+ * @param {string}  dir
+ * @param {string}  baseOid
+ * @param {string}  relPath     A path a status scan returned.
+ * @param {Object}  root3
+ * @param {boolean} root3.added Whether the base has no such file.
+ */
+async function discardFile(dir, baseOid, relPath, { added }) {
+	if (added) {
+		await fs.promises.rm(path.join(dir, relPath), { force: true });
+		return;
+	}
+	await restoreWorktreePaths(dir, baseOid, [relPath]);
 }
 
 /**
@@ -262,5 +283,6 @@ module.exports = {
 	collectDirtyFiles,
 	discardChanges,
 	discardToBase,
+	discardFile,
 	updateToLatestTrunk
 };

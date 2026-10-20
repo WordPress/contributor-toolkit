@@ -51,11 +51,11 @@ export function trayToggleId(tray) {
 /**
  * The bar along the bottom of the window (#555).
  *
- * Its left half holds a button for each tray (#558), pressed while its tray
- * is the open one; the Logs button also says how many lines of the open
- * site's debug.log have not been seen. Its right half holds what is about
- * the app rather than about a site: the way to give feedback, and the
- * settings (#559). The feedback button says what the form is and who reads
+ * Its left half holds a button for each tray (#558), labelled with the
+ * tray's name (#691) and pressed while its tray is the open one; the Logs
+ * button also says how many lines of the open site's debug.log have not
+ * been seen. Its right half holds what is about the app rather than about a
+ * site: the way to give feedback, and the settings (#559). The feedback button says what the form is and who reads
  * it before anything leaves the app, since the form is on the web and a
  * contributor should know that before they are sent there.
  *
@@ -75,10 +75,8 @@ export function AppFooter({ trays = [], activeTray = null, onToggleTray, onOpenF
       <div className="app-footer-actions">
         {trays.map((tray) => (
           <div key={tray.id} className="app-footer-tray">
-            <IconButton
+            <Button
               id={trayToggleId(tray.id)}
-              icon={TRAY_ICONS[tray.id]}
-              label={tray.toggle}
               variant="minimal"
               tone="neutral"
               size="compact"
@@ -86,7 +84,10 @@ export function AppFooter({ trays = [], activeTray = null, onToggleTray, onOpenF
               aria-controls={TRAY_ID}
               aria-describedby={tray.id === 'logs' ? LOGS_TOGGLE_NOTE_ID : undefined}
               onClick={() => onToggleTray(tray.id)}
-            />
+            >
+              <Button.Icon icon={TRAY_ICONS[tray.id]} />
+              <span className="app-footer-tray-label">{tray.title}</span>
+            </Button>
             {tray.id === 'logs' ? <Slot bubblesVirtually id={LOGS_TOGGLE_NOTE_ID} className="app-footer-tray-note" /> : null}
           </div>
         ))}

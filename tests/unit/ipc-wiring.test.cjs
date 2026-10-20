@@ -195,6 +195,9 @@ function createElectronStub({ ready = false } = {}) {
 			// covered by that module's own suite.
 			requestSingleInstanceLock: () => true,
 			setAsDefaultProtocolClient: () => true,
+			// Module scope too, for the one load below that is a hidden e2e run.
+			setPath() {},
+			setActivationPolicy() {},
 			// True, not false: `showWindowForDeepLink` refuses to open a window
 			// before the app is ready, and with this false the whole main-process
 			// half of the deep-link flow returned on its first line in every test
@@ -324,6 +327,27 @@ function spy(implementation = () => undefined) {
 	};
 	fn.calls = calls;
 	return fn;
+}
+
+// TOOLKIT_HIDE_WINDOWS=1, exported for a hidden e2e run (AGENTS.md), changes
+// what main.js does with its window; these tests assert the window a
+// contributor gets, so they never see the variable, except through
+// `loadHiddenMain`.
+delete process.env.TOOLKIT_HIDE_WINDOWS;
+
+// main.js as a hidden e2e run loads it: the variable, and the throwaway profile
+// it is honoured only beside. Both are read once, at load.
+function loadHiddenMain(options) {
+	const profile = process.env.TOOLKIT_USER_DATA_DIR;
+	process.env.TOOLKIT_HIDE_WINDOWS = '1';
+	process.env.TOOLKIT_USER_DATA_DIR = os.tmpdir();
+	try {
+		return loadMain(options);
+	} finally {
+		delete process.env.TOOLKIT_HIDE_WINDOWS;
+		if (profile === undefined) delete process.env.TOOLKIT_USER_DATA_DIR;
+		else process.env.TOOLKIT_USER_DATA_DIR = profile;
+	}
 }
 
 // Returns the recorders plus `invoke`, which calls a handler the way ipcMain
@@ -988,7 +1012,7 @@ test('git:unsubmitted-work sees the parked ticket work a clean status hides (#23
 	assert.equal(narrow.dirty, false);
 
 	const wide = await main.invoke('git:unsubmitted-work', dir);
-	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'] });
+	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'], entries: [{ path: 'wp-login.php', added: false }], editedSinceChange: [], renamedByChange: [] });
 });
 
 // Fresh edits and parked ones are one body of work as far as the ticket is
@@ -1019,7 +1043,7 @@ test('git:unsubmitted-work matches git:worktree-dirty on trunk (#239)', async (t
 
 	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // login\n// edited\n');
 	const wide = await main.invoke('git:unsubmitted-work', dir);
-	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'] });
+	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'], entries: [{ path: 'wp-login.php', added: false }], editedSinceChange: [], renamedByChange: [] });
 });
 
 // The count is the patch's count. A binary edit is named above the diff rather
@@ -1033,6 +1057,78 @@ test('git:unsubmitted-work counts what the patch would speak about (#239, #85)',
 	const wide = await main.invoke('git:unsubmitted-work', dir);
 	assert.equal(wide.changedCount, 2);
 	assert.ok(wide.files.includes('logo.png'), 'a binary change still counts — the patch names it');
+});
+
+// --- git:unsubmitted-work — "Changed files" (#669) --------------------------
+
+const { fingerprint } = require('../../src/change-fingerprint.cjs');
+
+// Each file says whether it is new, for the "new" mark under "Your changes".
+test('git:unsubmitted-work says which changed files are new (#669)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'new-helper.php'), '<?php // mine\n');
+	const main = parkedTicketMain(dir, baseOid);
+
+	const wide = await main.invoke('git:unsubmitted-work', dir);
+	assert.deepEqual(
+		[...wide.entries].sort((a, b) => a.path.localeCompare(b.path)),
+		[{ path: 'new-helper.php', added: true }, { path: 'wp-login.php', added: false }]
+	);
+});
+
+// A patch's files against what it wrote: the one changed since is edited, the
+// one left alone is not, whatever both look like to the unsubmitted list.
+test('git:unsubmitted-work names the applied patch\'s files changed since it was applied (#669)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'a.php'), '<?php // the patch wrote this\n');
+	fs.writeFileSync(path.join(dir, 'b.php'), '<?php // and this\n');
+	const fingerprints = {
+		'a.php': fingerprint(Buffer.from('<?php // the patch wrote this\n')),
+		'b.php': fingerprint(Buffer.from('<?php // and this\n'))
+	};
+	fs.writeFileSync(path.join(dir, 'b.php'), '<?php // and this, then mine\n');
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid, appliedPatch: { label: 'x.patch', files: ['a.php', 'b.php'], fingerprints } } } } }
+	}).stubs } });
+
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, ['b.php']);
+});
+
+// A patch applied before the app fingerprinted what it wrote, its text kept:
+// nothing says which of its files were edited, so each still changed may
+// have been, and the contributor keeps a way to discard or revert their own
+// edits without losing the patch.
+test('git:unsubmitted-work counts a kept patch\'s changed files as edited when it has no fingerprints (#669)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'a.php'), '<?php // the patch wrote this\n');
+	fs.writeFileSync(path.join(dir, 'b.php'), '<?php // and this, then mine\n');
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid, appliedPatch: { label: 'x.patch', files: ['a.php', 'b.php', 'gone.php'], text: 'x' } } } } }
+	}).stubs } });
+
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, ['a.php', 'b.php']);
+});
+
+// A pull request is the branch's base, so its files among the changes are the
+// contributor's edits.
+test('git:unsubmitted-work names the checked-out pull request\'s files edited since (#669)', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-wiring-pr-edited-');
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
+	fs.writeFileSync(path.join(dir, 'other.php'), '<?php // trunk\n');
+	commitFiles(dir, ['wp-login.php', 'other.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'pr/7', 'trunk'], dir);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // pull request 7\n');
+	fs.writeFileSync(path.join(dir, 'other.php'), '<?php // pull request 7\n');
+	const headOid = commitFiles(dir, ['wp-login.php', 'other.php'], 'PR #7');
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // pull request 7, then mine\n');
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { currentBranch: 'pr/7', branches: { 'pr/7': { pullRequest: 7, headOid, baseOid: headOid, files: ['wp-login.php', 'other.php'] } } } }
+	}).stubs } });
+
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, ['wp-login.php']);
 });
 
 // What a discard leaves behind rides on its reply: on a ticket branch the
@@ -1058,7 +1154,7 @@ test('git:discard-changes reports the parked work that survives it (#239)', asyn
 	assert.equal(res.changedCount, 1);
 });
 
-// The submit modal's "Discard all changes" is the opposite promise (#270): it
+// "Discard your changes" in the submit modal is the opposite promise (#270): it
 // throws away the whole diff the modal shows — measured from the branch point,
 // so parked WIP included — by rewinding the branch ref to its base. The branch
 // survives and the ticket stays linked; only its work is gone, so the reply is
@@ -1084,6 +1180,465 @@ test('git:discard-to-base rewinds the branch to its base, parked work included (
 		'still on the ticket branch — the ticket stays linked'
 	);
 	assert.equal(res.dirty, false, 'nothing survives, so the note goes clean');
+	assert.equal(res.changedCount, 0);
+});
+
+// "Discard your changes" keeps the applied patch (#669): the ticket goes back
+// to its base and the patch is put back from its stored text, so the
+// contributor's edits go and the patch's own stay. A ticket with a patch on
+// it, as the apply leaves it: the patch's change uncommitted, its record on
+// the branch.
+const KEPT_PATCH = [
+	'diff --git a/src/a.php b/src/a.php',
+	'--- a/src/a.php',
+	'+++ b/src/a.php',
+	'@@ -1 +1,2 @@',
+	' <?php // base',
+	'+// the patch',
+	''
+].join('\n');
+
+function patchedTicket(t, { text = KEPT_PATCH } = {}) {
+	const dir = initRepo(tempDir(t, 'ipc-wiring-discard-keep-'));
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
+	const baseOid = commitFiles(dir, ['src/a.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'ticket/62281', 'trunk'], dir);
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n// the patch\n');
+	const appliedPatch = { label: 'x.diff', files: ['src/a.php'], text, fingerprints: { 'src/a.php': fingerprint(Buffer.from('<?php // base\n// the patch\n')) } };
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid, appliedPatch } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	const recorded = () => settings.values.siteMeta[dir].branches['ticket/62281'].appliedPatch;
+	return { dir, baseOid, main, recorded };
+}
+
+// Edits on top of the patch's file and a new file of the contributor's own.
+function editOnTop(dir) {
+	fs.appendFileSync(path.join(dir, 'src', 'a.php'), '// mine\n');
+	fs.writeFileSync(path.join(dir, 'src', 'mine.php'), '<?php // mine\n');
+}
+
+test('git:discard-to-base keeping the change puts the patch back without the contributor\'s edits (#669)', async (t) => {
+	const { dir, main, recorded } = patchedTicket(t);
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(res.keptPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n// the patch\n', 'the patch\'s file is as the patch left it');
+	assert.equal(fs.existsSync(path.join(dir, 'src', 'mine.php')), false, 'the contributor\'s new file is gone');
+	assert.equal(recorded().text, KEPT_PATCH, 'the record stays, so Revert this patch still works');
+	assert.equal(res.changedCount, 1, 'the patch\'s file is still a change on the branch');
+});
+
+// A patch too large to keep, or one whose text a move onto trunk dropped,
+// cannot be put back: it goes with the edits, as the dialog said it would.
+test('git:discard-to-base keeping the change removes a patch it has no text for (#669)', async (t) => {
+	const { dir, main, recorded } = patchedTicket(t, { text: null });
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(res.keptPatch, undefined);
+	assert.equal(res.removedPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n');
+	assert.equal(recorded(), null);
+});
+
+// The escape hatch, "Discard this ticket to its base", asks for no such thing:
+// the patch is what it exists to remove.
+test('git:discard-to-base without keeping the change removes the patch too (#669)', async (t) => {
+	const { dir, main, recorded } = patchedTicket(t);
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir);
+
+	assert.equal(res.ok, true);
+	assert.equal(res.keptPatch, undefined);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n');
+	assert.equal(recorded(), null);
+});
+
+// The base has not moved since the patch went on, so this should not happen;
+// if it does, the edits are already gone and the record must not claim a
+// patch the checkout no longer has.
+test('git:discard-to-base says so when the patch could not be put back (#669)', async (t) => {
+	const { dir, main, recorded } = patchedTicket(t, { text: KEPT_PATCH.replace('<?php // base', '<?php // elsewhere') });
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(res.patchLost, true);
+	assert.equal(res.removedPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n');
+	assert.equal(recorded(), null);
+});
+
+// A patch applied over edits the contributor already had is fingerprinted with
+// those edits in it. Put back onto the bare base, the file no longer matches,
+// so the discard has to fingerprint it again or the list would mark it "also
+// edited" over a file nobody touched since.
+test('git:discard-to-base fingerprints the patch again once it is put back (#669)', async (t) => {
+	const BASE = '<?php // base\n// 2\n// 3\n// 4\n// 5\n// tail\n';
+	const PATCHED = '<?php // base\n// the patch\n// 2\n// 3\n// 4\n// 5\n// tail\n';
+	const text = [
+		'diff --git a/src/a.php b/src/a.php',
+		'--- a/src/a.php',
+		'+++ b/src/a.php',
+		'@@ -1,4 +1,5 @@',
+		' <?php // base',
+		'+// the patch',
+		' // 2',
+		' // 3',
+		' // 4',
+		''
+	].join('\n');
+	const dir = initRepo(tempDir(t, 'ipc-wiring-discard-refingerprint-'));
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), BASE);
+	const baseOid = commitFiles(dir, ['src/a.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'ticket/62281', 'trunk'], dir);
+	// The edit came first, then the patch on top of it.
+	const withEdit = PATCHED.replace('// tail', '// tail, mine');
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), withEdit);
+	const appliedPatch = { label: 'x.diff', appliedAt: '2026-10-14T00:00:00.000Z', files: ['src/a.php'], text, fingerprints: { 'src/a.php': fingerprint(Buffer.from(withEdit)) } };
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid, appliedPatch } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.keptPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), PATCHED);
+	const recorded = settings.values.siteMeta[dir].branches['ticket/62281'].appliedPatch;
+	assert.equal(recorded.fingerprints['src/a.php'], fingerprint(Buffer.from(PATCHED)));
+	assert.equal(recorded.appliedAt, '2026-10-14T00:00:00.000Z', 'the rest of the record is kept');
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, []);
+});
+
+// A pull request is its branch's base, so the rewind alone keeps it.
+test('git:discard-to-base keeping the change keeps a checked-out pull request (#669)', async (t) => {
+	const dir = initRepo(tempDir(t, 'ipc-wiring-discard-keep-pr-'));
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
+	commitFiles(dir, ['src/a.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'pr/7', 'trunk'], dir);
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // the pull request\n');
+	const headOid = commitFiles(dir, ['src/a.php'], 'the pull request');
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { branches: { 'pr/7': { pullRequest: 7, headOid, baseOid: headOid, files: ['src/a.php'] } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // the pull request\n');
+	assert.equal(fs.existsSync(path.join(dir, 'src', 'mine.php')), false);
+	assert.equal(revParse(dir, 'HEAD'), headOid);
+	assert.equal(res.changedCount, 0);
+});
+
+test('git:discard-to-base keeps a patch applied on trunk too (#669)', async (t) => {
+	const dir = initRepo(tempDir(t, 'ipc-wiring-discard-keep-trunk-'));
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
+	commitFiles(dir, ['src/a.php'], 'trunk snapshot');
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n// the patch\n');
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { appliedPatch: { label: 'x.diff', files: ['src/a.php'], text: KEPT_PATCH } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	editOnTop(dir);
+
+	const res = await main.invoke('git:discard-to-base', dir, { keepChange: true });
+
+	assert.equal(res.ok, true);
+	assert.equal(res.keptPatch, 'x.diff');
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n// the patch\n');
+	assert.equal(fs.existsSync(path.join(dir, 'src', 'mine.php')), false);
+	assert.equal(settings.values.siteMeta[dir].appliedPatch.text, KEPT_PATCH);
+});
+
+// One file of the contributor's put back as "Discard your changes" would
+// leave it (#669): a file of their own goes back to the base, or goes if they
+// created it; the applied patch's or pull request's own file goes back to
+// what that change wrote. Only files the contributor changed.
+test('git:revert-file removes a file the contributor created (#669)', async (t) => {
+	const { dir, main } = patchedTicket(t);
+	fs.writeFileSync(path.join(dir, 'src', 'mine.php'), '<?php // mine\n');
+
+	const res = await main.invoke('git:revert-file', dir, 'src/mine.php');
+
+	assert.equal(res.ok, true);
+	assert.equal(fs.existsSync(path.join(dir, 'src', 'mine.php')), false);
+	assert.equal(res.changedCount, 1, 'the patch\'s file is left');
+});
+
+test('git:revert-file puts a file of the contributor\'s back as the base had it, parked or deleted (#669)', async (t) => {
+	const dir = initRepo(tempDir(t, 'ipc-wiring-revert-file-'));
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'b.php'), '<?php // b\n');
+	fs.writeFileSync(path.join(dir, 'src', 'c.php'), '<?php // c\n');
+	const baseOid = commitFiles(dir, ['src/b.php', 'src/c.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'ticket/62281', 'trunk'], dir);
+	fs.writeFileSync(path.join(dir, 'src', 'b.php'), '<?php // b, parked\n');
+	commitFiles(dir, ['src/b.php'], 'Work in progress (WordPress Contributor Toolkit)');
+	fs.rmSync(path.join(dir, 'src', 'c.php'));
+	const main = parkedTicketMain(dir, baseOid);
+
+	assert.equal((await main.invoke('git:revert-file', dir, 'src/b.php')).ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'b.php'), 'utf8'), '<?php // b\n', 'the base\'s, not the parked commit\'s');
+	const res = await main.invoke('git:revert-file', dir, 'src/c.php');
+	assert.equal(res.ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'c.php'), 'utf8'), '<?php // c\n', 'a deletion undone');
+	assert.equal(res.changedCount, 0);
+});
+
+test('git:revert-file puts an edited patch file back as the patch left it (#669)', async (t) => {
+	const { dir, main, recorded } = patchedTicket(t);
+	fs.appendFileSync(path.join(dir, 'src', 'a.php'), '// mine\n');
+
+	const res = await main.invoke('git:revert-file', dir, 'src/a.php');
+
+	assert.equal(res.ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n// the patch\n');
+	assert.equal(recorded().text, KEPT_PATCH, 'the patch stays applied');
+	assert.equal(recorded().fingerprints['src/a.php'], fingerprint(Buffer.from('<?php // base\n// the patch\n')));
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, []);
+});
+
+test('git:revert-file refuses a patch file the contributor has not edited, or one it has no text for (#669)', async (t) => {
+	const untouched = patchedTicket(t);
+	const res = await untouched.main.invoke('git:revert-file', untouched.dir, 'src/a.php');
+	assert.equal(res.ok, false);
+	assert.equal(res.code, 'not-yours');
+	assert.equal(fs.readFileSync(path.join(untouched.dir, 'src', 'a.php'), 'utf8'), '<?php // base\n// the patch\n');
+
+	const textless = patchedTicket(t, { text: null });
+	fs.appendFileSync(path.join(textless.dir, 'src', 'a.php'), '// mine\n');
+	const refused = await textless.main.invoke('git:revert-file', textless.dir, 'src/a.php');
+	assert.equal(refused.ok, false);
+	assert.equal(refused.code, 'no-patch-text');
+	assert.match(fs.readFileSync(path.join(textless.dir, 'src', 'a.php'), 'utf8'), /mine/, 'nothing was touched');
+});
+
+test('git:revert-file refuses a path that is not one of the changes (#669)', async (t) => {
+	const { dir, main } = patchedTicket(t);
+	for (const relPath of ['src/nothing.php', '../outside.php', '']) {
+		const res = await main.invoke('git:revert-file', dir, relPath);
+		assert.equal(res.ok, false, relPath);
+		assert.equal(res.code, 'unchanged', relPath);
+	}
+});
+
+// A ticket with a patch on it, as the apply leaves it, from the base's files,
+// the worktree's (null to remove one), and the patch's record. Fingerprints
+// default to what the patch wrote: each record file as it is on disk now.
+function patchSite(t, { base, worktree, text, files, fingerprints = null, getStoreHook = null }) {
+	const dir = initRepo(tempDir(t, 'ipc-wiring-revert-patch-'));
+	for (const [rel, content] of Object.entries(base)) {
+		fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+		fs.writeFileSync(path.join(dir, rel), content);
+	}
+	const baseOid = commitFiles(dir, Object.keys(base), 'trunk snapshot');
+	gitOk(['checkout', '-b', 'ticket/62281', 'trunk'], dir);
+	for (const [rel, content] of Object.entries(worktree)) {
+		if (content === null) fs.rmSync(path.join(dir, rel), { force: true });
+		else {
+			fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+			fs.writeFileSync(path.join(dir, rel), content);
+		}
+	}
+	const recorded = fingerprints || Object.fromEntries(files.map((rel) => {
+		const abs = path.join(dir, rel);
+		return [rel, fingerprint(fs.existsSync(abs) ? fs.readFileSync(abs) : null)];
+	}));
+	const appliedPatch = { label: 'x.diff', appliedAt: '2026-10-14T00:00:00.000Z', files, text, fingerprints: recorded };
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid, appliedPatch } } } }
+	});
+	const stubs = getStoreHook
+		? { './settings-store': { ...settings.stubs['./settings-store'], getStore: async () => { getStoreHook(settings, dir); return settings.stubs['./settings-store'].getStore(); } } }
+		: settings.stubs;
+	const main = loadMain({ stubs: { ...silentLogging(), ...stubs } });
+	const record = () => settings.values.siteMeta[dir].branches['ticket/62281'].appliedPatch;
+	return { dir, main, record };
+}
+
+const ADD_NEW = [
+	'diff --git a/src/new.php b/src/new.php',
+	'new file mode 100644',
+	'--- /dev/null',
+	'+++ b/src/new.php',
+	'@@ -0,0 +1 @@',
+	'+<?php // new',
+	''
+].join('\n');
+
+const DELETE_GONE = [
+	'diff --git a/src/gone.php b/src/gone.php',
+	'deleted file mode 100644',
+	'--- a/src/gone.php',
+	'+++ /dev/null',
+	'@@ -1 +0,0 @@',
+	'-<?php // gone',
+	''
+].join('\n');
+
+// A part of the patch that will not go back on the base, because it was
+// written against an edit the contributor had made first: the file is left
+// exactly as it was, edits and all.
+test('git:revert-file leaves the file as it was when its part of the patch will not go back on (#669)', async (t) => {
+	const text = [
+		'diff --git a/src/a.php b/src/a.php',
+		'--- a/src/a.php',
+		'+++ b/src/a.php',
+		'@@ -1 +1,2 @@',
+		' <?php // mine',
+		'+// the patch',
+		''
+	].join('\n');
+	const { dir, main } = patchSite(t, {
+		base: { 'src/a.php': '<?php // base\n' },
+		worktree: { 'src/a.php': '<?php // mine\n// the patch\n' },
+		text,
+		files: ['src/a.php']
+	});
+	fs.appendFileSync(path.join(dir, 'src', 'a.php'), '// more\n');
+
+	const res = await main.invoke('git:revert-file', dir, 'src/a.php');
+
+	assert.equal(res.ok, false);
+	assert.equal(res.code, 'failed');
+	assert.match(res.error, /left as it was/);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // mine\n// the patch\n// more\n');
+});
+
+// A record from before fingerprints is given one for each of its files: the
+// reverted one is as the patch left it and no longer marked, and the others,
+// edited or not, stay marked and revertable.
+test('git:revert-file on a kept patch with no fingerprints unmarks that file and leaves the others revertable (#669)', async (t) => {
+	const { dir, main, record } = patchSite(t, {
+		base: { 'src/a.php': '<?php // base\n' },
+		worktree: { 'src/a.php': '<?php // base\n// the patch\n// mine\n', 'src/new.php': '<?php // new\n// mine\n' },
+		text: `${KEPT_PATCH}${ADD_NEW}`,
+		files: ['src/a.php', 'src/new.php']
+	});
+	delete record().fingerprints;
+
+	assert.equal((await main.invoke('git:revert-file', dir, 'src/a.php')).ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n// the patch\n');
+	assert.deepEqual(record().fingerprints, { 'src/a.php': fingerprint(Buffer.from('<?php // base\n// the patch\n')), 'src/new.php': '' });
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, ['src/new.php']);
+	assert.equal((await main.invoke('git:revert-file', dir, 'src/new.php')).ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'new.php'), 'utf8'), '<?php // new\n');
+});
+
+test('git:revert-file puts back a file the patch created, edited or deleted since (#669)', async (t) => {
+	const edited = patchSite(t, { base: { 'src/a.php': '<?php // a\n' }, worktree: { 'src/new.php': '<?php // new\n' }, text: ADD_NEW, files: ['src/new.php'] });
+	fs.appendFileSync(path.join(edited.dir, 'src', 'new.php'), '// mine\n');
+	assert.equal((await edited.main.invoke('git:revert-file', edited.dir, 'src/new.php')).ok, true);
+	assert.equal(fs.readFileSync(path.join(edited.dir, 'src', 'new.php'), 'utf8'), '<?php // new\n');
+
+	// Deleted since: the base has no such file and neither has the worktree,
+	// so the walk does not name it; the list marks it, and so does this.
+	const deleted = patchSite(t, { base: { 'src/a.php': '<?php // a\n' }, worktree: { 'src/new.php': '<?php // new\n' }, text: ADD_NEW, files: ['src/new.php'] });
+	fs.rmSync(path.join(deleted.dir, 'src', 'new.php'));
+	assert.deepEqual((await deleted.main.invoke('git:unsubmitted-work', deleted.dir)).editedSinceChange, ['src/new.php']);
+	assert.equal((await deleted.main.invoke('git:revert-file', deleted.dir, 'src/new.php')).ok, true);
+	assert.equal(fs.readFileSync(path.join(deleted.dir, 'src', 'new.php'), 'utf8'), '<?php // new\n');
+});
+
+test('git:revert-file deletes again a file the patch deleted and the contributor put back (#669)', async (t) => {
+	const { dir, main, record } = patchSite(t, { base: { 'src/gone.php': '<?php // gone\n' }, worktree: { 'src/gone.php': null }, text: DELETE_GONE, files: ['src/gone.php'] });
+	fs.writeFileSync(path.join(dir, 'src', 'gone.php'), '<?php // gone\n');
+
+	const res = await main.invoke('git:revert-file', dir, 'src/gone.php');
+
+	assert.equal(res.ok, true);
+	assert.equal(fs.existsSync(path.join(dir, 'src', 'gone.php')), false);
+	assert.equal(record().fingerprints['src/gone.php'], null);
+});
+
+test('git:revert-file refuses either end of a renamed file, and says which paths those are (#669)', async (t) => {
+	const text = [
+		'diff --git a/src/a.php b/src/b.php',
+		'similarity index 100%',
+		'rename from src/a.php',
+		'rename to src/b.php',
+		''
+	].join('\n');
+	const { dir, main } = patchSite(t, { base: { 'src/a.php': '<?php // a\n' }, worktree: { 'src/a.php': null, 'src/b.php': '<?php // a\n' }, text, files: ['src/b.php'] });
+	fs.appendFileSync(path.join(dir, 'src', 'b.php'), '// mine\n');
+
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).renamedByChange, ['src/a.php', 'src/b.php']);
+	for (const relPath of ['src/a.php', 'src/b.php']) {
+		const res = await main.invoke('git:revert-file', dir, relPath);
+		assert.equal(res.code, 'renamed', relPath);
+	}
+	assert.equal(fs.existsSync(path.join(dir, 'src', 'a.php')), false, 'nothing was touched');
+	assert.match(fs.readFileSync(path.join(dir, 'src', 'b.php'), 'utf8'), /mine/);
+});
+
+// The record is replaced between the handler's read and its write: the
+// fingerprint belongs to the old record and must not land on the new one.
+test('git:revert-file does not write a fingerprint over a record replaced while it ran (#669, #172)', async (t) => {
+	let replaced = false;
+	const { dir, main, record } = patchSite(t, {
+		base: { 'src/a.php': '<?php // base\n' },
+		worktree: { 'src/a.php': '<?php // base\n// the patch\n' },
+		text: KEPT_PATCH,
+		files: ['src/a.php'],
+		getStoreHook: (settings, siteDir) => {
+			if (replaced) return;
+			if (fs.readFileSync(path.join(siteDir, 'src', 'a.php'), 'utf8') !== '<?php // base\n// the patch\n') return;
+			if (!settings.values.siteMeta[siteDir].branches['ticket/62281'].appliedPatch.fingerprints['src/a.php']) return;
+			const fresh = { label: 'other.diff', appliedAt: '2026-10-15T00:00:00.000Z', files: ['src/a.php'], text: KEPT_PATCH, fingerprints: { 'src/a.php': 'other' } };
+			settings.values.siteMeta[siteDir].branches['ticket/62281'].appliedPatch = fresh;
+			replaced = true;
+		}
+	});
+	fs.appendFileSync(path.join(dir, 'src', 'a.php'), '// mine\n');
+
+	assert.equal((await main.invoke('git:revert-file', dir, 'src/a.php')).ok, true);
+
+	assert.equal(replaced, true, 'the record was replaced mid-flight');
+	assert.equal(record().label, 'other.diff');
+	assert.equal(record().fingerprints['src/a.php'], 'other');
+});
+
+test('git:revert-file puts an edited pull request file back as the pull request has it (#669)', async (t) => {
+	const dir = initRepo(tempDir(t, 'ipc-wiring-revert-pr-'));
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // base\n');
+	commitFiles(dir, ['src/a.php'], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'pr/7', 'trunk'], dir);
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // the pull request\n');
+	const headOid = commitFiles(dir, ['src/a.php'], 'the pull request');
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { branches: { 'pr/7': { pullRequest: 7, headOid, baseOid: headOid, files: ['src/a.php'] } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	fs.appendFileSync(path.join(dir, 'src', 'a.php'), '// mine\n');
+
+	const res = await main.invoke('git:revert-file', dir, 'src/a.php');
+
+	assert.equal(res.ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // the pull request\n');
 	assert.equal(res.changedCount, 0);
 });
 
@@ -1334,8 +1889,12 @@ async function patchRepo(t, files) {
 	return dir;
 }
 
+// With an empty store of its own: `git:unsubmitted-work` reads the branch's
+// record since #669, to compare with the applied change, and the real store
+// would load the real electron package. Nothing here is registered, which is
+// what these tests have always run with.
 function patchMain() {
-	return loadMain({ stubs: { ...silentLogging() } });
+	return loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore().stubs } });
 }
 
 // The patch is what a contributor hands over, so a change it does not mention
@@ -2102,7 +2661,7 @@ test('settings:set gives Electron a custom theme\'s scheme, and paints the windo
 	await menuBuilt(custom);
 	assert.equal(custom.windows[0].options.backgroundColor, '#102030', 'the main window is made in the custom background');
 	await custom.invoke('trac:list-attachments', '/sites/wp');
-	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: '#102030' }]], 'the Trac window is opened in it');
+	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: '#102030', hidden: false }]], 'the Trac window is opened in it');
 });
 
 test('the ready path gives Electron the stored theme before the window is made, and makes the window in it (#560)', async () => {
@@ -2201,6 +2760,32 @@ test('the menu\'s Settings… opens the dialog in the main window, listed first 
 	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }]);
 	assert.deepEqual(trac.sent, []);
 	assert.deepEqual(brought, ['restore', 'show', 'focus']);
+});
+
+// A hidden e2e run (TOOLKIT_HIDE_WINDOWS, TESTING.md) must not take the screen or
+// the focus from whoever is at the machine. Each path below would: the window
+// made visible, Settings… and a second instance bringing it forward, and Trac's
+// check showing its own window. What they do for the page still happens.
+test('a hidden e2e run makes the window hidden and brings nothing forward: not Settings…, not a second instance, not the Trac window', async (t) => {
+	const dir = await fixtureRepo(t);
+	const openAndScrape = spy(async () => ({ status: 'ok', items: [] }));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { tracTicket: 49661 } } });
+	const main = loadHiddenMain({ ready: true, stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null }, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+	const settingsItem = await menuBuilt(main);
+	const [mainWindow] = main.windows;
+	assert.equal(mainWindow.options.show, false);
+	assert.equal(mainWindow.options.webPreferences.backgroundThrottling, false, 'a page nobody can see is not slowed down');
+	const brought = [];
+	mainWindow.show = () => brought.push('show');
+	mainWindow.focus = () => brought.push('focus');
+
+	settingsItem.click();
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe']);
+
+	assert.deepEqual(brought, []);
+	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }], 'Settings… still opens the dialog');
+	await main.invoke('trac:list-attachments', dir);
+	assert.equal(openAndScrape.calls[0][1].hidden, true);
 });
 
 test('the menu\'s Settings… with the main window closed opens one and sends nothing into it (#559)', async () => {
@@ -3585,6 +4170,27 @@ test('git:apply-patch delegates a forward apply to patch-apply and records it', 
 	assert.deepEqual(stored.files, ['src/a.php']);
 });
 
+// What the patch wrote, fingerprinted with the record (#669), so a later edit
+// to one of its files can be told from the patch itself. A file the patch
+// removed has no content, and no fingerprint.
+test('git:apply-patch records a fingerprint of each file the patch wrote (#669)', async (t) => {
+	const dir = tempDir(t, 'ipc-wiring-fingerprint-');
+	fs.mkdirSync(path.join(dir, 'src'));
+	fs.writeFileSync(path.join(dir, 'src', 'a.php'), '<?php // patched\n');
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php', 'src/gone.php'], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: [dir] });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, dir, { patchText: 'PATCH', label: 'x.patch' });
+	assert.equal((await applyDone(event, applyId)).ok, true);
+
+	assert.deepEqual(settings.values.siteMeta[dir].appliedPatch.fingerprints, {
+		'src/a.php': fingerprint(Buffer.from('<?php // patched\n')),
+		'src/gone.php': null
+	});
+});
+
 test('git:apply-patch refuses a second patch while one is already applied', async () => {
 	const applyPatchToDir = spy(async () => ({ ok: true, applied: [], skipped: [] }));
 	const settings = fakeSettingsStore({
@@ -3791,7 +4397,60 @@ test('trac:list-attachments opens the Trac window for a Trac site, and refuses a
 	const coreMain = loadMain({ stubs: { ...silentLogging(), ...coreSettings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
 	const read = await coreMain.invoke('trac:list-attachments', core);
 	assert.equal(read.status, 'ok');
-	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: LIGHT_BACKGROUND }]], 'opened in the colour of the app\'s theme');
+	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: LIGHT_BACKGROUND, hidden: false }]], 'opened in the colour of the app\'s theme');
+});
+
+// The last read that answered is kept per ticket (#695), so a relaunch can
+// show the ticket's facts and attachments without opening Trac again.
+test('trac:list-attachments keeps a read that answered, and a failed read keeps it in view', async (t) => {
+	const dir = await fixtureRepo(t);
+	let call = 0;
+	const openAndScrape = spy(async () => (++call === 1
+		? { status: 'ok', items: [{ name: 'a.diff' }], ticket: { summary: 'A Core ticket' } }
+		: { status: 'challenge-timeout', items: [] }));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { tracTicket: 49661 } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+
+	const read = await main.invoke('trac:list-attachments', dir);
+	assert.ok(read.checkedAt, 'stamped with when it was read');
+	assert.deepEqual(settings.values['tracRead:49661'], { checkedAt: read.checkedAt, status: 'ok', items: [{ name: 'a.diff' }], ticket: { summary: 'A Core ticket' } });
+
+	const failed = await main.invoke('trac:list-attachments', dir);
+	assert.equal(failed.status, 'challenge-timeout');
+	assert.deepEqual(failed.items, [{ name: 'a.diff' }], 'the last read is shown, not emptied');
+	assert.deepEqual(failed.ticket, { summary: 'A Core ticket' });
+	assert.equal(failed.checkedAt, read.checkedAt);
+	assert.equal(settings.values['tracRead:49661'].checkedAt, read.checkedAt, 'a failed read does not replace the saved one');
+});
+
+test('trac:list-attachments keeps a read with no attachments, and a failed read with nothing kept is only its failure', async (t) => {
+	const dir = await fixtureRepo(t);
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { tracTicket: 49661 } } });
+	const failing = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape: async () => ({ status: 'closed', items: [] }), fetchAttachment: async () => ({}) } } });
+
+	assert.deepEqual(await failing.invoke('trac:list-attachments', dir), { ok: true, status: 'closed', items: [] });
+	assert.equal(settings.values['tracRead:49661'], undefined, 'a read that did not answer is not kept');
+
+	const empty = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape: async () => ({ status: 'no-attachments', items: [], ticket: { summary: 'A Core ticket' } }), fetchAttachment: async () => ({}) } } });
+	await empty.invoke('trac:list-attachments', dir);
+	assert.equal(settings.values['tracRead:49661'].status, 'no-attachments', 'a ticket with nothing attached was still read');
+	assert.deepEqual(settings.values['tracRead:49661'].ticket, { summary: 'A Core ticket' });
+});
+
+test('trac:cached-attachments hands back the saved read without opening Trac, on a Trac site only', async () => {
+	const openAndScrape = spy(async () => ({ status: 'ok', items: [] }));
+	const saved = { checkedAt: '2026-10-18T12:00:00.000Z', status: 'no-attachments', items: [], ticket: { summary: 'A Core ticket' } };
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp', '/sites/gb', '/sites/none'],
+		siteMeta: { '/sites/wp': { tracTicket: 49661 }, '/sites/gb': { projectType: 'gutenberg', tracTicket: 49661 }, '/sites/none': {} },
+		'tracRead:49661': saved
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+
+	assert.deepEqual(await main.invoke('trac:cached-attachments', '/sites/wp'), { ok: true, ...saved });
+	assert.equal(await main.invoke('trac:cached-attachments', '/sites/gb'), null, 'a Gutenberg issue is not the Core ticket with its number');
+	assert.equal(await main.invoke('trac:cached-attachments', '/sites/none'), null);
+	assert.deepEqual(openAndScrape.calls, []);
 });
 
 // git:list-ticket-patches reads the stored ticket, then delegates to github-prs
@@ -5258,7 +5917,7 @@ test('discarding refuses a legacy site before touching trunk-update (#385)', asy
 		stubs: legacyStubs(settings, { './trunk-update': { discardChanges, discardToBase } })
 	});
 
-	for (const channel of ['git:discard-changes', 'git:discard-to-base']) {
+	for (const channel of ['git:discard-changes', 'git:discard-to-base', 'git:revert-file']) {
 		const result = await main.invoke(channel, '/sites/wp');
 		assert.equal(result.code, 'legacy-site', channel);
 	}
@@ -5405,6 +6064,29 @@ test('branches:rebase moves the active ticket onto trunk, records the new base a
 	// And the notice's own question answers "current" now.
 	const status = await main.invoke('site:status', '/sites/wp');
 	assert.equal(status.ticketBehindTrunk, false);
+});
+
+// The fingerprints go with the text (#669): the merge brings trunk's changes
+// into files the patch wrote, and a file trunk changed is not one the
+// contributor edited. Without them the record is one from before they were
+// kept, which marks nothing. A record whose text an earlier move already
+// dropped still has its fingerprints dropped.
+test('branches:rebase drops the applied patch\'s fingerprints with its text (#669)', async () => {
+	for (const text of ['x', null]) {
+		const settings = rebaseFixture();
+		settings.values.siteMeta['/sites/wp'].branches['ticket/61002'].appliedPatch = { label: 'A.diff', text, files: ['f'], fingerprints: { f: 'aaa' } };
+		const main = loadMain({
+			stubs: {
+				...silentLogging(),
+				...settings.stubs,
+				'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+				'./ticket-branches': { rebaseOntoTrunk: async () => ({ rebased: true, from: 'old', to: 'new', parked: true, oid: 'wip2' }), currentBranchName: async () => 'ticket/61002' }
+			}
+		});
+
+		assert.equal((await main.invokeWith('branches:rebase', createIpcEvent(), '/sites/wp')).ok, true);
+		assert.deepEqual(settings.values.siteMeta['/sites/wp'].branches['ticket/61002'].appliedPatch, { label: 'A.diff', text: null, files: ['f'] }, `text ${text}`);
+	}
 });
 
 // The ref moves before the checkout. When only the checkout fails, the base
@@ -6114,6 +6796,102 @@ test('dir:show refuses a path the registry does not hold, and logs it', async ()
 
 	assert.deepEqual(await main.invoke('dir:show', SITE), { ok: true });
 	assert.deepEqual(main.calls.openPath, [SITE]);
+});
+
+// A file of the site, named by the window (#669), reaches the guard with the
+// site rather than in its place: the registry still decides first.
+test('editor:open hands a named file to editor-launch alongside the site', async () => {
+	const openSiteInEditor = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [SITE] }).stubs,
+			'./editor-launch': { openSiteInEditor, matchDetectedEditor: matching({ id: 'cursor', name: 'Cursor', path: EDITOR }) }
+		}
+	});
+
+	await main.invoke('editor:open', SITE, EDITOR, 'src/wp-login.php');
+
+	const [sitePath, editorPath, options] = openSiteInEditor.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.equal(editorPath, EDITOR);
+	assert.equal(options.file, 'src/wp-login.php');
+	// How the guard follows a link to where it leads, so a link in the site
+	// that names a file outside it is refused.
+	assert.equal(typeof options.realPath, 'function');
+});
+
+// Showing a file selects it in its folder, rather than opening it: the file
+// manager's "open" of a .php file is whatever the OS has registered for it.
+test('dir:show with a file of the site selects that file in the file manager (#669)', async (t) => {
+	const site = tempDir(t, 'wpct-show-file-');
+	fs.mkdirSync(path.join(site, 'src'));
+	fs.writeFileSync(path.join(site, 'src', 'wp-login.php'), '<?php\n');
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [site] }).stubs } });
+
+	assert.deepEqual(await main.invoke('dir:show', site, 'src/wp-login.php'), { ok: true });
+
+	assert.deepEqual(main.calls.showItemInFolder, [path.join(site, 'src', 'wp-login.php')]);
+	assert.deepEqual(main.calls.openPath, []);
+});
+
+// Logged like the same refusal from `editor:open`, and answered with a reason
+// site-registry lists, which is the list open-failure.cjs owes sentences to.
+test('dir:show refuses a file that is not there, or not in the site, and logs it (#669)', async (t) => {
+	const site = tempDir(t, 'wpct-show-file-');
+	const logEvent = spy();
+	const main = loadMain({ stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...fakeSettingsStore({ sites: [site] }).stubs } });
+	const { REVEAL_REASONS } = require(path.join(SRC_DIR, 'site-registry.js'));
+
+	for (const relPath of ['src/deleted.php', '../outside.php']) {
+		assert.deepEqual(await main.invoke('dir:show', site, relPath), { ok: false, reason: REVEAL_REASONS.MISSING_FILE }, relPath);
+	}
+	assert.equal(REVEAL_REASONS.MISSING_FILE, 'missing-file');
+	assert.deepEqual(main.calls.showItemInFolder, []);
+	assert.deepEqual(main.calls.openPath, []);
+	assert.equal(logEvent.calls.length, 2);
+	assert.match(logEvent.calls[0][1], /refused to reveal src\/deleted\.php/);
+});
+
+// A file that is there but cannot be read is said as itself, with the
+// system's code, and logged: not reported as one the change may have deleted.
+test('dir:show refuses a file it cannot read as unreadable, and logs why (#669)', async (t) => {
+	const site = tempDir(t, 'wpct-show-file-');
+	const logEvent = spy();
+	const existingSiteFile = spy(async () => ({ file: null, error: 'EACCES' }));
+	const main = loadMain({
+		stubs: {
+			'./logging': { ...silentLogging()['./logging'], logEvent },
+			...fakeSettingsStore({ sites: [site] }).stubs,
+			'./editor-launch': { ...require(path.join(SRC_DIR, 'editor-launch.js')), existingSiteFile }
+		}
+	});
+	const { REVEAL_REASONS } = require(path.join(SRC_DIR, 'site-registry.js'));
+
+	assert.deepEqual(await main.invoke('dir:show', site, 'src/wp-login.php'), { ok: false, reason: REVEAL_REASONS.UNREADABLE_FILE, error: 'EACCES' });
+	assert.equal(REVEAL_REASONS.UNREADABLE_FILE, 'unreadable-file');
+	assert.deepEqual(main.calls.showItemInFolder, []);
+	assert.match(logEvent.calls[0][1], /EACCES/);
+});
+
+// A link in the site that names a file outside it is judged by where it
+// leads, as in editor-launch. Windows makes links only with a privilege the
+// test may not have, and the decision itself is covered from every platform
+// in editor-launch.test.cjs.
+test('dir:show refuses a link in the site that leads out of it (#669)', async (t) => {
+	const site = tempDir(t, 'wpct-show-file-');
+	const outside = tempDir(t, 'wpct-show-outside-');
+	fs.writeFileSync(path.join(outside, 'secret.txt'), 'secret\n');
+	try {
+		fs.symlinkSync(path.join(outside, 'secret.txt'), path.join(site, 'link.txt'), 'file');
+	} catch (e) {
+		if (e.code === 'EPERM') return t.skip('no privilege to make a symbolic link here');
+		throw e;
+	}
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [site] }).stubs } });
+
+	assert.deepEqual(await main.invoke('dir:show', site, 'link.txt'), { ok: false, reason: 'missing-file' });
+	assert.deepEqual(main.calls.showItemInFolder, []);
 });
 
 // --- creating a site, and opening it while it is still being created -----
@@ -7232,6 +8010,7 @@ const WIRED = new Set([
 	'git:unsubmitted-work',
 	'git:discard-changes',
 	'git:discard-to-base',
+	'git:revert-file',
 	'git:update-trunk',
 	'git:get-patch',
 	'git:save-patch',
@@ -7280,6 +8059,7 @@ const WIRED = new Set([
 const NO_DELEGATION = new Map([
 	['deep-link:ready', 'flushes a ticket main queued for the renderer; the parse it depends on is wired above, on open-url and second-instance'],
 	['sites:mark-update-complete', 'electron-store write'],
+	['trac:cached-attachments', 'electron-store read'],
 	['sites:get', 'electron-store read'],
 	['sites:getAll', 'electron-store read'],
 	['sites:set-skip-init', 'electron-store write'],
@@ -7552,7 +8332,7 @@ test('discarding refuses a checkout mid-merge before touching trunk-update (#352
 	});
 	const main = loadMain({ stubs: mergeStubs(settings, { './trunk-update': { discardChanges, discardToBase } }) });
 
-	for (const channel of ['git:discard-changes', 'git:discard-to-base']) {
+	for (const channel of ['git:discard-changes', 'git:discard-to-base', 'git:revert-file']) {
 		refusesMerge(await main.invoke(channel, '/sites/wp'), channel);
 	}
 	assert.deepEqual(discardChanges.calls, []);
@@ -7717,6 +8497,7 @@ function prWiring({ head = 'ticket/59234', meta = {}, reads = {}, pr = {}, ticke
 		branches: { 'ticket/59234': { baseOid: 'b'.repeat(40) }, 'pr/7': { headOid: oid, baseOid: oid, returnTo: 'ticket/59234' } }, ...meta
 	} } });
 	const fetchPullRequestHead = spy(async () => ({ oid }));
+	const fetchOriginTrunk = spy(async () => ({ oid: 't'.repeat(40) }));
 	const checkoutPullRequest = spy(async (_dir, number) => { const from = head; head = `pr/${number}`; return { from, to: head, parked: true }; });
 	const leavePullRequest = spy(async (_dir, { returnTo }) => { const from = head; head = returnTo; return { from, to: head, parked: true }; });
 	const resumeSwitch = spy(async (_dir, to) => { head = to; return { to, parked: false }; });
@@ -7725,9 +8506,9 @@ function prWiring({ head = 'ticket/59234', meta = {}, reads = {}, pr = {}, ticke
 		...silentLogging(), ...settings.stubs,
 		'./git-read.cjs': { isLegacySite: async () => false, mergeInProgress: async () => null, remoteUrl: async () => 'file:///origin', blobOid: async () => oid, resolveRef: async () => oid, listBranches: async () => ['trunk', 'ticket/59234', 'pr/7'], ...reads },
 		'./ticket-branches': { currentBranchName: async () => head, listTicketBranches: async () => ['ticket/59234', 'pr/7'], countChangesAgainst: async () => 3, resumeSwitch, ...tickets },
-		'./pr-checkout': { fetchPullRequestHead, checkoutPullRequest, leavePullRequest, describePullRequestHead: async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }], needsInstall: false, base: oid }), pullRequestBranchState: async () => state, ...pr }
+		'./pr-checkout': { fetchPullRequestHead, fetchOriginTrunk, checkoutPullRequest, leavePullRequest, describePullRequestHead: async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }], needsInstall: false, base: oid }), pullRequestBranchState: async () => state, ...pr }
 	} });
-	return { main, settings, oid, state, fetchPullRequestHead, checkoutPullRequest, leavePullRequest, resumeSwitch };
+	return { main, settings, oid, state, fetchPullRequestHead, fetchOriginTrunk, checkoutPullRequest, leavePullRequest, resumeSwitch };
 }
 
 async function runPr(main, action, ...args) {
@@ -7751,6 +8532,28 @@ test('git:preview-pr fetches by number and describes the fetched head without re
 	assert.equal(typeof f.fetchPullRequestHead.calls[0][2].onChild, 'function');
 	assert.deepEqual(f.settings.values, before);
 	assert.equal(f.checkoutPullRequest.calls.length, 0);
+});
+
+// The site's trunk can be months behind the one the pull request was written
+// on; its files are measured from origin's, fetched first (#701).
+test('git:preview-pr measures the files from origin\'s trunk as just fetched (#701)', async () => {
+	const describePullRequestHead = spy(async () => ({ files: [], needsInstall: false, base: null }));
+	const f = prWiring({ pr: { describePullRequestHead } });
+	assert.equal((await f.main.invoke('git:preview-pr', '/sites/wp', 7)).ok, true);
+	assert.equal(typeof f.fetchOriginTrunk.calls[0][1].onChild, 'function');
+	assert.equal(describePullRequestHead.calls[0][2].trunkRef, 't'.repeat(40));
+	assert.equal((await f.main.invoke('git:preview-pr', '/sites/wp', 7)).measuredFromSite, false);
+});
+
+// Origin's trunk is only a better yardstick: when it cannot be fetched, the
+// preview still answers, measured from the site's own trunk.
+test('git:preview-pr falls back to the site\'s trunk when origin\'s cannot be fetched (#701)', async () => {
+	const describePullRequestHead = spy(async () => ({ files: [], needsInstall: false, base: null }));
+	const f = prWiring({ pr: { describePullRequestHead, fetchOriginTrunk: async () => { throw new Error('offline'); } } });
+	const result = await f.main.invoke('git:preview-pr', '/sites/wp', 7);
+	assert.equal(result.ok, true);
+	assert.equal(result.measuredFromSite, true);
+	assert.equal(describePullRequestHead.calls[0][2].trunkRef, 'trunk');
 });
 
 for (const head of ['ticket/59234', 'trunk']) {
@@ -7933,6 +8736,34 @@ test('deleting a return ticket redirects PRs to trunk without changing their hea
 	assert.equal(m.branches['pr/7'].returnTo, 'trunk');
 	assert.equal(m.branches['pr/7'].headOid, f.oid);
 	assert.equal(m.currentBranch, 'pr/7');
+});
+
+// The files the pull request changed, recorded with the head they describe
+// (#669): the same list its preview showed, measured locally from the head
+// the branch was put at, and what "Changed files" lists while it is out.
+test('git:checkout-pr records the files the pull request changed, and site:status hands them on (#669)', async () => {
+	const describePullRequestHead = spy(async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }, { path: 'src/old.php', kind: 'deleted' }], needsInstall: false, base: 'c'.repeat(40) }));
+	const f = prWiring({ pr: { describePullRequestHead } });
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.ok, true);
+
+	const m = f.settings.values.siteMeta['/sites/wp'];
+	assert.deepEqual(m.branches['pr/7'].files, ['src/wp-login.php', 'src/old.php']);
+	assert.equal(describePullRequestHead.calls.at(-1)[1], f.oid, 'measured from the head the branch was put at');
+
+	f.settings.values.sites = [];
+	const status = await f.main.invoke('site:status', '/sites/wp');
+	assert.deepEqual(status.pullRequest.files, ['src/wp-login.php', 'src/old.php']);
+});
+
+// A list that could not be measured is no list, never the one an earlier head
+// left behind: that would name files this head may not change.
+test('git:checkout-pr records no files when the head cannot be described, and still checks it out (#669)', async () => {
+	const f = prWiring({ pr: { describePullRequestHead: async () => { throw new Error('merge-base failed'); } } });
+	f.settings.values.siteMeta['/sites/wp'].branches['pr/7'].files = ['src/earlier-head.php'];
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.ok, true);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].branches['pr/7'].files, null);
 });
 
 test('site:status identifies a checked-out PR and suppresses the ticket rebase notice', async () => {

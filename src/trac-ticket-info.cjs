@@ -70,8 +70,8 @@ function capture(html, re) {
 /**
  * One "Opened … ago" (or Closed, or Last modified) line from the date block.
  * Trac renders these as a relative phrase whose title carries the absolute
- * moment — both are kept, the relative for display, the absolute for the
- * tooltip.
+ * moment. Both are kept: the card shows the absolute one, which stays true
+ * after a relaunch (#695), and the relative one only when there is no other.
  *
  * @param {string} html
  * @param {string} label

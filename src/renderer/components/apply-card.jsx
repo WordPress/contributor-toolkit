@@ -327,6 +327,7 @@ export function ApplyPreviewDialog({ preview, pr, warnings, cueId, applyDisabled
                 ) : null}
                 {words.skipped ? <Text variant="body-sm">{words.skipped}</Text> : null}
                 {words.installNote ? <Text variant="body-sm">{words.installNote}</Text> : null}
+                {words.trunkNote ? <Text variant="body-sm">{words.trunkNote}</Text> : null}
               </Stack>
             </Dialog.Content>
             <Dialog.Footer>

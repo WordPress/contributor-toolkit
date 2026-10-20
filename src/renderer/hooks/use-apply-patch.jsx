@@ -5,6 +5,7 @@ import { describeApplyFailure, otherPatchCount } from '../apply-conflict.cjs';
 import { applyDoneMessage } from '../confirmations.cjs';
 import { prCheckoutRefusal } from '../pr-checkout.cjs';
 import { savedPrForSwitch } from '../ticket-branch-list.cjs';
+import { tracReadToShow } from '../ticket-card.cjs';
 import { planApplySteps, updateStepStatuses, planWatchImpact, planTicketSwitchImpact, skipInstallMessage, APPLY_STATE_TO_STEP } from '../update-plan.cjs';
 import { applyLines, applyFinishMessage, resumedWatchHandOff } from '../watch-activity.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
@@ -36,7 +37,11 @@ import { watchOccupiesBuild } from '../watch-waiters.cjs';
 //
 // `tracTicket`, `appliedPatch` and `pullRequest` are what the site's status
 // says is linked, applied and checked out. `loadStatus` and `refreshDirty`
-// re-read the site once the tree has changed. `confirm` announces an outcome.
+// re-read the site once the tree has changed. `forgetChangedFiles` also drops
+// the file list from before a change that wrote (#669). A failed exit keeps
+// the list until the walk answers: a refusal wrote nothing, and a switch
+// that failed part-way is rare enough to be put right by that walk alone.
+// `confirm` announces an outcome.
 // `showTracCards` and `isActive` say whether this project has Trac's
 // attachments and whether this site is the one in front, which is when its
 // ticket's pull requests are fetched. `project` and `workItem` name the
@@ -55,7 +60,7 @@ import { watchOccupiesBuild } from '../watch-waiters.cjs';
 // for a failure that is only printed there.
 //
 // None of the chain's functions is memoised, as none was.
-export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
+export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, forgetChangedFiles, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
   // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
   const [ticketPatches, setTicketPatches] = useState(null);
   const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
@@ -124,6 +129,11 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
   };
 
   const runApplyInstallAndBuild = (needsInstall, verb, { buildBy = null, noun = 'patch' } = {}) => {
+    // The tree has changed already; the install and the build only follow it.
+    // The status is read again with the walk, so "Changed files" groups the
+    // walk's answer by the change now on disk rather than the one before it.
+    loadStatus().catch(() => {});
+    forgetChangedFiles();
     const lines = applyLines(verb, noun);
     const finishTryIt = () => finishApply(`\n${lines.tryIt}\n`, `\n${lines.settled}\n`);
     const runBuildStep = () => {
@@ -286,6 +296,15 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     setTracAttachmentsLoading(false);
     loadedTicketRef.current = tracTicket;
     loadTicketPatches();
+    // The last read of this ticket, kept by the main process (#695), shown
+    // without opening Trac. Which read wins is tracReadToShow's.
+    if (showTracCards) {
+      const gen = scrapeGenRef.current;
+      window.api.cachedTracAttachments(sitePath).then((saved) => {
+        const sameTicket = gen === scrapeGenRef.current;
+        setTracAttachments((current) => tracReadToShow({ current, saved, sameTicket }));
+      });
+    }
     // Auto-read the ticket's own facts when this ticket was just linked by
     // hand (#292). Only then: the contributor just acted on this ticket, so a
     // human-check window appearing has context. On mount or re-activation the
@@ -299,7 +318,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
       // SiteRow's metaPatchRef.
       if (tracScrapeRef.current) tracScrapeRef.current();
     }
-  }, [tracTicket, isActive, loadTicketPatches, showTracCards, autoReadTicketRef]);
+  }, [tracTicket, isActive, loadTicketPatches, showTracCards, autoReadTicketRef, sitePath]);
 
   // Fetches the PR head through the site's origin and previews its own file
   // list. No diff text crosses the renderer boundary: checkout retains the

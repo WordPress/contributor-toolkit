@@ -104,6 +104,21 @@ async function fetchPullRequestHead(dir, number, { onStderr = null, onProgress =
 }
 
 /**
+ * Fetches origin's trunk without moving any branch, and returns its commit,
+ * so a pull request's file list can be measured against origin's current
+ * trunk rather than the site's own, which can be months behind it (#701). Read from `FETCH_HEAD` rather than a remote-tracking ref, which a
+ * site added from disk may not have.
+ *
+ * @param {string}   dir
+ * @param {Object}   [root0]
+ * @param {Function} [root0.onChild] Handed the ChildProcess, so a quit can end it.
+ * @return {Promise<{oid: string}>} Rejects with Git's error when the fetch fails.
+ */
+async function fetchOriginTrunk(dir, { onChild = null } = {}) {
+	return fetchBranch(dir, REMOTE, TRUNK, { onChild });
+}
+
+/**
  * The blob id of the lockfile at a commit, or null when the commit has none.
  * Same reading trunk-update.js does before its checkout, for the same reason:
  * whether an install is needed is decided before the worktree moves.
@@ -123,7 +138,10 @@ async function lockfileBlobOid(dir, oid) {
  * branch left trunk (the merge base), which is what its author changed. It
  * is not the difference from the current checkout: a pull request written
  * against last month's trunk differs from today's trunk by a month of other
- * people's commits, and listing those would blame the author for them. A
+ * people's commits, and listing those would blame the author for them. Nor
+ * is it measured from the site's own trunk when origin's is at hand
+ * (`fetchOriginTrunk`): a site that has not updated in a month would blame
+ * the pull request for that month of trunk the other way round (#701). A
  * pull request based on a release branch is measured against trunk's merge
  * base all the same, so its list also carries that branch's own commits;
  * the app cannot tell those from the author's without the base the pull
@@ -139,7 +157,7 @@ async function lockfileBlobOid(dir, oid) {
  * @param {string} headOid             The fetched head.
  * @param {Object} [root0]
  * @param {string} [root0.currentHead] Defaults to HEAD.
- * @param {string} [root0.trunkRef]
+ * @param {string} [root0.trunkRef]    Origin's trunk as just fetched; the site's own by default.
  * @return {Promise<{files: Array<{path: string, kind: string}>, needsInstall: boolean, base: ?string}>}
  */
 async function describePullRequestHead(dir, headOid, { currentHead = null, trunkRef = TRUNK } = {}) {
@@ -346,6 +364,7 @@ async function leavePullRequest(dir, { returnTo, headOid, onProgress = null, onC
 module.exports = {
 	REMOTE,
 	fetchPullRequestHead,
+	fetchOriginTrunk,
 	describePullRequestHead,
 	pullRequestBranchState,
 	checkoutPullRequest,

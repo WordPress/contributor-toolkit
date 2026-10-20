@@ -268,11 +268,65 @@ async function isLaunchableEditorPath(editorPath, { platform, statPath } = {}) {
 // bundle is a directory rather than something executable. Everywhere else the
 // executable takes the folder as its argument, which is what every editor in the
 // table above supports.
-function resolveLaunch(editorPath, sitePath, { platform } = {}) {
+//
+// A `file`, absolute and already checked by `resolveSiteFile`, goes after the
+// folder: the editor opens the site and shows the file in it, rather than a
+// window of its own with no project around it (#669).
+function resolveLaunch(editorPath, sitePath, { platform, file = null } = {}) {
+	const targets = file ? [sitePath, file] : [sitePath];
 	if (platform === 'darwin') {
-		return { command: '/usr/bin/open', args: ['-a', editorPath, sitePath] };
+		return { command: '/usr/bin/open', args: ['-a', editorPath, ...targets] };
 	}
-	return { command: editorPath, args: [sitePath] };
+	return { command: editorPath, args: targets };
+}
+
+// The absolute path of a file of the site, or null for anything that is not
+// one. The window names the file, and the window is where injected content
+// ends up, so "open this file of the site" is bounded by the site the way
+// "open this site" is bounded by the registry: an absolute path, a path that
+// climbs out, and a path on another drive all resolve to nothing.
+function resolveSiteFile(sitePath, relPath, { platform } = {}) {
+	if (typeof relPath !== 'string' || relPath === '') return null;
+	const p = pathApi(platform);
+	if (p.isAbsolute(relPath)) return null;
+	const target = p.resolve(sitePath, relPath);
+	const inside = p.relative(sitePath, target);
+	if (inside === '' || inside === '..' || inside.startsWith(`..${p.sep}`) || p.isAbsolute(inside)) return null;
+	return target;
+}
+
+// The file to open: `resolveSiteFile`, and then the same question asked of
+// where the file really is. A symbolic link is judged by where it
+// leads, so a link a patch added inside the site that names a file outside it
+// is not a file of the site; Git writes links in a checkout added from disk on
+// macOS or Linux, unlike the ones the app clones. Both sides are resolved, so
+// a site whose own folder is behind a link (macOS's /var) still holds its
+// files. A path with nothing there does not resolve, which is how a file the
+// patch deleted is refused.
+//
+// `{ file, error }`: `file` is the path to open, or null. `error` is the code
+// realpath failed with when the failure was not "nothing there" (a folder that
+// cannot be read, a loop of links), so the caller can say that rather than
+// report a file the patch only changed as one it may have deleted.
+//
+// `realPath` is injected and awaited like `statPath`: fs.promises.realpath in
+// main, a map in the tests.
+const NOT_THERE = new Set(['ENOENT', 'ENOTDIR']);
+async function existingSiteFile(sitePath, relPath, { platform, realPath } = {}) {
+	const target = resolveSiteFile(sitePath, relPath, { platform });
+	if (!target || typeof realPath !== 'function') return { file: null, error: null };
+	let realSite;
+	let realTarget;
+	try {
+		[realSite, realTarget] = await Promise.all([realPath(sitePath), realPath(target)]);
+	} catch (e) {
+		const code = typeof e?.code === 'string' ? e.code : 'UNKNOWN';
+		return { file: null, error: NOT_THERE.has(code) ? null : code };
+	}
+	const p = pathApi(platform);
+	const inside = p.relative(realSite, realTarget);
+	if (inside === '' || inside === '..' || inside.startsWith(`..${p.sep}`) || p.isAbsolute(inside)) return { file: null, error: null };
+	return { file: target, error: null };
 }
 
 // Every `reason` this module can answer `editor:open` with, refusals and
@@ -283,6 +337,8 @@ const REFUSAL_REASONS = {
 	UNREGISTERED_SITE: 'unregistered-site',
 	UNLAUNCHABLE_EDITOR: 'unlaunchable-editor',
 	UNKNOWN_EDITOR: 'unknown-editor',
+	MISSING_FILE: 'missing-file',
+	UNREADABLE_FILE: 'unreadable-file',
 	SPAWN_FAILED: 'spawn-failed'
 };
 
@@ -313,7 +369,9 @@ async function openSiteInEditor(sitePath, editorPath, {
 	platform,
 	statPath,
 	spawn,
-	onRefused
+	onRefused,
+	realPath,
+	file = null
 } = {}) {
 	if (!isActionableSite(sitePath, { sites, pending })) {
 		if (typeof onRefused === 'function') {
@@ -329,7 +387,29 @@ async function openSiteInEditor(sitePath, editorPath, {
 		return { ok: false, reason: REFUSAL_REASONS.UNLAUNCHABLE_EDITOR };
 	}
 
-	const { command, args } = resolveLaunch(editorPath, sitePath, { platform });
+	// A third gate when a file of the site is named (#669): inside the site,
+	// and there. A patch that deleted a file still lists it, and an editor
+	// handed a path that is not there opens an empty buffer under that name,
+	// which reads as the file having been emptied.
+	let filePath = null;
+	if (file !== null) {
+		const found = await existingSiteFile(sitePath, file, { platform, realPath });
+		filePath = found.file;
+		if (found.error) {
+			if (typeof onRefused === 'function') {
+				onRefused(REFUSAL_REASONS.UNREADABLE_FILE, `${describeRefused(file)} (${found.error})`);
+			}
+			return { ok: false, reason: REFUSAL_REASONS.UNREADABLE_FILE, error: found.error };
+		}
+		if (!filePath) {
+			if (typeof onRefused === 'function') {
+				onRefused(REFUSAL_REASONS.MISSING_FILE, describeRefused(file));
+			}
+			return { ok: false, reason: REFUSAL_REASONS.MISSING_FILE };
+		}
+	}
+
+	const { command, args } = resolveLaunch(editorPath, sitePath, { platform, file: filePath });
 
 	let child;
 	try {
@@ -411,5 +491,7 @@ module.exports = {
 	knownEditorName,
 	isLaunchableEditorPath,
 	resolveLaunch,
+	resolveSiteFile,
+	existingSiteFile,
 	openSiteInEditor
 };

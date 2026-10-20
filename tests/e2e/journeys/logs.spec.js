@@ -467,6 +467,11 @@ test( 'the Server tab follows the server\'s output to its last line, stops follo
 		pane.dispatchEvent( new window.Event( 'scroll' ) );
 	}, to );
 
+	// INVARIANT — before the server has printed anything, the pane says what
+	// fills it rather than standing empty (#693).
+	const empty = logs.getByText( /^No dev server output yet\./ );
+	await expect( empty ).toBeVisible( { timeout: 30_000 } );
+
 	// The page listens for the server's output from the moment it asks for a
 	// server, which is some way into what the button does. Nothing on screen
 	// marks that moment, so the test says one line until it is shown.
@@ -475,6 +480,8 @@ test( 'the Server tab follows the server\'s output to its last line, stops follo
 		await serverSays( 'the server is starting\n' );
 		return line( 'the server is starting' ).count();
 	}, { timeout: 30_000 } ).toBeGreaterThan( 0 );
+	// INVARIANT — and the first line it prints takes the note's place.
+	await expect( empty ).toHaveCount( 0 );
 
 	// INVARIANT — what the server prints is shown, and more than the pane
 	// holds leaves it at the last line.

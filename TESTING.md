@@ -16,10 +16,11 @@ Two more, for when you need them:
 
 ```
 npm run test:electron       # the fast suite again, on the Node that Electron bundles
+npm run test:e2e:hidden     # the journeys without the app taking your screen, see below
 npm run test:e2e:packaged   # the built artifact — needs a build first, see below
 ```
 
-To run one file: `node --test tests/unit/azure-sign.test.cjs`. To run one journey: `npx playwright test --project=journeys -g "switching back"`. A journey opens and closes the app as it goes; there is no headless mode and nothing to turn off. To advance a journey a step at a time instead of letting it run, see [Stepping through a journey by hand](#stepping-through-a-journey-by-hand).
+To run one file: `node --test tests/unit/azure-sign.test.cjs`. To run one journey: `npx playwright test --project=journeys -g "switching back"`. A journey opens and closes the app as it goes. To run the journeys without the app taking your screen, for example while an agent runs them and you keep working, run `npm run test:e2e:hidden` from the repository root, and `npm run test:e2e:hidden -- -g "switching back"` for one journey. It sets `TOOLKIT_HIDE_WINDOWS=1` through `cross-env`, so the same command works in bash, PowerShell and cmd.exe: the window is made hidden, and on macOS the app stays out of the Dock and never takes the focus, though each launch can blink a Dock icon for a moment before the app's own code runs. The Trac window that opens when a journey links a ticket stays hidden too. The variable only works beside the throwaway profile the journeys launch with, so one left exported does nothing to `npm start`. On macOS the journeys pass the same way hidden, because Playwright drives the page and not the screen; nobody has run them hidden on Windows yet, where a hidden window never gets the OS focus. What a hidden run cannot see is the window itself becoming visible and focused, so CI runs them visible and that run is the one of record. To advance a journey a step at a time instead of letting it run, see [Stepping through a journey by hand](#stepping-through-a-journey-by-hand).
 
 ## The five layers
 

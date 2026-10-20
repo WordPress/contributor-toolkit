@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { ticketCardWords, ticketFacts, pullRequestState, pullRequestRows, pullRequestsStatus, attachmentRows, attachmentsStatus } = require('../../src/renderer/ticket-card.cjs');
+const { ticketCardWords, ticketFacts, pullRequestState, pullRequestRows, pullRequestsStatus, attachmentRows, attachmentsStatus, tracReadAt, tracReadToShow, ticketHeading } = require('../../src/renderer/ticket-card.cjs');
 
 test('a Core site\'s card is about a Trac ticket, and a Gutenberg site\'s about a GitHub issue', () => {
 	const trac = ticketCardWords('trac');
@@ -35,7 +35,7 @@ const INFO = {
 	milestone: '7.2',
 	component: { label: 'General', url: 'https://core.trac.wordpress.org/query?component=General' },
 	keywords: [{ label: 'has-patch', url: 'https://core.trac.wordpress.org/query?keywords=~has-patch' }],
-	opened: { relative: '4 weeks ago', absolute: '2026-09-01T10:00:00Z' }
+	opened: { relative: '4 weeks ago', absolute: '09/01/2026 10:00:00 AM' }
 };
 
 test('a ticket that has not been read has no facts', () => {
@@ -43,17 +43,17 @@ test('a ticket that has not been read has no facts', () => {
 	assert.equal(ticketFacts(undefined), null);
 });
 
-test('a ticket\'s facts are its summary, its status, and a line of what Trac said', () => {
+test('a ticket\'s facts are its summary, its status, and one labelled row per fact', () => {
 	assert.deepEqual(ticketFacts(INFO), {
 		summary: 'Inconsistent documentation',
 		status: { label: 'reviewing', intent: 'informational' },
 		facts: [
-			{ id: 'type', text: 'defect (bug)' },
-			{ id: 'component', text: 'Component: General', url: 'https://core.trac.wordpress.org/query?component=General' },
-			{ id: 'milestone', text: 'Milestone: 7.2' },
-			{ id: 'opened', text: 'Opened 4 weeks ago', title: '2026-09-01T10:00:00Z' }
-		],
-		keywords: INFO.keywords
+			{ id: 'type', label: 'Type', value: 'defect (bug)' },
+			{ id: 'component', label: 'Component', value: 'General', url: 'https://core.trac.wordpress.org/query?component=General' },
+			{ id: 'milestone', label: 'Milestone', value: '7.2' },
+			{ id: 'opened', label: 'Opened', value: '09/01/2026 10:00:00 AM' },
+			{ id: 'keywords', label: 'Keywords', links: INFO.keywords }
+		]
 	});
 });
 
@@ -64,12 +64,14 @@ test('a closed ticket says how it was closed, and is not dressed as an error', (
 
 test('a fact Trac did not give is left out, not shown empty', () => {
 	const bare = ticketFacts({ summary: '', status: '', type: '', milestone: '', component: null, keywords: [], opened: null });
-	assert.deepEqual(bare, { summary: '', status: null, facts: [], keywords: [] });
+	assert.deepEqual(bare, { summary: '', status: null, facts: [] });
 	// A component with no page to go to is still said.
-	assert.deepEqual(ticketFacts({ ...INFO, component: { label: 'General' } }).facts[1], { id: 'component', text: 'Component: General', url: '' });
-	assert.deepEqual(ticketFacts({ ...INFO, keywords: undefined }).keywords, []);
-	// A date Trac gave no words for is not said as "Opened" and nothing.
-	assert.equal(ticketFacts({ ...INFO, opened: { absolute: '2026-09-01T10:00:00Z' } }).facts.some((fact) => fact.id === 'opened'), false);
+	assert.deepEqual(ticketFacts({ ...INFO, component: { label: 'General' } }).facts[1], { id: 'component', label: 'Component', value: 'General', url: '' });
+	assert.equal(ticketFacts({ ...INFO, keywords: undefined }).facts.some((fact) => fact.id === 'keywords'), false);
+	// With no date given, Trac's "4 weeks ago" is all there is to say.
+	assert.deepEqual(ticketFacts({ ...INFO, opened: { relative: '4 weeks ago', absolute: '' } }).facts[3], { id: 'opened', label: 'Opened', value: '4 weeks ago' });
+	// And with neither, not "Opened" and nothing.
+	assert.equal(ticketFacts({ ...INFO, opened: { relative: '', absolute: '' } }).facts.some((fact) => fact.id === 'opened'), false);
 });
 
 // The rule the three badges are chosen under (#227): the colour goes with
@@ -190,4 +192,44 @@ test('each way the read can end without an answer has its own sentence', () => {
 	// An answer the card has no sentence for is not a failure it can name,
 	// and is not "none" either: nothing was read.
 	assert.deepEqual(attachmentsStatus({ result: { status: 'not-trac' } }), { unread: false, reading: false, none: false, failure: '' });
+});
+
+// A relaunch shows the last read and not a new one (#695), so the card says
+// when it was.
+test('the details say when they were read from Trac, and nothing before a read', () => {
+	const at = () => 'yesterday at noon';
+	assert.equal(tracReadAt({ checkedAt: '2026-10-18T12:00:00.000Z', formatDateTime: at }), 'Read from Trac yesterday at noon');
+	assert.equal(tracReadAt({ checkedAt: null, formatDateTime: at }), '');
+	assert.equal(tracReadAt(), '');
+});
+
+test('the saved read is shown only while its ticket is linked, and never over a read that answered', () => {
+	const saved = { status: 'ok', checkedAt: '2026-10-18T12:00:00.000Z' };
+	const fresh = { status: 'ok', checkedAt: '2026-10-19T09:00:00.000Z' };
+	assert.equal(tracReadToShow({ current: null, saved, sameTicket: true }), saved);
+	assert.equal(tracReadToShow({ current: fresh, saved, sameTicket: true }), fresh, 'a read that answered first is newer');
+	assert.equal(tracReadToShow({ current: null, saved, sameTicket: false }), null, 'another ticket is linked now');
+	assert.equal(tracReadToShow({ current: null, saved: null, sameTicket: true }), null);
+});
+
+// The heading's three states. Under #108 the number names the branch, so a
+// screen reader hears it first in every one of them.
+test('the heading leads with the summary once Trac gave one, and is the number before', () => {
+	const read = ticketFacts(INFO);
+	assert.deepEqual(ticketHeading({ ticketId: 60001, facts: read }), {
+		numberAbove: '#60001',
+		status: { label: 'reviewing', intent: 'informational' },
+		hiddenPrefix: '#60001 ',
+		linkText: 'Inconsistent documentation'
+	});
+	// Not read yet: the number is the heading, with nothing above it.
+	assert.deepEqual(ticketHeading({ ticketId: 60001, facts: null }), { numberAbove: '', status: null, hiddenPrefix: '', linkText: '#60001' });
+	// Read, but Trac gave no summary: the number stays the heading, and the
+	// status still shows above it.
+	assert.deepEqual(ticketHeading({ ticketId: 60001, facts: ticketFacts({ ...INFO, summary: '' }) }), {
+		numberAbove: '',
+		status: { label: 'reviewing', intent: 'informational' },
+		hiddenPrefix: '',
+		linkText: '#60001'
+	});
 });

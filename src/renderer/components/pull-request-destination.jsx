@@ -1,7 +1,7 @@
 import { Button, Spinner, TextControl, TextareaControl } from '@wordpress/components';
 import { createInterpolateElement } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
-import { Notice, Stack, Text } from '@wordpress/ui';
+import { Button as UiButton, Notice, Stack, Text } from '@wordpress/ui';
 import { copy as copyIcon, check as checkIcon } from '@wordpress/icons';
 import { prStageLabel } from '../pr-stage.cjs';
 import { Destination } from './destination.jsx';
@@ -101,17 +101,18 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
           {!pr.result.dryRun && (
             <>
               <Text variant="body-sm">{project.cards.prLoopBack}</Text>
-              <Button variant="secondary" onClick={pr.copyLink} icon={pr.linkCopied ? checkIcon : copyIcon}>
+              <UiButton variant="outline" tone="neutral" size="compact" onClick={pr.copyLink}>
+                <UiButton.Icon icon={pr.linkCopied ? checkIcon : copyIcon} />
                 {pr.linkCopied ? __('Link copied') : __('Copy the link')}
-              </Button>
+              </UiButton>
               {ticket ? (
-                <Button variant="primary" onClick={()=>window.api.openExternal(workItem.urlFor(ticket))}>
+                <UiButton variant="solid" tone="brand" size="compact" onClick={()=>window.api.openExternal(workItem.urlFor(ticket))}>
                   {sprintf(
                     // translators: %s: the number of the ticket or issue the pull request is for.
                     __('Open #%s to comment'),
                     ticket
                   )}
-                </Button>
+                </UiButton>
               ) : null}
             </>
           )}
@@ -144,9 +145,10 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
             )}
           </Text>
           <div className="device-code">{pr.deviceCode.userCode}</div>
-          <Button variant="secondary" onClick={pr.copyDeviceCode} icon={pr.codeCopied ? checkIcon : copyIcon}>
+          <UiButton variant="outline" tone="neutral" size="compact" onClick={pr.copyDeviceCode}>
+            <UiButton.Icon icon={pr.codeCopied ? checkIcon : copyIcon} />
             {pr.codeCopied ? __('Code copied') : __('Copy the code')}
-          </Button>
+          </UiButton>
           <Stack direction="row" align="center" justify="center" gap="sm">
             <Spinner />
             <Text variant="body-sm" className="muted-label">{__('Waiting for you to finish in the browser…')}</Text>
@@ -226,12 +228,13 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
                 reading "Open pull request" is the label lying about the mode,
                 which is the failure this whole indicator exists to prevent.
               */}
-              <Button
-                variant="primary"
+              <UiButton
+                variant="solid"
+                tone="brand"
+                size="compact"
                 onClick={pr.open}
-                isBusy={Boolean(pr.stage)}
-                disabled={Boolean(pr.stage)}
-              >{account?.testMode?.dryRun ? __('Push branch (dry run)') : __('Open pull request')}</Button>
+                loading={Boolean(pr.stage)}
+              >{account?.testMode?.dryRun ? __('Push branch (dry run)') : __('Open pull request')}</UiButton>
             </>
           ) : (
             <Text variant="body-sm" className="muted-label">{project.cards.prBlockedNote}</Text>
@@ -298,7 +301,7 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
           )}
         </Text>
         <Text variant="body-sm" className="muted-label">{project.cards.signInCannot}</Text>
-        <Button variant="primary" onClick={pr.startSignIn}>{__('Sign in with GitHub')}</Button>
+        <UiButton variant="solid" tone="brand" size="compact" onClick={pr.startSignIn}>{__('Sign in with GitHub')}</UiButton>
         <Text variant="body-sm"><Button variant="link" onClick={pr.decline}>{__('Not now')}</Button></Text>
       </>
     );
@@ -342,7 +345,7 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
             Every failure lands here, and every failure has the same floor: the
             file exists regardless of what GitHub did.
           */}
-          <Button variant="secondary" onClick={onSavePatch}>{__('Save the patch file instead')}</Button>
+          <UiButton variant="outline" tone="neutral" size="compact" onClick={onSavePatch}>{__('Save the patch file instead')}</UiButton>
         </>
       ) : null}
     </Destination>

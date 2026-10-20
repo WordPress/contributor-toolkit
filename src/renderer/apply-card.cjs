@@ -58,7 +58,7 @@ function applyCardWords(patchFiles) {
  * @param {Object} root0
  * @param {Object} [root0.preview] What the main process read: `{ kind, label, number, paths, unsupported, needsInstall }`.
  * @param {Object} [root0.pr]      What `describePrPreview` said, for a pull request; null for a patch file.
- * @return {{title: string, headline: string, action: string, closedNote: string, skipped: string, installNote: string}|null} Null with nothing to preview.
+ * @return {{title: string, headline: string, action: string, closedNote: string, skipped: string, installNote: string, trunkNote: string}|null} Null with nothing to preview.
  */
 function previewWords({ preview = null, pr = null } = {}) {
 	if (!preview) return null;
@@ -71,7 +71,8 @@ function previewWords({ preview = null, pr = null } = {}) {
 			action: pr.actionLabel,
 			closedNote: pr.closedNote || '',
 			skipped: '',
-			installNote: pr.installNote || ''
+			installNote: pr.installNote || '',
+			trunkNote: pr.trunkNote || ''
 		};
 	}
 	const unsupported = Array.isArray(preview.unsupported) ? preview.unsupported : [];
@@ -88,7 +89,8 @@ function previewWords({ preview = null, pr = null } = {}) {
 		action: __('Apply and rebuild'),
 		closedNote: '',
 		skipped,
-		installNote: preview.needsInstall ? __('It changes package-lock.json, so dependencies will be installed before the rebuild.') : ''
+		installNote: preview.needsInstall ? __('It changes package-lock.json, so dependencies will be installed before the rebuild.') : '',
+		trunkNote: ''
 	};
 }
 

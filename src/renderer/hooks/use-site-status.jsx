@@ -10,9 +10,10 @@ import { useCallback, useEffect, useState } from 'react';
 // shown: for the sites already listed, as the app opens. It runs again when
 // whoever calls it has changed what it would say: an install or a build
 // ending, a ticket linked, left, switched or moved onto trunk, a ticket's
-// work deleted when that leaves the checkout on trunk, an apply ending
-// however it ends, an update, the setup chain, and the window coming back
-// into focus while the site is the one on screen.
+// work deleted when that leaves the checkout on trunk, an apply, a revert or
+// a pull request switch landing on disk and again ending however it ends, an
+// update, the setup chain, and the window coming back into focus while the
+// site is the one on screen.
 //
 // `loadStatus` returns the status as well as storing it. The setup chain
 // re-probes when a clone finishes and decides from that read, which React has

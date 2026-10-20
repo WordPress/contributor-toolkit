@@ -143,10 +143,13 @@ const TICKET_PATCH = [
 // What Trac is said to answer when the card asks for the ticket itself: its
 // facts, and the patch attached to it. The real answer is read off the
 // ticket's page in a window of its own, past Trac's human-check, which is
-// why this was a picture only a person could set up.
+// why this was a picture only a person could set up. `checkedAt` is the time
+// the main process stamps a read with (#695), which the stand-in answers in
+// place of.
 const TICKET_FROM_TRAC = {
 	ok: true,
 	status: 'ok',
+	checkedAt: '2026-09-02T14:05:00.000Z',
 	ticket: {
 		summary: 'Inconsistent documentation for a filter',
 		status: 'reviewing',
