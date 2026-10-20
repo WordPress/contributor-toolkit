@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-20T13:10:11+00:00\n"
+"POT-Creation-Date: 2026-10-20T14:06:24+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 
-#: src/editor-launch.js:394
+#: src/editor-launch.js:474
 #. %s: the exit code of the command that opens the editor, such as 1. Follows "The application would not start:", so it starts in lower case.
 msgid "the editor could not be opened (exit code %s)"
 msgstr ""
@@ -146,174 +146,210 @@ msgstr[1] ""
 msgid "Could not read the base commit"
 msgstr ""
 
-#: src/main.js:1206
+#: src/main.js:1207
 msgid "Save Patch for Handoff"
 msgstr ""
 
-#: src/main.js:1206
+#: src/main.js:1207
 msgid "Save Diff File"
 msgstr ""
 
-#: src/main.js:1326
+#: src/main.js:1327
 msgid "Sign in to GitHub first."
 msgstr ""
 
-#: src/main.js:1800
+#: src/main.js:1801
 #. %s: the name of the patch or pull request, such as 60001.diff or PR #6717.
 msgid "%s is applied. Revert it before submitting this checkout as your own work."
 msgstr ""
 
-#: src/main.js:1803
+#: src/main.js:1804
 msgid ""
 "The patch you applied is applied. Revert it before submitting this checkout "
 "as your own work."
 msgstr ""
 
-#: src/main.js:2129
+#: src/main.js:2207
+#. %s: the path of a file in the site.
+msgid ""
+"The patch renames %s, so it can only go back with the whole patch. Use "
+"Discard your changes instead."
+msgstr ""
+
+#: src/main.js:2213
+#. %s: the path of a file in the site.
+msgid "%s is as the patch left it, so there is nothing of yours to revert."
+msgstr ""
+
+#: src/main.js:2217
+#. %s: the path of a file in the site.
+msgid ""
+"The app did not keep a copy of the patch, so it cannot put %s back as the "
+"patch left it."
+msgstr ""
+
+#: src/main.js:2221
+#. %s: the path of a file in the site.
+msgid "%s has no changes to revert."
+msgstr ""
+
+#: src/main.js:2240
+#. 1: the path of a file in the site. 2: why it could not be reverted. 3: why it could not be put back as it was.
+msgid ""
+"Could not revert %1$s (%2$s), and could not put it back as it was, so your "
+"changes to it may be lost: %3$s"
+msgstr ""
+
+#: src/main.js:2244
+#. 1: the path of a file in the site. 2: why it could not be reverted.
+msgid "Could not revert %1$s, so it was left as it was: %2$s"
+msgstr ""
+
+#: src/main.js:2333
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Parking your work on %s before updating…"
 msgstr ""
 
-#: src/main.js:2215
+#: src/main.js:2419
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Returning to your work on %s…"
 msgstr ""
 
-#: src/main.js:2260
+#: src/main.js:2464
 #. %s: the error the checkout failed with.
 msgid "Update failed during checkout: %s"
 msgstr ""
 
-#: src/main.js:2263
+#: src/main.js:2467
 #. %s: the error the fetch failed with.
 msgid "Update failed during fetch: %s"
 msgstr ""
 
-#: src/main.js:2278
+#: src/main.js:2482
 #. 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
 msgid ""
 "Your work on #%1$s is safe — it is committed on %2$s. Link that ticket "
 "again to return to it."
 msgstr ""
 
-#: src/main.js:2281
+#: src/main.js:2485
 #. %s: the branch the work is committed on, such as pr/7701.
 msgid ""
 "Your work is safe — it is committed on %s. Apply that pull request again to "
 "return to it."
 msgstr ""
 
-#: src/main.js:2399
+#: src/main.js:2614
 msgid "Returning to your saved copy of the pull request…"
 msgstr ""
 
-#: src/main.js:2399
+#: src/main.js:2614
 msgid "Downloading the pull request's files and switching to its branch…"
 msgstr ""
 
-#: src/main.js:2414
+#: src/main.js:2629
 #. %s: the error Git gave.
 msgid "Could not remove the unused branch: %s"
 msgstr ""
 
-#: src/main.js:2435
+#: src/main.js:2650
 msgid "Restoring the files of your previous branch…"
 msgstr ""
 
-#: src/main.js:2611
+#: src/main.js:2826
 msgid "Could not check your work for conflicts, so the preview was not shown."
 msgstr ""
 
-#: src/main.js:2622
+#: src/main.js:2837
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2625
+#: src/main.js:2840
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2626
+#: src/main.js:2841
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:2670
+#: src/main.js:2885
 msgid "There is no stored patch to revert."
 msgstr ""
 
-#: src/main.js:2681
+#: src/main.js:2896
 #. %s: the name of the applied patch, such as a file name.
 msgid "%s is already applied. Revert it before applying another patch."
 msgstr ""
 
-#: src/main.js:2687
+#: src/main.js:2902
 #. %s: the name of the patch, such as a file name.
 msgid "Reverting %s…"
 msgstr ""
 
-#: src/main.js:2690
+#: src/main.js:2905
 #. %s: the name of the patch, such as a file name.
 msgid "Applying %s…"
 msgstr ""
 
-#: src/main.js:2720
+#: src/main.js:2935
 msgid "This patch is too large to keep for an undo, so Revert will not be offered."
 msgstr ""
 
-#: src/main.js:2741
+#: src/main.js:2961
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved, so it was "
 "undone. %s"
 msgstr ""
 
-#: src/main.js:2744
+#: src/main.js:2964
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved and it could not "
 "be undone — the checkout has the patch and the app cannot revert it. %s"
 msgstr ""
 
-#: src/main.js:2753
+#: src/main.js:2973
 #. %s: what went wrong, as the system said it.
 msgid "Applying the patch failed: %s"
 msgstr ""
 
-#: src/main.js:3341
+#: src/main.js:3564
 msgid ""
 "There is uncommitted work on trunk — decide what happens to it before "
 "starting the ticket"
 msgstr ""
 
-#: src/main.js:3435
+#: src/main.js:3658
 msgid ""
 "Link a ticket first: trunk is what tickets are measured against, not a "
 "ticket."
 msgstr ""
 
-#: src/main.js:3437
+#: src/main.js:3660
 #: src/renderer/ticket-trunk-notice.cjs:147
 msgid "Only a ticket branch can be moved onto the current trunk."
 msgstr ""
 
-#: src/main.js:3439
+#: src/main.js:3662
 msgid ""
 "This ticket has no recorded starting point, so the app cannot move its work "
 "onto the current trunk."
 msgstr ""
 
-#: src/main.js:3584
+#: src/main.js:3817
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3585
+#: src/main.js:3818
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3591
+#: src/main.js:3824
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/main.js:3732
+#: src/main.js:3986
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
@@ -321,7 +357,7 @@ msgid ""
 "finishes on its own."
 msgstr ""
 
-#: src/main.js:3735
+#: src/main.js:3989
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
@@ -329,60 +365,60 @@ msgid ""
 "its own."
 msgstr ""
 
-#: src/main.js:3739
+#: src/main.js:3993
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
 "running and holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3742
+#: src/main.js:3996
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
 "holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3746
+#: src/main.js:4000
 msgid "This site requires a newer Node.js than this app bundles."
 msgstr ""
 
-#: src/main.js:3746
+#: src/main.js:4000
 msgid "Retrying with engine checks relaxed…"
 msgstr ""
 
-#: src/main.js:3833
+#: src/main.js:4087
 #. %s: why npm could not be started.
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4144
+#: src/main.js:4398
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4147
+#: src/main.js:4401
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4177
+#: src/main.js:4431
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.js:4239
+#: src/main.js:4493
 #. %s: the name of the folder the web server serves, local-playground-web.
 msgid "%s directory not found."
 msgstr ""
 
-#: src/main.js:4287
+#: src/main.js:4541
 msgid "Server exited before becoming ready"
 msgstr ""
 
-#: src/main.js:4319
+#: src/main.js:4573
 msgid "Timed out starting web server"
 msgstr ""
 
@@ -520,7 +556,7 @@ msgid "Cut"
 msgstr ""
 
 #: src/menu.js:78
-#: src/renderer/components/site-details.jsx:199
+#: src/renderer/components/site-details.jsx:381
 #: src/renderer/confirmations.cjs:185
 msgid "Copy"
 msgstr ""
@@ -629,91 +665,91 @@ msgid_plural "Skipped %1$d binary files the app cannot apply: %2$s"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/patch-apply.js:486
+#: src/patch-apply.js:487
 #: src/patch-plan.cjs:424
 #. %s: why the patch could not be read, often in English from the library that reads it.
 msgid "Could not read the patch: %s"
 msgstr ""
 
-#: src/patch-apply.js:493
+#: src/patch-apply.js:494
 #: src/patch-plan.cjs:506
 msgid "(unnamed binary file)"
 msgstr ""
 
-#: src/patch-apply.js:505
+#: src/patch-apply.js:506
 msgid "The patch does not change any files."
 msgstr ""
 
-#: src/patch-apply.js:527
+#: src/patch-apply.js:528
 #. %d: how many more files the patch changes.
 msgid "%d more file was not checked one by one"
 msgid_plural "%d more files were not checked one by one"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/patch-apply.js:540
+#: src/patch-apply.js:541
 #. %s: the path of a file in the checkout.
 msgid "%s has moved on since the patch was written, so it no longer applies"
 msgstr ""
 
-#: src/patch-apply.js:542
+#: src/patch-apply.js:543
 msgid "a file has moved on since the patch was written, so it no longer applies"
 msgstr ""
 
-#: src/patch-apply.js:551
+#: src/patch-apply.js:552
 msgid "The patch does not apply."
 msgstr ""
 
-#: src/patch-apply.js:563
+#: src/patch-apply.js:564
 msgid ""
 "That patch is not in this checkout any more — something reset it, probably "
 "a trunk update or a discard. Nothing was reverted."
 msgstr ""
 
-#: src/patch-apply.js:568
+#: src/patch-apply.js:569
 msgid "The patch was not applied — the checkout is unchanged."
 msgstr ""
 
-#: src/patch-apply.js:586
+#: src/patch-apply.js:587
 #. %s: why the files could not be copied, as the system said it.
 msgid "Could not snapshot the checkout before applying the patch: %s"
 msgstr ""
 
-#: src/patch-apply.js:598
+#: src/patch-apply.js:599
 #. %s: why writing the patch failed, Git's own message, in English.
 msgid "writing %s"
 msgstr ""
 
-#: src/patch-apply.js:601
+#: src/patch-apply.js:602
 #. %s: the exit code of the command git apply.
 msgid "writing git apply exited %s"
 msgstr ""
 
-#: src/patch-apply.js:615
+#: src/patch-apply.js:616
 #. 1: the path of a file the patch writes. 2: why it could not be read back, as the system said it.
 msgid "writing could not verify %1$s after git apply: %2$s"
 msgstr ""
 
-#: src/patch-apply.js:624
+#: src/patch-apply.js:625
 #. %s: the files that could not be put back, and why, separated by semicolons.
 msgid ""
 "The patch could not be written, and the checkout could not be fully put "
 "back — it is in an unknown state. Could not undo: %s"
 msgstr ""
 
-#: src/patch-apply.js:628
+#: src/patch-apply.js:629
 #. %s: why writing the patch failed.
 msgid "The patch could not be written, so the checkout was put back as it was: %s"
 msgstr ""
 
-#: src/patch-apply.js:642
+#: src/patch-apply.js:643
 #. %d: how many files the patch changed.
 msgid "Reverted %d file."
 msgid_plural "Reverted %d files."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/patch-apply.js:645
+#: src/patch-apply.js:646
 #. %d: how many files the patch changed.
 msgid "Applied %d file."
 msgid_plural "Applied %d files."
@@ -938,6 +974,79 @@ msgstr ""
 msgid ""
 "It cannot create the GitHub account for you, and it cannot post to Trac on "
 "your behalf."
+msgstr ""
+
+#: src/renderer/affected-files.cjs:101
+#. %d: a pull request number.
+msgid "Your edits to it are removed, and it goes back to how PR #%d has it."
+msgstr ""
+
+#: src/renderer/affected-files.cjs:103
+msgid "Your edits to it are removed, and it goes back to how the patch left it."
+msgstr ""
+
+#: src/renderer/affected-files.cjs:107
+#. %s: the path of a file in the site.
+msgid "Revert %s?"
+msgstr ""
+
+#: src/renderer/affected-files.cjs:108
+#: src/renderer/changes-note.cjs:60
+#: src/renderer/ticket-actions.cjs:178
+msgid "This can’t be undone."
+msgstr ""
+
+#: src/renderer/affected-files.cjs:109
+msgid "Revert file"
+msgstr ""
+
+#: src/renderer/affected-files.cjs:111
+#. %s: the path of a file in the site.
+msgid "%s reverted."
+msgstr ""
+
+#: src/renderer/affected-files.cjs:131
+#. %s: why the file could not be reverted.
+msgid "Could not revert the file: %s"
+msgstr ""
+
+#: src/renderer/affected-files.cjs:131
+#: src/renderer/changes-note.cjs:295
+#: src/renderer/hooks/use-trunk-update.jsx:291
+#: src/renderer/index.jsx:1911
+msgid "Unknown error"
+msgstr ""
+
+#: src/renderer/affected-files.cjs:49
+msgid "From the patch"
+msgstr ""
+
+#: src/renderer/affected-files.cjs:52
+#. %d: the number of a pull request on GitHub.
+msgid "From PR #%d"
+msgstr ""
+
+#: src/renderer/affected-files.cjs:91
+#: src/renderer/site-dialogs.cjs:29
+#. %s: the name a site was given.
+msgid "Delete %s?"
+msgstr ""
+
+#: src/renderer/affected-files.cjs:92
+msgid "You created this file."
+msgstr ""
+
+#: src/renderer/affected-files.cjs:93
+msgid "Delete file"
+msgstr ""
+
+#: src/renderer/affected-files.cjs:95
+#. %s: the path of a file in the site.
+msgid "%s deleted."
+msgstr ""
+
+#: src/renderer/affected-files.cjs:98
+msgid "Your changes to it are removed."
 msgstr ""
 
 #: src/renderer/applied-layer.cjs:122
@@ -1473,43 +1582,67 @@ msgstr ""
 msgid "it no longer fits"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:109
+#: src/renderer/changes-note.cjs:114
+msgid "They stay with this pull request's local copy when you revert this PR."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:115
+msgid "Review changes"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:122
+msgid "Review and submit"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:124
+msgid ""
+"Unlinking this issue doesn't affect your local changes for this issue — "
+"they remain attached to it in this site, ready for when you link it again."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:125
+msgid ""
+"Unlinking this ticket doesn't affect your local changes for this ticket — "
+"they remain attached to it in this site, ready for when you link it again."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:146
 #. %d: a pull request number.
 msgid "Changes on top of PR #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:113
+#: src/renderer/changes-note.cjs:150
 #. 1: how many files have changes. 2: a pull request number.
 msgid "%1$d change on top of PR #%2$d"
 msgid_plural "%1$d changes on top of PR #%2$d"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:123
+#: src/renderer/changes-note.cjs:160
 #. %s: a GitHub issue number.
 msgid "Unsubmitted changes for issue #%s"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:127
+#: src/renderer/changes-note.cjs:164
 #. %s: a Trac ticket number.
 msgid "Unsubmitted changes for ticket #%s"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:132
+#: src/renderer/changes-note.cjs:169
 #. 1: how many files have changes. 2: a GitHub issue number.
 msgid "%1$d unsubmitted change for issue #%2$s"
 msgid_plural "%1$d unsubmitted changes for issue #%2$s"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:139
+#: src/renderer/changes-note.cjs:176
 #. 1: how many files have changes. 2: a Trac ticket number.
 msgid "%1$d unsubmitted change for ticket #%2$s"
 msgid_plural "%1$d unsubmitted changes for ticket #%2$s"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:150
+#: src/renderer/changes-note.cjs:187
 #. %d: a pull request number. <review> and <discard> are links.
 msgid ""
 "You have changes on top of PR #%d. You can <review>review them</review> or "
@@ -1517,7 +1650,7 @@ msgid ""
 "local copy when you revert this PR."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:156
+#: src/renderer/changes-note.cjs:193
 #. 1: how many files have changes. 2: a pull request number. <review> and <discard> are links.
 msgid ""
 "You have %1$d change on top of PR #%2$d. You can <review>review "
@@ -1530,21 +1663,21 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:170
+#: src/renderer/changes-note.cjs:207
 #. <review> and <discard> are links.
 msgid ""
 "You have changes not assigned to any issue. You can <review>create and save "
 "a patch</review> or <discard>discard your changes</discard>."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:174
+#: src/renderer/changes-note.cjs:211
 #. <review> and <discard> are links.
 msgid ""
 "You have changes not assigned to any ticket. You can <review>create and "
 "save a patch</review> or <discard>discard your changes</discard>."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:179
+#: src/renderer/changes-note.cjs:216
 #. %d: how many files have changes. <review> and <discard> are links.
 msgid ""
 "You have %d change not assigned to any issue. You can <review>create and "
@@ -1555,7 +1688,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:189
+#: src/renderer/changes-note.cjs:226
 #. %d: how many files have changes. <review> and <discard> are links.
 msgid ""
 "You have %d change not assigned to any ticket. You can <review>create and "
@@ -1566,123 +1699,134 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/changes-note.cjs:222
+#: src/renderer/changes-note.cjs:26
+msgid "Discard all local changes?"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:261
+msgid "Your changes were discarded."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:262
+msgid "All changes discarded."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:294
 #: src/renderer/hooks/use-trunk-update.jsx:293
 #. %s: why the changes could not be discarded.
 msgid "Failed to discard changes: %s"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:223
-#: src/renderer/hooks/use-trunk-update.jsx:291
-#: src/renderer/index.jsx:1826
-msgid "Unknown error"
+#: src/renderer/changes-note.cjs:316
+#. %s: the name of the patch, such as a file name.
+msgid ""
+"Your changes were discarded, but %s could not be put back, so it is no "
+"longer applied."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:26
-msgid "Discard all local changes?"
-msgstr ""
-
-#: src/renderer/changes-note.cjs:27
-#: src/renderer/ticket-actions.cjs:178
-msgid "This can’t be undone."
-msgstr ""
-
-#: src/renderer/changes-note.cjs:28
-msgid "Discard changes"
-msgstr ""
-
-#: src/renderer/changes-note.cjs:309
+#: src/renderer/changes-note.cjs:392
 msgid "Changes are already being discarded."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:310
+#: src/renderer/changes-note.cjs:393
 msgid "Wait for your changes to finish loading."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:311
+#: src/renderer/changes-note.cjs:394
 msgid "Changes could not be loaded."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:312
+#: src/renderer/changes-note.cjs:395
 msgid "There are no changes to discard."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:313
+#: src/renderer/changes-note.cjs:396
+msgid "There are no edits of yours to discard."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:397
 msgid "Wait for the trunk update to finish before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:314
+#: src/renderer/changes-note.cjs:398
 msgid "Wait for the installation to finish before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:315
+#: src/renderer/changes-note.cjs:399
 msgid "Wait for the build to finish before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:316
+#: src/renderer/changes-note.cjs:400
 msgid "Stop the dev server before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:324
+#: src/renderer/changes-note.cjs:408
 #. %d: a GitHub issue number.
 msgid "Your changes for issue #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:326
+#: src/renderer/changes-note.cjs:410
 #. %d: a Trac ticket number.
 msgid "Your changes for ticket #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:333
+#: src/renderer/changes-note.cjs:417
 #. %d: a pull request number.
 msgid "Your changes on top of PR #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:334
+#: src/renderer/changes-note.cjs:418
 msgid "Edits to this local copy, compared with the original PR commits."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:336
+#: src/renderer/changes-note.cjs:420
 #. %d: a pull request number.
 msgid "There are no changes on top of PR #%d."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:339
+#: src/renderer/changes-note.cjs:423
+#: src/renderer/components/site-details.jsx:282
 msgid "Your changes"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:340
+#: src/renderer/changes-note.cjs:424
 msgid "Everything this site has that its copy of trunk does not."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:341
+#: src/renderer/changes-note.cjs:425
 msgid ""
 "There is nothing to send yet — this site has no changes against its copy of "
 "trunk."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:78
-msgid "They stay with this pull request's local copy when you revert this PR."
+#: src/renderer/changes-note.cjs:48
+#. %d: how many files the contributor changed.
+msgid "Your edits to %d file are removed."
+msgid_plural "Your edits to %d files are removed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/changes-note.cjs:52
+#. %s: the name of the applied patch, such as a file name.
+msgid "The patch %s stays applied."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:79
-msgid "Review changes"
+#: src/renderer/changes-note.cjs:55
+#. %s: the name of the applied patch, such as a file name.
+msgid "The applied patch %s is removed too, because the app can’t put it back."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:86
-msgid "Review and submit"
+#: src/renderer/changes-note.cjs:58
+#. %d: a pull request number.
+msgid "PR #%d stays checked out."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:88
-msgid ""
-"Unlinking this issue doesn't affect your local changes for this issue — "
-"they remain attached to it in this site, ready for when you link it again."
+#: src/renderer/changes-note.cjs:62
+msgid "Discard your changes?"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:89
-msgid ""
-"Unlinking this ticket doesn't affect your local changes for this ticket — "
-"they remain attached to it in this site, ready for when you link it again."
+#: src/renderer/changes-note.cjs:64
+msgid "Discard changes"
 msgstr ""
 
 #: src/renderer/components/app-footer.jsx:112
@@ -1747,7 +1891,7 @@ msgid "Resize tray"
 msgstr ""
 
 #: src/renderer/components/create-site-dialog.jsx:136
-#: src/renderer/index.jsx:2139
+#: src/renderer/index.jsx:2224
 msgid "Create site"
 msgstr ""
 
@@ -1999,12 +2143,12 @@ msgid "Failed to generate patch"
 msgstr ""
 
 #: src/renderer/components/patch-diff-pane.jsx:50
-#. <discard /> is the "Discard all changes" link, beside the heading.
+#. <discard /> is the "Discard your changes" link, beside the heading.
 msgid "(<discard />)"
 msgstr ""
 
 #: src/renderer/components/patch-diff-pane.jsx:54
-msgid "Discard all changes"
+msgid "Discard your changes"
 msgstr ""
 
 #: src/renderer/components/patch-diff-pane.jsx:75
@@ -2143,7 +2287,7 @@ msgid "Sign in with GitHub"
 msgstr ""
 
 #: src/renderer/components/pull-request-destination.jsx:305
-#: src/renderer/index.jsx:2257
+#: src/renderer/index.jsx:2342
 msgid "Not now"
 msgstr ""
 
@@ -2476,55 +2620,72 @@ msgstr ""
 msgid "Skip initialization wizard"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:101
+#: src/renderer/components/site-details.jsx:107
 msgid "Development server offline"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:111
+#: src/renderer/components/site-details.jsx:117
 #: src/renderer/dev-server-command.cjs:170
 msgid "Build watch"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:113
+#: src/renderer/components/site-details.jsx:119
 msgid "Build watch offline"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:175
+#: src/renderer/components/site-details.jsx:133
+#. %s: the path of a file in the site.
+msgid "Revert %s"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:258
+msgid "You edited this file"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:259
+msgid "You created this file"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:262
+msgid "Changed files"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:357
 #. %s: the name of a site.
 msgid "Details of %s"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:179
+#: src/renderer/components/site-details.jsx:361
 msgid "Details"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:201
+#: src/renderer/components/site-details.jsx:383
 #: src/renderer/confirmations.cjs:183
 msgid "Copied"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:70
-#: src/renderer/index.jsx:1245
+#: src/renderer/components/site-details.jsx:76
+#: src/renderer/index.jsx:1287
 msgid "Server"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:79
+#: src/renderer/components/site-details.jsx:85
 msgid "Admin credentials"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:81
+#: src/renderer/components/site-details.jsx:87
 msgid "Username"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:83
+#: src/renderer/components/site-details.jsx:89
 msgid "Password"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:88
+#: src/renderer/components/site-details.jsx:94
 msgid "Hide password"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:88
+#: src/renderer/components/site-details.jsx:94
 msgid "Show password"
 msgstr ""
 
@@ -2652,7 +2813,7 @@ msgid "Checking GitHub…"
 msgstr ""
 
 #: src/renderer/components/toast-stack.jsx:47
-#: src/renderer/index.jsx:2493
+#: src/renderer/index.jsx:2579
 msgid "Notifications"
 msgstr ""
 
@@ -2897,46 +3058,46 @@ msgstr ""
 msgid "Only %s issues are supported."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:133
+#: src/renderer/hooks/use-apply-patch.jsx:142
 #: src/renderer/hooks/use-build-watch.jsx:141
 #: src/renderer/hooks/use-site-terminal.jsx:256
 #: src/renderer/hooks/use-trunk-update.jsx:99
-#: src/renderer/index.jsx:1604
+#: src/renderer/index.jsx:1654
 #. %s: the command being run, such as npm run build.
 msgid "Running %s…"
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:219
+#: src/renderer/hooks/use-apply-patch.jsx:228
 #. %s: why the file could not be read, as the system said it.
 msgid "Could not read that file: %s"
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:369
+#: src/renderer/hooks/use-apply-patch.jsx:378
 #. %s: the file name of a Trac attachment.
 msgid "Could not download %s."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:374
+#: src/renderer/hooks/use-apply-patch.jsx:383
 msgid "Could not read that patch."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:477
+#: src/renderer/hooks/use-apply-patch.jsx:486
 msgid "A command is already running. Stop it before switching tickets."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:579
+#: src/renderer/hooks/use-apply-patch.jsx:588
 #. %s: why the patch could not be reverted, a sentence of its own.
 msgid "%s The applied-patch record has been cleared."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:582
+#: src/renderer/hooks/use-apply-patch.jsx:591
 #. %s: why the patch could not be reverted, a sentence of its own.
 msgid ""
 "%s The record of it could not be cleared, so this site still thinks it is "
 "applied."
 msgstr ""
 
-#: src/renderer/hooks/use-apply-patch.jsx:593
+#: src/renderer/hooks/use-apply-patch.jsx:602
 msgid "The patch could not be applied."
 msgstr ""
 
@@ -2949,7 +3110,7 @@ msgstr ""
 
 #: src/renderer/hooks/use-build-watch.jsx:176
 #: src/renderer/hooks/use-site-terminal.jsx:261
-#: src/renderer/index.jsx:1210
+#: src/renderer/index.jsx:1252
 #. 1: the command that ended, such as npm run build. 2: the code it exited with, a number.
 msgid "%1$s exited with code %2$s"
 msgstr ""
@@ -3101,7 +3262,7 @@ msgid "Try \"%s\" for the list of supported commands."
 msgstr ""
 
 #: src/renderer/hooks/use-site-terminal.jsx:34
-#: src/renderer/index.jsx:1180
+#: src/renderer/index.jsx:1222
 #. %s: the keys that stop a command, Ctrl+C.
 msgid "A command is already running. Press %s to stop it."
 msgstr ""
@@ -3176,7 +3337,7 @@ msgid "Saved your changes to %s and reset the working tree."
 msgstr ""
 
 #: src/renderer/hooks/use-trunk-update.jsx:298
-#: src/renderer/index.jsx:1732
+#: src/renderer/index.jsx:1815
 msgid "Discarded local changes."
 msgstr ""
 
@@ -3188,21 +3349,21 @@ msgstr ""
 msgid "Updated to the latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:1248
+#: src/renderer/index.jsx:1290
 #. %d: how many lines have arrived in WordPress's debug.log since it was last looked at.
 msgid "Debug.log (%d)"
 msgstr ""
 
-#: src/renderer/index.jsx:1248
+#: src/renderer/index.jsx:1290
 #. %d: how many lines have arrived in WordPress's debug.log since it was last looked at.
 msgid "Debug.log"
 msgstr ""
 
-#: src/renderer/index.jsx:1333
+#: src/renderer/index.jsx:1375
 msgid "Copied the path"
 msgstr ""
 
-#: src/renderer/index.jsx:1373
+#: src/renderer/index.jsx:1415
 #. 1: how many files had uncommitted changes. 2: the number of the ticket or issue they went into.
 msgid ""
 "Your %1$d uncommitted change came along into #%2$s, and will go into its "
@@ -3213,258 +3374,254 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:1394
+#: src/renderer/index.jsx:1436
 #. %s: the path of the patch file the edits were saved to.
 msgid "Your edits were saved to %s and are no longer in the working tree."
 msgstr ""
 
-#: src/renderer/index.jsx:1432
+#: src/renderer/index.jsx:1474
 #. %s: the path of the patch file the edits were saved to.
 msgid "Saved to %s. The edits are still in the working tree."
 msgstr ""
 
-#: src/renderer/index.jsx:1565
+#: src/renderer/index.jsx:1615
 msgid "This site is ready to work on"
 msgstr ""
 
-#: src/renderer/index.jsx:1570
+#: src/renderer/index.jsx:1620
 msgid "Stopping setup…"
 msgstr ""
 
-#: src/renderer/index.jsx:1583
+#: src/renderer/index.jsx:1633
 #. %s: the command that installs dependencies, npm install.
 msgid "Setting this site up — running %s…"
 msgstr ""
 
-#: src/renderer/index.jsx:1733
-msgid "All changes discarded."
-msgstr ""
-
-#: src/renderer/index.jsx:1873
+#: src/renderer/index.jsx:1958
 msgid ""
 "Cloning the repository… install and build start on their own when it "
 "finishes."
 msgstr ""
 
-#: src/renderer/index.jsx:1880
+#: src/renderer/index.jsx:1965
 #: src/renderer/setup-steps.cjs:204
 msgid "Install npm dependencies"
 msgstr ""
 
-#: src/renderer/index.jsx:1896
+#: src/renderer/index.jsx:1981
 #: src/renderer/setup-steps.cjs:227
 #: src/renderer/update-plan.cjs:187
 msgid "Run full build"
 msgstr ""
 
-#: src/renderer/index.jsx:1912
+#: src/renderer/index.jsx:1997
 msgid "Start dev server & finish wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:1927
+#: src/renderer/index.jsx:2012
 msgid "Stop dev server"
 msgstr ""
 
-#: src/renderer/index.jsx:1927
+#: src/renderer/index.jsx:2012
 msgid "Start dev server and finish the wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:1932
+#: src/renderer/index.jsx:2017
 #. %s: how long the server has been starting, such as 12s.
 msgid "Starting… (%s)"
 msgstr ""
 
-#: src/renderer/index.jsx:2038
+#: src/renderer/index.jsx:2123
 #. %s: what to do next, a sentence.
 msgid "Next step: %s"
 msgstr ""
 
-#: src/renderer/index.jsx:2058
+#: src/renderer/index.jsx:2143
 #. <folder /> is the folder the project's source is in, such as src/. <command /> is the command that builds it, npm run build, which types it into the terminal when clicked.
 msgid ""
 "Edited files in <code><folder /></code>? Run <command /> so the site picks "
 "them up."
 msgstr ""
 
-#: src/renderer/index.jsx:2063
+#: src/renderer/index.jsx:2148
 #. <file /> is the file dependencies are listed in, package.json. <command /> is the command that installs them, npm install, which types it into the terminal when clicked.
 msgid "Added a dependency to <code><file /></code>? Run <command />."
 msgstr ""
 
-#: src/renderer/index.jsx:2071
+#: src/renderer/index.jsx:2156
 #. <command /> is the command that lists the others, help. <keys /> is the keys that stop a command, Ctrl+C.
 msgid ""
 "Type <code><command /></code> to list supported commands. Press <code><keys "
 "/></code> to stop the current command."
 msgstr ""
 
-#: src/renderer/index.jsx:2129
+#: src/renderer/index.jsx:2214
 msgid "Choose application…"
 msgstr ""
 
-#: src/renderer/index.jsx:2151
+#: src/renderer/index.jsx:2236
 msgid "Update incomplete"
 msgstr ""
 
-#: src/renderer/index.jsx:2152
+#: src/renderer/index.jsx:2237
 msgid ""
 "The code is new but the built assets are old. The site may not run "
 "correctly until install and build succeed."
 msgstr ""
 
-#: src/renderer/index.jsx:2154
+#: src/renderer/index.jsx:2239
 msgid "Retry install & build"
 msgstr ""
 
-#: src/renderer/index.jsx:2162
+#: src/renderer/index.jsx:2247
 #. %d: how many days old the site's copy of WordPress is.
 msgid "This site's WordPress code is %d day old"
 msgid_plural "This site's WordPress code is %d days old"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:2165
+#: src/renderer/index.jsx:2250
 msgid "Patches you create now may not apply on Trac. Updating takes a few minutes."
 msgstr ""
 
-#: src/renderer/index.jsx:2167
+#: src/renderer/index.jsx:2252
 #: src/renderer/site-menu.cjs:118
 msgid "Update to latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:2176
+#: src/renderer/index.jsx:2261
 #. 1: the step the update is on. 2: how many steps it has.
 msgid "step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2177
+#: src/renderer/index.jsx:2262
 msgid ""
 "Most packages are already cached, so this is a download of the difference — "
 "not the whole tree."
 msgstr ""
 
-#: src/renderer/index.jsx:2182
+#: src/renderer/index.jsx:2267
 msgid "Up to date with trunk as of today."
 msgstr ""
 
-#: src/renderer/index.jsx:2194
+#: src/renderer/index.jsx:2279
 #. %s: the path of the patch file the changes were saved to.
 msgid "Your changes were saved to %s before the reset."
 msgstr ""
 
-#: src/renderer/index.jsx:2211
+#: src/renderer/index.jsx:2296
 #. 1: the step setup is on. 2: how many steps it has.
 msgid "Setting this site up for you — step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2216
+#: src/renderer/index.jsx:2301
 msgid ""
 "Installing dependencies. You can leave this running — the build follows on "
 "its own."
 msgstr ""
 
-#: src/renderer/index.jsx:2217
+#: src/renderer/index.jsx:2302
 msgid ""
 "Running the full build. This can take up to half an hour on Windows; the "
 "Terminal shows what it is doing."
 msgstr ""
 
-#: src/renderer/index.jsx:2239
+#: src/renderer/index.jsx:2324
 msgid "Hide"
 msgstr ""
 
-#: src/renderer/index.jsx:2255
+#: src/renderer/index.jsx:2340
 msgid "Finish setting this site up first."
 msgstr ""
 
-#: src/renderer/index.jsx:2488
+#: src/renderer/index.jsx:2574
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
-#: src/renderer/index.jsx:299
+#: src/renderer/index.jsx:300
 msgid "Setup finished."
 msgstr ""
 
-#: src/renderer/index.jsx:301
+#: src/renderer/index.jsx:302
 msgid "Cloning repository…"
 msgstr ""
 
-#: src/renderer/index.jsx:390
+#: src/renderer/index.jsx:391
 msgid "Starting site setup…"
 msgstr ""
 
-#: src/renderer/index.jsx:408
+#: src/renderer/index.jsx:409
 msgid "Site setup request completed."
 msgstr ""
 
-#: src/renderer/index.jsx:419
+#: src/renderer/index.jsx:420
 #. %s: the error setup failed with.
 msgid "Setup failed: %s"
 msgstr ""
 
-#: src/renderer/index.jsx:443
+#: src/renderer/index.jsx:444
 #. %d: the code the server exited with, a number.
 msgid "Server exited with code %d"
 msgstr ""
 
-#: src/renderer/index.jsx:558
+#: src/renderer/index.jsx:559
 msgid "Starting the Playground web server"
 msgstr ""
 
-#: src/renderer/index.jsx:562
+#: src/renderer/index.jsx:563
 msgid "Stop Playground web server"
 msgstr ""
 
-#: src/renderer/index.jsx:562
+#: src/renderer/index.jsx:563
 msgid "Start Playground web server"
 msgstr ""
 
-#: src/renderer/index.jsx:578
+#: src/renderer/index.jsx:579
 msgid "Playground web server"
 msgstr ""
 
-#: src/renderer/index.jsx:580
+#: src/renderer/index.jsx:581
 #: src/renderer/site-processes.cjs:43
 msgid "Starting…"
 msgstr ""
 
-#: src/renderer/index.jsx:584
+#: src/renderer/index.jsx:585
 msgid "Stopped"
 msgstr ""
 
-#: src/renderer/index.jsx:596
+#: src/renderer/index.jsx:597
 msgid "Setting up new site…"
 msgstr ""
 
-#: src/renderer/index.jsx:617
+#: src/renderer/index.jsx:618
 msgid "Dismiss"
 msgstr ""
 
-#: src/renderer/index.jsx:639
+#: src/renderer/index.jsx:640
 msgid "No sites"
 msgstr ""
 
-#: src/renderer/index.jsx:640
+#: src/renderer/index.jsx:641
 msgid "Create your first site to begin contributing"
 msgstr ""
 
-#: src/renderer/index.jsx:671
+#: src/renderer/index.jsx:672
 msgid "Site"
 msgstr ""
 
-#: src/renderer/index.jsx:680
+#: src/renderer/index.jsx:681
 msgid "Hide sites list"
 msgstr ""
 
-#: src/renderer/index.jsx:680
+#: src/renderer/index.jsx:681
 msgid "Show sites list"
 msgstr ""
 
-#: src/renderer/index.jsx:871
+#: src/renderer/index.jsx:877
 msgid "Clipboard access is not available in this environment"
 msgstr ""
 
-#: src/renderer/index.jsx:878
+#: src/renderer/index.jsx:884
 #. %s: why the path could not be copied, a sentence.
 msgid "Unable to copy path: %s"
 msgstr ""
@@ -3623,16 +3780,25 @@ msgstr ""
 msgid "The file manager would not open the folder: %s"
 msgstr ""
 
-#: src/renderer/open-failure.cjs:67
+#: src/renderer/open-failure.cjs:69
+msgid "That file is not in the site. The change may have deleted it."
+msgstr ""
+
+#: src/renderer/open-failure.cjs:75
+#. %s: the system's code for why the file could not be read, such as EACCES.
+msgid "That file could not be read: %s"
+msgstr ""
+
+#: src/renderer/open-failure.cjs:78
 msgid "This app has no record of that folder, so it will not open it."
 msgstr ""
 
-#: src/renderer/open-failure.cjs:71
+#: src/renderer/open-failure.cjs:82
 #. %s: the reason, in English.
 msgid "Could not reach the app's main process: %s"
 msgstr ""
 
-#: src/renderer/open-failure.cjs:76
+#: src/renderer/open-failure.cjs:87
 msgid "Could not open the folder."
 msgstr ""
 
@@ -3923,11 +4089,6 @@ msgstr ""
 
 #: src/renderer/site-dialogs.cjs:15
 msgid "Site name cannot be empty."
-msgstr ""
-
-#: src/renderer/site-dialogs.cjs:29
-#. %s: the name a site was given.
-msgid "Delete %s?"
 msgstr ""
 
 #: src/renderer/site-dialogs.cjs:30
@@ -5210,20 +5371,20 @@ msgstr ""
 msgid "Trac returned %s — try opening the ticket again to pass the check."
 msgstr ""
 
-#: src/trunk-update.js:208
+#: src/trunk-update.js:229
 msgid "Fetching latest trunk…"
 msgstr ""
 
-#: src/trunk-update.js:213
+#: src/trunk-update.js:234
 msgid "Already up to date."
 msgstr ""
 
-#: src/trunk-update.js:230
+#: src/trunk-update.js:251
 #. %s: the short hash of the commit trunk is reset to.
 msgid "Resetting to latest trunk (%s)…"
 msgstr ""
 
-#: src/trunk-update.js:249
+#: src/trunk-update.js:270
 #. %s: the date of the newest commit on trunk.
 msgid "Now on trunk as of %s."
 msgstr ""
