@@ -2025,8 +2025,11 @@ async function fingerprintsNow(sitePath, files) {
 // The applied patch's or checked-out pull request's files the contributor
 // has changed since (#669), for "also edited". `unsubmitted` is the branch's
 // changed paths, which is the whole answer for a pull request (its head is
-// the base); a patch is compared with what it wrote. Nothing to say, or a
-// branch that cannot be read, is none.
+// the base); a patch is compared with what it wrote. A kept patch applied
+// before the app fingerprinted what it wrote is read the way a pull request
+// is: each of its files still changed may have been edited, so the discard
+// and the revert that keep it stay offered. Nothing to say, or a branch that
+// cannot be read, is none.
 async function editedSinceAppliedChange(sitePath, unsubmitted) {
     try {
         const active = await activeBranch(sitePath);
@@ -2034,6 +2037,9 @@ async function editedSinceAppliedChange(sitePath, unsubmitted) {
         const fingerprints = work.appliedPatch?.fingerprints;
         if (fingerprints) {
             return editedSinceChange({ fingerprints, now: await fingerprintsNow(sitePath, Object.keys(fingerprints)) });
+        }
+        if (work.appliedPatch?.text) {
+            return editedSinceChange({ prFiles: work.appliedPatch.files, unsubmitted });
         }
         if (prNumberFromRef(active.ref) !== null) {
             return editedSinceChange({ prFiles: work.files, unsubmitted });
@@ -2241,13 +2247,15 @@ ipcMain.handle('git:revert-file', async (_e, sitePath, relPath) => {
             // Its part of the patch is back, so it is the patch's again. Read
             // before the store is, and written only over the same record (#172).
             // The file is reverted whatever happens here: a record that could
-            // not be written only means the list may still mark it.
+            // not be written only means the list may still mark it. A record
+            // with no fingerprints keeps none: a list of this file alone would
+            // say the patch's other files are as it left them.
             try {
                 const { ref } = await activeBranch(sitePath);
                 const [now] = Object.values(await fingerprintsNow(sitePath, [relPath]));
                 await changeWorkMetaOn(sitePath, ref, (work) => (
-                    work.appliedPatch && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
-                        ? { appliedPatch: { ...work.appliedPatch, fingerprints: { ...(work.appliedPatch.fingerprints || {}), [relPath]: now } } }
+                    work.appliedPatch?.fingerprints && work.appliedPatch.text === applied.text && work.appliedPatch.appliedAt === applied.appliedAt
+                        ? { appliedPatch: { ...work.appliedPatch, fingerprints: { ...work.appliedPatch.fingerprints, [relPath]: now } } }
                         : null
                 ));
             } catch (e) {

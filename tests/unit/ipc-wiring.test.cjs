@@ -1077,6 +1077,22 @@ test('git:unsubmitted-work names the applied patch\'s files changed since it was
 	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, ['b.php']);
 });
 
+// A patch applied before the app fingerprinted what it wrote, its text kept:
+// nothing says which of its files were edited, so each still changed may
+// have been, and the contributor keeps a way to discard or revert their own
+// edits without losing the patch.
+test('git:unsubmitted-work counts a kept patch\'s changed files as edited when it has no fingerprints (#669)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'a.php'), '<?php // the patch wrote this\n');
+	fs.writeFileSync(path.join(dir, 'b.php'), '<?php // and this, then mine\n');
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid, appliedPatch: { label: 'x.patch', files: ['a.php', 'b.php', 'gone.php'], text: 'x' } } } } }
+	}).stubs } });
+
+	assert.deepEqual((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange, ['a.php', 'b.php']);
+});
+
 // A pull request is the branch's base, so its files among the changes are the
 // contributor's edits.
 test('git:unsubmitted-work names the checked-out pull request\'s files edited since (#669)', async (t) => {
@@ -1491,6 +1507,25 @@ test('git:revert-file leaves the file as it was when its part of the patch will 
 	assert.equal(res.code, 'failed');
 	assert.match(res.error, /left as it was/);
 	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // mine\n// the patch\n// more\n');
+});
+
+// A record from before fingerprints is not given a list of one: that would
+// say the patch's other files, edited too, are as it left them.
+test('git:revert-file on a kept patch with no fingerprints leaves its other edited files revertable (#669)', async (t) => {
+	const { dir, main, record } = patchSite(t, {
+		base: { 'src/a.php': '<?php // base\n' },
+		worktree: { 'src/a.php': '<?php // base\n// the patch\n// mine\n', 'src/new.php': '<?php // new\n// mine\n' },
+		text: `${KEPT_PATCH}${ADD_NEW}`,
+		files: ['src/a.php', 'src/new.php']
+	});
+	delete record().fingerprints;
+
+	assert.equal((await main.invoke('git:revert-file', dir, 'src/a.php')).ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'a.php'), 'utf8'), '<?php // base\n// the patch\n');
+	assert.equal(record().fingerprints, undefined);
+	assert.ok((await main.invoke('git:unsubmitted-work', dir)).editedSinceChange.includes('src/new.php'));
+	assert.equal((await main.invoke('git:revert-file', dir, 'src/new.php')).ok, true);
+	assert.equal(fs.readFileSync(path.join(dir, 'src', 'new.php'), 'utf8'), '<?php // new\n');
 });
 
 test('git:revert-file puts back a file the patch created, edited or deleted since (#669)', async (t) => {
