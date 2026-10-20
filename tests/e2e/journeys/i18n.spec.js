@@ -961,7 +961,11 @@ test( 'the Terminal is fully translatable: what it prints, a command it does not
 	// commands.
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings, { lang: 'en-XA' } );
-	await page.getByRole( 'button', { name: pseudoLocalize( 'Toggle Terminal' ), exact: true } ).click();
+	const terminalToggle = page.locator( '.app-footer' ).getByRole( 'button', { name: pseudoLocalize( 'Terminal' ), exact: true } );
+	await expect( terminalToggle ).toBeVisible( { timeout: 30_000 } );
+	// A site's footer, with a button for each tray.
+	expect( await unwrapped( page.locator( '.app-footer' ) ) ).toEqual( [] );
+	await terminalToggle.click();
 	const tray = page.getByRole( 'complementary', { name: pseudoLocalize( 'Terminal' ), exact: true } );
 	const screen = tray.locator( '.xterm-rows' ).filter( { visible: true } );
 	// What is typed at the prompt is the contributor's, and the prompt is a
@@ -1025,7 +1029,7 @@ test( 'the Logs are fully translatable: their tabs, the notes in an empty pane, 
 			ipcMain.handle( channel, answer );
 		}
 	}, REFUSAL );
-	await page.getByRole( 'button', { name: pseudoLocalize( 'Toggle Logs' ), exact: true } ).click();
+	await page.locator( '.app-footer' ).getByRole( 'button', { name: pseudoLocalize( 'Logs' ), exact: true } ).click();
 	const tray = page.getByRole( 'complementary', { name: pseudoLocalize( 'Logs' ), exact: true } );
 	const tab = ( label ) => tray.getByRole( 'tab', { name: label, exact: true } );
 	// debug.log's path, once there is one, is the machine's.
@@ -1444,7 +1448,7 @@ test( 'a mail the site sent is fully translatable, on its Rendered and its Raw t
 		ipcMain.handle( 'playground:start', async () => ( { ok: true } ) );
 	} );
 	await page.getByRole( 'button', { name: pseudoLocalize( 'Start development server' ), exact: true } ).click( { timeout: 30_000 } );
-	await page.getByRole( 'button', { name: pseudoLocalize( 'Toggle Email' ), exact: true } ).click();
+	await page.locator( '.app-footer' ).getByRole( 'button', { name: pseudoLocalize( 'Email' ), exact: true } ).click();
 	await page.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } ).click( { timeout: 30_000 } );
 
 	const dialog = page.getByRole( 'dialog', { name: MAIL.subject } );

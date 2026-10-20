@@ -491,7 +491,14 @@ body {
   }
 }
 
+/* The footer is one line, whatever its language: a label broken across two
+   makes it taller and takes the height from the tray above. The trays'
+   buttons are labelled where there is room for every label (#691). Short
+   of it, at the window's smallest with the sites list open or in a longer
+   language, they are their icons, and each keeps its name for a screen
+   reader, since the label is clipped and not removed. */
 .app-footer {
+  container: app-footer / inline-size;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -513,14 +520,30 @@ body {
   gap: var(--wpds-dimension-gap-md);
 }
 
+.app-footer-actions,
+.app-footer-meta {
+  white-space: nowrap;
+}
+
+@container app-footer (max-width: 620px) {
+  .app-footer-tray-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
 /* A tray's button, and on the Logs button's corner the count of lines not
    yet seen (#558). The count is over the button's corner and not beside the
    button, so that its coming and going moves nothing. It starts at the
-   footer's top edge and is one line of text tall, which ends it where the
-   icons' drawing begins: however wide it is, it is clear of what they draw,
-   this button's and the next one's. It is drawn over the buttons, the next
-   one too, whose ground when pressed would otherwise cover it. It takes no
-   press of its own: a press on it is a press on what is under it. */
+   footer's top edge and is one line of text tall, which ends it above the
+   label's letters, and it starts where the label ends: however wide it is,
+   it is clear of what the buttons draw, this one's and the next one's. It is
+   drawn over the buttons, the next one too, whose ground when pressed would
+   otherwise cover it. It takes no press of its own: a press on it is a press
+   on what is under it. */
 .app-footer-tray {
   position: relative;
   display: flex;
