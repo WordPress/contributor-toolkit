@@ -437,6 +437,13 @@ test( 'each file the contributor changed can be reverted on its own (#669)', asy
 	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveAccessibleDescription( 'You edited this file' );
 	await page.keyboard.press( 'ArrowRight' );
 	await expect( revertButton( 'src/wp-login.php' ) ).toBeFocused();
+	// INVARIANT — its focus ring, drawn outside it, is not cut off by the
+	// edge of the details, which clip what passes it.
+	expect( await revertButton( 'src/wp-login.php' ).evaluate( ( button ) => {
+		const style = getComputedStyle( button );
+		const ringEnd = button.getBoundingClientRect().right + parseFloat( style.outlineWidth ) + parseFloat( style.outlineOffset );
+		return ringEnd <= button.closest( '.dashboard-sidebar-slot' ).getBoundingClientRect().right;
+	} ) ).toBe( true );
 	await page.keyboard.press( 'ArrowLeft' );
 	await expect( affectedFile( page, 'src/wp-login.php' ) ).toBeFocused();
 

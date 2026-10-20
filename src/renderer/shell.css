@@ -421,9 +421,12 @@ body {
   vertical-align: top;
 }
 
+/* Room at the end for the button's focus ring, which is drawn outside it at
+   twice the ring's width: the details' slot clips at its edge, and the ring
+   came back cut off when a revert was cancelled. */
 .affected-files td.affected-files-revert-cell {
   width: 1px;
-  padding-inline: var(--wpds-dimension-padding-xs) 0;
+  padding-inline: var(--wpds-dimension-padding-xs) calc(2 * var(--wpds-border-width-focus));
 }
 
 .affected-files-row {
