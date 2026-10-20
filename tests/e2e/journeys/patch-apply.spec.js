@@ -440,7 +440,7 @@ test( 'each file the contributor changed can be reverted on its own (#669)', asy
 	// INVARIANT — its focus ring, drawn outside it, is not cut off by the
 	// edge of the details, which clip what passes it.
 	expect( await revertButton( 'src/wp-login.php' ).evaluate( ( button ) => {
-		const style = getComputedStyle( button );
+		const style = window.getComputedStyle( button );
 		const ringEnd = button.getBoundingClientRect().right + parseFloat( style.outlineWidth ) + parseFloat( style.outlineOffset );
 		return ringEnd <= button.closest( '.dashboard-sidebar-slot' ).getBoundingClientRect().right;
 	} ) ).toBe( true );
