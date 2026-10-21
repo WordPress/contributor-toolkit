@@ -146,6 +146,10 @@ async function downloadTranslations({
 	shipped.sort(byLocale);
 	skipped.sort(byLocale);
 
+	// Read before anything is written: the electron package downloads its binary on the first
+	// `require`, and a run that failed there after replacing the catalogs would be half applied.
+	const names = packageJson ? (electronLocales ?? electronLocaleNames()) : null;
+
 	const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'toolkit-languages-'));
 	try {
 		for (const { locale } of shipped) {
@@ -171,7 +175,7 @@ async function downloadTranslations({
 		for (const name of keep) fs.renameSync(path.join(dir, `${name}.download`), path.join(dir, name));
 		const removed = fs.readdirSync(dir).filter((name) => name.endsWith('.json') && !keep.includes(name) && (!locales || locales.includes(name.slice(0, -5))));
 		for (const name of removed) fs.rmSync(path.join(dir, name));
-		const languages = packageJson ? writeElectronLanguages(packageJson, dir, electronLocales ?? electronLocaleNames()) : null;
+		const languages = packageJson ? writeElectronLanguages(packageJson, dir, names) : null;
 		return { shipped, skipped, removed: removed.map((name) => name.replace(/\.json$/, '')), electronLanguages: languages };
 	} finally {
 		fs.rmSync(staging, { recursive: true, force: true });

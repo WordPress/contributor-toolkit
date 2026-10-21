@@ -394,7 +394,7 @@ test('a list that already matches leaves package.json unwritten', async (t) => {
 	assert.equal(fs.statSync(packageJson).mtimeMs, stamp.getTime());
 });
 
-test('a failed export leaves package.json alone, and without one nothing is asked of it', async (t) => {
+test('a failed export leaves package.json alone, and without one the result carries no list', async (t) => {
 	const packageJson = tempPackageJson(t, ['en-US']);
 	const before = fs.readFileSync(packageJson, 'utf8');
 	const { fetch } = fakeFetch({ [API]: SETS, [exportUrl('de')]: catalog('de', 'x'), [exportUrl('pt-br')]: 500 });
