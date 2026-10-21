@@ -3,7 +3,9 @@
 // `npm run i18n:download`, run from the repository root as part of the version-bump
 // pull request. It writes one Jed JSON file per locale that is at least
 // MIN_COVERAGE percent translated, removes the file of any locale that has
-// fallen below it, and prints a table for the pull request description.
+// fallen below it, writes `build.electronLanguages` in package.json to match the
+// catalogs it leaves (scripts/chromium-locales.cjs), and prints a table for the
+// pull request description.
 //
 // Use `--status=current,waiting` to select translation statuses for the export
 // only. Explicit status or locale selection bypasses the coverage cut-off.
@@ -17,6 +19,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { slugTag } = require('../src/i18n.cjs');
+const { electronLanguages, electronLocaleNames } = require('./chromium-locales.cjs');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_DIR = path.join(REPO_ROOT, 'src', 'languages');
@@ -48,16 +51,21 @@ const RTL_LANGUAGES = new Set(['ar', 'arq', 'ary', 'azb', 'ckb', 'dv', 'fa', 'ha
  * Downloads every locale of `project` at or above `minCoverage` into `dir`.
  *
  * @param {Object}   [options]
- * @param {string}   [options.project]     The full project path on translate.wordpress.org.
- * @param {string}   [options.dir]         Where the catalogs go.
- * @param {number}   [options.minCoverage] The percent a locale needs to ship.
- * @param {string[]} [options.status]      Statuses to export: current, waiting, fuzzy.
- * @param {string[]} [options.locales]     Limit changes to these locale slugs.
- * @param {Function} [options.fetch]       `fetch`, replaceable in tests.
- * @param {Function} [options.wait]        Waits the given milliseconds; replaceable in tests.
- * @return {Promise<{shipped: Object[], skipped: Object[], removed: string[]}>} What was written, each
- *         with whether the app can select it yet; what passed the cut-off but was held back and
- *         why; and what was removed.
+ * @param {string}   [options.project]         The full project path on translate.wordpress.org.
+ * @param {string}   [options.dir]             Where the catalogs go.
+ * @param {number}   [options.minCoverage]     The percent a locale needs to ship.
+ * @param {string[]} [options.status]          Statuses to export: current, waiting, fuzzy.
+ * @param {string[]} [options.locales]         Limit changes to these locale slugs.
+ * @param {Function} [options.fetch]           `fetch`, replaceable in tests.
+ * @param {Function} [options.wait]            Waits the given milliseconds; replaceable in tests.
+ * @param {string}   [options.packageJson]     The package.json whose `build.electronLanguages` follows
+ *                                             the catalogs; left alone when not given.
+ * @param {string[]} [options.electronLocales] Electron's locale names; read from the installed
+ *                                             Electron when not given.
+ * @return {Promise<{shipped: Object[], skipped: Object[], removed: string[], electronLanguages: ?Object}>}
+ *         What was written, each with whether the app can select it yet; what passed the cut-off
+ *         but was held back and why; what was removed; and, with `packageJson`, the list it now
+ *         holds and whether this run changed it.
  */
 async function downloadTranslations({
 	project = DEFAULT_PROJECT,
@@ -66,7 +74,9 @@ async function downloadTranslations({
 	status,
 	locales,
 	fetch = globalThis.fetch,
-	wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+	wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+	packageJson,
+	electronLocales
 } = {}) {
 	const explicitSelection = status !== undefined || locales !== undefined;
 	status ??= ['current'];
@@ -161,25 +171,49 @@ async function downloadTranslations({
 		for (const name of keep) fs.renameSync(path.join(dir, `${name}.download`), path.join(dir, name));
 		const removed = fs.readdirSync(dir).filter((name) => name.endsWith('.json') && !keep.includes(name) && (!locales || locales.includes(name.slice(0, -5))));
 		for (const name of removed) fs.rmSync(path.join(dir, name));
-		return { shipped, skipped, removed: removed.map((name) => name.replace(/\.json$/, '')) };
+		const languages = packageJson ? writeElectronLanguages(packageJson, dir, electronLocales ?? electronLocaleNames()) : null;
+		return { shipped, skipped, removed: removed.map((name) => name.replace(/\.json$/, '')), electronLanguages: languages };
 	} finally {
 		fs.rmSync(staging, { recursive: true, force: true });
 	}
 }
 
 /**
+ * Sets `build.electronLanguages` in `packageJson` from every catalog in `dir`, not only the ones
+ * this run touched, and writes the file only when the list changes. A parse and a two-space
+ * stringify give back package.json byte for byte, so the list is the whole diff.
+ *
+ * @param {string}   packageJson The package.json to update.
+ * @param {string}   dir         The catalogs.
+ * @param {string[]} names       Electron's locale names.
+ * @return {{list: string[], changed: boolean}}
+ */
+function writeElectronLanguages(packageJson, dir, names) {
+	const slugs = fs.readdirSync(dir).filter((name) => name.endsWith('.json')).map((name) => name.slice(0, -5));
+	const list = electronLanguages(slugs, names);
+	const pkg = JSON.parse(fs.readFileSync(packageJson, 'utf8'));
+	const changed = JSON.stringify(pkg.build.electronLanguages) !== JSON.stringify(list);
+	if (changed) {
+		pkg.build.electronLanguages = list;
+		fs.writeFileSync(packageJson, `${JSON.stringify(pkg, null, 2)}\n`);
+	}
+	return { list, changed };
+}
+
+/**
  * The Markdown table for the release pull request.
  *
- * @param {{shipped: Object[], skipped?: Object[], removed: string[]}} result What downloadTranslations returned.
+ * @param {{shipped: Object[], skipped?: Object[], removed: string[], electronLanguages?: ?Object}} result What downloadTranslations returned.
  * @return {string}
  */
-function formatTable({ shipped, skipped = [], removed }) {
+function formatTable({ shipped, skipped = [], removed, electronLanguages: languages = null }) {
 	const rows = shipped.map(({ locale, percent, strings }) => `| ${locale} | ${percent}% | ${strings} |`);
 	const parts = [['| Locale | Translated | Strings |', '| --- | --- | --- |', ...rows].join('\n')];
 	const unselectable = shipped.filter(({ selectable }) => selectable === false).map(({ locale }) => locale);
 	if (unselectable.length) parts.push(`Shipped, but no OS language selects it: ${unselectable.join(', ')}`);
 	if (skipped.length) parts.push(`Not shipped:\n${skipped.map(({ locale, percent, reason }) => `- ${locale} (${percent}%): ${reason}`).join('\n')}`);
 	if (removed.length) parts.push(`Removed: ${removed.join(', ')}`);
+	if (languages?.changed) parts.push(`Chromium locales kept (build.electronLanguages): ${languages.list.join(', ')}`);
 	return parts.join('\n\n');
 }
 
@@ -206,10 +240,10 @@ module.exports = { downloadTranslations, formatTable, MIN_COVERAGE, parseArgs };
 if (require.main === module) {
 	Promise.resolve().then(() => {
 		const options = parseArgs(process.argv.slice(2));
-		return downloadTranslations(options);
+		return downloadTranslations({ ...options, packageJson: path.join(REPO_ROOT, 'package.json') });
 	}).then(
 		(result) => {
-			console.log(result.shipped.length || result.skipped.length || result.removed.length ? formatTable(result) : `No locales downloaded.`);
+			console.log(result.shipped.length || result.skipped.length || result.removed.length || result.electronLanguages?.changed ? formatTable(result) : `No locales downloaded.`);
 		},
 		(e) => {
 			console.error(e.message);
