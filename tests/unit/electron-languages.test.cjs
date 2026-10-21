@@ -16,14 +16,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { electronBinaryPath } = require('../../scripts/run-tests-electron.cjs');
 const { slugTag } = require('../../src/i18n.cjs');
 const { build } = require('../../package.json');
 
 const LANGUAGES_DIR = path.join(__dirname, '..', '..', 'src', 'languages');
 
 // The locale files of the Electron that will be packaged, named as on disk: `en_GB` for a macOS
-// `.lproj` folder, `en-GB` for a `.pak` file on Windows and Linux.
+// `.lproj` folder, `en-GB` for a `.pak` file on Windows and Linux. The electron package downloads
+// its binary on the first `require`, so this asks for it before reading the folder it unpacks to.
 function electronLocaleNames() {
+	electronBinaryPath();
 	const dist = path.join(path.dirname(require.resolve('electron/package.json')), 'dist');
 	if (process.platform === 'darwin') {
 		const resources = path.join(dist, 'Electron.app', 'Contents', 'Frameworks', 'Electron Framework.framework', 'Resources');

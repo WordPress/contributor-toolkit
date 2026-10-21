@@ -23,6 +23,7 @@
     "dist:win:arm64": "npm run build:once && electron-builder --win --arm64 --publish never",
     "dist": "npm run build:once && electron-builder --publish never",
     "pack:dir": "electron-builder --dir --publish never",
+    "pretest": "node -e \"require('electron')\"",
     "test": "node --test",
     "test:electron": "node scripts/run-tests-electron.cjs",
     "test:e2e": "playwright test --project=journeys",
