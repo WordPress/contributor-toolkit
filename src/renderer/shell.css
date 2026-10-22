@@ -301,11 +301,21 @@ body {
 }
 
 /* The slot is as tall as the cards, so that the details, which are shorter,
-   have somewhere to stay put in. */
+   have somewhere to stay put in. It clips the details as they slide shut,
+   but leaves room past its edges for a focus ring, which is drawn outside
+   what has the focus: a control at either edge came back with its ring cut
+   off. Put away, the details are a whole width past the edge, so the room
+   shows none of them. Clipped on both axes, because Chromium applies the
+   margin only then; the slot is as tall as the row, so the vertical clip
+   cuts nothing, and a clip is not a scroll container, so the details still
+   stick. The margin is twice --wpds-border-width-focus (2px), as the
+   changed files' cells leave, written out because Chromium takes no calc()
+   or var() here: either computes to no margin at all. */
 .dashboard-sidebar-slot {
   align-self: stretch;
   min-width: 0;
-  overflow-x: clip;
+  overflow: clip;
+  overflow-clip-margin: 4px;
 }
 
 .dashboard.is-sidebar-collapsed .dashboard-sidebar-slot {
