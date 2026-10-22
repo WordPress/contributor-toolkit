@@ -363,14 +363,16 @@ function noteAfterProbe(_current, result) {
  * starting a trunk update block a discard, and for the same reason: both
  * rewrite the tree under whatever npm is doing to it, and a force checkout
  * under a running install, build or dev server leaves a tree neither side
- * finished.
+ * finished. A command in the terminal blocks it too: a PHP test run, or a
+ * script, reads the checkout for minutes, and a discard under it turns its
+ * results into the discard's.
  *
  * @param {{isUpdating?: boolean, installing?: boolean, building?: boolean,
- *          devServerActive?: boolean, discarding?: boolean}} state
+ *          terminalRunning?: boolean, devServerActive?: boolean, discarding?: boolean}} state
  * @return {boolean}
  */
-function discardBlocked({ isUpdating, installing, building, devServerActive, discarding } = {}) {
-	return Boolean(isUpdating || installing || building || devServerActive || discarding);
+function discardBlocked({ isUpdating, installing, building, terminalRunning, devServerActive, discarding } = {}) {
+	return Boolean(isUpdating || installing || building || terminalRunning || devServerActive || discarding);
 }
 
 /**
@@ -385,10 +387,10 @@ function discardBlocked({ isUpdating, installing, building, devServerActive, dis
  *
  * @param {{patchLoading?: boolean, patchLoadFailed?: boolean, patchHasChanges?: boolean,
  *          nothingOfYours?: boolean, isUpdating?: boolean, installing?: boolean, building?: boolean,
- *          testsRunning?: boolean, devServerActive?: boolean, discarding?: boolean}} state
+ *          terminalRunning?: boolean, devServerActive?: boolean, discarding?: boolean}} state
  * @return {string|null}
  */
-function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges, nothingOfYours, isUpdating, installing, building, testsRunning, devServerActive, discarding } = {}) {
+function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges, nothingOfYours, isUpdating, installing, building, terminalRunning, devServerActive, discarding } = {}) {
 	if (discarding) return __('Changes are already being discarded.');
 	if (patchLoading) return __('Wait for your changes to finish loading.');
 	if (patchLoadFailed) return __('Changes could not be loaded.');
@@ -397,9 +399,11 @@ function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges,
 	if (isUpdating) return __('Wait for the trunk update to finish before discarding changes.');
 	if (installing) return __('Wait for the installation to finish before discarding changes.');
 	if (building) return __('Wait for the build to finish before discarding changes.');
-	// A test run reads the checkout for minutes; a discard under it would turn
-	// its results into the discard's.
-	if (testsRunning) return __('Wait for the PHP unit tests to finish before discarding changes.');
+	// A command in the terminal, a PHP test run or a script, reads the checkout
+	// for minutes; a discard under it would turn its results into the
+	// discard's. An install or a build holds the terminal too, and says so
+	// above.
+	if (terminalRunning) return __('Wait for the command in the terminal to finish before discarding changes.');
 	if (devServerActive) return __('Stop the dev server before discarding changes.');
 	return null;
 }

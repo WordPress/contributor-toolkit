@@ -44,13 +44,20 @@ test('phpunitCommandLine is the command a run is shown as', () => {
 });
 
 test('an argument with a space in it is quoted on the command line and read back as one argument', () => {
-	// A filter on one of a test's data sets has spaces, and the Tests section
-	// types its run into the terminal, which reads the line back.
+	// A test's name in PHPUnit's output, which a contributor copies into the
+	// Filter field, has spaces, and the Tests section types its run into the
+	// terminal, which reads the line back.
 	const args = ['--filter', 'test_wpautop with data set #3', '--group', 'formatting'];
 	assert.equal(plan.phpunitCommandLine(args), 'phpunit --filter "test_wpautop with data set #3" --group formatting');
 	assert.deepEqual(plan.phpunitCommandArgs(plan.phpunitCommandLine(args)), args);
-	// Typed in the terminal, the same quotes hold an argument together.
+	// A data set with a string key is named in double quotes, so the argument
+	// is held in single ones.
+	const named = ['--filter', 'Tests_Formatting_wpAutop::test_wpautop with data set "empty string"'];
+	assert.equal(plan.phpunitCommandLine(named), 'phpunit --filter \'Tests_Formatting_wpAutop::test_wpautop with data set "empty string"\'');
+	assert.deepEqual(plan.phpunitCommandArgs(plan.phpunitCommandLine(named)), named);
+	// Typed in the terminal, either kind of quote holds an argument together.
 	assert.deepEqual(plan.phpunitCommandArgs('phpunit --filter "a b"'), ['--filter', 'a b']);
+	assert.deepEqual(plan.phpunitCommandArgs('phpunit --filter \'a b\''), ['--filter', 'a b']);
 });
 
 test('filterArgs passes the filter and the group that were filled in, and leaves a blank one off', () => {

@@ -51,7 +51,7 @@ import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardLabel, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion, discardYourChangesQuestion, ownEditCount, discardToast } from './changes-note.cjs';
-import { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
+import { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, discardTrunkWorkReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
@@ -1525,7 +1525,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           variant="outline"
           tone="neutral"
           size="compact"
-          reason={ticketActionsReason}
+          reason={discardTrunkWorkReason({ terminalRunning, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })}
           onClick={() => askFirst(discardTrunkEditsQuestion(), () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
         >{dirtyQuestion.discard}</ReasonedUiButton>
         {/* The way out that touches nothing — three consequential actions
@@ -1611,11 +1611,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // from under it. Not re-derived here — that is how a second answer starts.
   // Why a file's revert button is held, if it is (#669): the guard and the
   // sentences the discard link has, since it writes the tree the same way.
-  // A PHP test run reads the checkout for minutes, so nothing that rewrites
-  // it starts while one runs: revert, discard and the move onto trunk.
-  const testsRunning = Boolean(phpunitRun && phpunitRun.running);
-  const revertReason = discardDisabledReason({ patchHasChanges: true, isUpdating, installing, building, testsRunning, devServerActive: isDevProcessActive, discarding });
-  const layerExitBlocked = discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
+  // A command in the terminal, a PHP test run or a script, reads the
+  // checkout for minutes, so nothing that rewrites it starts while one runs:
+  // revert, every discard and the move onto trunk.
+  const revertReason = discardDisabledReason({ patchHasChanges: true, isUpdating, installing, building, terminalRunning, devServerActive: isDevProcessActive, discarding });
+  const layerExitBlocked = discardBlocked({ isUpdating, installing, building, terminalRunning, devServerActive: isDevProcessActive, discarding });
   const layerExit = layerExitFailure({ patchSaveError, discardError });
 
   // --- Initial setup, as one chain (#246) ---
@@ -1791,8 +1791,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // modal's) keeps the applied patch or checked-out PR (#669), so its question
   // says what stays. "Discard this ticket to its base" (the layer exits) is
   // for when the patch itself is the problem, and takes it too; its question
-  // is the one the dirty-update modal asks. All three links disable through
-  // discardBlocked; no re-check in here. The question's dialog is modal, so
+  // is the one the dirty-update modal asks. All three links are held by the
+  // same guards (discardDisabledReason, discardBlocked), a command in the
+  // terminal among them; no re-check in here. The question's dialog is modal, so
   // nothing the contributor can press starts what discardBlocked names while
   // it is up.
   const discardYourChanges = () => {
@@ -1865,7 +1866,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     isUpdating,
     installing,
     building,
-    testsRunning,
+    terminalRunning,
     devServerActive: isDevProcessActive,
     discarding
   });
@@ -1921,7 +1922,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     isUpdating,
     installing,
     building,
-    testsRunning,
+    terminalRunning,
     devServerActive: isDevProcessActive,
     discarding
   });
@@ -2401,7 +2402,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           staleNotice={staleTicketNotice ? {
             ...staleTicketNotice,
             busy: ticketSaving,
-            reason: rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, testsRunning, devServerActive: isDevProcessActive, discarding, noun: workItem.noun }),
+            reason: rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, terminalRunning, devServerActive: isDevProcessActive, discarding, noun: workItem.noun }),
             onAction: rebaseTicket
           } : null}
           feedback={ticketFeedback}

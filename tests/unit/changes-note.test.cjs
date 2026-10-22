@@ -297,10 +297,11 @@ test('noteAfterProbe clears an old count when the base cannot be measured (#308)
 });
 test('discardBlocked holds the discard while anything is rewriting the tree', () => {
 	// The same states that block starting a trunk update: a force checkout
-	// under a running install, build or dev server corrupts both.
+	// under a running install, build or dev server corrupts both. A command
+	// in the terminal, such as a PHP test run, reads the tree for minutes.
 	assert.equal(discardBlocked({}), false);
 	assert.equal(discardBlocked(), false);
-	for (const flag of ['isUpdating', 'installing', 'building', 'devServerActive', 'discarding']) {
+	for (const flag of ['isUpdating', 'installing', 'building', 'terminalRunning', 'devServerActive', 'discarding']) {
 		assert.equal(discardBlocked({ [flag]: true }), true, flag);
 	}
 });
@@ -313,7 +314,9 @@ test('discardDisabledReason explains every state that makes discard unavailable'
 	assert.equal(discardDisabledReason({ patchHasChanges: true, isUpdating: true }), 'Wait for the trunk update to finish before discarding changes.');
 	assert.equal(discardDisabledReason({ patchHasChanges: true, installing: true }), 'Wait for the installation to finish before discarding changes.');
 	assert.equal(discardDisabledReason({ patchHasChanges: true, building: true }), 'Wait for the build to finish before discarding changes.');
-	assert.equal(discardDisabledReason({ patchHasChanges: true, testsRunning: true }), 'Wait for the PHP unit tests to finish before discarding changes.');
+	assert.equal(discardDisabledReason({ patchHasChanges: true, terminalRunning: true }), 'Wait for the command in the terminal to finish before discarding changes.');
+	// An install holds the terminal too, and is named for what it is.
+	assert.equal(discardDisabledReason({ patchHasChanges: true, installing: true, terminalRunning: true }), 'Wait for the installation to finish before discarding changes.');
 	assert.equal(discardDisabledReason({ patchHasChanges: true, devServerActive: true }), 'Stop the dev server before discarding changes.');
 	assert.equal(discardDisabledReason({ patchHasChanges: true }), null);
 });

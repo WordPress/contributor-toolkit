@@ -44,7 +44,7 @@ function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState 
  * in flight), the same ones the discard action checks.
  *
  * @param {{ticketSaving?: boolean, deletingBranch?: string|null, updateState?: string,
- *          installing?: boolean, building?: boolean, testsRunning?: boolean,
+ *          installing?: boolean, building?: boolean, terminalRunning?: boolean,
  *          devServerActive?: boolean, discarding?: boolean, noun?: string}} state
  * @return {string|null}
  */
@@ -58,9 +58,10 @@ function rebaseDisabledReason(state = {}) {
 	if (state.discarding) return issue ? __('Wait for the discard to finish before updating the issue.') : __('Wait for the discard to finish before updating the ticket.');
 	const shared = ticketActionDisabledReason(state);
 	if (shared) return shared;
-	// A test run reads the checkout for minutes; moving the branch under it
-	// would turn its results into the move's.
-	if (state.testsRunning) return issue ? __('Wait for the PHP unit tests to finish before updating the issue.') : __('Wait for the PHP unit tests to finish before updating the ticket.');
+	// A command in the terminal, a PHP test run or a script, reads the checkout
+	// for minutes; moving the branch under it would turn its results into the
+	// move's.
+	if (state.terminalRunning) return issue ? __('Wait for the command in the terminal to finish before updating the issue.') : __('Wait for the command in the terminal to finish before updating the ticket.');
 	if (state.devServerActive) return issue ? __('Stop the dev server before updating the issue.') : __('Stop the dev server before updating the ticket.');
 	return null;
 }
@@ -203,4 +204,18 @@ function testsDisabledReason({ terminalRunning = false, discarding = false, ...s
 		|| applyHeldReason({ terminalRunning });
 }
 
-module.exports = { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion };
+/**
+ * Why the dirty-trunk question's "discard them" answer is unavailable: the
+ * shared gate, then a command in the terminal. The answer discards trunk's
+ * edits before it switches, and only the switch checks the terminal, so a
+ * discard under a running PHP test run or script would go through.
+ *
+ * @param {Object}  state                   As ticketActionDisabledReason takes it, and:
+ * @param {boolean} [state.terminalRunning] Whether a command holds the site's terminal.
+ * @return {string|null} Null when nothing blocks the answer.
+ */
+function discardTrunkWorkReason({ terminalRunning = false, ...state } = {}) {
+	return ticketActionDisabledReason(state) || applyHeldReason({ terminalRunning }) || null;
+}
+
+module.exports = { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, discardTrunkWorkReason, dirtyTrunkQuestion, discardTrunkEditsQuestion };

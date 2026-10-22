@@ -503,14 +503,15 @@ test( 'phpunit runs the arguments it is given, and the Tests section runs the su
 	await tell( 'npm:run-script:done', { runId: 'e2e-php-7', code: 0 } );
 	await expect( screen ).toContainText( 'phpunit --group ajax exited with code 0' );
 
-	// INVARIANT — a filter with spaces in it, such as one on a test's data
-	// set, reaches main as the one argument it was typed as, and the command
-	// shows it quoted.
+	// INVARIANT — a filter with spaces and double quotes in it, the name
+	// PHPUnit prints for a test's data set with a string key, reaches main as
+	// the one argument it was typed as, and the command shows it quoted.
+	const dataSet = 'Tests_Formatting_wpAutop::test_wpautop with data set "empty string"';
 	await groupField.fill( '' );
-	await filterField.fill( 'test_wpautop with data set #3' );
+	await filterField.fill( dataSet );
 	await filterField.press( 'Enter' );
-	await expect( screen ).toContainText( 'Running phpunit --filter "test_wpautop with data set #3"…' );
-	expect( ( await asked() ).runs[ 7 ] ).toEqual( { dir: site.dir, args: [ '--filter', 'test_wpautop with data set #3' ] } );
+	await expect( screen ).toContainText( `Running phpunit --filter '${ dataSet }'…` );
+	expect( ( await asked() ).runs[ 7 ] ).toEqual( { dir: site.dir, args: [ '--filter', dataSet ] } );
 } );
 
 test( 'a Gutenberg site has no phpunit command and no Tests section', async ( { session } ) => {

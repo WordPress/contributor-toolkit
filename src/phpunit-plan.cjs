@@ -62,22 +62,30 @@ const DROP_IN_REL = 'src/wp-content/db.php';
 const PLUGIN_REL = `src/wp-content/plugins/${SQLITE_PLUGIN_SLUG}`;
 
 // The arguments after `phpunit` in a terminal line, or null when the line is
-// not a phpunit command. Split on whitespace, except inside double quotes,
-// which hold one argument, spaces and all: how phpunitCommandLine writes an
-// argument with a space in it, such as a filter on a data set. A double
-// quote inside an argument has no way in.
+// not a phpunit command. Split on whitespace, except inside double or single
+// quotes, which hold one argument, spaces and all: how phpunitCommandLine
+// writes an argument with a space in it, such as a filter on a data set.
+// Quotes of the other kind inside are kept, so `'with data set "empty"'` is
+// one argument with its double quotes; an argument with both kinds and a
+// space has no way in.
 function phpunitCommandArgs(line) {
 	const trimmed = String(line || '').trim();
 	const match = /^phpunit(?:\s+(.*))?$/i.exec(trimmed);
 	if (!match) return null;
-	return [...(match[1] || '').matchAll(/"([^"]*)"|(\S+)/g)].map((part) => (part[1] !== undefined ? part[1] : part[2]));
+	return [...(match[1] || '').matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map((part) => part[1] ?? part[2] ?? part[3]);
 }
 
 // The command line a run is shown as, in the terminal and the Tests section,
 // and what the Tests section's buttons type there: an argument with a space
 // in it is quoted, so phpunitCommandArgs reads it back as the one argument.
+// Single quotes when it holds a double quote, as PHPUnit's name for a data
+// set with a string key does (`with data set "empty string"`).
 function phpunitCommandLine(args) {
-	return ['phpunit', ...args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg))].join(' ');
+	const quoted = (arg) => {
+		if (!/\s/.test(arg)) return arg;
+		return arg.includes('"') ? `'${arg}'` : `"${arg}"`;
+	};
+	return ['phpunit', ...args.map(quoted)].join(' ');
 }
 
 // The run the Tests section's Filter and Group fields start: each flag only

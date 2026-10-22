@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } = require('../../src/renderer/ticket-actions.cjs');
+const { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, discardTrunkWorkReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } = require('../../src/renderer/ticket-actions.cjs');
 
 // A disabled control with no reason is the bug (#409): the ticketActionsBlocked
 // gate used to disable the card's buttons silently. Every branch of it has a
@@ -41,11 +41,12 @@ test('rebaseDisabledReason adds the tree-rewrite guards after the shared gate (#
 	assert.equal(rebaseDisabledReason({ devServerActive: false, discarding: false }), null);
 	assert.equal(rebaseDisabledReason({ devServerActive: true }), 'Stop the dev server before updating the ticket.');
 	assert.equal(rebaseDisabledReason({ discarding: true }), 'Wait for the discard to finish before updating the ticket.');
-	// A PHP test run reads the checkout for minutes: the move waits for it, and
-	// says so before the dev server, which only the contributor can stop.
-	assert.equal(rebaseDisabledReason({ testsRunning: true }), 'Wait for the PHP unit tests to finish before updating the ticket.');
-	assert.equal(rebaseDisabledReason({ testsRunning: true, noun: 'issue' }), 'Wait for the PHP unit tests to finish before updating the issue.');
-	assert.match(rebaseDisabledReason({ testsRunning: true, devServerActive: true }), /PHP unit tests/);
+	// A command in the terminal, such as a PHP test run, reads the checkout for
+	// minutes: the move waits for it, and says so before the dev server, which
+	// only the contributor can stop.
+	assert.equal(rebaseDisabledReason({ terminalRunning: true }), 'Wait for the command in the terminal to finish before updating the ticket.');
+	assert.equal(rebaseDisabledReason({ terminalRunning: true, noun: 'issue' }), 'Wait for the command in the terminal to finish before updating the issue.');
+	assert.match(rebaseDisabledReason({ terminalRunning: true, devServerActive: true }), /command in the terminal/);
 	// The shared gate still leads: a trunk update with the dev server running
 	// reports the update, which clears on its own.
 	assert.match(rebaseDisabledReason({ updateState: 'fetching', devServerActive: true }), /trunk update/);
@@ -152,4 +153,13 @@ test('testsDisabledReason waits for every tree rewrite, then for the terminal', 
 	assert.match(testsDisabledReason({ terminalRunning: true }), /Ctrl\+C in the terminal/);
 	// The rewrite underway is named before the terminal it may also hold.
 	assert.match(testsDisabledReason({ ticketSaving: true, terminalRunning: true }), /ticket change to finish/);
+});
+
+test('the dirty-trunk question\'s discard answer waits for the shared gate, then for the terminal', () => {
+	assert.equal(discardTrunkWorkReason(), null);
+	assert.match(discardTrunkWorkReason({ ticketSaving: true }), /ticket change to finish/);
+	// It discards trunk's edits before the switch that checks the terminal, so
+	// it checks the terminal itself: a PHP test run may be reading them.
+	assert.match(discardTrunkWorkReason({ terminalRunning: true }), /Ctrl\+C in the terminal/);
+	assert.match(discardTrunkWorkReason({ updateState: 'fetching', terminalRunning: true }), /trunk update/);
 });
