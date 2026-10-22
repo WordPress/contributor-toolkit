@@ -75,10 +75,14 @@ function phpunitCommandLine(args) {
 	return ['phpunit', ...args].join(' ');
 }
 
-// The run a linked ticket's button starts: every test tagged `@ticket <id>`,
-// which PHPUnit treats as a group.
-function ticketArgs(ticketId) {
-	return ['--group', String(ticketId)];
+// The run the Tests section's Filter and Group fields start: each flag only
+// when its field has something in it. The section starts no run with both
+// blank.
+function filterArgs({ filter = '', group = '' } = {}) {
+	const args = [];
+	if (String(filter).trim()) args.push('--filter', String(filter).trim());
+	if (String(group).trim()) args.push('--group', String(group).trim());
+	return args;
 }
 
 // PHPUnit's arguments, reading core's own configuration unless the
@@ -192,7 +196,7 @@ module.exports = {
 	PLUGIN_REL,
 	phpunitCommandArgs,
 	phpunitCommandLine,
-	ticketArgs,
+	filterArgs,
 	phpunitArgs,
 	testsConfig,
 	dropIn,

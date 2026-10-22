@@ -60,29 +60,33 @@ function phpunitSummary(output) {
  *
  * @param {?{running: boolean, code?: ?number, stopped?: boolean, notStarted?: boolean, output?: string}} run                The last run on this site, null before the first.
  * @param {Object}                                                                                        [options]
- * @param {boolean}                                                                                       [options.onTicket] Whether the checkout is a ticket's branch, where a failure may be the change's or the setup's. On trunk there is no change to compare with.
- * @return {{status: string, text: string}} `status` is the dot's: offline, busy, online or failed.
+ * @param {boolean}                                                                                       [options.onTicket] Whether the checkout is a ticket's branch, where a failure may be the change's or the setup's, and comparing with trunk tells which. On trunk there is no change to compare with.
+ * @return {{status: string, outcome: string, text: string}} `status` is the dot's: offline, busy, online or failed. `outcome` is what the Tests section shows the sentence as: none before a run, running, pass, fail when tests failed, or notice when the run gave no result to count (it did not start, was stopped, did not finish, or matched no tests).
  */
 function phpunitResult(run, { onTicket = false } = {}) {
-	if (!run) return { status: 'offline', text: __('Not run yet.') };
-	if (run.running) return { status: 'busy', text: __('Running…') };
-	if (run.notStarted) return { status: 'failed', text: __('The tests could not be started.') };
-	if (run.stopped) return { status: 'offline', text: __('Stopped before it finished.') };
+	// Before a run, what the first one costs: it is minutes, not seconds, and
+	// nothing else says why.
+	if (!run) return { status: 'offline', outcome: 'none', text: [__('Not run yet.'), __('The first run on a site installs PHPUnit, which takes a few minutes, and the whole suite takes about 10.')].join(' ') };
+	if (run.running) return { status: 'busy', outcome: 'running', text: __('Running…') };
+	if (run.notStarted) return { status: 'failed', outcome: 'notice', text: __('The tests could not be started.') };
+	if (run.stopped) return { status: 'offline', outcome: 'notice', text: __('Stopped before it finished.') };
 	const summary = phpunitSummary(run.output);
 	if (!summary) {
 		// translators: %s: the code the run exited with, a number.
-		return { status: 'failed', text: sprintf(__('The run did not finish (exit code %s).'), String(run.code)) };
+		return { status: 'failed', outcome: 'notice', text: sprintf(__('The run did not finish (exit code %s).'), String(run.code)) };
 	}
-	if (summary.tests === 0) return { status: 'offline', text: __('No tests matched.') };
+	if (summary.tests === 0) return { status: 'offline', outcome: 'notice', text: __('No tests matched.') };
 	const failed = summary.failures + summary.errors;
 	if (failed > 0) {
 		// translators: 1: how many tests failed. 2: how many tests ran.
 		const sentences = [sprintf(_n('%1$d of %2$d test failed.', '%1$d of %2$d tests failed.', summary.tests), failed, summary.tests)];
-		// On a ticket's branch a red result reads as "your change broke it", but
-		// this setup is not core's: some tests fail here on trunk (SQLite, the
-		// bundled PHP).
-		if (onTicket) sentences.push(__('Some tests fail on this setup even without your change. Run a failing test on trunk to compare.'));
-		return { status: 'failed', text: sentences.join(' ') };
+		// A red result reads as "this is broken", but this setup is not core's:
+		// some tests fail here on trunk (SQLite, the bundled PHP). On a ticket's
+		// branch, where it reads as "your change broke it", it also says how to
+		// tell.
+		sentences.push(__('These run on SQLite and the app\'s own PHP, not MySQL, so some of core\'s tests fail here even on trunk.'));
+		if (onTicket) sentences.push(__('Run a failing test on trunk to compare.'));
+		return { status: 'failed', outcome: 'fail', text: sentences.join(' ') };
 	}
 	const notRun = summary.skipped + summary.incomplete;
 	const passed = summary.tests - notRun - summary.warnings;
@@ -98,19 +102,22 @@ function phpunitResult(run, { onTicket = false } = {}) {
 	if (notRun) sentences.push(sprintf(_n('%d skipped.', '%d skipped.', notRun), notRun));
 	// translators: %d: how many tests PHPUnit warned about.
 	if (summary.warnings) sentences.push(sprintf(_n('%d had a warning.', '%d had warnings.', summary.warnings), summary.warnings));
-	return { status: 'online', text: sentences.join(' ') };
+	return { status: 'online', outcome: 'pass', text: sentences.join(' ') };
 }
 
 /**
  * The Tests section's last run: the dot and the sentence, and the command it
- * was, empty before the first.
+ * was, empty before the first. A run on another branch than the one checked
+ * out is no run here: its result is the other branch's, not this one's.
  *
- * @param {?{command: string}} run       As phpunitResult takes it.
- * @param {Object}             [options] As phpunitResult takes them.
- * @return {{command: string, status: string, text: string}} The section's `lastRun`.
+ * @param {?{command: string, branch?: ?string}} run              As phpunitResult takes it, with the branch it ran on.
+ * @param {Object}                               [options]        As phpunitResult takes them.
+ * @param {?string}                              [options.branch] The branch checked out now.
+ * @return {{command: string, status: string, outcome: string, text: string}} The section's `lastRun`.
  */
-function phpunitLastRun(run, options) {
-	return { command: run ? run.command : '', ...phpunitResult(run, options) };
+function phpunitLastRun(run, { branch = null, ...options } = {}) {
+	const current = run && (run.branch || null) === branch ? run : null;
+	return { command: current ? current.command : '', ...phpunitResult(current, options) };
 }
 
 module.exports = { phpunitSummary, phpunitResult, phpunitLastRun };

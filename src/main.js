@@ -41,6 +41,7 @@ const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { pinToOwnPage } = require('./window-navigation');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog, REVEAL_REASONS } = require('./site-registry');
 const { phpunitSiteFolder } = require('./phpunit-folder.cjs');
+const { listTestGroups } = require('./phpunit-groups.cjs');
 const { removeTree } = require('./remove-tree');
 const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
 const { createSetupTracker } = require('./setup-tracker');
@@ -4311,6 +4312,17 @@ ipcMain.handle('phpunit:run', async (event, sitePath, args = []) => {
 			}
 		});
 		return { ok: true, runId };
+	});
+});
+
+// The named groups the checkout's PHP unit tests are tagged with, for the
+// Tests section's Group field to suggest (phpunit-groups.cjs).
+ipcMain.handle('phpunit:groups', async (_event, sitePath) => {
+	return withRegisteredSite(sitePath, async () => {
+		if (!projectTypeForSite(await readSiteMeta(sitePath)).build.phpUnit) {
+			return { ok: false, error: 'This site has no PHP unit tests to run' };
+		}
+		return { ok: true, groups: await listTestGroups(sitePath) };
 	});
 });
 

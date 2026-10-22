@@ -32,7 +32,7 @@ import { runFailedInTerminal } from '../terminal-hints.cjs';
 // are handed out as they are, for the callbacks that read or clear them from
 // outside a render. Every function returned keeps its identity for as long as
 // its arguments do.
-export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed }) {
+export function useSiteScripts({ sitePath, branch = null, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed }) {
   const [installing, setInstalling] = useState(false);
   const [building, setBuilding] = useState(false);
   // The build's counterpart to installFailed — session-local, because only the
@@ -129,9 +129,10 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
   }, [appendNpm, ensureStick, loadStatus, markBuildInterrupted, onRunFailed, sitePath]);
 
   // The last PHP unit test run on this site, for the Tests section to say how
-  // it went (phpunit-result.cjs): the command, whether it is still running,
-  // and once it ends its code, whether it was stopped, and the end of what it
-  // printed, where PHPUnit's summary is. Kept for the session only. The output
+  // it went (phpunit-result.cjs): the command, the branch it ran on, whether
+  // it is still running, and once it ends its code, whether it was stopped,
+  // and the end of what it printed, where PHPUnit's summary is. Kept for the
+  // session only. The output
   // gathers in a ref while the run streams, so the view is drawn twice per
   // run and not once per line.
   const [phpunitRun, setPhpunitRun] = useState(null);
@@ -147,9 +148,9 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
     currentRunIdRef.current = null;
     stopRequestedRef.current = false;
     phpunitOutputRef.current = '';
-    setPhpunitRun({ command, running: true });
+    setPhpunitRun({ command, branch, running: true });
     const ended = (code, notStarted = false) => {
-      setPhpunitRun({ command, running: false, code, notStarted, stopped: stopRequestedRef.current, output: phpunitOutputRef.current });
+      setPhpunitRun({ command, branch, running: false, code, notStarted, stopped: stopRequestedRef.current, output: phpunitOutputRef.current });
     };
     const settle = (answer) => {
       const { runId, error } = phpunitStart(answer);
@@ -174,7 +175,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
       ended(code);
       if (onDone) onDone({ code });
     }).then(settle, settle);
-  }, [appendNpm, ensureStick, sitePath]);
+  }, [appendNpm, branch, ensureStick, sitePath]);
 
   const killCurrent = useCallback(async () => {
     const runId = currentRunIdRef.current;

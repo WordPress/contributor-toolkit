@@ -3110,6 +3110,25 @@ test('phpunit:run starts nothing for an unregistered site, a Gutenberg site or a
 	assert.equal(cp.spawned.length, 0);
 });
 
+// The Group field's suggestions (phpunit-groups.cjs): read from a registered
+// core site's own tests, and from no other.
+test('phpunit:groups lists a core site\'s test groups, and none for an unregistered or a Gutenberg site', async () => {
+	const listTestGroups = spy(async () => ['ajax', 'restapi']);
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp', '/sites/gb'],
+		siteMeta: { '/sites/wp': { projectType: 'core' }, '/sites/gb': { projectType: 'gutenberg' } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './phpunit-groups.cjs': { listTestGroups } }
+	});
+
+	assert.deepEqual(await main.invoke('phpunit:groups', '/sites/wp'), { ok: true, groups: ['ajax', 'restapi'] });
+	assert.deepEqual(listTestGroups.calls, [['/sites/wp']]);
+	assert.equal((await main.invoke('phpunit:groups', '/sites/elsewhere')).ok, false);
+	assert.equal((await main.invoke('phpunit:groups', '/sites/gb')).ok, false);
+	assert.equal(listTestGroups.calls.length, 1);
+});
+
 test('npm:kill stops a PHP test run, which streams and settles on the script channels', async (t) => {
 	const cp = stubbedSpawn();
 	const killChildTree = spy(() => true);
@@ -8020,6 +8039,7 @@ const WIRED = new Set([
 	'npm:install',
 	'npm:run-script',
 	'phpunit:run',
+	'phpunit:groups',
 	'npm:kill',
 	'playground:start',
 	'playground:stop',

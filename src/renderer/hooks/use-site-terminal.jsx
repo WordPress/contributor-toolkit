@@ -187,7 +187,7 @@ export function useSiteTerminal({ allowedScripts, phpUnit = false, runInstall, r
 
   // `everything` is false for the help the terminal opens on, which has to fit
   // its first screen, and true when it is asked for: the `phpunit` line is in
-  // the second only. The ticket card's test button is where it shows first.
+  // the second only. The Tests section is where it shows first.
   const printHelp = useCallback(({ everything = false } = {}) => {
     writeToTerminal(`${__('Available commands:')}\n`);
     // translators: %s: the command help, padded with spaces so that this text lines up with the lines below it.

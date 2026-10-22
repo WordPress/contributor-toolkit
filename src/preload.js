@@ -102,6 +102,9 @@ contextBridge.exposeInMainWorld('api', {
 		return result;
 	}
 ,
+	// The named groups the checkout's PHP unit tests are tagged with.
+	phpUnitGroups: (dir) => ipcRenderer.invoke('phpunit:groups', dir)
+,
 	npmKill: (params) => ipcRenderer.invoke('npm:kill', params)
 ,
 	openExternal: (url) => ipcRenderer.invoke('url:open', url)

@@ -31,7 +31,7 @@ import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
-import { ticketArgs, phpunitCommandLine } from '../phpunit-plan.cjs';
+import { filterArgs, phpunitCommandLine } from '../phpunit-plan.cjs';
 import { phpunitLastRun } from './phpunit-result.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
@@ -1209,7 +1209,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
   // `loadStatus` above; the terminal and the build watch below run through it.
-  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, runPhpUnit, phpunitRun, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
+  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, runPhpUnit, phpunitRun, killCurrent } = useSiteScripts({ sitePath, branch: ticketBranches.current, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
 
   // The site's terminal (#554): the xterm instance, what is typed in it and
   // the commands it runs through the three runners above. The lock, the kill
@@ -1243,17 +1243,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     });
   }, [runInstall, writeToTerminal]);
 
-  // The Tests section's buttons: the tests tagged with the linked ticket, or
-  // the whole suite, run in the terminal exactly as typing the command there
-  // would.
-  const runTicketTests = useCallback(() => {
+  // The Tests section's buttons: the tests its Filter and Group fields pick,
+  // or the whole suite, run in the terminal exactly as typing the command
+  // there would.
+  const runFilteredPhpTests = useCallback((fields) => {
     revealTerminal();
-    runTerminalCommand(phpunitCommandLine(ticketArgs(tracTicket)));
-  }, [revealTerminal, runTerminalCommand, tracTicket]);
+    runTerminalCommand(phpunitCommandLine(filterArgs(fields)));
+  }, [revealTerminal, runTerminalCommand]);
   const runAllPhpTests = useCallback(() => {
     revealTerminal();
     runTerminalCommand('phpunit');
   }, [revealTerminal, runTerminalCommand]);
+
+  // The named groups the checkout's tests are tagged with, for the Group
+  // field to suggest. Read again on another branch, whose tests may differ.
+  // None is a field with no suggestions, not an error to show.
+  const [phpunitGroups, setPhpunitGroups] = useState([]);
+  const showsTests = skipInit && projectBuild.phpUnit;
+  const checkedOutBranch = ticketBranches.current;
+  useEffect(() => {
+    if (!showsTests) return undefined;
+    let current = true;
+    window.api.phpUnitGroups(sitePath).then((answer) => {
+      if (current) setPhpunitGroups(answer && answer.ok ? answer.groups : []);
+    }, () => {});
+    return () => { current = false; };
+  }, [showsTests, sitePath, checkedOutBranch]);
 
   const runBuildWithTerminal = useCallback(() => {
     setSetupChainEnd(null);
@@ -2481,10 +2496,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
-        tests={skipInit && projectBuild.phpUnit ? {
-          onRunTicket: tracTicket ? runTicketTests : null,
+        tests={showsTests ? {
+          groups: phpunitGroups,
+          ticket: tracTicket,
           onRunAllPhp: runAllPhpTests,
-          lastRun: phpunitLastRun(phpunitRun, { onTicket: Boolean(tracTicket) }),
+          onRunFiltered: runFilteredPhpTests,
+          lastRun: phpunitLastRun(phpunitRun, { onTicket: Boolean(tracTicket), branch: ticketBranches.current }),
           reason: testsDisabledReason({ terminalRunning, discarding, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })
         } : null}
         changed={{ ...changedGroups, onOpenFile: openAffectedFile, onRevertFile: revertFile, revertReason, revertError }}

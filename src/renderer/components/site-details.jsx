@@ -6,7 +6,7 @@ import { __, sprintf } from '@wordpress/i18n';
 // eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- see above.
 import { __experimentalTreeGrid as TreeGrid, __experimentalTreeGridCell as TreeGridCell, __experimentalTreeGridRow as TreeGridRow } from '@wordpress/components';
 import { chevronDown, chevronRight, globe, offline, page, pencil, plus, seen, table, undo, unseen, wordpress } from '@wordpress/icons';
-import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, Tooltip, VisuallyHidden } from '@wordpress/ui';
+import { Button, EmptyState, Icon, IconButton, InputControl, Link, Notice, Stack, Text, Tooltip, VisuallyHidden } from '@wordpress/ui';
 import { affectedFileTree, visibleAffectedRows } from '../affected-files.cjs';
 import { siteDetailsRows } from '../site-details.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
@@ -122,40 +122,139 @@ function WatchSection({ watch }) {
   );
 }
 
+// The last test run's outcome. A run that counted tests is a Pass or a Fail;
+// one that gave nothing to count (it did not start, was stopped, did not
+// finish, or matched no tests) is a Notice that says which. Each is the
+// design system's notice, whose icon gives it a shape as well as a colour,
+// and which reads itself out when it appears, politely: a result is not an
+// interruption. The command the run was is its last line, so the result
+// and what produced it read as one. Before a run, and while one runs, it is
+// a line of text, with the command under it once there is one.
+const RUN_OUTCOMES = {
+  pass: { intent: 'success', get title() { return __('Pass'); } },
+  fail: { intent: 'error', get title() { return __('Fail'); } },
+  notice: { intent: 'warning', get title() { return __('Notice'); } }
+};
+
+function RunOutcome({ lastRun }) {
+  const outcome = RUN_OUTCOMES[lastRun.outcome];
+  const command = lastRun.command ? <code>{lastRun.command}</code> : null;
+  if (!outcome) {
+    return (
+      <Stack direction="column" gap="xs">
+        <Text variant="body-md" role="status">{lastRun.text}</Text>
+        {command ? <Text variant="body-sm" className="muted-label">{command}</Text> : null}
+      </Stack>
+    );
+  }
+  return (
+    <Notice.Root intent={outcome.intent} politeness="polite">
+      <Notice.Title>{outcome.title}</Notice.Title>
+      <Notice.Description>{lastRun.text}</Notice.Description>
+      {command ? <Notice.Description>{command}</Notice.Description> : null}
+    </Notice.Root>
+  );
+}
+
+// Where the Core Handbook explains core's PHPUnit tests, groups and filters
+// among them.
+const PHPUNIT_HANDBOOK_URL = 'https://make.wordpress.org/core/handbook/testing/automated-testing/phpunit/';
+
 // The site's test suites, each run in the terminal, where their output is.
 // One suite so far, core's PHP unit tests; more join it as each is proven to
 // run without a host toolchain. `reason` holds every button while something
 // rewrites the tree or holds the terminal. The dot and the sentence are the
 // last run's (phpunit-result.cjs), with the command it was, since a ticket's
 // tests passing says nothing about the rest. The sentence is a status, so a
-// screen reader hears a run end without going to look.
+// screen reader hears a run end without going to look. The Filter and Group
+// fields add PHPUnit's flags of those names to a run, each only when it is
+// filled in; Enter in either runs it. With both blank there is nothing to
+// run that "Run all" does not already, so it starts nothing.
 function TestsSection({ tests }) {
   const { lastRun } = tests;
   const phpHeadingId = useId();
+  const lastRunHeadingId = useId();
+  const groupsListId = useId();
+  const [filter, setFilter] = useState('');
+  // Group starts as the linked ticket's number, which PHPUnit treats as the
+  // group of the tests written for it, and starts again whenever another
+  // ticket is linked or this one unlinked. Reset while drawing, not in an
+  // effect, so the field never shows the last ticket's number for a frame.
+  const ticketGroup = tests.ticket ? String(tests.ticket) : '';
+  const [group, setGroup] = useState(ticketGroup);
+  const [groupTicket, setGroupTicket] = useState(ticketGroup);
+  if (groupTicket !== ticketGroup) {
+    setGroupTicket(ticketGroup);
+    setGroup(ticketGroup);
+  }
+  const blank = !filter.trim() && !group.trim();
+  let groupHint = __('A group such as ajax or restapi, or a ticket number.');
+  if (tests.ticket) {
+    // translators: %s: the number of the ticket linked to the site.
+    groupHint = sprintf(__('A group such as ajax or restapi, or a ticket number, such as %s for this ticket.'), tests.ticket);
+  }
+  const runFiltered = () => {
+    if (!tests.reason && !blank) tests.onRunFiltered({ filter, group });
+  };
+  const runOnEnter = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      runFiltered();
+    }
+  };
   return (
     <Stack direction="column" gap="md">
       <Stack direction="row" align="center" gap="sm">
         <ProcessStatus status={lastRun.status} />
         <Text variant="heading-lg" render={<h2 />}>{__('Tests')}</Text>
       </Stack>
-      <Stack direction="column" gap="sm" role="group" aria-labelledby={phpHeadingId}>
+      <Stack direction="column" gap="md" role="group" aria-labelledby={phpHeadingId}>
         <Text id={phpHeadingId} variant="heading-sm" render={<h3 />}>{__('PHP unit tests')}</Text>
-        <Stack direction="column" gap="xs">
-          <Text variant="body-md" role="status" className={lastRun.status === 'failed' ? 'problem-text' : undefined}>{lastRun.text}</Text>
-          {lastRun.command ? <Text variant="body-sm" className="muted-label"><code>{lastRun.command}</code></Text> : null}
+        <Stack direction="column" gap="sm" role="group" aria-label={__('Specific tests')}>
+          <Text variant="body-sm" className="muted-label">{__('Run only the tests that match a name, a group, or both.')}</Text>
+          <InputControl
+            label={__('Filter')}
+            description={__('Part of a test class or method name, such as wpAutop.')}
+            placeholder="wpAutop"
+            value={filter}
+            onChange={(event) => setFilter(event.currentTarget.value)}
+            onKeyDown={runOnEnter}
+          />
+          <InputControl
+            label={__('Group')}
+            description={groupHint}
+            placeholder="ajax"
+            list={groupsListId}
+            value={group}
+            onChange={(event) => setGroup(event.currentTarget.value)}
+            onKeyDown={runOnEnter}
+          />
+          <datalist id={groupsListId}>
+            {/* The linked ticket first, named as such: it is the group a
+                contributor most often wants back after typing another. */}
+            {ticketGroup ? <option value={ticketGroup} label={__('This ticket')} /> : null}
+            {tests.groups.map((name) => <option key={name} value={name} />)}
+          </datalist>
         </Stack>
-        <Stack direction="row" gap="sm" wrap="wrap">
-          {tests.onRunTicket ? (
-            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} onClick={tests.onRunTicket}>
-              {__('Run this ticket\'s tests')}
+        <Stack direction="column" gap="sm">
+          <Stack direction="row" gap="sm" wrap="wrap">
+            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} disabled={blank} onClick={runFiltered}>
+              {__('Run matching tests')}
             </ReasonedUiButton>
-          ) : null}
-          <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} aria-label={__('Run all PHP unit tests')} onClick={tests.onRunAllPhp}>
-            {__('Run all')}
-          </ReasonedUiButton>
+            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} aria-label={__('Run all PHP unit tests')} onClick={tests.onRunAllPhp}>
+              {__('Run all')}
+            </ReasonedUiButton>
+          </Stack>
+          <Link href={PHPUNIT_HANDBOOK_URL} tone="neutral" onClick={(event) => { event.preventDefault(); window.api.openExternal(PHPUNIT_HANDBOOK_URL); }}>
+            {__('How core\'s PHP unit tests are organised')}
+          </Link>
         </Stack>
-        <Text variant="body-sm" className="muted-label">{__('The first run installs PHPUnit, which takes a few minutes. All of them take about 10 minutes.')}</Text>
-        <Text variant="body-sm" className="muted-label">{__('These run on SQLite and the app\'s own PHP, not MySQL, so some of core\'s tests fail here even on trunk.')}</Text>
+        {/* The results, set apart from the controls that produce them. */}
+        <hr className="card-divider" />
+        <Stack direction="column" gap="sm" role="group" aria-labelledby={lastRunHeadingId}>
+          <Text id={lastRunHeadingId} variant="heading-md" render={<h4 />}>{__('Last run')}</Text>
+          <RunOutcome lastRun={lastRun} />
+        </Stack>
       </Stack>
     </Stack>
   );
@@ -383,7 +482,7 @@ function useStickyWhileItFits(active) {
  * @param {Function} props.onCopyPath
  * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
- * @param {Object}   [props.tests]    The Tests section, or null where the site has no suite to run: `{ onRunTicket, onRunAllPhp, reason, lastRun }`, `onRunTicket` null with no ticket linked, and `lastRun` the last run's `{ status, text, command }`.
+ * @param {Object}   [props.tests]    The Tests section, or null where the site has no suite to run: `{ groups, ticket, onRunAllPhp, onRunFiltered, reason, lastRun }`, `groups` the named groups the Group field suggests, `ticket` the linked ticket's number or null, `onRunFiltered` taking the fields' `{ filter, group }`, and `lastRun` the last run's `{ status, text, command }`.
  * @param {Object}   [props.changed]  The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertReason, revertError }`. No files, no section.
  */
 export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, tests = null, changed = null }) {

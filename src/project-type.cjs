@@ -67,7 +67,7 @@ const PROJECT_TYPES = {
 			watch: { script: 'grunt', args: ['--', '_watch'], label: 'npm run grunt -- _watch' },
 			// What the terminal's `npm run <script>` accepts.
 			allowedScripts: ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'],
-			// The terminal's `phpunit` and the ticket card's test button: core's
+			// The terminal's `phpunit` and the Tests section's buttons: core's
 			// PHPUnit suite on the bundled PHP, against SQLite (phpunit-plan.cjs).
 			phpUnit: true
 		},

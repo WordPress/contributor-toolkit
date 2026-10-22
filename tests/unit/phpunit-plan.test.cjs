@@ -40,11 +40,14 @@ test('phpunitCommandArgs takes the words after phpunit, and nothing else as a ph
 
 test('phpunitCommandLine is the command a run is shown as', () => {
 	assert.equal(plan.phpunitCommandLine([]), 'phpunit');
-	assert.equal(plan.phpunitCommandLine(plan.ticketArgs(12821)), 'phpunit --group 12821');
+	assert.equal(plan.phpunitCommandLine(['--group', '12821']), 'phpunit --group 12821');
 });
 
-test('ticketArgs runs the tests tagged with the ticket, which PHPUnit groups by number', () => {
-	assert.deepEqual(plan.ticketArgs(12821), ['--group', '12821']);
+test('filterArgs passes the filter and the group that were filled in, and leaves a blank one off', () => {
+	assert.deepEqual(plan.filterArgs({ filter: 'Tests_wp_ajax_delete_link', group: 'ajax' }), ['--filter', 'Tests_wp_ajax_delete_link', '--group', 'ajax']);
+	assert.deepEqual(plan.filterArgs({ filter: ' Tests_Foo ', group: '' }), ['--filter', 'Tests_Foo']);
+	assert.deepEqual(plan.filterArgs({ filter: '  ', group: 'ajax' }), ['--group', 'ajax']);
+	assert.deepEqual(plan.filterArgs({ filter: '', group: '' }), []);
 });
 
 test('phpunitArgs reads core\'s configuration unless the contributor names one', () => {
