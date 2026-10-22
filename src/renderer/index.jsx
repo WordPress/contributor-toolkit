@@ -32,6 +32,7 @@ import { serverProcess, watchProcess, serverSection } from './site-processes.cjs
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
 import { filterArgs, phpunitCommandLine } from '../phpunit-plan.cjs';
+import { groupsFromAnswer, listsTestGroups } from './tests-section.cjs';
 import { phpunitLastRun } from './phpunit-result.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
@@ -1256,19 +1257,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   }, [revealTerminal, runTerminalCommand]);
 
   // The named groups the checkout's tests are tagged with, for the Group
-  // field to suggest. Read again on another branch, whose tests may differ.
-  // None is a field with no suggestions, not an error to show.
+  // field to suggest. Read when the site comes on screen and again on
+  // another branch, whose tests may differ; when is listsTestGroups's to say
+  // and what the answer means groupsFromAnswer's (tests-section.cjs).
   const [phpunitGroups, setPhpunitGroups] = useState([]);
   const showsTests = skipInit && projectBuild.phpUnit;
   const checkedOutBranch = ticketBranches.current;
+  const listsGroups = listsTestGroups({ showsTests, isActive, branch: checkedOutBranch });
   useEffect(() => {
-    if (!showsTests) return undefined;
+    if (!listsGroups) return undefined;
     let current = true;
     window.api.phpUnitGroups(sitePath).then((answer) => {
-      if (current) setPhpunitGroups(answer && answer.ok ? answer.groups : []);
+      if (current) setPhpunitGroups(groupsFromAnswer(answer));
     }, () => {});
     return () => { current = false; };
-  }, [showsTests, sitePath, checkedOutBranch]);
+  }, [listsGroups, sitePath, checkedOutBranch]);
 
   const runBuildWithTerminal = useCallback(() => {
     setSetupChainEnd(null);
@@ -1608,7 +1611,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // from under it. Not re-derived here — that is how a second answer starts.
   // Why a file's revert button is held, if it is (#669): the guard and the
   // sentences the discard link has, since it writes the tree the same way.
-  const revertReason = discardDisabledReason({ patchHasChanges: true, isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
+  // A PHP test run reads the checkout for minutes, so nothing that rewrites
+  // it starts while one runs: revert, discard and the move onto trunk.
+  const testsRunning = Boolean(phpunitRun && phpunitRun.running);
+  const revertReason = discardDisabledReason({ patchHasChanges: true, isUpdating, installing, building, testsRunning, devServerActive: isDevProcessActive, discarding });
   const layerExitBlocked = discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
   const layerExit = layerExitFailure({ patchSaveError, discardError });
 
@@ -1859,6 +1865,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     isUpdating,
     installing,
     building,
+    testsRunning,
     devServerActive: isDevProcessActive,
     discarding
   });
@@ -1914,6 +1921,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     isUpdating,
     installing,
     building,
+    testsRunning,
     devServerActive: isDevProcessActive,
     discarding
   });
@@ -2393,7 +2401,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           staleNotice={staleTicketNotice ? {
             ...staleTicketNotice,
             busy: ticketSaving,
-            reason: rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding, noun: workItem.noun }),
+            reason: rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, testsRunning, devServerActive: isDevProcessActive, discarding, noun: workItem.noun }),
             onAction: rebaseTicket
           } : null}
           feedback={ticketFeedback}

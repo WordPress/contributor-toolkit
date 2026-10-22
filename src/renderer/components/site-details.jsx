@@ -10,6 +10,7 @@ import { Button, EmptyState, Icon, IconButton, InputControl, Link, Notice, Stack
 import { affectedFileTree, visibleAffectedRows } from '../affected-files.cjs';
 import { siteDetailsRows } from '../site-details.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
+import { groupFieldHint, outcomeNotice, picksTests } from '../tests-section.cjs';
 import { ReasonedUiButton } from './reasoned-button.jsx';
 
 // A section's heading, with its process's dot and the button that starts and
@@ -129,15 +130,10 @@ function WatchSection({ watch }) {
 // and which reads itself out when it appears, politely: a result is not an
 // interruption. The command the run was is its last line, so the result
 // and what produced it read as one. Before a run, and while one runs, it is
-// a line of text, with the command under it once there is one.
-const RUN_OUTCOMES = {
-  pass: { intent: 'success', get title() { return __('Pass'); } },
-  fail: { intent: 'error', get title() { return __('Fail'); } },
-  notice: { intent: 'warning', get title() { return __('Notice'); } }
-};
-
+// a line of text, with the command under it once there is one. Which is
+// which is outcomeNotice's to say (tests-section.cjs).
 function RunOutcome({ lastRun }) {
-  const outcome = RUN_OUTCOMES[lastRun.outcome];
+  const outcome = outcomeNotice(lastRun.outcome);
   const command = lastRun.command ? <code>{lastRun.command}</code> : null;
   if (!outcome) {
     return (
@@ -187,14 +183,9 @@ function TestsSection({ tests }) {
     setGroupTicket(ticketGroup);
     setGroup(ticketGroup);
   }
-  const blank = !filter.trim() && !group.trim();
-  let groupHint = __('A group such as ajax or restapi, or a ticket number.');
-  if (tests.ticket) {
-    // translators: %s: the number of the ticket linked to the site.
-    groupHint = sprintf(__('A group such as ajax or restapi, or a ticket number, such as %s for this ticket.'), tests.ticket);
-  }
+  const picks = picksTests({ filter, group });
   const runFiltered = () => {
-    if (!tests.reason && !blank) tests.onRunFiltered({ filter, group });
+    if (!tests.reason && picks) tests.onRunFiltered({ filter, group });
   };
   const runOnEnter = (event) => {
     if (event.key === 'Enter') {
@@ -222,7 +213,7 @@ function TestsSection({ tests }) {
           />
           <InputControl
             label={__('Group')}
-            description={groupHint}
+            description={groupFieldHint(tests.ticket)}
             placeholder="ajax"
             list={groupsListId}
             value={group}
@@ -238,7 +229,7 @@ function TestsSection({ tests }) {
         </Stack>
         <Stack direction="column" gap="sm">
           <Stack direction="row" gap="sm" wrap="wrap">
-            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} disabled={blank} onClick={runFiltered}>
+            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} disabled={!picks} onClick={runFiltered}>
               {__('Run matching tests')}
             </ReasonedUiButton>
             <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} aria-label={__('Run all PHP unit tests')} onClick={tests.onRunAllPhp}>

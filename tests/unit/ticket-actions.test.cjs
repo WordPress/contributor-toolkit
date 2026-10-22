@@ -41,6 +41,11 @@ test('rebaseDisabledReason adds the tree-rewrite guards after the shared gate (#
 	assert.equal(rebaseDisabledReason({ devServerActive: false, discarding: false }), null);
 	assert.equal(rebaseDisabledReason({ devServerActive: true }), 'Stop the dev server before updating the ticket.');
 	assert.equal(rebaseDisabledReason({ discarding: true }), 'Wait for the discard to finish before updating the ticket.');
+	// A PHP test run reads the checkout for minutes: the move waits for it, and
+	// says so before the dev server, which only the contributor can stop.
+	assert.equal(rebaseDisabledReason({ testsRunning: true }), 'Wait for the PHP unit tests to finish before updating the ticket.');
+	assert.equal(rebaseDisabledReason({ testsRunning: true, noun: 'issue' }), 'Wait for the PHP unit tests to finish before updating the issue.');
+	assert.match(rebaseDisabledReason({ testsRunning: true, devServerActive: true }), /PHP unit tests/);
 	// The shared gate still leads: a trunk update with the dev server running
 	// reports the update, which clears on its own.
 	assert.match(rebaseDisabledReason({ updateState: 'fetching', devServerActive: true }), /trunk update/);

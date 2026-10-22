@@ -62,17 +62,22 @@ const DROP_IN_REL = 'src/wp-content/db.php';
 const PLUGIN_REL = `src/wp-content/plugins/${SQLITE_PLUGIN_SLUG}`;
 
 // The arguments after `phpunit` in a terminal line, or null when the line is
-// not a phpunit command. Split on whitespace: quoting is not supported.
+// not a phpunit command. Split on whitespace, except inside double quotes,
+// which hold one argument, spaces and all: how phpunitCommandLine writes an
+// argument with a space in it, such as a filter on a data set. A double
+// quote inside an argument has no way in.
 function phpunitCommandArgs(line) {
 	const trimmed = String(line || '').trim();
 	const match = /^phpunit(?:\s+(.*))?$/i.exec(trimmed);
 	if (!match) return null;
-	return (match[1] || '').split(/\s+/).filter(Boolean);
+	return [...(match[1] || '').matchAll(/"([^"]*)"|(\S+)/g)].map((part) => (part[1] !== undefined ? part[1] : part[2]));
 }
 
-// The command line a run is shown as, in the terminal and the Tests section.
+// The command line a run is shown as, in the terminal and the Tests section,
+// and what the Tests section's buttons type there: an argument with a space
+// in it is quoted, so phpunitCommandArgs reads it back as the one argument.
 function phpunitCommandLine(args) {
-	return ['phpunit', ...args].join(' ');
+	return ['phpunit', ...args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg))].join(' ');
 }
 
 // The run the Tests section's Filter and Group fields start: each flag only

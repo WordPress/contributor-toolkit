@@ -385,10 +385,10 @@ function discardBlocked({ isUpdating, installing, building, devServerActive, dis
  *
  * @param {{patchLoading?: boolean, patchLoadFailed?: boolean, patchHasChanges?: boolean,
  *          nothingOfYours?: boolean, isUpdating?: boolean, installing?: boolean, building?: boolean,
- *          devServerActive?: boolean, discarding?: boolean}} state
+ *          testsRunning?: boolean, devServerActive?: boolean, discarding?: boolean}} state
  * @return {string|null}
  */
-function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges, nothingOfYours, isUpdating, installing, building, devServerActive, discarding } = {}) {
+function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges, nothingOfYours, isUpdating, installing, building, testsRunning, devServerActive, discarding } = {}) {
 	if (discarding) return __('Changes are already being discarded.');
 	if (patchLoading) return __('Wait for your changes to finish loading.');
 	if (patchLoadFailed) return __('Changes could not be loaded.');
@@ -397,6 +397,9 @@ function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges,
 	if (isUpdating) return __('Wait for the trunk update to finish before discarding changes.');
 	if (installing) return __('Wait for the installation to finish before discarding changes.');
 	if (building) return __('Wait for the build to finish before discarding changes.');
+	// A test run reads the checkout for minutes; a discard under it would turn
+	// its results into the discard's.
+	if (testsRunning) return __('Wait for the PHP unit tests to finish before discarding changes.');
 	if (devServerActive) return __('Stop the dev server before discarding changes.');
 	return null;
 }
