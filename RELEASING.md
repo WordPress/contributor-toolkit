@@ -2,13 +2,20 @@
 
 How to cut a release of the WordPress Contributor Toolkit. Run every command from the repository root unless a step says otherwise.
 
-Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags add a `v`: `v1.2.0`, `v1.2.0-beta.2`.
+Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags add a `v`: `v1.2.0`, `v1.2.0-beta.2`. In the commands below, `X.Y.Z` stands for the full version, `-beta.N` included.
 
 ## 1. Open the version-bump pull request
 
 `electron-builder` names the artifacts after the version in `package.json`, so the version moves before anything is built.
 
-1. Branch from an up-to-date trunk.
+1. Branch `release/X.Y.Z` from an up-to-date trunk. Check first that trunk matches `origin`, that nothing tracked has changed (untracked files are fine), and that the tag does not exist yet. The two `rev-parse` lines print the same commit, and the last two commands print nothing:
+
+   ```bash
+   git fetch origin trunk --tags
+   git rev-parse trunk origin/trunk
+   git status --porcelain --untracked-files=no
+   git ls-remote --tags origin refs/tags/vX.Y.Z
+   ```
 2. Change the version in three places: `"version"` in `package.json`, and the two root `"version"` fields at the top of `package-lock.json` (the top-level one and `packages[""]`). No dependency version changes.
 3. Check the two files agree:
 
@@ -42,7 +49,7 @@ app="$mnt/WordPress Contributor Toolkit.app"
 npx asar list "$app/Contents/Resources/app.asar" | grep -E '^/[^/]+$'
 node -p "JSON.parse(require('@electron/asar').extractFile(process.argv[1], 'node_modules/npm/package.json')).version" "$app/Contents/Resources/app.asar"
 plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist"
-hdiutil detach "$mnt"
+hdiutil detach "$mnt" && rmdir "$mnt"
 ```
 
 The first command prints `/node_modules`, `/package.json` and `/src`, and nothing else. The second prints a version starting with `11.`. The third prints `X.Y.Z`.
@@ -57,9 +64,21 @@ Then squash-merge. The merged commit has the same content as that build, and it 
 gh pr view <number> --json mergeCommit --jq .mergeCommit.oid
 ```
 
+Check that it matches the build: after `git fetch origin trunk`, `git diff --stat <head commit you checked> <merged commit>` prints nothing. If it prints anything, trunk moved before the merge, and the artifacts are not the merged code.
+
 ## 4. Publish the GitHub release
 
-Create the tag and the release together, on the bump commit. Every file is named by its path, so the command can run from anywhere:
+Write the notes first. They open with what changed for a contributor, grouped by theme, with the pull request number on each line, and end with a **Downloads** section naming the file for each platform. The [v1.2.0 notes](https://github.com/WordPress/contributor-toolkit/releases/tag/v1.2.0) are a good model for a stable release, and the previous beta's notes for a beta.
+
+They cover everything since the previous stable release for a stable release, the betas' changes included, and since the previous tag of any kind for a beta. Find the base tag, and the commit count since it that the opening paragraph gives (it includes the bump commit):
+
+```bash
+git fetch origin trunk --tags
+git describe --tags --abbrev=0 --exclude '*-beta*' <bump commit SHA>^   # stable; drop --exclude for a beta
+git rev-list --count <base tag>..<bump commit SHA>
+```
+
+Then create the tag and the release together, on the bump commit. Every file is named by its path, so the command can run from anywhere:
 
 ```bash
 gh release create vX.Y.Z \
@@ -74,16 +93,6 @@ gh release create vX.Y.Z \
 - **A beta** adds `--prerelease`, so `releases/latest` stays on the last stable release.
 - **A stable release** adds `--latest`, so it takes `releases/latest`.
 
-The notes open with what changed for a contributor, grouped by theme, with the pull request number on each line, and end with a **Downloads** section naming the file for each platform. The [v1.2.0 notes](https://github.com/WordPress/contributor-toolkit/releases/tag/v1.2.0) are a good model for a stable release, and the previous beta's notes for a beta.
-
-They cover everything since the previous stable release for a stable release, the betas' changes included, and since the previous tag of any kind for a beta. Fetch first, then find the base and the commit count, which includes the bump commit:
-
-```bash
-git fetch origin trunk --tags
-git describe --tags --abbrev=0 --exclude '*-beta*' <bump commit SHA>^   # stable; drop --exclude for a beta
-git rev-list --count <base tag>..<bump commit SHA>
-```
-
 ## 5. Deploy the docs
 
 The docs site tracks the latest release, not trunk, so publish it for the new tag:
@@ -92,18 +101,29 @@ The docs site tracks the latest release, not trunk, so publish it for the new ta
 gh workflow run docs.yml --ref trunk -f ref=vX.Y.Z
 ```
 
-The dispatch has to be on trunk; the `ref` input is the tag. A dispatch on any other branch finishes green without deploying, so check that the run's **deploy to Pages** job ran:
+The dispatch has to be on trunk; the `ref` input is the tag. A dispatch on any other branch finishes green without deploying, so check that the run's **deploy to Pages** job succeeded. A new run takes a few seconds to appear, so check that the run listed was created after the dispatch, not the previous release's:
 
 ```bash
-gh run list --workflow docs.yml --event workflow_dispatch -L 1
-gh run watch <run id>
+gh run list --workflow docs.yml --event workflow_dispatch --branch trunk -L 1 --json databaseId,createdAt
+gh run watch <run id> --exit-status
+gh run view <run id> --json jobs --jq '.jobs[] | select(.name=="deploy to Pages") | .conclusion'
 ```
+
+The last command prints `success`.
 
 See [the documentation site](CONTRIBUTING.md#the-documentation-site) in `CONTRIBUTING.md`.
 
 ## 6. Close the milestone
 
-If the release has a milestone, close it and move anything still open in it to the next one. A beta often has none: leave the stable release's milestone open until the stable release ships.
+If the release has a milestone named `vX.Y.Z`, close it and move anything still open in it to the next one. A beta often has none; close the beta's own milestone if it has one, and leave the stable release's milestone open until the stable release ships.
+
+```bash
+gh issue list --milestone vX.Y.Z --state open
+gh api 'repos/WordPress/contributor-toolkit/milestones?state=open' --jq '.[] | "\(.number) \(.title)"'
+gh api -X PATCH repos/WordPress/contributor-toolkit/milestones/<number> -f state=closed
+```
+
+The first lists what is still open, the second finds the milestone's number, and the third closes it.
 
 ## 7. Check the result
 

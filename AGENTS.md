@@ -4,7 +4,7 @@ Instructions for AI coding agents working in this repository. Tool-neutral and c
 
 ## Where things are, whatever agent you use
 
-The review standard and its skill, and neither is specific to one tool despite what their paths suggest:
+Three things, none of them specific to one tool despite what their paths suggest:
 
 **The review standard** — [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md). The five dimensions, this project's invariants, the procedure to run them, and the reporting format. Read it directly if your agent has not already.
 
@@ -21,7 +21,7 @@ In Codex, `/review` is the built-in user-facing review command. Whenever `/revie
 
 There is deliberately no per-tool copy of the *standard*. A wrapper is a few lines that defer to it; duplicating the standard itself is the thing to avoid — if you find yourself doing that, fix the pointer, not the number of copies.
 
-**Releasing** — [`RELEASING.md`](RELEASING.md) is the procedure, wrapped the same way as the `release` skill in [`.claude/skills/release/`](.claude/skills/release/) (`/release X.Y.Z` in Claude Code) and [`.agents/skills/release/`](.agents/skills/release/). The wrapper adds the stops before each public step and leaves the merge to the person.
+**Releasing** — [`RELEASING.md`](RELEASING.md) is the procedure. The `release` skill wraps it the same way, in [`.claude/skills/release/`](.claude/skills/release/) (`/release X.Y.Z` in Claude Code) and [`.agents/skills/release/`](.agents/skills/release/). The wrapper adds the stops before each public step and leaves the merge to the person.
 
 ## What this is
 

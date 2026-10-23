@@ -15,11 +15,11 @@ The skill takes the version as its argument (`2.0.0`, `2.1.0-beta.1`). If none i
 
 What this skill adds on top:
 
-**Check the starting state first.** Run `git fetch origin trunk --tags`, then stop and report if `git rev-parse trunk` differs from `git rev-parse origin/trunk`, if `git status --porcelain --untracked-files=no` prints anything, or if `git ls-remote --tags origin refs/tags/vX.Y.Z` prints anything. Untracked files do not block a release. If a milestone named `vX.Y.Z` exists, report any issues still open in it, without stopping.
+**Check the starting state first.** Run the checks in section 1, item 1 of `RELEASING.md`, and stop and report if any fails. If a milestone named for the full version exists, report any issues still open in it, without stopping.
 
 **Wait for the person's yes before each of these:**
 
-1. Creating the release branch. Name it `release/X.Y.Z` and confirm the name.
+1. Creating the release branch, after confirming its name.
 2. Pushing the branch and opening the bump pull request.
 3. Pushing to the branch again, when it has to be updated with trunk before the merge. Then repeat the artifact checks on the new head's build.
 4. `gh release create`, after showing the final notes and the exact command.
@@ -29,11 +29,11 @@ The merge is the person's, never this skill's. Wait to be told it is merged.
 
 **The bump pull request is an ordinary pull request.** Fill in `.github/pull_request_template.md` and run the review AGENTS.md requires before opening it.
 
-**The person downloads the artifacts; this skill checks them.** Ask the person to download the three files from the build for the pull request's current head into a directory they name, then run the checks in `RELEASING.md` step 2 on them and report each result.
+**The person downloads the artifacts; this skill checks them.** Ask the person to download the three files from the build for the pull request's current head into a directory they name, then run the checks in section 2 of `RELEASING.md`, *Check the signed artifacts*, and report each result.
 
-**Draft the release notes once the pull request is merged.** Write them plainly, save them to the scratchpad or a temporary directory, not the repository, and show them in the chat for editing before step 4.
+**Draft the release notes once the pull request is merged.** Write them plainly, save them to a temporary directory outside the repository, and show them in the chat for editing before `gh release create` (item 4 above).
 
-**Run the checks in `RELEASING.md` step 7 before reporting done**, and report each one.
+**Run the checks in section 7 of `RELEASING.md`, *Check the result*, before reporting done**, and report each one.
 
 ## Notes
 
