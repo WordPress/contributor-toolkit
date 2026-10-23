@@ -2,7 +2,7 @@
 
 How to cut a release of the WordPress Contributor Toolkit. Run every command from the repository root unless a step says otherwise.
 
-Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags add a `v`: `v1.2.0`, `v1.2.0-beta.2`. In the commands below, `X.Y.Z` stands for the full version, `-beta.N` included.
+Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags add a `v`: `v1.2.0`, `v1.2.0-beta.2`. Any other suffix, such as `-rc.1`, is not covered here: stop and decide how to release it before using these steps. In the commands below, `X.Y.Z` stands for the full version, `-beta.N` included.
 
 ## 1. Open the version-bump pull request
 
@@ -32,11 +32,11 @@ Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags ad
    git diff trunk -- . ':!src/languages'
    ```
 
-   `npm run i18n:download` rewrites `build.electronLanguages` whenever it adds or removes a catalog, and prints the resulting list as `Chromium locales kept`. Name the locales it added or removed in the pull request description.
+   `npm run i18n:download` rewrites `build.electronLanguages` whenever the Chromium locales the catalogs need change, and prints the resulting list as `Chromium locales kept`. Name the locales it added or removed in the pull request description.
 
 ## 2. Check the signed artifacts
 
-Buildkite builds signed Windows, macOS and Linux artifacts for the pull request's branch. Before merging, open the build for the pull request's **current head commit** (`gh pr view <number> --json headRefOid --jq .headRefOid`), download the three files into one directory, and check them. Buildkite reports nothing back to the pull request, so the commit can only be read on the build's page in Buildkite: compare it with `headRefOid` there, by eye.
+Buildkite builds signed Windows, macOS and Linux artifacts for the pull request's branch. Before merging, open the build for the pull request's **current head commit** (`gh pr view <number> --json headRefOid --jq .headRefOid`), download the three files into one directory, and check them. Buildkite reports nothing back to the pull request (`.buildkite/pipeline.yml` asks for a commit status per platform, but none reached the 2.0.0 bump pull request), so the commit can only be read on the build's page in Buildkite: compare it with `headRefOid` there, by eye.
 
 - The files are named `wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, `wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg` and `wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.AppImage`. The Windows file may download as `dist_wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, because the Windows build uploads it from `dist\`. Rename it to remove the `dist_` prefix, so its name matches the other two.
 - The macOS app is signed with Automattic's Developer ID, notarized, and has its ticket stapled.
@@ -73,7 +73,14 @@ It prints a `subject` line naming `O=Automattic Inc.`, and fails with `not signe
 
 ## 3. Merge
 
-Update the branch with trunk first if it has fallen behind, wait for the new head's build, and download and check the artifacts again from it. The files from the build you checked last are what the release ships.
+Check that the head you checked already contains trunk. The second command prints `up to date`; if it prints nothing, update the branch with trunk, wait for the new head's build, and download and check the artifacts again from it:
+
+```bash
+git fetch origin trunk "pull/<number>/head"
+git merge-base --is-ancestor origin/trunk <head commit you checked> && echo up to date
+```
+
+The files from the build you checked last are what the release ships.
 
 Then squash-merge, with the head you checked as a guard, so the merge is refused if anything was pushed after the check:
 
@@ -87,7 +94,7 @@ The merged commit has the same content as that build, and it is the one you tag.
 gh pr view <number> --json mergeCommit --jq .mergeCommit.oid
 ```
 
-Check that it matches the build: after `git fetch origin trunk`, `git diff --stat <head commit you checked> <merged commit>` prints nothing. If it prints anything, trunk moved before the merge, and the artifacts are not the merged code.
+Check that it matches the build: after `git fetch origin trunk`, `git diff --stat <head commit you checked> <merged commit>` prints nothing. If it prints anything, trunk moved before the merge, and the artifacts are not the merged code. Stop there and do not tag: the release needs artifacts built from the merged commit.
 
 ## 4. Publish the GitHub release
 
@@ -97,7 +104,7 @@ They cover everything since the previous stable release for a stable release, th
 
 ```bash
 git fetch origin trunk --tags
-git describe --tags --abbrev=0 --exclude '*-beta*' <bump commit SHA>^   # stable; drop --exclude for a beta
+git describe --tags --abbrev=0 --exclude '*-*' <bump commit SHA>^   # stable; drop --exclude for a beta
 git rev-list --count <base tag>..<bump commit SHA>
 ```
 
@@ -118,7 +125,9 @@ gh release create vX.Y.Z \
 
 ## 5. Deploy the docs
 
-The docs site tracks the latest release, not trunk, so publish it for the new tag:
+Skip this step for a beta. The docs site tracks the latest release, not trunk, and a beta does not take `releases/latest`, so its docs would describe UI the Download button's build does not have.
+
+For a stable release, publish the docs for the new tag:
 
 ```bash
 gh workflow run docs.yml --ref trunk -f ref=vX.Y.Z
@@ -153,6 +162,6 @@ The first lists what is still open, the second finds the milestone's number, and
 - `gh release view vX.Y.Z` lists the three files under the names from step 2, and shows the release as a pre-release only for a beta.
 - `gh api repos/WordPress/contributor-toolkit/releases/latest --jq .tag_name` prints `vX.Y.Z` for a stable release, and the previous stable tag for a beta.
 - `git ls-remote origin refs/tags/vX.Y.Z` points at the bump commit.
-- The docs run from step 5 finished with its deploy job.
+- For a stable release, the docs run from step 5 finished with its deploy job.
 - The Download button on [the docs site](https://wordpress.github.io/contributor-toolkit/) reads `vX.Y.Z` for a stable release, and the previous stable tag for a beta. Open the site in a new tab or a private window: the button keeps the release it read in the tab's session storage (`docs/.vitepress/theme/DownloadButton.vue`), so a tab opened before the release goes on showing the old one, reloads included.
 - The milestone, if the release has one, is closed.

@@ -11,7 +11,7 @@ Drive a release through `RELEASING.md`, pausing wherever a step is public or nee
 
 **Read [`RELEASING.md`](../../../RELEASING.md) and follow it.** It is the specification for this task, not background reading: every step and every command lives there, including the artifact checks, how to pick the base for the release notes, and the checks after publishing. Do not restate it here; run it. Changes to how releases work go there, not into this wrapper.
 
-The skill takes the version as its argument (`2.0.0`, `2.1.0-beta.1`). If none is given, ask. A version with `-beta.N` is a beta; anything else is stable.
+The skill takes the version as its argument (`2.0.0`, `2.1.0-beta.1`). If none is given, ask. A version of the form `X.Y.Z` is stable and `X.Y.Z-beta.N` is a beta. Stop and ask about any other form, such as `2.1.0-rc.1`, rather than treating it as stable.
 
 What this skill adds on top:
 
@@ -23,9 +23,9 @@ What this skill adds on top:
 2. Pushing the branch and opening the bump pull request.
 3. Pushing to the branch again, when it has to be updated with trunk before the merge. Then repeat the artifact checks on the new head's build.
 4. `gh release create`, after showing the final notes and the exact command.
-5. Dispatching the docs workflow, and closing the milestone if the release has one.
+5. Dispatching the docs workflow for a stable release (a beta skips it), and closing the milestone if the release has one.
 
-The merge is the person's. Wait to be told it is merged, unless the person asks this skill to merge: then merge with the command in section 3 of `RELEASING.md`, guarded by the head commit the artifacts were checked on, and run the checks that follow it there.
+The merge is the person's. Wait to be told it is merged, unless the person asks this skill to merge: then merge with the command in section 3 of `RELEASING.md`, guarded by the head commit the artifacts were checked on, and run the checks that follow it there. If the check after the merge prints anything, stop and report it; do not tag.
 
 **The bump pull request is an ordinary pull request.** Fill in `.github/pull_request_template.md` and run the review AGENTS.md requires before opening it.
 
