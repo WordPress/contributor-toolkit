@@ -339,3 +339,76 @@ test('CLI accepts both locale spellings and rejects unknown or duplicate flags',
 	assert.throws(() => parseArgs(['--lang=de']), /Unknown or invalid argument/);
 	assert.throws(() => parseArgs(['--locale=de', '--locales=fr']), /only once/);
 });
+
+// build.electronLanguages follows the catalogs. Electron's locale names are handed in, as Windows
+// names them, so the test reads no installed Electron.
+const WIN_LOCALES = ['cs', 'de', 'en-GB', 'en-US', 'es', 'es-419', 'fr', 'pt-BR', 'pt-PT'];
+
+function tempPackageJson(t, electronLanguages) {
+	const file = path.join(tempDir(t), 'package.json');
+	fs.writeFileSync(file, `${JSON.stringify({ name: 'x', build: { files: ['src/**/*'], electronLanguages }, devDependencies: {} }, null, 2)}\n`);
+	return file;
+}
+
+test('the Chromium locales follow every catalog left in the directory, and only the list changes', async (t) => {
+	const dir = tempDir(t);
+	fs.writeFileSync(path.join(dir, 'cs.json'), 'existing Czech catalog');
+	const packageJson = tempPackageJson(t, ['en-US', 'cs']);
+	const before = fs.readFileSync(packageJson, 'utf8');
+	const { fetch } = fakeFetch({
+		[API]: { translation_sets: [{ locale: 'pt-br', slug: 'default', percent_translated: 100, current_count: 26 }] },
+		[exportUrl('pt-br')]: catalog('pt-br', 'Nenhum site ainda.')
+	});
+
+	const result = await downloadTranslations({ dir, fetch, locales: ['pt-br'], packageJson, electronLocales: WIN_LOCALES });
+
+	const list = ['en-US', 'cs', 'pt-BR', 'pt_BR'];
+	assert.deepEqual(result.electronLanguages, { list, changed: true });
+	const after = fs.readFileSync(packageJson, 'utf8');
+	assert.deepEqual(JSON.parse(after).build.electronLanguages, list);
+	assert.equal(after, before.replace('"cs"\n', '"cs",\n      "pt-BR",\n      "pt_BR"\n'), 'nothing else in package.json moves');
+});
+
+test('a removed catalog takes its Chromium locale with it', async (t) => {
+	const dir = tempDir(t);
+	fs.writeFileSync(path.join(dir, 'fr.json'), 'old French catalog');
+	const packageJson = tempPackageJson(t, ['en-US', 'de', 'fr']);
+	const { fetch } = fakeFetch({ [API]: SETS, [exportUrl('de')]: catalog('de', 'x'), [exportUrl('pt-br')]: catalog('pt-br', 'y') });
+
+	const result = await downloadTranslations({ dir, fetch, packageJson, electronLocales: WIN_LOCALES });
+
+	assert.deepEqual(result.removed, ['fr']);
+	assert.deepEqual(JSON.parse(fs.readFileSync(packageJson, 'utf8')).build.electronLanguages, ['en-US', 'de', 'pt-BR', 'pt_BR']);
+});
+
+test('a list that already matches leaves package.json unwritten', async (t) => {
+	const dir = tempDir(t);
+	const packageJson = tempPackageJson(t, ['en-US', 'de', 'pt-BR', 'pt_BR']);
+	const stamp = new Date('2001-01-01T00:00:00Z');
+	fs.utimesSync(packageJson, stamp, stamp);
+	const { fetch } = fakeFetch({ [API]: SETS, [exportUrl('de')]: catalog('de', 'x'), [exportUrl('pt-br')]: catalog('pt-br', 'y') });
+
+	const result = await downloadTranslations({ dir, fetch, packageJson, electronLocales: WIN_LOCALES });
+
+	assert.equal(result.electronLanguages.changed, false);
+	assert.equal(fs.statSync(packageJson).mtimeMs, stamp.getTime());
+});
+
+test('a failed export leaves package.json alone, and without one the result carries no list', async (t) => {
+	const packageJson = tempPackageJson(t, ['en-US']);
+	const before = fs.readFileSync(packageJson, 'utf8');
+	const { fetch } = fakeFetch({ [API]: SETS, [exportUrl('de')]: catalog('de', 'x'), [exportUrl('pt-br')]: 500 });
+	await assert.rejects(downloadTranslations({ dir: tempDir(t), fetch, packageJson, electronLocales: WIN_LOCALES }), /500/);
+	assert.equal(fs.readFileSync(packageJson, 'utf8'), before);
+
+	const ok = fakeFetch({ [API]: SETS, [exportUrl('de')]: catalog('de', 'x'), [exportUrl('pt-br')]: catalog('pt-br', 'y') });
+	const result = await downloadTranslations({ dir: tempDir(t), fetch: ok.fetch });
+	assert.equal(result.electronLanguages, null);
+});
+
+test('the table names the Chromium locales only when this run changed them', () => {
+	const base = { shipped: [{ locale: 'de', percent: 100, strings: 26, selectable: true }], removed: [] };
+	assert.match(formatTable({ ...base, electronLanguages: { list: ['en-US', 'de'], changed: true } }), /Chromium locales kept \(build\.electronLanguages\): en-US, de/);
+	assert.doesNotMatch(formatTable({ ...base, electronLanguages: { list: ['en-US', 'de'], changed: false } }), /Chromium locales/);
+	assert.doesNotMatch(formatTable(base), /Chromium locales/);
+});
