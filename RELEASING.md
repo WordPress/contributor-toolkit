@@ -26,39 +26,62 @@ Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags ad
 
 4. Run `npm run i18n:download` and commit `src/languages/`. It writes a catalog for every locale at least 80% translated on translate.wordpress.org, removes every other catalog in `src/languages/` (an untracked one included), and prints a coverage table. Right-to-left locales are held back even at 80%, and the output lists them after the table under `Not shipped:`. When no locale reaches 80% and there is no catalog to remove, it prints `No locales downloaded.` instead of a table. If it exits with an error, nothing in `src/languages/` changed; run it again. Skipping this step ships the previous release's translations, or none, and nothing fails. See [Translatable strings](CONTRIBUTING.md#translatable-strings) in `CONTRIBUTING.md`.
 5. Run `npm run lint` and `npm test`.
-6. Open the pull request, titled `Bump version to X.Y.Z`, and paste the coverage table into its description, or the script's message if it printed no table. [#533](https://github.com/WordPress/contributor-toolkit/pull/533) is a good model. Outside `src/languages/`, the diff must be the three version lines and nothing else:
+6. Open the pull request, titled `Bump version to X.Y.Z`, and paste the coverage table into its description, or the script's message if it printed no table. [#533](https://github.com/WordPress/contributor-toolkit/pull/533) is a good model. Outside `src/languages/`, the diff must be the three version lines, plus any change to `build.electronLanguages` in `package.json`, and nothing else:
 
    ```bash
    git diff trunk -- . ':!src/languages'
    ```
 
+   `npm run i18n:download` rewrites `build.electronLanguages` whenever it adds or removes a catalog, and prints the resulting list as `Chromium locales kept`. Name the locales it added or removed in the pull request description.
+
 ## 2. Check the signed artifacts
 
-Buildkite builds signed Windows, macOS and Linux artifacts for the pull request's branch. Before merging, open the build for the pull request's **current head commit** (`gh pr view <number> --json headRefOid --jq .headRefOid`), download the three files into one directory, and check:
+Buildkite builds signed Windows, macOS and Linux artifacts for the pull request's branch. Before merging, open the build for the pull request's **current head commit** (`gh pr view <number> --json headRefOid --jq .headRefOid`), download the three files into one directory, and check them. Buildkite reports nothing back to the pull request, so the commit can only be read on the build's page in Buildkite: compare it with `headRefOid` there, by eye.
 
 - The files are named `wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, `wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg` and `wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.AppImage`. The Windows file may download as `dist_wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, because the Windows build uploads it from `dist\`. Rename it to remove the `dist_` prefix, so its name matches the other two.
+- The macOS app is signed with Automattic's Developer ID, notarized, and has its ticket stapled.
+- The Windows installer carries an Authenticode signature from Automattic Inc.
 - The app's `app.asar` root holds exactly `node_modules`, `package.json` and `src`, with npm 11 under `node_modules/npm` and no `.codesigning` directory.
 - On macOS, `CFBundleShortVersionString` in the app's `Info.plist` reads `X.Y.Z`.
 
-The last two checks run on the macOS artifact, on a Mac, from the repository root (so `@electron/asar` resolves from `node_modules`). Replace `<dir>` with the directory holding the downloads:
+All but the name and Windows checks run on the macOS artifact, on a Mac, from the repository root (so `@electron/asar` resolves from `node_modules`). Replace `<dir>` with the directory holding the downloads:
 
 ```bash
 mnt="$(mktemp -d)"
 hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "<dir>/wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg"
 app="$mnt/WordPress Contributor Toolkit.app"
+codesign --verify --deep --strict "$app" && echo signed
+spctl -a -vv -t exec "$app"
+xcrun stapler validate "$app"
 npx asar list "$app/Contents/Resources/app.asar" | grep -E '^/[^/]+$'
 node -p "JSON.parse(require('@electron/asar').extractFile(process.argv[1], 'node_modules/npm/package.json')).version" "$app/Contents/Resources/app.asar"
 plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist"
 hdiutil detach "$mnt" && rmdir "$mnt"
 ```
 
-The first command prints `/node_modules`, `/package.json` and `/src`, and nothing else. The second prints a version starting with `11.`. The third prints `X.Y.Z`.
+`codesign` prints `signed`. `spctl` prints `accepted`, `source=Notarized Developer ID` and an `origin` naming `Automattic, Inc.`. `stapler` prints `The validate action worked!`. The `asar list` command prints `/node_modules`, `/package.json` and `/src`, and nothing else. The `node` command prints a version starting with `11.`. `plutil` prints `X.Y.Z`.
+
+Read the npm version with `extractFile` as above, in memory. `npx asar extract-file` writes the file into the current directory, which from the repository root replaces its own `package.json`.
+
+The Windows signature can be checked on Windows, with `Get-AuthenticodeSignature <dir>\wordpress-contributor-toolkit-X.Y.Z-win-x64.exe` in PowerShell (`Status` is `Valid` and the signer names Automattic Inc.), or on a Mac with `openssl`, which reads the certificates out of the installer's signature:
+
+```bash
+node -e 'const fs=require("fs");const b=fs.readFileSync(process.argv[1]);const o=b.readUInt32LE(0x3c)+24;const d=o+(b.readUInt16LE(o)===0x20b?112:96)+32;const at=b.readUInt32LE(d),n=b.readUInt32LE(d+4);if(!n)throw new Error("not signed");process.stdout.write(b.subarray(at+8,at+n))' "<dir>/wordpress-contributor-toolkit-X.Y.Z-win-x64.exe" | openssl pkcs7 -inform DER -print_certs -noout | grep subject
+```
+
+It prints a `subject` line naming `O=Automattic Inc.`, and fails with `not signed` when the installer has no signature.
 
 ## 3. Merge
 
 Update the branch with trunk first if it has fallen behind, wait for the new head's build, and download and check the artifacts again from it. The files from the build you checked last are what the release ships.
 
-Then squash-merge. The merged commit has the same content as that build, and it is the one you tag. Find it with:
+Then squash-merge, with the head you checked as a guard, so the merge is refused if anything was pushed after the check:
+
+```bash
+gh pr merge <number> --squash --match-head-commit <head commit you checked>
+```
+
+The merged commit has the same content as that build, and it is the one you tag. Find it with:
 
 ```bash
 gh pr view <number> --json mergeCommit --jq .mergeCommit.oid
@@ -131,4 +154,5 @@ The first lists what is still open, the second finds the milestone's number, and
 - `gh api repos/WordPress/contributor-toolkit/releases/latest --jq .tag_name` prints `vX.Y.Z` for a stable release, and the previous stable tag for a beta.
 - `git ls-remote origin refs/tags/vX.Y.Z` points at the bump commit.
 - The docs run from step 5 finished with its deploy job.
+- The Download button on [the docs site](https://wordpress.github.io/contributor-toolkit/) reads `vX.Y.Z` for a stable release, and the previous stable tag for a beta. Open the site in a new tab or a private window: the button keeps the release it read in the tab's session storage (`docs/.vitepress/theme/DownloadButton.vue`), so a tab opened before the release goes on showing the old one, reloads included.
 - The milestone, if the release has one, is closed.
