@@ -1,0 +1,3379 @@
+{
+	"translation-revision-date": "2026-10-20 19:57:57+0000",
+	"generator": "GlotPress/4.1.0",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": {
+				"domain": "messages",
+				"plural-forms": "nplurals=2; plural=n > 1;",
+				"lang": "tr"
+			},
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
+				"En son trunk sürümü indirilemedi; bu nedenle bu liste, bu çekme isteğinin parçası olmayan trunk değişikliklerini de içerebilir."
+			],
+			"That file could not be read: %s": [
+				"Bu dosya okunamadı: %s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"Bu dosya sitede yok. Değişiklik sırasında silinmiş olabilir."
+			],
+			"Changed files": [
+				"Değiştirilen dosyalar"
+			],
+			"You created this file": [
+				"Bu dosyayı siz oluşturdunuz"
+			],
+			"You edited this file": [
+				"Bu dosyayı düzenlediniz"
+			],
+			"Revert %s": [
+				"Geri al: %s"
+			],
+			"Discard your changes?": [
+				"Değişiklikleriniz silinsin mi?"
+			],
+			"PR #%d stays checked out.": [
+				"PR #%d kullanıma alınmış durumda kalır."
+			],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"Uygulanan %s yaması da kaldırılır, çünkü uygulama bunu geri yükleyemez."
+			],
+			"The patch %s stays applied.": [
+				"%s yaması uygulanmış olarak kalır."
+			],
+			"Your edits to %d file are removed.": [
+				"%d dosyada yaptığınız düzenlemeler kaldırıldı.",
+				"%d dosyada yaptığınız düzenlemeler kaldırıldı."
+			],
+			"There are no edits of yours to discard.": [
+				"Geri alınacak herhangi bir düzenlemeniz yok."
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [
+				"Değişiklikleriniz geri alındı ancak %s geri yüklenemedi; bu nedenle artık uygulanmış durumda değil."
+			],
+			"Your changes were discarded.": [
+				"Değişiklikleriniz silindi."
+			],
+			"Your changes to it are removed.": [
+				"Bunda yaptığınız değişiklikler kaldırıldı."
+			],
+			"%s deleted.": [
+				"%s silindi."
+			],
+			"Delete file": [
+				"Dosyayı sil"
+			],
+			"You created this file.": [
+				"Bu dosyayı siz oluşturdunuz."
+			],
+			"From PR #%d": [
+				"PR #%d kaynağından"
+			],
+			"From the patch": [
+				"Yamadan"
+			],
+			"Could not revert the file: %s": [
+				"Dosya geri alınamadı: %s"
+			],
+			"%s reverted.": [
+				"%s geri alındı."
+			],
+			"Revert file": [
+				"Dosyayı geri al"
+			],
+			"Revert %s?": [
+				"Geri alınsın mı: %s?"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"Yaptığınız düzenlemeler kaldırılır ve yamanın bıraktığı haline geri döner."
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"Yaptığınız düzenlemeler kaldırılır ve PR #%d üzerindeki haline geri döner."
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"%1$s geri alınamadığı için olduğu gibi bırakıldı: %2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"%1$s (%2$s) geri alınamadı ve eski haline getirilemedi; bu nedenle yaptığınız değişiklikler kaybolmuş olabilir: %3$s"
+			],
+			"%s has no changes to revert.": [
+				"%s dosyasında geri alınacak değişiklik yok."
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [
+				"Uygulama yamanın bir kopyasını saklamadı; bu nedenle %s öğesini yamanın bıraktığı haliyle geri yükleyemiyor."
+			],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [
+				"%s yamanın bıraktığı haliyle duruyor, bu nedenle geri alınacak bir değişikliğiniz yok."
+			],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [
+				"Yama %s dosyasını yeniden adlandırıyor, bu nedenle yalnızca yamanın tamamı ile birlikte geri alınabilir. Bunun yerine \"Değişikliklerinizi silin\" seçeneğini kullanın."
+			],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
+				"Henüz geliştirici sunucusu çıktısı yok. Programın başlatılması ve çalışması sırasında yazdırdığı bilgiler — programı durduran hatalar da dahil olmak üzere — burada görüntülenir."
+			],
+			"Opened": [
+				"Açıldı"
+			],
+			"Milestone": [
+				"Kilometre taşı"
+			],
+			"Component": [
+				"Bileşen"
+			],
+			"Type": [
+				"Tip"
+			],
+			"Read from Trac %s": [
+				"Trac'tan okundu: %s"
+			],
+			"Review and submit": [
+				"Gözden geçir ve gönder"
+			],
+			"Review changes": [
+				"Değişiklikleri incele"
+			],
+			"They stay with this pull request's local copy when you revert this PR.": [
+				"Bu çekme isteğini geri aldığınızda, bu çekme isteğinin yerel kopyasında kalırlar."
+			],
+			"%1$d unsubmitted change for ticket #%2$s": [
+				"%1$d #%2$s numaralı bilet için gönderilmemiş değişiklik",
+				"%1$d #%2$s numaralı bilet için gönderilmemiş değişiklikler"
+			],
+			"%1$d unsubmitted change for issue #%2$s": [
+				"%1$d #%2$s numaralı sorun için gönderilmemiş değişiklik",
+				"%1$d #%2$s numaralı sorun için gönderilmemiş değişiklikler"
+			],
+			"Unsubmitted changes for ticket #%s": [
+				"Bilet #%s için gönderilmemiş değişiklikler"
+			],
+			"Unsubmitted changes for issue #%s": [
+				"Sorun #%s için gönderilmemiş değişiklikler"
+			],
+			"%1$d change on top of PR #%2$d": [
+				"PR #%2$d üzerinde %1$d değişiklik",
+				"PR #%2$d üzerinde %1$d değişiklik"
+			],
+			"Changes on top of PR #%d": [
+				"PR #%d üzerindeki değişiklikler"
+			],
+			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
+				"Yakınlaştırma"
+			],
+			"Discard edits": [
+				"Düzenlemeleri sil"
+			],
+			"Discard the uncommitted edits on trunk?": [
+				"Trunk'taki kaydedilmemiş düzenlemeler silinsin mi?"
+			],
+			"Discard changes": [
+				"Değişiklikleri iptal et"
+			],
+			"This can’t be undone.": [
+				"Bu geri alınamaz."
+			],
+			"Discard all local changes?": [
+				"Tüm yerel değişiklikleri silmek istiyor musunuz?"
+			],
+			"Stop Speaking": [
+				"Konuşmayı Bırak/Durdur"
+			],
+			"Start Speaking": [
+				"Konuşmaya Başla"
+			],
+			"Speech": [
+				"Konuşma"
+			],
+			"Text Replacement": [
+				"Metin değiştirme"
+			],
+			"Smart Dashes": [
+				"Akıllı tireler"
+			],
+			"Smart Quotes": [
+				"Akıllı tırnaklar"
+			],
+			"Show Substitutions": [
+				"Değişiklikleri göster"
+			],
+			"Substitutions": [
+				"Değişiklikler"
+			],
+			"Paste and Match Style": [
+				"Yapıştır ve stile uydur"
+			],
+			"Paste": [
+				"Yapıştır"
+			],
+			"Cut": [
+				"Kes"
+			],
+			"Redo": [
+				"İleri al"
+			],
+			"Undo": [
+				"Geri al"
+			],
+			"Edit": [
+				"Düzenle"
+			],
+			"Quit": [
+				"Çıkış"
+			],
+			"Exit": [
+				"Çıkış"
+			],
+			"Close Window": [
+				"Pencereyi kapat"
+			],
+			"File": [
+				"Dosya"
+			],
+			"Quit %s": [
+				"%s uygulamasından çık"
+			],
+			"Show All": [
+				"Tümünü göster"
+			],
+			"Hide Others": [
+				"Diğerlerini Gizle"
+			],
+			"Hide %s": [
+				"Şunu gizle: %s"
+			],
+			"Services": [
+				"Hizmetler"
+			],
+			"About %s": [
+				"%s Hakkında"
+			],
+			"Toggle Developer Tools": [
+				"Geliştirici Araçlarına Geç"
+			],
+			"Help": [
+				"Yardım"
+			],
+			"Bring All to Front": [
+				"Tümünü öne getir"
+			],
+			"Minimize": [
+				"Simge Durumuna Küçült"
+			],
+			"Window": [
+				"Pencere"
+			],
+			"Toggle Full Screen": [
+				"Tam Ekrana Geç"
+			],
+			"Zoom Out": [
+				"Uzaklaştır"
+			],
+			"Zoom In": [
+				"Yakınlaştır"
+			],
+			"Actual Size": [
+				"Orijinal Boyut"
+			],
+			"Force Reload": [
+				"Zorla yeniden yükle"
+			],
+			"Reload": [
+				"Yeniden yükle"
+			],
+			"View": [
+				"Görüntülenme"
+			],
+			"Select All": [
+				"Tümünü Seç"
+			],
+			"Delete": [
+				"Sil"
+			],
+			"Choose folder…": [
+				"Klasörü seçin…"
+			],
+			"Mail": [
+				"Posta"
+			],
+			"ends a sentence that lacks a full stop\u0004%s.": [
+				"%s."
+			],
+			"Too much output to announce, navigate to rows manually to read": [
+				"Duyurulacak çok fazla çıktı var; okumak için satırlara manuel olarak gezinin"
+			],
+			"Terminal input": [
+				"Terminal girişi"
+			],
+			"Timed out starting web server": [
+				"Site sunucusu başlatılırken zaman aşımına uğradı"
+			],
+			"Server exited before becoming ready": [
+				"Sunucu hazır hale gelmeden kapandı"
+			],
+			"%s directory not found.": [
+				"%s klasörü bulunamadı."
+			],
+			"The patch you applied is applied. Revert it before submitting this checkout as your own work.": [
+				"Uyguladığınız yama uygulanmış durumda. Bu kontrol sürümünü kendi çalışmanız olarak göndermeden önce geri alın."
+			],
+			"%s is applied. Revert it before submitting this checkout as your own work.": [
+				"%s uygulanmıştır. Bu kontrol sürümünü kendi çalışmanız olarak göndermeden önce geri alın."
+			],
+			"an action that finished\u0004Done": [
+				"Tamamlandı"
+			],
+			"No such branch: %s": [
+				"Böyle bir dal yok: %s"
+			],
+			"Refusing to delete a branch the app did not create": [
+				"Uygulamanın oluşturmadığı bir dalın silinmesi reddedildi"
+			],
+			"Refusing to delete trunk": [
+				"Trunk dalının silinmesi reddedildi"
+			],
+			"Trunk and this ticket's work disagree": [
+				"Trunk ile bu biletin içeriği birbiriyle uyuşmuyor"
+			],
+			"Trunk and this ticket's work disagree in %d file": [
+				"Trunk ile bu biletin çalışmaları %d dosyada uyuşmuyor",
+				"Trunk ile bu biletin çalışmaları %d dosyada uyuşmuyor"
+			],
+			"Already working on ticket #%s in this site": [
+				"Bu sitedeki #%s numaralı bilet üzerinde halihazırda çalışılıyor"
+			],
+			"Already working on issue #%s in this site": [
+				"Bu sitedeki #%s numaralı sorun üzerinde halihazırda çalışılıyor"
+			],
+			"This site has no trunk branch": [
+				"Bu sitede ana dal yoktur"
+			],
+			"Enter a ticket number or URL.": [
+				"Bir bilet numarası veya adres girin."
+			],
+			"Enter a ticket number like 62281, or a %s ticket URL.": [
+				"62281 gibi bir bilet numarası veya %s bilet adresi girin."
+			],
+			"Only %s tickets are supported.": [
+				"Yalnızca %s biletleri desteklenmektedir."
+			],
+			"Trunk and your work disagree in: %s.": [
+				"Trunk ile çalışmanız arasında şu noktada uyuşmazlık var: %s."
+			],
+			"Trunk added a file your work also adds, with different content: %s.": [
+				"Trunk, sizin çalışmanızın da eklediği ancak içeriği farklı olan bir dosya ekledi: %s.",
+				"Trunk'a eklenen ve sizin çalışmanızda da bulunan, ancak içeriği farklı olan dosyalar: %s."
+			],
+			"Deleted on one side and changed on the other: %s.": [
+				"Bir tarafta silinmiş, diğer tarafta değiştirilmiş: %s."
+			],
+			"Trunk changed the same lines as your work in: %s.": [
+				"Trunk, %s içindeki çalışmanızla aynı satırları değiştirmiştir."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.": [
+				"Çalışmanızın bir kopyasını kaydedin, biletle olan bağlantıyı kaldırın, sitedeki çalışmayı silin, ardından #%s ile yeniden bağlantı kurun ve kopyayı uygulayın."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.": [
+				"Çalışmanızın bir kopyasını kaydedin, biletin bağlantısını kaldırın, sitedeki çalışmasını silin, ardından biletin bağlantısını yeniden kurun ve kopyayı uygulayın."
+			],
+			"Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.": [
+				"Bu sorunun dalını koruyun ve “Değişiklikleri gözden geçir ve gönder” seçeneği aracılığıyla bir kopyasını kaydedin. Çalışmayı mevcut ana dala aktarmak için bir mentordan yardım isteyin; bu uygulama çakışmayı çözemez veya kaydedilen kopyayı içe aktaramaz."
+			],
+			"Update this ticket to the current trunk": [
+				"Bu bileti güncel trunk sürümüne güncelle"
+			],
+			"Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.": [
+				"Daha yeni yamalar sorunsuz bir şekilde uygulanmayabilir. Çalışmanızı buradan mevcut trunk dalına taşıyın ya da bir kopyasını kaydedip bilet işlemini yeniden başlatın."
+			],
+			"Trunk has moved since this ticket started.": [
+				"Bu bilet açıldığından beri trunk değişti."
+			],
+			"Update this issue to the current trunk": [
+				"Bu sorunu güncel trunk sürümüne güncelle"
+			],
+			"Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.": [
+				"Çalışmanızı buradan mevcut trunk'a taşıyın. Değişiklikler arasında çakışma olursa, dalınız olduğu gibi kalır; böylece çakışmaları gidermek için yardım alabilirsiniz."
+			],
+			"Trunk has moved since this issue started.": [
+				"Bu sorun başladığından beri trunk değişti."
+			],
+			"Could not move the ticket onto the current trunk.": [
+				"Bilet mevcut ana dala taşınamadı."
+			],
+			"Could not move the issue onto the current trunk.": [
+				"Sorun mevcut trunk dalına taşınamadı."
+			],
+			"Only an issue branch can be moved onto the current trunk.": [
+				"Yalnızca bir sorun dalı mevcut ana dala taşınabilir."
+			],
+			"Link a ticket first: trunk is what tickets are measured against.": [
+				"Önce bir bilet bağlantısı kurun: Biletler, “trunk” ile karşılaştırılarak değerlendirilir."
+			],
+			"Link an issue first: trunk is what issues are measured against.": [
+				"Önce bir sorunu bağlayın: Sorunlar, “trunk” ile karşılaştırılarak değerlendirilir."
+			],
+			"The app does not know which trunk the ticket started from, so it cannot move the work safely.": [
+				"Uygulama, biletin hangi ana daldan başladığını bilmediğinden, işi güvenli bir şekilde aktaramaz."
+			],
+			"The app does not know which trunk the issue started from, so it cannot move the work safely.": [
+				"Uygulama, sorunun hangi ana daldan başladığını bilmediğinden, çalışmayı güvenli bir şekilde taşıyamaz."
+			],
+			"The app does not know which trunk #%s started from, so it cannot move the work safely.": [
+				"Uygulama, #%s numaralı kaydın hangi ana daldan başladığını bilmediğinden, çalışmayı güvenli bir şekilde taşıyamaz."
+			],
+			"Nothing was moved.": [
+				"Hiçbir şey taşınmadı."
+			],
+			"Trunk and your work disagree.": [
+				"Trunk ile çalışmanız birbiriyle uyuşmuyor."
+			],
+			"You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?": [
+				"Bu sitede henüz hiçbir bilete ait olmayan %d kaydedilmemiş değişiklik var. Bunlara ne yapılsın?",
+				"Bu sitede henüz hiçbir bilete ait olmayan %d kaydedilmemiş değişiklik var. Bunlara ne yapılsın?"
+			],
+			"You have %d uncommitted change on this site, not on any issue yet. What should happen to them?": [
+				"Bu sitede henüz hiçbir sorunla ilişkili olmayan %d kaydedilmemiş değişiklik var. Bunlara ne yapılsın?",
+				"Bu sitede henüz hiçbir sorunla ilişkili olmayan %d kaydedilmemiş değişiklik var. Bunlara ne yapılsın?"
+			],
+			"Stop the dev server before updating the ticket.": [
+				"Bileti güncellemeden önce geliştirme sunucusunu durdurun."
+			],
+			"Stop the dev server before updating the issue.": [
+				"Sorunu güncellemeden önce geliştirme sunucusunu durdurun."
+			],
+			"Wait for the discard to finish before updating the ticket.": [
+				"Bileti güncellemeden önce, silme işleminin tamamlanmasını bekleyin."
+			],
+			"Wait for the discard to finish before updating the issue.": [
+				"Sorunu güncellemeden önce silme işleminin tamamlanmasını bekleyin."
+			],
+			"Wait for the PR or patch operation to finish.": [
+				"PR veya yama işleminin tamamlanmasını bekleyin."
+			],
+			"Wait for the ticket's work to finish deleting.": [
+				"Biletle ilgili silme işleminin tamamlanmasını bekleyin."
+			],
+			"Wait for the issue's work to finish deleting.": [
+				"Sorunla ilgili silme işleminin tamamlanmasını bekleyin."
+			],
+			"Wait for the current ticket change to finish.": [
+				"Mevcut bilet değişikliğinin tamamlanmasını bekleyin."
+			],
+			"Wait for the current issue change to finish.": [
+				"Mevcut sorun değişikliğinin tamamlanmasını bekleyin."
+			],
+			"This ticket already has its own work here, so these edits cannot come along into it.": [
+				"Bu biletin burada zaten kendine ait bir çalışması var, bu nedenle bu düzenlemeler buraya aktarılamaz."
+			],
+			"This issue already has its own work here, so these edits cannot come along into it.": [
+				"Bu sorunla ilgili burada zaten ayrı bir çalışma mevcut olduğundan, bu düzenlemeler buraya aktarılamaz."
+			],
+			"Discard them and continue on the ticket": [
+				"Bunları bir kenara bırakın ve bilet üzerinde devam edin"
+			],
+			"Save them as a patch, then continue on the ticket…": [
+				"Bunları bir yama olarak kaydedin, ardından bilet üzerinde çalışmaya devam edin…"
+			],
+			"Discard them and continue on the issue": [
+				"Bunları silin ve sorun üzerinde devam edin"
+			],
+			"Save them as a patch, then continue on the issue…": [
+				"Bunları bir yama olarak kaydedin, ardından sorun üzerinde devam edin…"
+			],
+			"Discard them and continue on #%s": [
+				"Bunları silin ve #%s üzerinde devam edin"
+			],
+			"Save them as a patch, then continue on #%s…": [
+				"Bunları bir yama olarak kaydedin, ardından #%s üzerinde devam edin…"
+			],
+			"Discard them and start clean": [
+				"Onları bir kenara atın ve sıfırdan başlayın"
+			],
+			"Save them as a patch, then start clean…": [
+				"Bunları bir yama olarak kaydedin, ardından sıfırdan başlayın…"
+			],
+			"Take these edits into the ticket": [
+				"Bu düzenlemeleri bilete ekleyin"
+			],
+			"Take these edits into the issue": [
+				"Bu düzenlemeleri sorun bildirimine ekleyin"
+			],
+			"Take these edits into #%s": [
+				"Bu düzenlemeleri #%s numaralı kayda ekleyin"
+			],
+			"Discard them and check out PR #%d": [
+				"Bunları silin ve PR #%d dalına geçin"
+			],
+			"Save them as a patch, then check out PR #%d…": [
+				"Bunları bir yama olarak kaydedin, ardından PR #%d dalına geçin…"
+			],
+			"PR #%d is a separate checkout, so these edits cannot come along into it.": [
+				"PR #%d ayrı bir checkout olduğundan, bu düzenlemeler oraya aktarılamaz."
+			],
+			"You have uncommitted changes on this site, not on any ticket yet. What should happen to them?": [
+				"Bu sitede henüz hiçbir bilete eklenmemiş kaydedilmemiş değişiklikleriniz var. Bunlara ne yapılsın?"
+			],
+			"You have uncommitted changes on this site, not on any issue yet. What should happen to them?": [
+				"Bu sitede henüz hiçbir sorunla ilişkilendirilmemiş kaydedilmemiş değişiklikleriniz var. Bunlara ne yapılsın?"
+			],
+			"Could not open the folder.": [
+				"Klasör açılamadı."
+			],
+			"Could not reach the app's main process: %s": [
+				"Uygulamanın ana sürecine ulaşılamadı: %s"
+			],
+			"This app has no record of that folder, so it will not open it.": [
+				"Bu uygulamada o klasörle ilgili herhangi bir kayıt bulunmadığından, klasörü açmayacaktır."
+			],
+			"The file manager would not open the folder: %s": [
+				"Dosya yöneticisi klasörü açamadı: %s"
+			],
+			"The application would not start: %s": [
+				"Uygulama başlatılamadı: %s"
+			],
+			"That application is no longer where it was. Choose another.": [
+				"Bu uygulama artık eskiden bulunduğu yerde değil. Başka bir tane seçin."
+			],
+			"That is not an application this app can open a folder in.": [
+				"Bu, söz konusu uygulamanın içinde bir klasör açabileceği bir uygulama değildir."
+			],
+			"A merge started outside the app is in progress.": [
+				"Uygulama dışında başlatılan bir birleştirme işlemi devam ediyor."
+			],
+			"every file the patch touched, not only the ones in conflict": [
+				"yama işleminin etkilediği tüm dosyalar; yalnızca çakışan dosyalar değil"
+			],
+			"git add the files": [
+				"dosyaları git add ile ekleyin"
+			],
+			"resolve the files, then git add them": [
+				"dosyaları çözün, ardından git add komutuyla ekleyin"
+			],
+			"A three-way patch apply started outside the app is in progress.": [
+				"Uygulama dışında başlatılan üçlü yama uygulaması devam ediyor."
+			],
+			"A revert started outside the app is in progress.": [
+				"Uygulama dışında başlatılan bir geri alma işlemi devam ediyor."
+			],
+			"A cherry-pick started outside the app is in progress.": [
+				"Uygulama dışında başlatılan bir cherry-pick işlemi devam ediyor."
+			],
+			"A rebase started outside the app is in progress.": [
+				"Uygulama dışında başlatılan bir rebase işlemi devam ediyor."
+			],
+			"resolve the files, then git add them and run %s": [
+				"dosyaları çözün, ardından git add komutuyla ekleyin ve %s komutunu çalıştırın"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)": [
+				"Uygulama, bu checkout'ta bir birleştirme işleminin devam edip etmediğini kontrol edemedi, bu nedenle hiçbir değişiklik yapılmadı. Terminalde bir Git komutu çalışıyorsa, komutun tamamlanmasını bekleyin, ardından yeniden deneyin. (%s)"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again.": [
+				"Uygulama, bu checkout'ta bir birleştirme işleminin devam edip etmediğini kontrol edemedi, bu nedenle herhangi bir değişiklik yapılmadı. Eğer bir terminalden bu checkout'ta bir Git komutu çalışıyorsa, komutun tamamlanmasını bekleyin, ardından yeniden deneyin."
+			],
+			"Its conflicts are resolved but it is not finished. Finish it from a terminal (%1$s) or abandon it (%2$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"Çakışmaları çözüldü ancak işlem tamamlanmadı. Bu sitede uygulamayı kullanmadan önce işlemi bir terminalden tamamlayın (%1$s) veya terk edin (%2$s). O zamana kadar bilet bağlama, yama uygulama, değişiklikleri geri alma ve ana dalı güncelleme işlemleri burada reddedilir."
+			],
+			"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"%1$s dosyasında çakışmalar var. Bu sitede uygulamayı kullanmadan önce işlemi bir terminalden tamamlayın (%2$s) veya terk edin (%3$s). O zamana kadar bilet bağlama, yama uygulama, değişiklikleri silme ve ana dalı güncelleme işlemleri burada reddedilir."
+			],
+			"The app now runs on a different Git engine, so linking tickets, applying patches, discarding changes and updating trunk are refused here. Export your work as a patch, create a new site, apply the patch there, then delete this one.": [
+				"Uygulama artık farklı bir Git motorunda çalışıyor; bu nedenle biletleri bağlama, yamaları uygulama, değişiklikleri iptal etme ve ana dalı güncelleme işlemleri burada reddediliyor. Çalışmanızı bir yama olarak dışa aktarın, yeni bir site oluşturun, yamayı oraya uygulayın, ardından bu siteyi silin."
+			],
+			"This site was created by an earlier version of the app.": [
+				"Bu site, uygulamanın daha eski bir sürümüyle oluşturulmuştur."
+			],
+			"This site was created by an earlier version of the app and cannot be changed by this one. Create a new site to keep working; you can still export a patch of what is here, and delete this site.": [
+				"Bu site, uygulamanın daha önceki bir sürümüyle oluşturulmuştur ve bu sürüm tarafından değiştirilemez. Çalışmaya devam etmek için yeni bir site oluşturun; buradaki çalışmanızı yine de yama olarak dışa aktarabilir ve bu siteyi silebilirsiniz."
+			],
+			"Unable to copy path: %s": [
+				"Yol kopyalanamadı: %s"
+			],
+			"Clipboard access is not available in this environment": [
+				"Bu ortamda panoya erişmek mümkün değildir"
+			],
+			"Dismiss": [
+				"Gizle"
+			],
+			"Stopped": [
+				"Durduruldu"
+			],
+			"Playground web server": [
+				"Playground site sunucusu"
+			],
+			"Start Playground web server": [
+				"Playground site sunucusunu başlat"
+			],
+			"Stop Playground web server": [
+				"Playground site sunucusunu durdur"
+			],
+			"Starting the Playground web server": [
+				"Playground site sunucusu başlatılıyor"
+			],
+			"Server exited with code %d": [
+				"Sunucu %d koduyla sonlandırıldı"
+			],
+			"Choose application…": [
+				"Uygulamayı seçin…"
+			],
+			"Saved to %s. The edits are still in the working tree.": [
+				"%s konumuna kaydedildi. Düzenlemeler hâlâ çalışma ağacında bulunuyor."
+			],
+			"Your edits were saved to %s and are no longer in the working tree.": [
+				"Düzenlemeleriniz %s konumuna kaydedildi ve artık çalışma ağacında bulunmuyor."
+			],
+			"Your %1$d uncommitted change came along into #%2$s, and will go into its patch.": [
+				"#%2$s numaralı kayda %1$d kaydedilmemiş değişikliğiniz aktarıldı ve yamasına eklenecek.",
+				"#%2$s numaralı kayda %1$d kaydedilmemiş değişikliğiniz aktarıldı ve yamasına eklenecek."
+			],
+			"Could not delete the branch.": [
+				"Dal silinemedi."
+			],
+			"Could not save the patch.": [
+				"Yama kaydedilemedi."
+			],
+			"Could not discard the changes.": [
+				"Değişiklikler silinemedi."
+			],
+			"Could not save the ticket.": [
+				"Bilet kaydedilemedi."
+			],
+			"Only %s issues are supported.": [
+				"Yalnızca %s konuları desteklenir."
+			],
+			"Enter an issue number or URL.": [
+				"Bir sorun numarası veya adres girin."
+			],
+			"Enter an issue number like 1234, or a %s issue URL.": [
+				"1234 gibi bir sorun numarası veya bir %s sorun adresi girin."
+			],
+			"Only %s issues can be linked here.": [
+				"Buraya yalnızca %s sorunları bağlanabilir."
+			],
+			"That is a pull request. Link the issue it fixes instead.": [
+				"Bu bir çekme isteğidir. Bunun yerine düzelttiği sorunu bağlayın."
+			],
+			"There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.": [
+				"Henüz bu konuda çalışılacak bir site yok. Kenar çubuğundan bir site oluşturun; uygulama hazır olduğunda bu bileti size sunacaktır."
+			],
+			"Ticket #%s is ready to link.": [
+				"%s numaralı bilet bağlantı için hazır."
+			],
+			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
+				"Bilet numarası bir bağlantıdan geldi. Bu bileti bağlamak, sitenin şu an bulunduğu durumu askıya alır ve bu biletin dalına geçer; bu nedenle uygulama önce onay ister."
+			],
+			"Link ticket #%1$s to %2$s?": [
+				"%1$s numaralı bilet %2$s sitesine bağlansın mı?"
+			],
+			"A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.": [
+				"Trac bileti bir WordPress Core sitesine ait olmalıdır. Bir site açtığınızda uygulama bileti orada sunacaktır."
+			],
+			"Ticket #%1$s cannot be linked to %2$s.": [
+				"%1$s numaralı bilet %2$s sitesine bağlanamaz."
+			],
+			"Raw": [
+				"Ham"
+			],
+			"Rendered": [
+				"İşlenmiş"
+			],
+			"Date:": [
+				"Tarih:"
+			],
+			"CC:": [
+				"CC:"
+			],
+			"To:": [
+				"Kime:"
+			],
+			"From:": [
+				"Kimden:"
+			],
+			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"PR #%2$d üzerinde %1$d değişikliğiniz var. <review>Bunları gözden geçirebilir</review> veya <discard>değişikliklerinizi atabilirsiniz</discard>. Bu çekme isteğini geri aldığınızda, değişiklikler bu çekme isteğinin yerel kopyasında kalır.",
+				"PR #%2$d üzerinde %1$d değişikliğiniz var. <review>Bunları gözden geçirebilir</review> veya <discard>değişikliklerinizi atabilirsiniz</discard>. Bu çekme isteğini geri aldığınızda, değişiklikler bu çekme isteğinin yerel kopyasında kalır."
+			],
+			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"PR #%d üzerinde değişiklikleriniz var. <review>Bunları gözden geçirebilir</review> veya <discard>değişikliklerinizi atabilirsiniz</discard>. Bu çekme isteğini geri aldığınızda, değişiklikleriniz bu çekme isteğinin yerel kopyasında kalır."
+			],
+			"Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.": [
+				"Bu biletin bağlantısını kaldırmak, bu biletle ilgili yerel değişikliklerinizi etkilemez — bu değişiklikler bu sitede bilete bağlı olarak kalır ve bileti yeniden bağladığınızda kullanıma hazır olur."
+			],
+			"Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.": [
+				"Bu sorunun bağlantısını kaldırmak, bu sorunla ilgili yerel değişikliklerinizi etkilemez — bu değişiklikler bu sitede soruna bağlı olarak kalır ve sorunu yeniden bağladığınızda kullanıma hazır olur."
+			],
+			"You have %d change not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Herhangi bir bilete atanmamış %d değişikliğiniz var. <review>Bir yama oluşturup kaydedebilir</review> veya <discard>değişikliklerinizi atabilirsiniz</discard>.",
+				"Herhangi bir bilete atanmamış %d değişikliğiniz var. <review>Bir yama oluşturup kaydedebilir</review> veya <discard>değişikliklerinizi atabilirsiniz</discard>."
+			],
+			"You have %d change not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Herhangi bir soruna atanmamış %d değişikliğiniz var. <review>Bir yama oluşturup kaydedebilir</review> veya <discard>değişikliklerinizi atabilirsiniz</discard>.",
+				"Herhangi bir soruna atanmamış %d değişikliğiniz var. <review>Bir yama oluşturup kaydedebilir</review> veya <discard>değişikliklerinizi atabilirsiniz</discard>."
+			],
+			"You have changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Herhangi bir bilete atanmamış değişiklikleriniz var. <review>Bir yama oluşturup kaydedebilir</review> veya <discard>değişikliklerinizi atabilirsiniz</discard>."
+			],
+			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Herhangi bir soruna atanmamış değişiklikleriniz var. <review>Bir yama oluşturup kaydedebilir</review> veya <discard>değişikliklerinizi atabilirsiniz</discard>."
+			],
+			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
+				"Bu biletin kayıtlı bir başlangıç noktası bulunmadığından, uygulama işini mevcut ana dala taşıyamaz."
+			],
+			"Only a ticket branch can be moved onto the current trunk.": [
+				"Yalnızca bir bilet dalı mevcut ana dal üzerine taşınabilir."
+			],
+			"Link a ticket first: trunk is what tickets are measured against, not a ticket.": [
+				"Önce bir bileti bağlayın: Biletlerin değerlendirildiği ölçüt “trunk”tur, tek bir bilet değildir."
+			],
+			"There is uncommitted work on trunk — decide what happens to it before starting the ticket": [
+				"Trunk'ta henüz onaylanmamış işler var — bilet oluşturmaya başlamadan önce bunların ne olacağına karar verin"
+			],
+			"the editor could not be opened (exit code %s)": [
+				"editör açılamadı (çıkış kodu %s)"
+			],
+			"the saved work\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Geri yüklendi — derleme izleme aracı yeniden derledi. Denemek için siteyi açın."
+			],
+			"the saved work\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Geri yüklendi — derleme izleme sistemi hâlâ bu değişikliği derliyor. Siteyi denemeden önce işlemin tamamlanmasını bekleyin."
+			],
+			"the saved work\u0004Restored.": [
+				"Geri yüklendi."
+			],
+			"the saved work\u0004Restored — open the site to try it out.": [
+				"Geri yüklendi — denemek için siteyi açın."
+			],
+			"the previous branch\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Geri yüklendi — derleme izleme sistemi yeniden derledi. Denemek için siteyi açın."
+			],
+			"the previous branch\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Geri yüklendi — derleme izleme sistemi bu değişikliği hâlâ derliyor. Siteyi denemeden önce işlemin tamamlanmasını bekleyin."
+			],
+			"the previous branch\u0004Restored.": [
+				"Geri yüklendi."
+			],
+			"the previous branch\u0004Restored — open the site to try it out.": [
+				"Geri yüklendi — denemek için siteyi açın."
+			],
+			"Now on trunk as of %s.": [
+				"Şu anda %s itibarıyla trunk'ta."
+			],
+			"Resetting to latest trunk (%s)…": [
+				"En son trunk'a (%s) sıfırlanıyor…"
+			],
+			"Already up to date.": [
+				"Zaten güncel."
+			],
+			"Fetching latest trunk…": [
+				"En son trunk sürümü getiriliyor…"
+			],
+			"Trac returned %s — try opening the ticket again to pass the check.": [
+				"Trac %s değerini döndürdü — kontrolü geçmek için bileti yeniden açmayı deneyin."
+			],
+			"Only https core.trac.wordpress.org attachments are allowed": [
+				"Yalnızca https core.trac.wordpress.org eklerine izin verilir"
+			],
+			"%s file": [
+				"%s dosyası",
+				"%s dosyaları"
+			],
+			"Ready to work on %s": [
+				"%s üzerinde çalışmaya hazır"
+			],
+			"Ready to try %s": [
+				"%s denenmeye hazır"
+			],
+			"Checking which files change…": [
+				"Hangi dosyaların değiştiği kontrol ediliyor…"
+			],
+			"Swapping files for %s…": [
+				"%s için dosyalar değiştiriliyor…"
+			],
+			"Swapping files…": [
+				"Dosyalar aktarılıyor…"
+			],
+			"Moving your work on %s onto the current trunk…": [
+				"%s üzerindeki çalışmanız mevcut ana dala taşınıyor…"
+			],
+			"Moving your edits on %s onto the current trunk…": [
+				"%s üzerindeki düzenlemeleriniz mevcut ana dala taşınıyor…"
+			],
+			"Moving your work onto the current trunk…": [
+				"Çalışmanız mevcut ana dala taşınıyor…"
+			],
+			"Saving your work on %s…": [
+				"%s üzerindeki çalışmanız kaydediliyor…"
+			],
+			"Saving your edits on %s…": [
+				"%s üzerindeki düzenlemeleriniz kaydediliyor…"
+			],
+			"Saving your work…": [
+				"Çalışmanız kaydediliyor…"
+			],
+			"The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.": [
+				"Bu değişiklikten sonra derleme izleme aracı yeniden derleniyor. Siteyi denemeden önce izlemenin yeniden başlamasını bekleyin."
+			],
+			"Start the build watch, or run %s in the Terminal.": [
+				"Derleme izlemeyi başlatın veya Terminal'de %s komutunu çalıştırın."
+			],
+			"The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Derleme izleme aracı bu değişikliği hâlâ derliyor. Siteyi denemeden önce işlemin tamamlanmasını bekleyin."
+			],
+			"PR #%s is applied.": [
+				"PR #%s uygulandı."
+			],
+			"The build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Derleme izleme aracı yeniden derlemeyi tamamlayamadan durdu, bu nedenle site hâlâ eski varlıkları çalıştırıyor."
+			],
+			"PR #%s is applied but not built.": [
+				"PR #%s uygulandı ancak derlenmedi."
+			],
+			"PR #%s is applied. The site is rebuilding.": [
+				"PR #%s uygulandı. Site yeniden oluşturuluyor."
+			],
+			"Update incomplete — the build watch stopped before it finished rebuilding.": [
+				"Güncelleme tamamlanmadı — derleme izleme işlemi, yeniden derleme işlemi tamamlanmadan durdu."
+			],
+			"Update complete — the build watch has rebuilt, and this site is now on the latest trunk.": [
+				"Güncelleme tamamlandı — derleme izleme sistemi yeniden derlendi ve bu site artık en son trunk sürümündedir."
+			],
+			"Update incomplete — the build watch was stopped, so nothing rebuilt.": [
+				"Güncelleme tamamlanmadı — derleme izleme işlemi durduruldu, bu nedenle hiçbir şey yeniden derlenmedi."
+			],
+			"The code is new but the built assets are old; retry install & build from the banner above.": [
+				"Kod yeni ancak derlenmiş varlıklar eski; yukarıdaki başlıktan kurulum ve derlemeyi yeniden deneyin."
+			],
+			"The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Yama uygulandı, ancak derleme izleme işlemi yeniden derleme tamamlanmadan durdu; bu nedenle site hâlâ eski varlıkları kullanıyor."
+			],
+			"The patch is applied but the build watch was stopped, so the site still runs the old assets.": [
+				"Yama uygulandı ancak derleme izleme işlemi durduruldu, bu nedenle site hâlâ eski kaynakları kullanıyor."
+			],
+			"%s failed, so the build was skipped. The patch is applied but dependencies are stale.": [
+				"%s başarısız oldu, bu nedenle derleme atlandı. Yama uygulandı ancak bağımlılıklar güncel değil."
+			],
+			"The patch is applied but the build failed, so the site still runs the old assets.": [
+				"Yama uygulandı ancak derleme başarısız oldu; bu nedenle site hâlâ eski öğeleri kullanıyor."
+			],
+			"The patch changes %1$s — running %2$s…": [
+				"Yama %1$s dosyasını değiştiriyor — %2$s çalıştırılıyor…"
+			],
+			"Applied — the build watch has rebuilt. Open the site to try it out.": [
+				"Uygulandı — derleme izleme sistemi yeniden derlendi. Denemek için siteyi açın."
+			],
+			"Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Uygulandı — derleme izleme sistemi hâlâ bu değişikliği derliyor. Siteyi denemeden önce işlemin tamamlanmasını bekleyin."
+			],
+			"Applied.": [
+				"Uygulandı."
+			],
+			"Applied — open the site to try it out.": [
+				"Uygulandı — denemek için siteyi açın."
+			],
+			"The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Kaydedilen çalışma geri yüklendi, ancak derleme izleme işlemi yeniden derleme tamamlanmadan durdu; bu nedenle site hâlâ eski varlıkları kullanıyor."
+			],
+			"The saved work is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Kaydedilen çalışma geri yüklendi, ancak derleme izleme işlemi durduruldu; bu nedenle site hâlâ eski varlıkları kullanıyor."
+			],
+			"%s failed, so the build was skipped. The saved work is restored but dependencies are stale.": [
+				"%s başarısız oldu, bu nedenle derleme atlandı. Kaydedilen çalışma geri yüklendi ancak bağımlılıklar güncel değil."
+			],
+			"The saved work is restored but the build failed, so the site still runs the old assets.": [
+				"Kaydedilen çalışma geri yüklendi ancak derleme başarısız oldu; bu nedenle site hâlâ eski öğeleri kullanıyor."
+			],
+			"The saved work changes %1$s — running %2$s…": [
+				"Kaydedilen çalışma %1$s dosyasını değiştiriyor — %2$s çalıştırılıyor…"
+			],
+			"The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Önceki dal geri yüklendi, ancak derleme izleme işlemi yeniden derleme tamamlanmadan durdu; bu nedenle site hâlâ eski varlıkları kullanıyor."
+			],
+			"The previous branch is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Önceki dal geri yüklendi ancak derleme izleme işlemi durduruldu; bu nedenle site hâlâ eski varlıklarını kullanıyor."
+			],
+			"%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.": [
+				"%s başarısız oldu, bu nedenle derleme atlandı. Önceki dal geri yüklendi ancak bağımlılıklar güncel değil."
+			],
+			"The previous branch is restored but the build failed, so the site still runs the old assets.": [
+				"Önceki dal geri yüklendi ancak derleme başarısız oldu; bu nedenle site hâlâ eski varlıkları kullanıyor."
+			],
+			"The previous branch changes %1$s — running %2$s…": [
+				"Önceki dal %1$s dosyasını değiştiriyor — %2$s çalıştırılıyor…"
+			],
+			"The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Pull isteği indirildi, ancak yeniden derleme işlemi tamamlanmadan önce derleme izleme durdu; bu nedenle site hâlâ eski varlıkları kullanıyor."
+			],
+			"The pull request is checked out but the build watch was stopped, so the site still runs the old assets.": [
+				"Pull isteği indirildi ancak derleme izleme işlemi durduruldu; bu nedenle site hâlâ eski varlıkları kullanıyor."
+			],
+			"%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.": [
+				"%s başarısız oldu, bu nedenle derleme atlandı. Pull isteği kontrol edildi ancak bağımlılıklar güncel değil."
+			],
+			"The pull request is checked out but the build failed, so the site still runs the old assets.": [
+				"Pull isteği indirildi ancak derleme başarısız oldu; bu nedenle site hâlâ eski varlıklarını kullanıyor."
+			],
+			"The pull request changes %1$s — running %2$s…": [
+				"Pull isteği %1$s dosyasını değiştiriyor — %2$s çalıştırılıyor…"
+			],
+			"Checked out — the build watch has rebuilt. Open the site to try it out.": [
+				"Çıkış yapıldı — derleme izleme yeniden derledi. Denemek için siteyi açın."
+			],
+			"Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Çıkış yapıldı — derleme izleme hâlâ bu değişikliği derliyor. Siteyi denemeden önce işlemin tamamlanmasını bekleyin."
+			],
+			"Checked out.": [
+				"Çıkış işlemleri tamamlandı."
+			],
+			"Checked out — open the site to try it out.": [
+				"Çıkış yapıldı — denemek için siteyi açın."
+			],
+			"The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Yama geri alındı, ancak derleme izleme işlemi yeniden derleme tamamlanmadan durdu; bu nedenle site hâlâ eski varlıkları kullanıyor."
+			],
+			"The patch is reverted but the build watch was stopped, so the site still runs the old assets.": [
+				"Yama geri alındı ancak derleme izleme işlemi durduruldu; bu nedenle site hâlâ eski kaynakları kullanıyor."
+			],
+			"%s failed, so the build was skipped. The patch is reverted but dependencies are stale.": [
+				"%s başarısız oldu, bu nedenle derleme atlandı. Yama geri alındı ancak bağımlılıklar güncel değil."
+			],
+			"The patch is reverted but the build failed, so the site still runs the old assets.": [
+				"Yama geri alındı ancak derleme başarısız oldu; bu nedenle site hâlâ eski öğeleri kullanıyor."
+			],
+			"Reverted — the build watch has rebuilt. Open the site to try it out.": [
+				"Geri alındı — derleme izleme sistemi yeniden derleme yaptı. Denemek için siteyi açın."
+			],
+			"Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Geri alındı — derleme izleme sistemi hâlâ bu değişikliği derliyor. Siteyi denemeden önce işlemin tamamlanmasını bekleyin."
+			],
+			"Reverted.": [
+				"Geri alındı."
+			],
+			"Reverted — open the site to try it out.": [
+				"Geri alındı — denemek için siteyi açın."
+			],
+			"The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.": [
+				"Derleme izleme, sürdürürken %s klasörünü sıfırdan yeniden derler — çıktı, günlüklerde derleme izleme altında bulunur. İzleme işlemi yeniden başladığında güncelleme tamamlanır."
+			],
+			"This pull request is closed. You can still check out its last head to investigate it.": [
+				"Bu çekme isteği kapatılmıştır. Yine de inceleme amacıyla son head’ini kontrol edebilirsiniz."
+			],
+			"Return to saved copy": [
+				"Kaydedilen kopyaya dön"
+			],
+			"PR #%d is already on this site; you will switch to your local copy.": [
+				"PR #%d zaten bu sitede mevcut; yerel kopyanıza geçeceksiniz."
+			],
+			"PR #%d has moved on GitHub; your local copy will be updated.": [
+				"GitHub üzerindeki PR #%d güncellendi; yerel kopyanız güncellenecektir."
+			],
+			"PR #%d has moved on GitHub, but your copy has edits on top.": [
+				"GitHub üzerindeki PR #%d güncellendi, ancak sizin kopyanızda ek düzenlemeler var."
+			],
+			"PR #%1$d changes %2$d file.": [
+				"PR #%1$d, %2$d dosyayı değiştirir.",
+				"PR #%1$d, %2$d dosyayı değiştirir."
+			],
+			"Could not switch this pull request. Check the log and try again.": [
+				"Bu çekme isteği aktarılamadı. Günlüğü kontrol edin ve yeniden deneyin."
+			],
+			"This pull request has no recorded starting point, so the app cannot safely save its edits. Save a patch before changing branches.": [
+				"Bu çekme isteğinin kaydedilmiş bir başlangıç noktası bulunmadığından, uygulama yapılan değişiklikleri güvenli bir şekilde kaydedemiyor. Dal değiştirmeden önce bir yama kaydedin."
+			],
+			"No pull request is checked out on this site.": [
+				"Bu sitede hiçbir çekme isteğine geçilmedi."
+			],
+			"Enter a positive whole pull request number.": [
+				"Pozitif bir tam sayı pull request numarası girin."
+			],
+			"PR #%d is already checked out. Revert it before applying it again.": [
+				"PR #%d zaten kontrol edildi. Yeniden uygulamadan önce geri alın."
+			],
+			"This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.": [
+				"Bu sitede, uygulamanın oluşturmadığı pr/%d adlı bir dal zaten var. Yeniden denemeden önce bir terminalden bu dalı yeniden adlandırın veya silin."
+			],
+			"PR #%d has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.": [
+				"GitHub üzerindeki PR #%d güncellendi ve kopyanızda ek düzenlemeler var. Güncellemeden önce bu düzenlemeleri silin veya elinizdeki kopyayı koruyun."
+			],
+			"Revert this PR": [
+				"Bu PR’yi geri al"
+			],
+			"Edits you make here stay with your local copy of the PR.": [
+				"Burada yaptığınız düzenlemeler, PR’nin yerel kopyasında kalır."
+			],
+			"Your edits here stay with your local copy of the PR.": [
+				"Burada yaptığınız düzenlemeler, PR’nin yerel kopyasında kalır."
+			],
+			"Your ticket changes are saved separately and return when you revert this PR.": [
+				"Bilet değişiklikleriniz ayrı olarak kaydedilir ve bu PR’yi geri aldığınızda eski haline döner."
+			],
+			"Your issue changes are saved separately and return when you revert this PR.": [
+				"Sorunla ilgili değişiklikleriniz ayrı olarak kaydedilir ve bu PR’yi geri aldığınızda yeniden görünür."
+			],
+			"Reverting this PR returns to trunk.": [
+				"Bu PR’yi geri almak ana dala döner."
+			],
+			"Setup failed: %s": [
+				"Kurulum başarısız oldu: %s"
+			],
+			"Site setup request completed.": [
+				"Site kurulum talebi tamamlandı."
+			],
+			"Starting site setup…": [
+				"Site kurulumu başlıyor…"
+			],
+			"Cloning repository…": [
+				"Depo kopyalanıyor…"
+			],
+			"Setup finished.": [
+				"Kurulum tamamlandı."
+			],
+			"Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.": [
+				"Desteklenen komutları listelemek için <code><command /></code> yazın. Geçerli komutu durdurmak için <code><keys /></code> tuşlarına basın."
+			],
+			"Added a dependency to <code><file /></code>? Run <command />.": [
+				"<code><file /></code> dosyasına bir bağımlılık mı eklediniz? <command /> komutunu çalıştırın."
+			],
+			"Edited files in <code><folder /></code>? Run <command /> so the site picks them up.": [
+				"<code><folder /></code> içindeki dosyaları mı düzenlediniz? Sitenin bunları alması için <command /> komutunu çalıştırın."
+			],
+			"Setting this site up — running %s…": [
+				"Bu site kuruluyor — %s çalıştırılıyor…"
+			],
+			"Stopping setup…": [
+				"Kurulum durduruluyor…"
+			],
+			"Debug.log": [
+				"Debug.log"
+			],
+			"Debug.log (%d)": [
+				"Debug.log (%d)"
+			],
+			"Discarded local changes.": [
+				"Yerel değişiklikler silindi."
+			],
+			"Saved your changes to %s and reset the working tree.": [
+				"Değişiklikleriniz %s dosyasına kaydedildi ve çalışma ağacı sıfırlandı."
+			],
+			"Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.": [
+				"Güncelleme tamamlanmadı — %s başarısız oldu. Kod yeni ancak bağımlılıklar ve derlenmiş varlıklar eski; yukarıdaki başlıktan kurulumu ve derlemeyi yeniden deneyin."
+			],
+			"%1$s changed — running %2$s (only the changed packages are downloaded)…": [
+				"%1$s değiştirildi — %2$s çalıştırılıyor (sadece değiştirilen paketler indiriliyor)…"
+			],
+			"Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.": [
+				"Güncelleme tamamlanmadı — derleme başarısız oldu. Kod yeni ancak derlenmiş varlıklar eski; yukarıdaki başlıktan kurulumu ve derlemeyi yeniden deneyin."
+			],
+			"Update complete — this site is now on the latest trunk.": [
+				"Güncelleme tamamlandı — bu site artık en son trunk sürümündedir."
+			],
+			"WordPress npm helper terminal.": [
+				"WordPress npm yardımcı terminali."
+			],
+			"A command is already running. Press %s to stop it.": [
+				"Bir komut halihazırda çalışıyor. Durdurmak için %s tuşuna basın."
+			],
+			"Try \"%s\" for the list of supported commands.": [
+				"Desteklenen komutların listesini görmek için \"%s\" komutunu deneyin."
+			],
+			"Unsupported command: %s": [
+				"Desteklenmeyen komut: %s"
+			],
+			"Unsupported script \"%1$s\". Allowed scripts: %2$s": [
+				"Desteklenmeyen betik dosyası \"%1$s\". İzin verilen betik dosyaları: %2$s"
+			],
+			"Missing script name. Example: %s": [
+				"Betik adı eksik. Örnek: %s"
+			],
+			"Run them here whenever you change files or add a dependency afterwards.": [
+				"Dosyaları her değiştirdiğinizde veya daha sonra bir bağımlılık eklediğinizde bunları burada çalıştırın."
+			],
+			"The setup checklist runs %1$s and %2$s once.": [
+				"Kurulum kontrol listesi %1$s ve %2$s komutlarını birer kez çalıştırır."
+			],
+			"%1$s Run one of: %2$s": [
+				"%1$s Şunlardan birini çalıştırın: %2$s"
+			],
+			"%1$s Run %2$s in the site directory": [
+				"%1$s Site dizininde %2$s komutunu çalıştırın"
+			],
+			"%s Show this help text": [
+				"%s Bu yardım metnini gösterir"
+			],
+			"Available commands:": [
+				"Kullanılabilir komutlar:"
+			],
+			"Could not show the log file: %s": [
+				"Günlük dosyası görüntülenemedi: %s"
+			],
+			"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was not.": [
+				"%1$s sitesinin debug.log dosyası temizlenemedi: %2$s. Panel temizlendi, dosya temizlenmedi."
+			],
+			"Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.": [
+				"Geliştirme sunucusunun başlatılması iptal edildi: %s tamamlanmadan önce derleme izleme işlemi durduruldu. İzleme işlemi çalışmaya başladığında işlemi yeniden başlatın."
+			],
+			"%s is complete: starting the server without the build watch. Start build watch to compile edits on save.": [
+				"%s tamamlandı: derleme izleme olmadan sunucu başlatılıyor. Kaydedildiğinde değişiklikleri derlemek için derleme izlemeyi başlatın."
+			],
+			"Failed to start PHP server: %s": [
+				"PHP sunucusu başlatılamadı: %s"
+			],
+			"unknown error": [
+				"bilinmeyen hata"
+			],
+			"Dev server failed to start: %s": [
+				"Geliştirme sunucusu başlatılamadı: %s"
+			],
+			"Dev server stopped unexpectedly (see Help → %s for details).": [
+				"Geliştirme sunucusu beklenmedik bir şekilde durdu (ayrıntılar için bkz. Yardım → %s)."
+			],
+			"Resumed.": [
+				"Sürdürüldü."
+			],
+			"Paused while another operation uses the build.": [
+				"Başka bir işlem derlemeyi kullanırken işlem duraklatıldı."
+			],
+			"%1$s failed with code %2$s — build watch not started.": [
+				"%1$s %2$s koduyla başarısız oldu — build watch başlatılamadı."
+			],
+			"%s was stopped — build watch not started.": [
+				"%s durduruldu — build watch başlatılmadı."
+			],
+			"No completed build found — running %s first…": [
+				"Tamamlanmış bir derleme bulunamadı — önce %s çalıştırılıyor…"
+			],
+			"A command is already running in the terminal — stop it before starting the build watch.": [
+				"Terminalde halihazırda bir komut çalışıyor — derleme izlemeyi başlatmadan önce bunu durdurun."
+			],
+			"%1$s exited with code %2$s": [
+				"%1$s %2$s koduyla sonlandırıldı"
+			],
+			"%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for \"%3$s\".": [
+				"%1$s, izlemeye başlamadan önce %2$s klasörünü yeniden derler. Geliştirme sunucusu (başlattıysanız) \"%3$s\" mesajını bekler."
+			],
+			"The patch could not be applied.": [
+				"Yama uygulanamadı."
+			],
+			"%s The record of it could not be cleared, so this site still thinks it is applied.": [
+				"%s Kayıt silinemediğinden, bu site yamanın hâlâ uygulandığını varsayıyor."
+			],
+			"%s The applied-patch record has been cleared.": [
+				"%s Uygulanan yama kaydı silindi."
+			],
+			"A command is already running. Stop it before switching tickets.": [
+				"Bir komut halihazırda çalışıyor. Biletler arasında geçiş yapmadan önce bunu durdurun."
+			],
+			"Could not read that patch.": [
+				"Bu yama okunamadı."
+			],
+			"Could not download %s.": [
+				"%s indirilemedi."
+			],
+			"Could not read that file: %s": [
+				"Bu dosya okunamadı: %s"
+			],
+			"Running %s…": [
+				"%s çalıştırılıyor…"
+			],
+			"Build watch (exited %d)": [
+				"Derleme izleme (çıkış kodu %d)"
+			],
+			"Build watch (stopped)": [
+				"Derleme izleme (durduruldu)"
+			],
+			"Build watch (paused)": [
+				"Derleme izleme (duraklatılmış)"
+			],
+			"Build watch (building)": [
+				"Derleme izleme (derleniyor)"
+			],
+			"Build watch (watching)": [
+				"Derleme izleme (izleniyor)"
+			],
+			"Build watch (compiling)": [
+				"Derleme izleme (derleniyor)"
+			],
+			"Could not copy": [
+				"Kopyalanamadı"
+			],
+			"The build failed — dependencies are installed. Its output is above; retry the build from the checklist.": [
+				"Derleme başarısız oldu — bağımlılıklar kuruldu. Çıktısı yukarıda yer almaktadır; kontrol listesine göre derlemeyi yeniden dene."
+			],
+			"%s failed — setup stopped here. Its output is above; retry the install from the checklist.": [
+				"%s başarısız oldu — kurulum burada durdu. Çıktısı yukarıdadır; kontrol listesindeki kurulumu yeniden deneyin."
+			],
+			"Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.": [
+				"Kurulum durduruldu. Geri kalan adımlar yukarıdaki kontrol listesinde yer almaktadır — hazır olduğunuzda bunları uygulayın."
+			],
+			"Setup complete — start the dev server when you are ready.": [
+				"Kurulum tamamlandı — hazır olduğunuzda geliştirme sunucusunu başlatın."
+			],
+			"Status update": [
+				"Durum güncellemesi"
+			],
+			"Status: done": [
+				"Durum: tamamlandı"
+			],
+			"Status: cloning": [
+				"Durum: klonlanıyor"
+			],
+			"Clear": [
+				"Temizle"
+			],
+			"Show in folder": [
+				"Klasörde göster"
+			],
+			"The log file appears once the dev server has run.": [
+				"Günlük dosyası, geliştirme sunucusu çalıştırıldıktan sonra görünür."
+			],
+			"No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.": [
+				"Henüz herhangi bir PHP uyarısı veya hata yok. WordPress veya kodunuzun yazdığı her şey — <code><function /></code>, uyarılar, kullanımdan kaldırılmış özellikler, ölümcül hatalar — geliştirme sunucusu çalışırken burada görünür."
+			],
+			"The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.": [
+				"Derleme izleme, <code><source /></code> düzenlemelerini <code><build /></code> içine derler. Geliştirme sunucusundan bağımsız olarak çalışır — çıktısı ve izleniyor, duraklatılmış ya da durdurulmuş olup olmadığı burada görünür."
+			],
+			"it no longer fits": [
+				"artık uymuyor"
+			],
+			"Open the pull request": [
+				"Çekme isteğini aç"
+			],
+			"the code around it has changed": [
+				"etrafındaki kod değişti"
+			],
+			"looks like that change is not in your checkout any more": [
+				"görünüşe göre bu değişiklik artık çalışma kopyanızda yok"
+			],
+			"It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Artık bu, yaptığınız değişikliklerin bir parçası. Bu satırlardaki düzenlemelerinizi geri alırsanız “Geri Al” seçeneği yeniden görünür; aksi takdirde çalışmanızın bir kopyasını kaydedin ve bileti temel haline geri döndürün — bu projede bu, normal bir işlemdir, boşa harcanmış bir öğleden sonra değildir."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.": [
+				"Bu yama tek başına geri alınamaz: %2$d değişiklikten %1$d tanesinde kendi düzenlemeleriniz yer alıyor, %3$d dosyada.",
+				"Bu yama tek başına geri alınamaz: %2$d değişiklikten %1$d tanesinde kendi düzenlemeleriniz yer alıyor, %3$d dosyada."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.": [
+				"Bu yama tek başına geri alınamaz: %2$d değişiklikten %1$d tanesinde kendi düzenlemeleriniz yer alıyor.",
+				"Bu yama tek başına geri alınamaz: %2$d değişiklikten %1$d tanesinde kendi düzenlemeleriniz yer alıyor."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.": [
+				"%1$s tek başına geri alınamaz: kendi düzenlemeleriniz %3$d değişikliğin %2$d tanesinde ve %4$d dosyada yer almaktadır.",
+				"%1$s tek başına geri alınamaz: kendi düzenlemeleriniz %3$d değişikliğin %2$d tanesinde ve %4$d dosyada yer almaktadır."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.": [
+				"%1$s tek başına geri alınamaz: kendi düzenlemeleriniz %3$d değişiklikten %2$d tanesinde yer almaktadır.",
+				"%1$s tek başına geri alınamaz: kendi düzenlemeleriniz %3$d değişiklikten %2$d tanesinde yer almaktadır."
+			],
+			"Ask its author for a rebase": [
+				"Geliştiriciden bir rebase isteyin"
+			],
+			"Bringing it up to date is its author's work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.": [
+				"Bunu güncel hale getirmek geliştiricinin görevidir — bir rebase işlemi ya da trunk dalını birleştirmek. Çekme isteğine bir yorum bırakarak bunu geliştiriciye bildirmek, başlı başına gerçek bir katkıdır."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Bu çekme isteği daha eski bir ana dal için yazılmıştı ve artık ona uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekir.",
+				"Bu çekme isteği daha eski bir ana dal için yazılmıştı ve artık ona uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekir."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Bu çekme isteği daha eski bir ana dal için yazılmıştı ve artık ona uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekir.",
+				"Bu çekme isteği daha eski bir ana dal için yazılmıştı ve artık ona uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekir."
+			],
+			"looks like it is already in your checkout": [
+				"görünüşe göre bu zaten çalışma kopyanızda yer alıyor"
+			],
+			"Your own work is also in %s, so it may be part of why the pull request does not fit.": [
+				"Kendi çalışmanız da %s içinde yer alıyor, bu nedenle çekme isteğinin uymamasının bir nedeni bu olabilir."
+			],
+			"%s includes changes from the patch you applied and may also contain your own edits.": [
+				"%s, uyguladığınız yamadaki değişiklikleri içerir ve ayrıca kendi düzenlemelerinizi de içerebilir.",
+				"%s, uyguladığınız yamadaki değişiklikleri içerir ve ayrıca kendi düzenlemelerinizi de içerebilir."
+			],
+			"%1$s includes changes from %2$s and may also contain your own edits.": [
+				"%1$s, %2$s yamasındaki değişiklikleri içerir ve ayrıca kendi düzenlemelerinizi de içerebilir.",
+				"%1$s, %2$s yamasındaki değişiklikleri içerir ve ayrıca kendi düzenlemelerinizi de içerebilir."
+			],
+			"Other failures are in %s.": [
+				"Diğer hatalar %s konumunda yer almaktadır."
+			],
+			"Your own work is also in %s and may be part of the failure.": [
+				"Kendi çalışmanız da %s içinde yer almaktadır ve hatanın bir parçası olabilir."
+			],
+			"Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.": [
+				"Öncelikle bir kopyasını saklamak için çalışmanızın bir yamasını kaydedin, ardından bu çekme isteğini temiz bir bilette deneyin. Hâlâ oraya uymuyorsa, çekme isteğini açın ve geliştiricisine güncelleme gerekebileceğini bildirin."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Bu çekme isteği çalışma kopyanıza uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekir.",
+				"Bu çekme isteği çalışma kopyanıza uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekir."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Bu çekme isteği çalışma kopyanıza uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekir.",
+				"Bu çekme isteği çalışma kopyanıza uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekir."
+			],
+			"See why it was closed": [
+				"Neden kapatıldığını öğrenin"
+			],
+			"Nobody is coming back to update a closed pull request — its discussion may say why it ended.": [
+				"Kimse kapatılmış bir çekme isteğini güncellemek için geri dönmez — neden sonlandırıldığı, ilgili tartışma bölümünde belirtilmiş olabilir."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Bu çekme isteği kapatılmıştır ve daha eski bir ana dal için yazılmıştır — artık uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekmektedir.",
+				"Bu çekme isteği kapatılmıştır ve daha eski bir ana dal için yazılmıştır — artık uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekmektedir."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Bu çekme isteği kapatılmıştır ve daha eski bir ana dal için yazılmıştır — artık uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekmektedir.",
+				"Bu çekme isteği kapatılmıştır ve daha eski bir ana dal için yazılmıştır — artık uymuyor: %3$d dosyadaki %2$d değişiklikten %1$d tanesinin yeniden düzenlenmesi gerekmektedir."
+			],
+			"All %d of this pull request's change look like they are already in trunk — there is nothing left to apply.": [
+				"Bu çekme isteğindeki tüm %d değişiklik, halihazırda ana dalda (trunk) mevcut gibi görünüyor — uygulanacak başka bir şey kalmadı.",
+				"Bu çekme isteğindeki tüm %d değişiklik, halihazırda ana dalda (trunk) mevcut gibi görünüyor — uygulanacak başka bir şey kalmadı."
+			],
+			"All %d of this pull request's change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.": [
+				"Bu çekme isteğindeki tüm %d değişiklik, halihazırda ana dalda (trunk) mevcut gibi görünüyor — muhtemelen çekirdek koduna eklenmiştir, bu yüzden kapatılmıştır. Uygulanacak başka bir şey kalmamıştır.",
+				"Bu çekme isteğindeki tüm %d değişiklik, halihazırda ana dalda (trunk) mevcut gibi görünüyor — muhtemelen çekirdek koduna eklenmiştir, bu yüzden kapatılmıştır. Uygulanacak başka bir şey kalmamıştır."
+			],
+			"All %d of this pull request's change look like they are already in your checkout — there is nothing left to apply.": [
+				"Bu çekme isteğindeki tüm %d değişiklik, zaten sizin checkout'unuzda mevcut gibi görünüyor — uygulanacak başka bir şey kalmadı.",
+				"Bu çekme isteğindeki tüm %d değişiklik, zaten sizin checkout'unuzda mevcut gibi görünüyor — uygulanacak başka bir şey kalmadı."
+			],
+			"%1$s and %2$d more file": [
+				"%1$s ve %2$d dosya daha",
+				"%1$s ve %2$d dosya daha"
+			],
+			"%1$d of this patch's %2$d change across %3$d files no longer fit — the other %4$d do.": [
+				"Bu yamanın %2$d değişikliğinden %3$d dosyada yer alan %1$d tanesi artık uygun değil — diğer %4$d tanesi ise uygun.",
+				"Bu yamanın %2$d değişikliğinden %3$d dosyada yer alan %1$d tanesi artık uygun değil — diğer %4$d tanesi ise uygun."
+			],
+			"%1$d of this patch's %2$d change no longer fit — the other %3$d do.": [
+				"Bu yamanın %2$d değişikliğinden %1$d tanesi artık uygun değil — diğer %3$d tanesi ise uygun.",
+				"Bu yamanın %2$d değişikliğinden %1$d tanesi artık uygun değil — diğer %3$d tanesi ise uygun."
+			],
+			"None of this patch's %1$d change across %2$d files still fit your checkout.": [
+				"Bu yamanın %2$d dosyadaki %1$d değişikliğinin hiçbiri çalışma kopyanıza artık uymuyor.",
+				"Bu yamanın %2$d dosyadaki %1$d değişikliğinin hiçbiri çalışma kopyanıza artık uymuyor."
+			],
+			"None of this patch's %d change still fit your checkout.": [
+				"Bu yamanın %d değişikliğinden hiçbiri çalışma kopyanıza uymuyor.",
+				"Bu yamanın %d değişikliğinden hiçbiri çalışma kopyanıza uymuyor."
+			],
+			"%1$d of this patch's %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.": [
+				"Bu yamanın %2$d değişikliğinden %1$d tanesi %3$d dosyada yer alıyor ve bunlar zaten çalışma kopyanızda mevcut gibi görünüyor — geri kalan %4$d tanesi ise hâlâ uyuyor.",
+				"Bu yamanın %2$d değişikliğinden %1$d tanesi %3$d dosyada yer alıyor ve bunlar zaten çalışma kopyanızda mevcut gibi görünüyor — geri kalan %4$d tanesi ise hâlâ uyuyor."
+			],
+			"%1$d of this patch's %2$d change look like they are already in your checkout — the other %3$d still fit.": [
+				"Bu yamanın %2$d değişikliğinden %1$d tanesi çalışma kopyanızda zaten mevcut gibi görünüyor — geri kalan %3$d tanesi ise hâlâ uygun.",
+				"Bu yamanın %2$d değişikliğinden %1$d tanesi çalışma kopyanızda zaten mevcut gibi görünüyor — geri kalan %3$d tanesi ise hâlâ uygun."
+			],
+			"All %1$d of this patch's change across %2$d files look like they are already in your checkout.": [
+				"Bu yamanın %2$d dosyadaki %1$d değişikliğinin tümü, zaten çalışma kopyanızda mevcut gibi görünüyor.",
+				"Bu yamanın %2$d dosyadaki %1$d değişikliğinin tümü, zaten çalışma kopyanızda mevcut gibi görünüyor."
+			],
+			"All %d of this patch's change look like they are already in your checkout.": [
+				"Bu yamanın %d değişikliğinin tümü, zaten çalışma kopyanızda mevcut gibi görünüyor.",
+				"Bu yamanın %d değişikliğinin tümü, zaten çalışma kopyanızda mevcut gibi görünüyor."
+			],
+			"The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.": [
+				"Yama, bu değişikliklerin üzerine uygulanır: değişiklikler birbiriyle çakışmazsa yama başarıyla uygulanır; çakışırsa ise hiçbir şeye dokunmadan başarısız olur."
+			],
+			"%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.": [
+				"%s, uyguladığınız yamadaki değişiklikleri içerir. Dosya kendi düzenlemelerinizi de içerebilir.",
+				"%s, uyguladığınız yamadaki değişiklikleri içerir. Dosyalar kendi düzenlemelerinizi de içerebilir."
+			],
+			"%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.": [
+				"%1$s, uyguladığınız %2$s yamasındaki değişiklikleri içerir. Dosya kendi düzenlemelerinizi de içerebilir.",
+				"%1$s, uyguladığınız %2$s yamasındaki değişiklikleri içerir. Dosyalar kendi düzenlemelerinizi de içerebilir."
+			],
+			"You have your own edits to %s. Save a patch of your work first if you want a copy.": [
+				"%s üzerinde kendi düzenlemeleriniz var. Bir kopyasını istiyorsanız, önce çalışmanızın bir yamasını kaydedin."
+			],
+			"%1$s and %2$s": [
+				"%1$s ve %2$s"
+			],
+			"It still counts as this ticket's one applied patch, so another cannot be applied until this ticket is reverted or discarded.": [
+				"Bu, yine de bu biletin uygulanmış tek yaması olarak sayılır; dolayısıyla bu bilet geri alınana veya iptal edilene kadar başka bir yama uygulanamaz."
+			],
+			"Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Önce çalışmanızın bir kopyasını kaydedin; ardından bileti güvenle temeline geri atabilirsiniz — bu projede bu, ilerlemek için normal bir yoldur, boşa harcanmış bir öğleden sonra değildir."
+			],
+			"The copy could not be saved: %s": [
+				"Kopya kaydedilemedi: %s"
+			],
+			"%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"%s geri alma işlemi için bir kopyasını saklamak üzere çok büyüktü, bu nedenle tek başına geri yüklenemez."
+			],
+			"A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"Bir yama, geri alma işlemi için bir kopyasını saklamak üzere çok büyüktü; bu nedenle tek başına geri alınamaz."
+			],
+			"A patch is applied — %d file.": [
+				"Bir yama uygulandı — %d dosya.",
+				"Bir yama uygulandı — %d dosya."
+			],
+			"A patch is applied — %1$d file, %2$s.": [
+				"Bir yama uygulandı — %1$d dosya, %2$s.",
+				"Bir yama uygulandı — %1$d dosya, %2$s."
+			],
+			"%1$s is applied — %2$d file.": [
+				"%1$s uygulandı — %2$d dosya.",
+				"%1$s uygulandı — %2$d dosya."
+			],
+			"%1$s is applied — %2$d file, %3$s.": [
+				"%1$s uygulandı — %2$d dosya, %3$s.",
+				"%1$s uygulandı — %2$d dosya, %3$s."
+			],
+			"Only %s pull requests can be applied here.": [
+				"Buraya yalnızca %s çekme istekleri uygulanabilir."
+			],
+			"That does not look like a pull request URL.": [
+				"Bu, bir çekme isteği adresine benzemiyor."
+			],
+			"Only github.com pull requests are supported.": [
+				"Yalnızca github.com’daki çekme istekleri desteklenmektedir."
+			],
+			"That is not a pull request URL or number.": [
+				"Bu, bir çekme isteği adresi veya numarası değil."
+			],
+			"Enter a pull request URL or number.": [
+				"Bir çekme isteği adresi veya numarası girin."
+			],
+			"That does not look like a patch — no file changes found.": [
+				"Bu bir yama gibi görünmüyor — herhangi bir dosya değişikliği bulunamadı."
+			],
+			"No file changes found in the patch.": [
+				"Yamada hiçbir dosya değişikliği bulunamadı."
+			],
+			"The patch is empty.": [
+				"Yama boş."
+			],
+			"The empty file path is quoted or ambiguous.": [
+				"Boş dosya yolu tırnak içine alınmış veya belirsiz."
+			],
+			"Applied %d file.": [
+				"%d dosya uygulandı.",
+				"%d dosya uygulandı."
+			],
+			"Reverted %d file.": [
+				"%d dosya geri alındı.",
+				"%d dosya geri alındı."
+			],
+			"The patch could not be written, so the checkout was put back as it was: %s": [
+				"Yama yazılamadığından, çalışma kopyası önceki durumuna geri getirildi: %s"
+			],
+			"The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s": [
+				"Yama yazılamadı ve checkout işlemi tam olarak geri alınamadı — bilinmeyen bir durumdadır. Geri alınamadı: %s"
+			],
+			"writing could not verify %1$s after git apply: %2$s": [
+				"git apply işleminden sonra %1$s doğrulanamadı: %2$s"
+			],
+			"writing git apply exited %s": [
+				"git apply yazılıyor, komut sonlandırıldı %s"
+			],
+			"writing %s": [
+				"%s yazılıyor"
+			],
+			"Could not snapshot the checkout before applying the patch: %s": [
+				"Yama uygulanmadan önce çalışma kopyasının anlık görüntüsü alınamadı: %s"
+			],
+			"The patch was not applied — the checkout is unchanged.": [
+				"Yama uygulanmadı — çalışma kopyası değiştirilmedi."
+			],
+			"That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.": [
+				"O yama artık bu kontrol sürümünde yok — bir şey onu sıfırlamış, muhtemelen bir trunk güncellemesi ya da bir reddetme işlemi. Hiçbir şey geri alınmadı."
+			],
+			"The patch does not apply.": [
+				"Yama uygulanmıyor."
+			],
+			"a file has moved on since the patch was written, so it no longer applies": [
+				"yama yazıldığından beri bir dosya değişti, bu nedenle artık uygulanamıyor"
+			],
+			"%s has moved on since the patch was written, so it no longer applies": [
+				"%s, yama yazıldığından beri değiştiği için artık uygulanamaz"
+			],
+			"%d more file was not checked one by one": [
+				"%d dosya daha tek tek kontrol edilmedi",
+				"%d dosya daha tek tek kontrol edilmedi"
+			],
+			"The patch does not change any files.": [
+				"Bu yama hiçbir dosyada değişiklik yapmaz."
+			],
+			"(unnamed binary file)": [
+				"(adı belirtilmemiş ikili dosya)"
+			],
+			"Could not read the patch: %s": [
+				"Yama okunamadı: %s"
+			],
+			"Skipped %1$d binary file the app cannot apply: %2$s": [
+				"Uygulamanın uygulayamadığı %1$d ikili dosya atlandı: %2$s",
+				"Uygulamanın uygulayamadığı %1$d ikili dosya atlandı: %2$s"
+			],
+			"%s is not in this checkout, so the patch does not fit it": [
+				"%s bu checkout'ta bulunmadığından, yama buna uymuyor"
+			],
+			"%1$s already exists, so the patch cannot move %2$s onto it": [
+				"%1$s zaten mevcut olduğundan, yama %2$s dosyasını bu konuma taşıyamaz"
+			],
+			"%s is not in this checkout, so the patch cannot move it": [
+				"%s bu checkout'ta bulunmadığından, yama bu dosyayı taşıyamaz"
+			],
+			"%s could not be created from the patch": [
+				"%s yamadan oluşturulamadı"
+			],
+			"%s already exists, so the patch cannot add it": [
+				"%s zaten mevcut olduğundan, yama bunu ekleyemez"
+			],
+			"%s is already gone, so the patch cannot remove it": [
+				"%s zaten silinmiş olduğundan, yama bunu kaldıramaz"
+			],
+			"%s points outside the site folder": [
+				"%s site klasörünün dışına işaret ediyor"
+			],
+			"%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do": [
+				"%1$s yamanın yazılmasından bu yana değişti: %3$d değişiklikten %2$d tanesi artık uymuyor, diğer %4$d tanesi uyuyor",
+				"%1$s yamanın yazılmasından bu yana değişti: %3$d değişiklikten %2$d tanesi artık uymuyor, diğer %4$d tanesi uyuyor"
+			],
+			"%1$s has moved on since the patch was written, so none of its %2$d change still fits": [
+				"%1$s yamanın yazılmasından bu yana değişti, bu nedenle %2$d değişikliğin hiçbiri artık uymuyor",
+				"%1$s yamanın yazılmasından bu yana değişti, bu nedenle %2$d değişikliğin hiçbiri artık uymuyor"
+			],
+			"Server did not start within %d second": [
+				"Sunucu %d saniye içinde başlatılamadı",
+				"Sunucu %d saniye içinde başlatılamadı"
+			],
+			"Server exited with code %s before reporting a URL": [
+				"Sunucu, bir adres bildirmeden önce %s koduyla sonlandırıldı"
+			],
+			"Server exited with code %1$s (signal %2$s) before reporting a URL": [
+				"Sunucu, bir adres bildirmeden önce %1$s koduyla (sinyal %2$s) sonlandırıldı"
+			],
+			"Failed to start: %s": [
+				"Başlatılamadı: %s"
+			],
+			"Retrying with engine checks relaxed…": [
+				"Motor denetimleri esnetilerek yeniden deneniyor…"
+			],
+			"This site requires a newer Node.js than this app bundles.": [
+				"Bu site, bu uygulamanın paketinde bulunan sürümden daha yeni bir Node.js sürümünü gerektiriyor."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm %s koduyla sonlandırıldı, ancak başlattığı bir işlem hâlâ çalışıyor ve çıktısını tutuyor. Serbest bırakıp sonlandırılıyor."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm %1$s koduyla (sinyal %2$s) sonlandırıldı, ancak başlattığı bir işlem hâlâ çalışıyor ve çıktısını tutuyor. Serbest bırakılıp sonlandırılıyor."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm %s koduyla sonlandırıldı, ancak başlattığı bir işlem hâlâ çalışıyor ve çıktısını tutuyor. Serbest bırakılıyor; bu işlem kendi kendine sona erene kadar çalışmaya devam eder."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm %1$s koduyla (sinyal %2$s) sonlandırıldı, ancak başlattığı bir işlem hâlâ çalışıyor ve çıktısını tutuyor. Serbest bırakılıyor; bu işlem kendi kendine tamamlanana kadar çalışmaya devam eder."
+			],
+			"Applying the patch failed: %s": [
+				"Yama uygulanamadı: %s"
+			],
+			"The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s": [
+				"Yama uygulandı ancak geri alma kaydı kaydedilemedi ve işlem geri alınamadı — checkout'ta yama mevcut ve uygulama bunu geri alamıyor. %s"
+			],
+			"The patch applied but its revert record could not be saved, so it was undone. %s": [
+				"Yama uygulandı ancak geri alma kaydı kaydedilemedi, bu nedenle işlem geri alındı. %s"
+			],
+			"This patch is too large to keep for an undo, so Revert will not be offered.": [
+				"Bu yama, geri alma işlemi için saklanamayacak kadar büyük olduğundan, “Geri al” seçeneği sunulmayacaktır."
+			],
+			"Applying %s…": [
+				"%s uygulanıyor…"
+			],
+			"Reverting %s…": [
+				"%s geri alınıyor…"
+			],
+			"%s is already applied. Revert it before applying another patch.": [
+				"%s zaten uygulanmış durumda. Başka bir yama uygulamadan önce bunu geri alın."
+			],
+			"There is no stored patch to revert.": [
+				"Geri alınacak kayıtlı bir yama bulunmamaktadır."
+			],
+			"Could not check your work for conflicts, so the preview was not shown.": [
+				"Çalışmanız çakışmalara karşı denetlenemediğinden ön izleme gösterilmedi."
+			],
+			"Restoring the files of your previous branch…": [
+				"Önceki dalınızdaki dosyalar geri yükleniyor…"
+			],
+			"Could not remove the unused branch: %s": [
+				"Kullanılmayan dal silinemedi: %s"
+			],
+			"Downloading the pull request's files and switching to its branch…": [
+				"Çekme isteğinin dosyaları indiriliyor ve dalına geçiliyor…"
+			],
+			"Returning to your saved copy of the pull request…": [
+				"Çekme isteğinin kayıtlı kopyasına dönülüyor…"
+			],
+			"Your work is safe — it is committed on %s. Apply that pull request again to return to it.": [
+				"Çalışmanız güvende — %s dalına kaydedildi. Bu çekme isteğine dönmek için isteği yeniden uygulayın."
+			],
+			"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.": [
+				"#%1$s üzerindeki çalışmanız güvende — %2$s dalına kaydedildi. Bu bilete dönmek için bileti yeniden bağlayın."
+			],
+			"Update failed during fetch: %s": [
+				"Alma işlemi sırasında güncelleme başarısız oldu: %s"
+			],
+			"Update failed during checkout: %s": [
+				"Checkout sırasında güncelleme başarısız oldu: %s"
+			],
+			"Returning to your work on %s…": [
+				"%s dalındaki çalışmanıza geri dönülüyor…"
+			],
+			"Parking your work on %s before updating…": [
+				"Güncellemeden önce çalışmanız %s dalına alınıyor…"
+			],
+			"Fetch latest trunk": [
+				"En son trunk sürümünü getir"
+			],
+			"The build watch is rebuilding — output in the Logs, under Build watch": [
+				"Derleme izleyicisi yeniden derliyor — çıktı Günlükler altında, Derleme izleyicisi bölümünde"
+			],
+			"Dependencies unchanged — skipping %s": [
+				"Bağımlılıklar değişmedi — %s atlanıyor"
+			],
+			"Dependencies unchanged, rebuilt.": [
+				"Bağımlılıklar değişmedi, yeniden derlendi."
+			],
+			"Dependencies updated, rebuilt.": [
+				"Bağımlılıklar güncellendi, yeniden derlendi."
+			],
+			"Dependencies unchanged, rebuilt in %s.": [
+				"Bağımlılıklar değişmedi, %s içinde yeniden derlendi."
+			],
+			"Dependencies updated, rebuilt in %s.": [
+				"Bağımlılıklar güncellendi, %s içinde yeniden derlendi."
+			],
+			"Install dependencies": [
+				"Bağımlılıkları kur"
+			],
+			"Download WordPress": [
+				"WordPress'i indirin"
+			],
+			"Rebuild": [
+				"Yeniden oluştur"
+			],
+			"Apply the patch": [
+				"Yamayı uygula"
+			],
+			"Revert the pull request": [
+				"Çekme isteğini geri al"
+			],
+			"Apply the pull request": [
+				"Çekme isteğini uygula"
+			],
+			"The build watch rebuilds when it resumes": [
+				"Derleme izleyicisi devam ettiğinde yeniden derler"
+			],
+			"The build watch will recompile the change": [
+				"Derleme izleyicisi değişikliği yeniden derleyecek"
+			],
+			"Rebuilt": [
+				"Yeniden derlendi"
+			],
+			"Rebuilding — output in the Terminal": [
+				"Yeniden derleniyor — çıktı Terminalde"
+			],
+			"Dependencies changed — installing the difference…": [
+				"Bağımlılıklar değişti — farklar kuruluyor…"
+			],
+			"Fetched and reset to trunk": [
+				"Alındı ve trunk'a sıfırlandı"
+			],
+			"Fetching and resetting to trunk…": [
+				"Alınıyor ve trunk'a sıfırlanıyor…"
+			],
+			"Fetch and reset to trunk": [
+				"Trunk'ı al ve sıfırla"
+			],
+			"The build did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"Derleme tamamlanmadı. Çıktısı Terminalde — okuduktan sonra yeniden deneyin."
+			],
+			"Retry the build": [
+				"Derlemeyi yeniden dene"
+			],
+			"Build complete": [
+				"Derleme tamamlandı"
+			],
+			"The install did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"Kurulum tamamlanmadı. Çıktısı Terminalde — okuduktan sonra yeniden deneyin."
+			],
+			"Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.": [
+				"Kuruldu. O zamandan beri %1$s dosyasına bağımlılık mı eklediniz? Terminalde %2$s komutunu çalıştırın."
+			],
+			"Install npm packages so commands can run.": [
+				"Komutların çalışabilmesi için npm paketlerini kurun."
+			],
+			"Retry %s": [
+				"%s komutunu yeniden dene"
+			],
+			"Dependencies installed": [
+				"Bağımlılıklar kuruldu"
+			],
+			"Ready": [
+				"Hazır"
+			],
+			"In progress": [
+				"Devam ediyor"
+			],
+			"Locked": [
+				"Kilitli"
+			],
+			"Pending": [
+				"Beklemede"
+			],
+			"Failed": [
+				"Başarısız"
+			],
+			"Completed": [
+				"Tamamlandı"
+			],
+			"The trunk snapshot is old; update before making a patch.": [
+				"Trunk anlık görüntüsü eski; yama oluşturmadan önce güncelleyin."
+			],
+			"The update left the build stale; install and build to recover.": [
+				"Güncelleme derlemeyi eski bıraktı; düzeltmek için kurun ve derleyin."
+			],
+			"A patch is staged — apply and rebuild, or cancel.": [
+				"Bir yama hazırlandı — uygulayıp yeniden derleyin ya da iptal edin."
+			],
+			"The trunk update in progress.": [
+				"Trunk güncellemesi devam ediyor."
+			],
+			"A patch is being applied or reverted.": [
+				"Bir yama uygulanıyor veya geri alınıyor."
+			],
+			"The next step in the setup checklist.": [
+				"Kurulum kontrol listesindeki bir sonraki adım."
+			],
+			"Link a Trac ticket to give your work a home.": [
+				"Çalışmanıza bir giriş belirlemek için bir Trac biletini bağlayın."
+			],
+			"Link a GitHub issue to give your work a home.": [
+				"Çalışmanıza bir giriş sağlamak için bir GitHub sorunuyla bağlantı kurun."
+			],
+			"You have uncommitted changes ready to review and submit.": [
+				"İncelemeye ve gönderilmeye hazır, henüz kaydedilmemiş değişiklikleriniz var."
+			],
+			"PR #%d is applied; revert it before applying another change.": [
+				"PR #%d uygulandı; başka bir değişiklik uygulamadan önce bunu geri alın."
+			],
+			"Start the dev server to work on the site.": [
+				"Site üzerinde çalışmak için geliştirme sunucusunu başlatın."
+			],
+			"Setting up new site…": [
+				"Yeni site kuruluyor…"
+			],
+			"Finish setting this site up first.": [
+				"Önce bu sitenin kurulumunu tamamlayın."
+			],
+			"Hide": [
+				"Gizle"
+			],
+			"Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.": [
+				"Tam derleme işlemi başlatılıyor. Bu işlem Windows’ta yarım saate kadar sürebilir; Terminal’de işlemin durumu görüntülenir."
+			],
+			"Installing dependencies. You can leave this running — the build follows on its own.": [
+				"Bağımlılıklar kuruluyor. Bunu çalışır durumda bırakabilirsiniz — derleme kendiliğinden devam eder."
+			],
+			"Setting this site up for you — step %1$d of %2$d": [
+				"Bu site sizin için kuruluyor — %1$d / %2$d. adım"
+			],
+			"Your changes were saved to %s before the reset.": [
+				"Değişiklikleriniz, sıfırlama işleminden önce %s konumuna kaydedildi."
+			],
+			"Up to date with trunk as of today.": [
+				"Bugün itibarıyla trunk sürümüyle günceldir."
+			],
+			"Most packages are already cached, so this is a download of the difference — not the whole tree.": [
+				"Paketlerin çoğu zaten ön bellekte saklanmaktadır; dolayısıyla bu, tüm ağacın değil, yalnızca farkların indirilmesidir."
+			],
+			"step %1$d of %2$d": [
+				"adım %1$d / %2$d"
+			],
+			"Patches you create now may not apply on Trac. Updating takes a few minutes.": [
+				"Şu anda oluşturduğunuz yamalar Trac’ta uygulanmayabilir. Güncelleme işlemi birkaç dakika sürer."
+			],
+			"This site's WordPress code is %d day old": [
+				"Bu sitenin WordPress kodu %d günlük",
+				"Bu sitenin WordPress kodu %d günlük"
+			],
+			"Retry install & build": [
+				"Kurulumu ve derlemeyi yeniden dene"
+			],
+			"The code is new but the built assets are old. The site may not run correctly until install and build succeed.": [
+				"Kod yeni ancak derlenen varlıklar eski. Kurulum ve derleme başarılı olana kadar site düzgün çalışmayabilir."
+			],
+			"Update incomplete": [
+				"Güncelleme tamamlanmadı"
+			],
+			"Next step: %s": [
+				"Sonraki adım: %s"
+			],
+			"Starting… (%s)": [
+				"Başlıyor… (%s)"
+			],
+			"Start dev server and finish the wizard": [
+				"Geliştirme sunucusunu başlatın ve sihirbazı tamamlayın"
+			],
+			"Stop dev server": [
+				"Geliştirme sunucusunu durdur"
+			],
+			"Start dev server & finish wizard": [
+				"Geliştirme sunucusunu başlat ve sihirbazı tamamla"
+			],
+			"Run full build": [
+				"Tam derlemeyi çalıştır"
+			],
+			"Install npm dependencies": [
+				"npm bağımlılıklarını kur"
+			],
+			"Cloning the repository… install and build start on their own when it finishes.": [
+				"Depo klonlanıyor… Bittiğinde kurulum ve derleme kendiliğinden başlayacak."
+			],
+			"Failed to discard changes: %s": [
+				"Değişiklikler silinemedi: %s"
+			],
+			"Saved your changes to %1$s, but resetting the working tree failed: %2$s": [
+				"Değişiklikleriniz %1$s dosyasına kaydedildi, ancak çalışma ağacının sıfırlanması başarısız oldu: %2$s"
+			],
+			"Error saving diff: %s": [
+				"Fark kaydedilirken hata oluştu: %s"
+			],
+			"Please complete the full build before starting the dev server. You can also skip the wizard.": [
+				"Lütfen geliştirme sunucusunu başlatmadan önce tam derlemeyi tamamlayın. Sihirbazı da atlayabilirsiniz."
+			],
+			"Updating to latest trunk": [
+				"En son trunk sürümüne güncelleme"
+			],
+			"Skip initialization wizard": [
+				"Başlangıç sihirbazını atla"
+			],
+			"Nothing was lost — pick it back up with the buttons below whenever you want.": [
+				"Hiçbir şey kaybolmadı — istediğiniz zaman aşağıdaki düğmelerle devam edebilirsiniz."
+			],
+			"Setup stopped.": [
+				"Kurulum durduruldu."
+			],
+			"Stop setup": [
+				"Kurulumu durdur"
+			],
+			"Complete each step to prepare this site for development.": [
+				"Bu siteyi geliştirmeye hazır hale getirmek için her adımı tamamlayın."
+			],
+			"Initial setup checklist": [
+				"İlk kurulum kontrol listesi"
+			],
+			"Save patch & update": [
+				"Yamayı kaydet ve güncelle"
+			],
+			"Discard & update": [
+				"Sil ve güncelle"
+			],
+			"— your changes are lost; this cannot be undone": [
+				"— değişiklikleriniz kaybolur; bu işlem geri alınamaz"
+			],
+			"Discard them": [
+				"Onları at"
+			],
+			"— a .diff on your machine — nothing is sent to Trac": [
+				"— bilgisayarınızdaki bir .diff dosyası — Trac'a hiçbir şey gönderilmez"
+			],
+			"Save them as a patch first (as a local file)": [
+				"Öncelikle bunları bir yama olarak kaydedin (yerel dosya olarak)"
+			],
+			"You've changed %d file in this site. Resetting to trunk would throw them away.": [
+				"Bu sitede %d dosya değiştirdiniz. Trunk'a sıfırlamak bu değişiklikleri atar.",
+				"Bu sitede %d dosya değiştirdiniz. Trunk'a sıfırlamak bu değişiklikleri atar."
+			],
+			"Update to latest trunk?": [
+				"En son trunk sürümüne güncellensin mi?"
+			],
+			"Launch the development server once to complete the WordPress setup wizard.": [
+				"WordPress kurulum sihirbazını tamamlamak için geliştirme sunucusunu bir kez başlatın."
+			],
+			"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.": [
+				"Derleme tamamlandı. %1$s dizininden beri dosyalar düzenlendi mi? Sitenin bu değişiklikleri algılaması için Terminal'de %2$s komutunu çalıştırın — güncellemeler ve uygulanan yamalar kendiliğinden yeniden derlenir."
+			],
+			"Compile WordPress Core to generate the dist files. Later updates rebuild automatically.": [
+				"WordPress çekirdeğini derleyerek dist dosyalarını oluşturun. Sonraki güncellemeler otomatik olarak yeniden derlenir."
+			],
+			"Clone the WordPress develop repository.": [
+				"WordPress develop deposunu klonlayın."
+			],
+			"Download WordPress development version": [
+				"WordPress geliştirme sürümünü indirin"
+			],
+			"Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.": [
+				"Kurulumu tamamlamak için bu kopyayı Gutenberg eklentisi olarak içeren bir WordPress'i bir kez başlatın."
+			],
+			"Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.": [
+				"Derleme tamamlandı. O zamandan beri bir paketi mi düzenlediniz? Sitenin bunu algılaması için Terminal'de %s komutunu çalıştırın; güncellemeler kendiliğinden yeniden derlenir."
+			],
+			"Compile the Gutenberg packages. Later updates rebuild automatically.": [
+				"Gutenberg paketlerini derleyin. Sonraki güncellemeler otomatik olarak yeniden derlenir."
+			],
+			"Clone the Gutenberg repository.": [
+				"Gutenberg deposunu klonlayın."
+			],
+			"Download Gutenberg": [
+				"Gutenberg'i indir"
+			],
+			"the window’s theme: two colours of one’s own\u0004Custom": [
+				"Özel"
+			],
+			"Choose a colour as six hex digits, like #3858e9.": [
+				"#3858e9 gibi altı basamaklı bir onaltılık sayı biçiminde bir renk seçin."
+			],
+			"Choose light, dark, your system’s theme, or custom.": [
+				"Açık, koyu, sisteminizin teması veya özel seçeneklerinden birini seçin."
+			],
+			"Some text may be hard to read with these colours. They are kept as they are; choose others if it is.": [
+				"Bu renklerle bazı metinlerin okunması zor olabilir. Metinler olduğu gibi bırakılmıştır; okunması zorsa başka renkler seçin."
+			],
+			"Primary": [
+				"Birincil"
+			],
+			"Background": [
+				"Arka plan"
+			],
+			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
+				"Sistem, işletim sisteminizin açık veya koyu mod ayarını takip eder. Özel modda, temayı seçtiğiniz iki renkle oluşturabilirsiniz."
+			],
+			"%s colour picker": [
+				"%s renk seçici"
+			],
+			"Working…": [
+				"Çalışıyor…"
+			],
+			"Opening the pull request…": [
+				"Çekme isteği açılıyor…"
+			],
+			"Uploading your changes…": [
+				"Değişiklikleriniz yükleniyor…"
+			],
+			"Bringing your fork up to date…": [
+				"Çatalınız güncel duruma getiriliyor…"
+			],
+			"Creating your fork of %s…": [
+				"%s deposunun çatalı oluşturuluyor…"
+			],
+			"Could not start sign-in.": [
+				"Giriş başlatılamadı."
+			],
+			"Sign-in did not complete.": [
+				"Giriş tamamlanamadı."
+			],
+			"The authorization was declined on GitHub. Nothing was changed.": [
+				"Yetkilendirme GitHub'da reddedildi. Hiçbir değişiklik yapılmadı."
+			],
+			"The pull request could not be opened.": [
+				"Çekme isteği açılamadı."
+			],
+			"Your checkout was behind trunk, so the branch was based on today's trunk. None of your files were changed upstream in between — the pull request shows only your work.": [
+				"Yerel kopyanız trunk'ın gerisindeydi, bu nedenle dal bugünkü trunk'ı temel aldı. Bu süre zarfında dosyalarınızın hiçbiri yukarı akışta değiştirilmedi — çekme isteği yalnızca sizin çalışmanızı gösterir."
+			],
+			"Opened <link>pull request #%s</link> from <branch />.": [
+				"<branch /> adresinden <link>pull isteği #%s</link> açıldı."
+			],
+			"Dry run — branch <branch /> was created on your fork; no pull request was opened.": [
+				"Deneme — <branch /> dalı forkunuzda oluşturuldu; herhangi bir çekme isteği açılmadı."
+			],
+			"Save the patch file instead": [
+				"Bunun yerine yama dosyasını kaydedin"
+			],
+			"Pull requests go to <target />, not to <upstream />.": [
+				"Çekme istekleri <upstream /> adresine değil, <target /> adresine gönderilir."
+			],
+			"Dry run — a branch is pushed to your fork, no pull request is opened.": [
+				"Deneme — bir dal çatalınıza gönderilir, çekme isteği açılmaz."
+			],
+			"Test mode": [
+				"Test modu"
+			],
+			"Open a pull request": [
+				"Bir çekme isteği açın"
+			],
+			"Not now": [
+				"Şimdi değil"
+			],
+			"Sign in with GitHub": [
+				"GitHub ile giriş yap"
+			],
+			"Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.": [
+				"Giriş yapmanız, uygulamanın %s deposunu hesabınıza çatallamasına, bu yamayı oradaki bir dala göndermesine ve çekme isteği açmasına olanak tanır. Uygulama, tarayıcınız üzerinden giriş yapar, asla parolanızı sormaz ve siz çıkınca yetkilendirmeyi unutur."
+			],
+			"Show this again": [
+				"Bunu yeniden göster"
+			],
+			"Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.": [
+				"Giriş yapılmadı ve hiçbir şey gönderilmedi. Yama dosyasını hâlâ kaydedebilirsiniz ve diğer hedefler değişmemiştir."
+			],
+			"Signed in as <login /> — the fork and branch go to <fork />.": [
+				"<login /> olarak giriş yapıldı — fork ve dal, <fork /> adresine yönlendirilir."
+			],
+			"Open pull request": [
+				"Çekme isteği aç"
+			],
+			"Push branch (dry run)": [
+				"Dalı gönder (deneme)"
+			],
+			"Anything you are unsure about.": [
+				"Aklınızda soru işareti olan herhangi bir konu."
+			],
+			"How to see it working — the steps you used.": [
+				"Nasıl çalıştığını görmek için — uyguladığınız adımlar."
+			],
+			"What the change does, and why.": [
+				"Değişikliğin ne işe yaradığı ve nedeni."
+			],
+			"Notes for reviewers (optional)": [
+				"İnceleyenler için notlar (isteğe bağlı)"
+			],
+			"Left empty, it will be titled <strong><title /></strong>.": [
+				"Boş bırakılırsa başlığı <strong><title /></strong> olur."
+			],
+			"What the change does, in one line. Reviewers scan these.": [
+				"Bu değişikliğin ne işe yaradığı, tek satırda. İnceleme yapanlar bunları gözden geçirir."
+			],
+			"Title": [
+				"Site başlığı"
+			],
+			"Reject a theme zip in the plugin installer": [
+				"Eklenti yükleyicideki bir tema ZIP dosyasını reddet"
+			],
+			"No connection to GitHub.": [
+				"GitHub ile bağlantı kurulamadı."
+			],
+			"GitHub is rate-limiting this connection. It usually clears within the hour.": [
+				"GitHub bu bağlantıya erişim sınırlaması uyguluyor. Bu durum genellikle bir saat içinde düzelir."
+			],
+			"Waiting for you to finish in the browser…": [
+				"Tarayıcıda işleminizin tamamlanmasını bekliyoruz…"
+			],
+			"That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.": [
+				"Bu GitHub girişi artık geçerli değil. Yeniden giriş yapın ya da bunun yerine yama dosyasını kaydedin."
+			],
+			"Copy the code": [
+				"Kodu kopyala"
+			],
+			"Code copied": [
+				"Kod kopyalandı"
+			],
+			"Enter this code at <strong><address /></strong>, which has been opened in your browser.": [
+				"Bu kodu tarayıcınızda açılmış olan <strong><address /></strong> adresine girin."
+			],
+			"This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.": [
+				"Bu derlemede GitHub uygulaması için yapılandırma yapılmadığından, bir çekme isteği açamaz. Diğer hedefler ise hâlâ çalışmaktadır."
+			],
+			"Checking…": [
+				"Kontrol ediliyor…"
+			],
+			"Open #%s to comment": [
+				"Yorum yapmak için #%s numaralı kaydı açın"
+			],
+			"Copy the link": [
+				"Bağlantıyı kopyala"
+			],
+			"Link copied": [
+				"Bağlantı kopyalandı"
+			],
+			"Triage and props live on the ticket, so the link belongs there too.": [
+				"Önceliklendirme ve teşekkürler bilette yer alır, bu nedenle bağlantı da oraya aittir."
+			],
+			"Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.": [
+				"Açıklamanın en üstüne eklenir. Bilet bağlantısı ve WordPress.org kullanıcı adınız bunun altına eklenir."
+			],
+			"It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.": [
+				"Sizin adınıza GitHub hesabını oluşturamaz ve sizin adınıza Trac’a mesaj gönderemez."
+			],
+			"Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.": [
+				"Üzerinde otomatik kontroller gerçekleştirilir. Ancak kimse GitHub’ı takip etmez — bağlantıyı bilet üzerine göndermek, bunun fark edilmesini sağlar."
+			],
+			"No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.": [
+				"Bu siteye bağlı herhangi bir bilet bulunmamaktadır. Bir çekme isteğinde bir bilete atıfta bulunulması gerekir — Trac kartında ilgili bilete bağlantı ekleyin."
+			],
+			"Link a GitHub issue to this site first. A pull request has to cite one.": [
+				"Önce bu siteye bir GitHub konusu bağlayın. Çekme isteğinin buna atıfta bulunması gerekir."
+			],
+			"The Gutenberg contributing guide": [
+				"Gutenberg katkı kılavuzu"
+			],
+			"Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.": [
+				"İnceleme yapanlar test adımlarını soruyor. Bunları notlara ekleyin: neyin açılması gerektiğini, neyin tıklanması gerektiğini ve ne olması gerektiğini."
+			],
+			"The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.": [
+				"Çekme isteği, değişikliğin incelenip onaylandıktan sonra birleştirildiği yerdir. Görülmesi için başka bir yere gönderilmesine gerek yoktur."
+			],
+			"How pull requests work in Gutenberg": [
+				"Gutenberg’de çekme istekleri nasıl çalışır"
+			],
+			"The Fixes line already lists it on the issue. A comment there still tells the people watching it.": [
+				"Fixes dizisinde bu sorun zaten listelenmiş durumda. Oradaki bir yorum, konuyu takip edenlere hâlâ bilgi veriyor."
+			],
+			"Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.": [
+				"Açıklamanın en üstüne gelir. Sorunu bağlayan Fixes satırı ve WordPress.org kullanıcı adınız altına eklenir."
+			],
+			"It cannot create the GitHub account for you.": [
+				"Sizin adınıza GitHub hesabını oluşturamaz."
+			],
+			"Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.": [
+				"Üzerinde otomatik kontroller gerçekleştirilir ve tam orada incelenip birleştirilir: Gutenberg’de çekme isteği bu işlemlerin yapıldığı yerdir."
+			],
+			"A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.": [
+				"Bir GitHub hesabı. Fork işlemi sizin adınıza gerçekleştirilir; bu uygulamaya hiçbir parola yazılmaz ve hiçbir kimlik bilgisi diske kaydedilmez."
+			],
+			"No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.": [
+				"Bu siteyle ilişkili herhangi bir sorun bulunmamaktadır. Bir çekme isteğinde bir soruna atıfta bulunulması gerekir: GitHub sorun kartında ilgili soruna bağlantı ekleyin."
+			],
+			"Link a Trac ticket to this site first. A pull request has to cite one.": [
+				"Önce bu siteye bir Trac bileti bağlayın. Bir çekme isteğinde buna atıfta bulunulması gerekir."
+			],
+			"The handbook page on pull requests": [
+				"Çekme istekleriyle ilgili el kitabı sayfası"
+			],
+			"Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.": [
+				"GitHub'da da hiçbir şey birleştirilmez. Değişikliği committer'ın kendisi uygular ve bilet, buna karar verdikleri yerdir."
+			],
+			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
+				"Kimse çekme isteği listesini izlemez. Sizinki görülür çünkü bağlantısı bilet üzerindedir — işte bu yüzden bu akış sizi oraya geri göndererek biter."
+			],
+			"How pull requests work in core": [
+				"Çekirdekte çekme istekleri nasıl çalışır"
+			],
+			"Sign in to GitHub first.": [
+				"Önce GitHub'a giriş yapın."
+			],
+			"Could not read the base commit": [
+				"Temel commit okunamadı"
+			],
+			"Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.": [
+				"Trunk, düzenlediğiniz bir dosyanın (%s) altına taşındı. Bu siteyi en son trunk sürümüne güncelleyin, değişikliklerinizin hâlâ geçerli olup olmadığını kontrol edin ve yeniden deneyin.",
+				"Trunk, düzenlediğiniz dosyaların (%s) altına taşındı. Bu siteyi en son trunk sürümüne güncelleyin, değişikliklerinizin hâlâ geçerli olup olmadığını kontrol edin ve yeniden deneyin."
+			],
+			"There are no changes to open a pull request with.": [
+				"Çekme isteği açılacak herhangi bir değişiklik yok."
+			],
+			"Could not open the pull request": [
+				"Çekme isteği açılamadı"
+			],
+			"Could not find an unused branch name": [
+				"Kullanılmamış bir dal adı bulunamadı"
+			],
+			"Could not create the branch": [
+				"Dal oluşturulamadı"
+			],
+			"Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s": [
+				"Fork'unuz GitHub'da hâlâ ayarlanıyor. Bir dakika sonra yeniden deneyin — yama dosyası hâlâ çalışıyor.%s"
+			],
+			"Could not create the commit": [
+				"Commit oluşturulamadı"
+			],
+			"Could not assemble the change": [
+				"Değişiklik birleştirilemedi"
+			],
+			"Could not upload %s": [
+				"%s yüklenemedi"
+			],
+			"Could not read your fork’s %s": [
+				"Fork’unuzdaki %s dalı okunamadı"
+			],
+			"Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.": [
+				"GitHub'da fork'unuz hâlâ ayarlanıyor — bu büyüklükteki bir depo için bu işlem birkaç dakika sürebilir. Biraz sonra yeniden deneyin; yama dosyası hâlâ geçerli."
+			],
+			"Could not read your fork": [
+				"Fork'unuz okunamadı"
+			],
+			"Could not fork %s": [
+				"%s çatallanamadı"
+			],
+			"Could not check for your fork": [
+				"Fork'unuz kontrol edilemedi"
+			],
+			"You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.": [
+				"Zaten %2$s deposunun çatalı olmayan %1$s adlı bir deponuz var, bu yüzden bunu gönderecek bir yer yok. Yama dosyası hâlâ çalışıyor."
+			],
+			"%1$s: %2$s%3$s": [
+				"%1$s: %2$s%3$s"
+			],
+			"This build has no GitHub application configured, so it cannot sign you in.": [
+				"Bu derlemede yapılandırılmış bir GitHub uygulaması bulunmadığından, giriş yapamazsınız."
+			],
+			"GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke \"%1$s\" under %2$s, then sign in here again.": [
+				"GitHub, bu giriş yap işlemine bir çekme isteği açmak için gereken erişimden daha az erişim izni vermiştir — muhtemelen bu uygulamanın eski bir yetkilendirmesi yeniden kullanılmıştır. %2$s altındaki \"%1$s\" seçeneğini geçersiz kılın, ardından buradan yeniden giriş yapın."
+			],
+			"GitHub returned %s": [
+				"GitHub %s değerini döndürdü"
+			],
+			"That sign-in is no longer valid.": [
+				"Bu oturum artık geçerli değil."
+			],
+			"The authorization was declined on GitHub.": [
+				"GitHub'da yetkilendirme reddedildi."
+			],
+			"The code expired before it was entered.": [
+				"Kodun süresi girilmeden önce doldu."
+			],
+			"Sign-in was canceled.": [
+				"Giriş iptal edildi."
+			],
+			"GitHub does not recognise this application, or device flow is not enabled on it.": [
+				"GitHub bu uygulamayı tanımıyor ya da bu uygulamada cihaz akışı etkinleştirilmemiş."
+			],
+			"Revert the patch you applied before opening a pull request from this checkout.": [
+				"Bu checkout'tan bir çekme isteği açmadan önce, daha önce uyguladığınız yamayı geri alın."
+			],
+			"Revert %s before opening a pull request from this checkout.": [
+				"Bu checkout'tan bir çekme isteği açmadan önce %s yamasını geri alın."
+			],
+			"PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.": [
+				"PR #%d uygulanmıştır. Bu PR'nin geliştiricisinin commit'leri bu checkout'un geçmişini oluşturmaktadır, bu nedenle kendi çalışmanız olarak gönderilemez. Öncelikle bu PR'yi geri alın."
+			],
+			"Unknown error": [
+				"Bilinmeyen hata"
+			],
+			"Trac ticket number or URL": [
+				"Trac bilet numarası veya adresi"
+			],
+			"Ticket number or URL, e.g. 62281": [
+				"Bilet numarası veya adres, örn. 62281"
+			],
+			"No ticket is linked to this site, so there is nowhere to attach it yet.": [
+				"Bu siteye bağlı bir bilet yok, bu yüzden henüz iliştirilecek bir yer yok."
+			],
+			"Save, then open #%d": [
+				"Kaydedin, ardından #%d numaralı bileti açın"
+			],
+			"No automated checks. Often followed by a request to open a pull request.": [
+				"Otomatik denetim yapılmaz. Genellikle bunun ardından bir pull isteği açılması istenir."
+			],
+			"A WordPress.org account — needed anyway, for props and to comment.": [
+				"Bir WordPress.org hesabı — zaten destek vermek ve yorum yapmak için gerekli."
+			],
+			"Attach to Trac": [
+				"Trac'e ekle"
+			],
+			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
+				"Uygulama, yazarın yaptığı değişiklikleri daha sonra yapılan düzenlemelerden güvenli bir şekilde ayıramadığından, bu birleştirilmiş yama sizin çalışmanız olarak gönderilemez. Yine de <strong>Kaydet</strong> düğmesini kullanarak kaynak gösterilmemiş bir kopyasını saklayabilirsiniz; göndermeden önce uygulanan yamayı geri alın."
+			],
+			"<strong>The patch you applied is part of this checkout.</strong>": [
+				"<strong>Uyguladığınız yama, bu kontrol sürümünün bir parçasıdır.</strong>"
+			],
+			"<strong><label /> is part of this checkout.</strong>": [
+				"<strong><label /> bu checkout'un bir parçasıdır.</strong>"
+			],
+			"You can still use <strong>Save</strong> to keep an unattributed copy of your edits.": [
+				"Düzenlemelerinizin kaynak gösterilmemiş bir kopyasını saklamak için yine de <strong>Kaydet</strong> seçeneğini kullanabilirsiniz."
+			],
+			"The pull request is the one the app sends for you. The others save a file for you to send.": [
+				"Pull isteği, uygulamanın sizin adınıza gönderdiği istektir. Diğerleri ise sizin göndermeniz için bir dosya kaydeder."
+			],
+			"Where this patch goes": [
+				"Bu yamanın nereye uygulanacağı"
+			],
+			"Could not load your changes. Close this panel and try again. The error is shown below.": [
+				"Değişiklikleriniz yüklenemedi. Bu panoyu kapatıp yeniden deneyin. Hata aşağıda gösterilmektedir."
+			],
+			"This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.": [
+				"Bu sitenin WordPress kodu %d gün öncesine aittir — bu yama Trac'ta uygulanmayabilir. Öncelikle en son trunk sürümüne güncellemeyi düşünün.",
+				"Bu sitenin WordPress kodu %d gün öncesine aittir — bu yama Trac'ta uygulanmayabilir. Öncelikle en son trunk sürümüne güncellemeyi düşünün."
+			],
+			"Saved to %s": [
+				"Şuraya kaydedildi: %s"
+			],
+			"Discard your changes": [
+				"Değişikliklerinizden vazgeçin"
+			],
+			"(<discard />)": [
+				"(<discard />)"
+			],
+			"Failed to generate patch": [
+				"Yama oluşturulamadı"
+			],
+			"Error: %s": [
+				"Hata: %s"
+			],
+			"No changes.": [
+				"Herhangi bir değişiklik yok."
+			],
+			"Generating patch…": [
+				"Yama oluşturuluyor…"
+			],
+			"Could not save the patch: %s": [
+				"Yama kaydedilemedi: %s"
+			],
+			"Change these": [
+				"Bunları değiştirin"
+			],
+			"No event on the patch.": [
+				"Yamada etkinlik yok."
+			],
+			"The patch will say it was written at <strong><event /></strong>.": [
+				"Yamada, <strong><event /></strong> etkinliğinde yazıldığı belirtilecek."
+			],
+			"Save patch as %s": [
+				"Yamayı %s olarak kaydet"
+			],
+			"Someone else pushes it; the props still land on you.": [
+				"Bunu başka biri gönderir; katkı kredisi yine sizde kalır."
+			],
+			"No accounts at all. The patch carries your WordPress.org username, and the event you are at.": [
+				"Hiçbir hesap yok. Yama, WordPress.org kullanıcı adınızı ve katıldığınız etkinliği gösterir."
+			],
+			"Hand it to a mentor": [
+				"Bir mentora iletin"
+			],
+			"Remember this": [
+				"Bunu hatırla"
+			],
+			"Event this patch was written at": [
+				"Bu yamanın yazıldığı etkinlik"
+			],
+			"Event, e.g. WordCamp Europe 2026 (optional)": [
+				"Etkinlik, örn. WordCamp Europe 2026 (isteğe bağlı)"
+			],
+			"WordPress.org username, e.g. janedoe": [
+				"WordPress.org kullanıcı adı, örneğin janedoe"
+			],
+			"Asked once and remembered for every site — these are facts about you, not about this checkout.": [
+				"Bir kez sorulur ve her site için hatırlanır — bunlar bu yerel kopya hakkında değil, sizin hakkınızda bilgilerdir."
+			],
+			"There is nothing to send yet — this site has no changes against its copy of trunk.": [
+				"Henüz gönderilecek bir şey yok — bu sitenin trunk kopyasında herhangi bir değişiklik bulunmuyor."
+			],
+			"Everything this site has that its copy of trunk does not.": [
+				"Bu sitede bulunan, ancak trunk kopyasında bulunmayan her şey."
+			],
+			"Your changes": [
+				"Yaptığınız değişiklikler"
+			],
+			"There are no changes on top of PR #%d.": [
+				"PR #%d üzerinde herhangi bir değişiklik yoktur."
+			],
+			"Edits to this local copy, compared with the original PR commits.": [
+				"Bu yerel kopyada yapılan değişiklikler, özgün PR commit’leriyle karşılaştırıldığında."
+			],
+			"Your changes on top of PR #%d": [
+				"PR #%d üzerindeki değişiklikleriniz"
+			],
+			"Your changes for ticket #%d": [
+				"#%d numaralı bilet için yaptığınız değişiklikler"
+			],
+			"Your changes for issue #%d": [
+				"#%d numaralı sorunla ilgili değişiklikleriniz"
+			],
+			"Stop the dev server before discarding changes.": [
+				"Değişiklikleri geri almadan önce geliştirme sunucusunu durdurun."
+			],
+			"Wait for the build to finish before discarding changes.": [
+				"Değişiklikleri geri almadan önce derlemenin tamamlanmasını bekleyin."
+			],
+			"Wait for the installation to finish before discarding changes.": [
+				"Değişiklikleri geri almadan önce kurulumun tamamlanmasını bekleyin."
+			],
+			"Wait for the trunk update to finish before discarding changes.": [
+				"Değişiklikleri geri almadan önce trunk güncellemesinin tamamlanmasını bekleyin."
+			],
+			"There are no changes to discard.": [
+				"Geri alınacak bir değişiklik yok."
+			],
+			"Changes could not be loaded.": [
+				"Değişiklikler yüklenemedi."
+			],
+			"Wait for your changes to finish loading.": [
+				"Değişikliklerin yüklenmesinin tamamlanmasını bekleyin."
+			],
+			"Changes are already being discarded.": [
+				"Değişiklikler zaten geri alınıyor."
+			],
+			"the window’s theme: the operating system’s\u0004System": [
+				"Sistem"
+			],
+			"the window’s theme\u0004Dark": [
+				"Koyu"
+			],
+			"the window’s theme\u0004Light": [
+				"Hafif"
+			],
+			"Theme": [
+				"Tema"
+			],
+			"Choose what happens when the app quits.": [
+				"Uygulama kapatıldığında ne olacağını seçin."
+			],
+			"Stop them, and start them again next time": [
+				"Onları durdurun ve bir dahaki sefere yeniden başlatın"
+			],
+			"Stop them": [
+				"Onları durdurun"
+			],
+			"So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.": [
+				"Böylece site ve wp-admin tıklamaya gerek kalmadan hazır olur. WordPress Core üzerinde derleme izleme de bununla birlikte başlar."
+			],
+			"Start the server when I open a site": [
+				"Bir siteyi açtığımda sunucuyu başlat"
+			],
+			"Opening and quitting": [
+				"Açma ve kapatma"
+			],
+			"Quitting always stops them; they can be started again when the app next opens.": [
+				"Çıkmak bunları her zaman durdurur; uygulama bir sonraki açılışında yeniden başlatılabilirler."
+			],
+			"When I quit, running servers and build watches": [
+				"Çıktığımda çalışan sunucular ve derleme izlemeleri"
+			],
+			"So edits are compiled as they are saved.": [
+				"Dolayısıyla, düzenlemeler kaydedildikçe derlenir."
+			],
+			"Start the build watch when I open a site": [
+				"Bir siteyi açtığımda derleme izlemeyi başlat"
+			],
+			"The app does not have that PHP version.": [
+				"Uygulamada o PHP sürümü bulunmuyor."
+			],
+			"Choose on or off.": [
+				"Açık veya kapalı seçeneğini seçin."
+			],
+			"Off": [
+				"Kapalı"
+			],
+			"Debugging": [
+				"Hata ayıklama"
+			],
+			"%1$s · PHP %2$s": [
+				"%1$s · PHP %2$s"
+			],
+			"PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.": [
+				"PHP %1$s seçildi ancak uygulamanın bu sürümünde bulunmuyor; sunucular PHP %2$s ile başlar."
+			],
+			"Sites": [
+				"Siteler"
+			],
+			"Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.": [
+				"Core, JavaScript ve CSS dosyalarını sıkıştırılmamış olarak sunar; böylece bu dosyalar tarayıcıda okunabilir ve adım adım incelenebilir."
+			],
+			"Use unminified scripts (SCRIPT_DEBUG)": [
+				"Sıkıştırılmamış betikleri kullan (SCRIPT_DEBUG)"
+			],
+			"Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.": [
+				"Kapalıyken bildirimler ve kullanımdan kaldırmalar raporlanmaz. Uyarılar ve hatalar ile error_log() çağrıları debug.log dosyasına ve tarayıcıya ulaşmaya devam eder."
+			],
+			"Report notices and deprecations (WP_DEBUG)": [
+				"Bildirimleri ve kullanımdan kaldırılmış öğeleri raporla (WP_DEBUG)"
+			],
+			"PHP version": [
+				"PHP sürümü"
+			],
+			"Applies the next time a site’s server starts. A server that is running keeps what it started with.": [
+				"Bir sitenin sunucusu bir sonraki başlatılışında geçerli olur. Çalışmakta olan bir sunucu, başladığı ayarları korur."
+			],
+			"Development server": [
+				"Geliştirme sunucusu"
+			],
+			"The PHP versions could not be read. Quit the app and open it again.": [
+				"PHP sürümleri okunamadı. Uygulamayı kapatıp yeniden açın."
+			],
+			"Could not keep that.": [
+				"Bu saklanamadı."
+			],
+			"The app has no translation for that language.": [
+				"Uygulamada o dil için çeviri bulunmamaktadır."
+			],
+			"Choose a language.": [
+				"Bir dil seçin."
+			],
+			"Your system’s language": [
+				"Sisteminizin dili"
+			],
+			"Relaunch now": [
+				"Şimdi yeniden başlat"
+			],
+			"The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.": [
+				"Uygulama yeniden başlatıldığında yeni dil görüntülenir. Çalışan sunucular ve derlemeler, uygulamanın kapatılması durumunda olduğu gibi durdurulur."
+			],
+			"Which language the app is shown in. A change applies after a relaunch.": [
+				"Uygulamanın hangi dilde görüntüleneceği. Değişiklik, uygulamanın yeniden başlatılmasından sonra geçerli olur."
+			],
+			"Language": [
+				"Dil"
+			],
+			"The app could not relaunch. Quit it and open it again.": [
+				"Uygulama yeniden başlatılamadı. Uygulamayı kapatıp yeniden açın."
+			],
+			"Could not keep that language.": [
+				"Bu dil korunamadı."
+			],
+			"Appearance": [
+				"Görünüm"
+			],
+			"Enter your WordPress.org username.": [
+				"WordPress.org kullanıcı adınızı girin."
+			],
+			"Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.": [
+				"WordPress.org kullanıcı adınızı (örneğin, janedoe) veya profiles.wordpress.org adresinizi girin."
+			],
+			"Only %s profile links are supported.": [
+				"Yalnızca %s profil bağlantısı desteklenmektedir."
+			],
+			"There is no such setting.": [
+				"Böyle bir ayar yoktur."
+			],
+			"That folder does not exist.": [
+				"Bu klasör yok."
+			],
+			"Choose a folder by its full path.": [
+				"Tam yolunu kullanarak bir klasör seçin."
+			],
+			"Choose a folder.": [
+				"Bir klasör seçin."
+			],
+			"Not set: the create-site dialog asks each time.": [
+				"Ayarlanmamış: Site oluşturma iletişim kutusu her seferinde sorar."
+			],
+			"Reading…": [
+				"Okunuyor…"
+			],
+			"Not signed in. The app asks you to sign in when you open a pull request.": [
+				"Giriş yapılmadı. Bir çekme isteği açtığınızda uygulama sizden giriş yapmanızı ister."
+			],
+			"Signed in as %s.": [
+				"%s olarak giriş yapıldı."
+			],
+			"Sign-in is not set up in this build.": [
+				"Bu sürümde giriş yap özelliği etkinleştirilmemiştir."
+			],
+			"Could not save that event.": [
+				"Bu olay kaydedilemedi."
+			],
+			"Could not save that username.": [
+				"Bu kullanıcı adı kaydedilemedi."
+			],
+			"Forget this folder": [
+				"Bu klasörü unutun"
+			],
+			"Each new site is created in a subfolder of this location.": [
+				"Her yeni site, bu konumun bir alt klasöründe oluşturulur."
+			],
+			"New sites go here": [
+				"Yeni siteler buraya eklenir"
+			],
+			"New sites": [
+				"Yeni siteler"
+			],
+			"Could not keep that folder.": [
+				"Bu klasör saklanamadı."
+			],
+			"Account": [
+				"Hesap"
+			],
+			"General": [
+				"Genel"
+			],
+			"Sign out": [
+				"Oturumu Kapat"
+			],
+			"GitHub": [
+				"GitHub"
+			],
+			"Save": [
+				"Kayıt et"
+			],
+			"Saving": [
+				"Kaydediliyor"
+			],
+			"Saved.": [
+				"Kaydedildi."
+			],
+			"Where you are contributing from, if you are at an event. Leave it empty otherwise.": [
+				"Bir etkinlikteyseniz, katkınızı nereden yaptığınızı belirtin. Aksi takdirde bu alanı boş bırakın."
+			],
+			"Event": [
+				"Etkinlik"
+			],
+			"Goes on a patch you hand to a mentor, so the props land on you.": [
+				"Bu, bir mentora verdiğiniz bir yamaya eklenir; dolayısıyla övgüler size gider."
+			],
+			"WordPress.org username": [
+				"WordPress.org kullanıcı adı"
+			],
+			"How you contribute": [
+				"Nasıl katkıda bulunursunuz"
+			],
+			"Settings": [
+				"Seçenekler"
+			],
+			"The event name has to fit on one line.": [
+				"Etkinlik adı tek satıra sığmalıdır."
+			],
+			"Enter the event name, or leave it empty.": [
+				"Etkinlik adını girin ya da boş bırakın."
+			],
+			"Keep the event name under %d characters.": [
+				"Etkinlik adını %d karakterden kısa tutun."
+			],
+			"Settings…": [
+				"Ayarlar…"
+			],
+			"Show Logs Folder": [
+				"Günlükler klasörünü göster"
+			],
+			"Open App Log": [
+				"Uygulama günlüğünü aç"
+			],
+			"Choose the application to open this folder in": [
+				"Bu klasörü hangi uygulamada açmak istediğinizi seçin"
+			],
+			"Programs": [
+				"Programlar"
+			],
+			"Applications": [
+				"Uygulamalar"
+			],
+			"All Files": [
+				"Tüm dosyalar"
+			],
+			"Patch Files": [
+				"Yama dosyaları"
+			],
+			"Choose a patch file": [
+				"Bir yama dosyası seçin"
+			],
+			"Save Diff File": [
+				"Fark dosyasını kaydet"
+			],
+			"Save Patch for Handoff": [
+				"Handoff için yamayı kaydet"
+			],
+			"Email": [
+				"E-posta"
+			],
+			"Logs": [
+				"Günlükler"
+			],
+			"Terminal": [
+				"Terminal"
+			],
+			"Closed": [
+				"Kapalı"
+			],
+			"Merged": [
+				"Birleştirilmiş"
+			],
+			"No pull requests cite this ticket yet.": [
+				"Henüz bu bileti referans gösteren hiçbir çekme isteği bulunmamaktadır."
+			],
+			"See the work that already exists on this ticket before adding your own.": [
+				"Kendi katkınızı eklemeden önce, bu biletle ilgili halihazırda mevcut olan çalışmaları inceleyin."
+			],
+			"Open in Trac": [
+				"Trac'ta aç"
+			],
+			"Browse good first bugs on Trac": [
+				"Trac'ta ilk iyi hatalara göz atın"
+			],
+			"Linking ticket": [
+				"Bilet bağlanıyor"
+			],
+			"Link ticket": [
+				"Bileti bağla"
+			],
+			"e.g. 62281": [
+				"örneğin: 62281"
+			],
+			"Ticket number or URL": [
+				"Bilet numarası veya adres"
+			],
+			"Link the ticket you’re working on.": [
+				"Üzerinde çalıştığınız biletle bağlantı oluşturun."
+			],
+			"Trac ticket": [
+				"Trac bileti"
+			],
+			"No pull requests cite this issue yet.": [
+				"Henüz bu sorunu referans gösteren hiçbir çekme isteği bulunmamaktadır."
+			],
+			"See the work that already exists on this issue before adding your own.": [
+				"Kendi katkınızı eklemeden önce, bu sorunla ilgili halihazırda mevcut olan çalışmaları inceleyin."
+			],
+			"Open on GitHub": [
+				"GitHub'da aç"
+			],
+			"Browse good first issues on GitHub": [
+				"GitHub'da dikkat çekici ilk sorunları inceleyin"
+			],
+			"Linking issue": [
+				"Sorun bağlanıyor"
+			],
+			"Link issue": [
+				"Sorunu bağla"
+			],
+			"e.g. 71234": [
+				"örneğin: 71234"
+			],
+			"Issue number or URL": [
+				"Sorun numarası veya adres"
+			],
+			"Link the issue you’re working on.": [
+				"Üzerinde çalıştığınız sorunu bağlantı olarak ekleyin."
+			],
+			"GitHub issue": [
+				"GitHub sorunu"
+			],
+			"Could not read the attachments from Trac. (%s)": [
+				"Trac'tan ek dosya okunamadı. (%s)"
+			],
+			"Could not read the attachments from Trac.": [
+				"Trac'tan ek dosyalar okunamadı."
+			],
+			"The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.": [
+				"Ek dosyaların yüklenmesi tamamlanmadan Trac penceresi kapatıldı. Yeniden denemek için “Yenile” düğmesine tıklayın."
+			],
+			"Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.": [
+				"Trac’ın insan doğrulama işlemi zamanında tamamlanmadı. Lütfen yeniden deneyin ve “I am human” yazısı görünürse üzerine tıklayın."
+			],
+			"by %s": [
+				"(%s)"
+			],
+			"Showing what was last seen %s.": [
+				"En son %s görülenler gösteriliyor."
+			],
+			"No cached list to fall back on.": [
+				"Geriye dönük olarak kullanılabilecek ön bellekte bulunan bir liste yok."
+			],
+			"Could not reach GitHub.": [
+				"GitHub'a erişilemedi."
+			],
+			"GitHub is rate-limiting this connection.": [
+				"GitHub, bu bağlantıya hız sınırlaması uyguluyor."
+			],
+			"Could not read the pull requests from GitHub.": [
+				"GitHub'dan çekme istekleri okunamadı."
+			],
+			"Updated %s": [
+				"%s dosyası güncellendi"
+			],
+			"Last commit %s": [
+				"Son katkı %s"
+			],
+			"Open": [
+				"Açık"
+			],
+			"Edited on %s": [
+				"Düzenleme tarihi: %s"
+			],
+			"Edited %d day ago": [
+				"%d gün önce düzenlendi",
+				"%d gün önce düzenlendi"
+			],
+			"Edited %d hour ago": [
+				"%d saat önce düzenlendi",
+				"%d saat önce düzenlendi"
+			],
+			"Edited %d minute ago": [
+				"%d dakika önce düzenlendi",
+				"%d dakika önce düzenlendi"
+			],
+			"Edited just now": [
+				"Az önce düzenlendi"
+			],
+			"Delete this ticket’s work": [
+				"Bu biletteki çalışmaları sil"
+			],
+			"This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.": [
+				"Bu işlem, gönderilmiş olsun ya da olmasın, bu site üzerinde bu bilet için yapılan tüm değişiklikleri kalıcı olarak silecektir. Bu işlem geri alınamaz."
+			],
+			"Delete all work on ticket #%d?": [
+				"#%d numaralı bilet üzerindeki tüm çalışmaları silmek istiyor musunuz?"
+			],
+			"Delete this issue’s work": [
+				"Bu sorunun çalışmalarını sil"
+			],
+			"This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.": [
+				"Bu işlem, bu sitede bu sorunla ilgili yapılan tüm değişiklikleri, gönderilmiş olsun ya da olmasın, kalıcı olarak silecektir. Bu işlem geri alınamaz."
+			],
+			"Delete all work on issue #%d?": [
+				"#%d numaralı sorunla ilgili tüm çalışmaları silmek istiyor musunuz?"
+			],
+			"Your tickets on this site": [
+				"Bu sitedeki biletleriniz"
+			],
+			"Other tickets on this site": [
+				"Bu sitedeki diğer biletler"
+			],
+			"Your issues on this site": [
+				"Bu sitedeki sorunlarınız"
+			],
+			"Other issues on this site": [
+				"Bu sitedeki diğer sorunlar"
+			],
+			"Deleting": [
+				"Siliniyor"
+			],
+			"Continue working": [
+				"Çalışmayı sürdür"
+			],
+			"Switch": [
+				"Değiştir"
+			],
+			"Deleting site…": [
+				"Site siliniyor…"
+			],
+			"WordPress code is %d day old — update to latest trunk": [
+				"WordPress kodu %d günlük — en son trunk sürümüne güncelleyin",
+				"WordPress kodu %d günlük — en son trunk sürümüne güncelleyin"
+			],
+			"Update incomplete — code is new, built assets are old": [
+				"Güncelleme tamamlanmadı — kod yeni, derlenmiş varlıklar eski"
+			],
+			"Build watching": [
+				"Derleme izleniyor"
+			],
+			"Build compiling": [
+				"Derleme işlemi"
+			],
+			"Edits in %s are compiled as they are saved.": [
+				"%s içindeki düzenlemeler kaydedildikçe derlenir."
+			],
+			"Start build watch": [
+				"Derleme izlemeyi başlat"
+			],
+			"Start": [
+				"Başla"
+			],
+			"Stop build watch": [
+				"Derleme izlemeyi durdur"
+			],
+			"Stop": [
+				"Durdur"
+			],
+			"The development server could not start. Its last lines are in the Logs.": [
+				"Geliştirme sunucusu başlatılamadı. Son satırları Günlükler bölümünde yer almaktadır."
+			],
+			"The development server stopped by itself. Its last lines are in the Logs.": [
+				"Geliştirme sunucusu kendi kendine durdu. Son satırları Günlükler bölümünde yer alıyor."
+			],
+			"Start development server": [
+				"Geliştirme sunucusunu başlat"
+			],
+			"Server stopped": [
+				"Sunucu durdu"
+			],
+			"Stop development server": [
+				"Geliştirme sunucusunu durdur"
+			],
+			"Server running": [
+				"Sunucu çalışıyor"
+			],
+			"Starting…": [
+				"Başlatılıyor…"
+			],
+			"Starting development server…": [
+				"Geliştirme sunucusu başlatılıyor…"
+			],
+			"Server starting…": [
+				"Sunucu başlatılıyor…"
+			],
+			"Dev server is starting… (%s)": [
+				"Geliştirme sunucusu başlatılıyor… (%s)"
+			],
+			"Database": [
+				"Veritabanı"
+			],
+			"wp-admin": [
+				"wp-admin"
+			],
+			"View site": [
+				"Siteyi görüntüle"
+			],
+			"Build stopped": [
+				"Derleme durdu"
+			],
+			"The build watch ended by itself, with exit code %d. Its last lines are in the Logs.": [
+				"Derleme izleme işlemi, %d çıkış koduyla kendiliğinden sona erdi. Son satırları Günlükler bölümünde yer almaktadır."
+			],
+			"The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.": [
+				"İzlemenin başlayabilmesi için tamamlanması gereken derleme başarısız oldu, bu nedenle izleme başlatılmadı. Son satırları Günlükler bölümünde yer almaktadır."
+			],
+			"The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.": [
+				"İzleme işleminin başlaması için tamamlanması gereken derleme, %d çıkış koduyla başarısız oldu; bu nedenle izleme işlemi başlatılamadı. Son satırları Günlükler bölümünde yer almaktadır."
+			],
+			"The build watch ended by itself. Its last lines are in the Logs.": [
+				"Derleme izleme işlemi kendiliğinden sona erdi. Son satırları Günlükler bölümünde yer alıyor."
+			],
+			"Paused while another operation builds the site. It comes back by itself.": [
+				"Başka bir işlem siteyi oluştururken duraklatıldı. Kendiliğinden geri geliyor."
+			],
+			"Build paused": [
+				"Oluşturma işlemi duraklatıldı"
+			],
+			"Building the site before watching it.": [
+				"İzlemeden önce site derleniyor."
+			],
+			"Build building": [
+				"Derleme yapılıyor"
+			],
+			"Wait for the build to finish.": [
+				"Derlemenin tamamlanmasını bekleyin."
+			],
+			"Wait for the installation to finish.": [
+				"Kurulumun tamamlanmasını bekleyin."
+			],
+			"Wait for the trunk update to finish.": [
+				"Trunk güncellemesinin tamamlanmasını bekleyin."
+			],
+			"Looking for applications…": [
+				"Uygulamalar aranıyor…"
+			],
+			"Other application…": [
+				"Diğer uygulama…"
+			],
+			"Show in file manager": [
+				"Dosya yöneticisinde göster"
+			],
+			"Show in Explorer": [
+				"Explorer'da göster"
+			],
+			"Show in Finder": [
+				"Finder'da göster"
+			],
+			"Deleting…": [
+				"Siliniyor…"
+			],
+			"Open in": [
+				"Şurada aç"
+			],
+			"Copy path": [
+				"Yolu kopyala"
+			],
+			"Rename…": [
+				"Yeniden adlandır…"
+			],
+			"Update to latest trunk": [
+				"En son trunk sürümüne güncelle"
+			],
+			"(no subject)": [
+				"(konu yok)"
+			],
+			"No mail yet. WordPress transactional email will appear here once the site sends any.": [
+				"Henüz e-posta yok. Site herhangi bir e-posta gönderdiğinde, WordPress işlem e-postaları burada görünecektir."
+			],
+			"SMTP listening on 127.0.0.1:%d": [
+				"SMTP, 127.0.0.1:%d adresinde dinleme modundadır"
+			],
+			"SMTP will start with the dev server.": [
+				"SMTP, geliştirme sunucusuyla birlikte çalışmaya başlayacak."
+			],
+			"Delete site": [
+				"Siteyi sil"
+			],
+			"This will permanently delete the site and all of its files from your computer. This can’t be undone.": [
+				"Bu işlem, siteyi ve tüm dosyalarını bilgisayarınızdan kalıcı olarak silecektir. Bu işlem geri alınamaz."
+			],
+			"Delete %s?": [
+				"%s silinsin mi?"
+			],
+			"Site name cannot be empty.": [
+				"Site adı boş bırakılamaz."
+			],
+			"Checkout": [
+				"Ödeme sayfası"
+			],
+			"Local path": [
+				"Yerel yol"
+			],
+			"%d day old": [
+				"%d günlük",
+				"%d günlük"
+			],
+			"Trunk as of": [
+				"Şu tarih itibarıyla trunk:"
+			],
+			"Created": [
+				"Oluşturulma"
+			],
+			"Uninitialized": [
+				"Başlatılmamış"
+			],
+			"Initialized": [
+				"Başlatıldı"
+			],
+			"Setup": [
+				"Kurulum"
+			],
+			"Show sites list": [
+				"Site listesini göster"
+			],
+			"Hide sites list": [
+				"Site listesini gizle"
+			],
+			"Site": [
+				"Site"
+			],
+			"Create your first site to begin contributing": [
+				"Katkıda bulunmaya başlamak için ilk sitenizi oluşturun"
+			],
+			"No sites": [
+				"Site yok"
+			],
+			"All changes discarded.": [
+				"Tüm değişiklikler iptal edildi."
+			],
+			"This site is ready to work on": [
+				"Bu site kullanıma hazırdır"
+			],
+			"Copied the path": [
+				"Yol kopyalandı"
+			],
+			"Updated to the latest trunk": [
+				"En son trunk sürümüne güncellendi"
+			],
+			"Local changes discarded.": [
+				"Yerel değişiklikler silindi."
+			],
+			"Already up to date with trunk": [
+				"Zaten trunk ile güncel durumda"
+			],
+			"%d unseen line in Debug.log": [
+				"Debug.log dosyasında %d görülmemiş satır",
+				"Debug.log dosyasında %d görülmemiş satır"
+			],
+			"A site’s project cannot be changed later.": [
+				"Bir sitenin projesi sonradan değiştirilemez."
+			],
+			"Opened pull request #%1$s on %2$s": [
+				"%2$s üzerinde #%1$s numaralı çekme isteği açıldı"
+			],
+			"Dry run — branch created, no pull request opened": [
+				"Deneme — dal oluşturuldu, açılmış çekme isteği yok"
+			],
+			"Saved your changes to %s and reset the working tree": [
+				"Değişiklikleriniz %s dosyasına kaydedildi ve çalışma ağacı sıfırlandı"
+			],
+			"Patch saved to %s": [
+				"Yama %s konumuna kaydedildi"
+			],
+			"Restored the saved work": [
+				"Kaydedilen çalışma geri yüklendi"
+			],
+			"Restored the previous branch": [
+				"Önceki dal geri yüklendi"
+			],
+			"Checked out the pull request": [
+				"Çekme isteği incelendi"
+			],
+			"Reverted the patch": [
+				"Yama geri alındı"
+			],
+			"Applied the patch": [
+				"Yama uygulandı"
+			],
+			"The site could not be created. %s": [
+				"Site oluşturulamadı. %s"
+			],
+			"The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s": [
+				"Klasör silinemediği için site hâlâ listede yer almaktadır. Bu klasörü kullanan tüm uygulamaları kapatın, ardından yeniden deneyin. Klasör: %s"
+			],
+			"The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s": [
+				"Klasör silinemediği için site hâlâ listede yer almaktadır (%1$s). Bu klasörü kullanan tüm uygulamaları kapatın, ardından yeniden deneyin. Klasör: %2$s"
+			],
+			"Opened pull request #%s": [
+				"#%s numaralı çekme isteği açıldı"
+			],
+			"Notifications": [
+				"Bildirimler"
+			],
+			"Checking GitHub…": [
+				"GitHub'da kontrol ediliyor…"
+			],
+			"Checking GitHub": [
+				"GitHub kontrol ediliyor"
+			],
+			"Linked pull requests": [
+				"Bağlantılı çekme istekleri"
+			],
+			"Keywords": [
+				"Anahtar sözcükler"
+			],
+			"Apply…": [
+				"Uygula…"
+			],
+			"The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.": [
+				"Bu biletle ilgili en son yama, bir çekme isteği değil, bir ek dosya; aşağıdaki Trac ek dosyalarına bakınız."
+			],
+			"Read details from Trac": [
+				"Trac'tan ayrıntıları okuyun"
+			],
+			"Reading the ticket on Trac": [
+				"Trac'ta bilet okunuyor"
+			],
+			"Unlink": [
+				"Bağlantıyı kaldır"
+			],
+			"Refresh": [
+				"Yenile"
+			],
+			"Not sure yet?": [
+				"Henüz emin değil misiniz?"
+			],
+			"If you have edited anything already, you will be asked what should happen to those edits.": [
+				"Eğer daha önce herhangi bir düzenleme yaptıysanız, bu düzenlemelere ne yapılacağı sorulacaktır."
+			],
+			"Latest": [
+				"En yeni"
+			],
+			"No patch files attached to this ticket.": [
+				"Bu bilete eklenmiş yama dosyası yok."
+			],
+			"Opening the ticket on Trac…": [
+				"Trac'ta bilet açılıyor…"
+			],
+			"Show Trac attachments": [
+				"Trac ek dosyalarını göster"
+			],
+			"Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.": [
+				"Yama dosyaları bazen bir PR yerine Trac’a eklenir. Bunları okuduğunuzda bilet açılır ve böylece insan kontrolünü bir kez geçebilirsiniz."
+			],
+			"Opening the ticket on Trac": [
+				"Trac'ta bilet açılıyor"
+			],
+			"Trac attachments": [
+				"Trac ek dosyaları"
+			],
+			"Applied": [
+				"Uygulandı"
+			],
+			"My sites": [
+				"Sitelerim"
+			],
+			"Create new site": [
+				"Yeni site oluştur"
+			],
+			"(Deleting)": [
+				"(Siliniyor)"
+			],
+			"(%s)": [
+				"(%s)"
+			],
+			"Name": [
+				"İsim"
+			],
+			"Site actions": [
+				"Site işlemleri"
+			],
+			"Show details": [
+				"Ayrıntıları göster"
+			],
+			"Hide details": [
+				"Ayrıntıları gizle"
+			],
+			"Review & submit changes": [
+				"Değişiklikleri gözden geçir ve gönder"
+			],
+			"Review": [
+				"İnceleme"
+			],
+			"Show password": [
+				"Parolayı göster"
+			],
+			"Hide password": [
+				"Parolayı gizle"
+			],
+			"Password": [
+				"Parola"
+			],
+			"Username": [
+				"Kullanıcı adı"
+			],
+			"Admin credentials": [
+				"Yönetici kimlik bilgileri"
+			],
+			"Server": [
+				"Sunucu"
+			],
+			"Copied": [
+				"Kopyalandı"
+			],
+			"Copy": [
+				"Kopyala"
+			],
+			"Details": [
+				"Ayrıntılar"
+			],
+			"Details of %s": [
+				"%s ile ilgili ayrıntılar"
+			],
+			"Build watch offline": [
+				"Derleme izleme çevrim dışı"
+			],
+			"Build watch": [
+				"Derleme izleme"
+			],
+			"Development server offline": [
+				"Geliştirme sunucusu çevrim dışı"
+			],
+			"Rename": [
+				"Yeniden adlandır"
+			],
+			"Renaming the site": [
+				"Site yeniden adlandırılıyor"
+			],
+			"Rename site": [
+				"Sitenin adını değiştir"
+			],
+			"Clear emails": [
+				"E-postaları temizle"
+			],
+			"Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.": [
+				"Bu yeni sitenin oluşturulmasını istediğiniz üst klasörü seçin. Site için yeni bir alt dizin oluşturulacaktır."
+			],
+			"Location": [
+				"Yeri"
+			],
+			"Setting up a site": [
+				"Bir site kurmak"
+			],
+			"Project": [
+				"Proje"
+			],
+			"Close": [
+				"Kapat"
+			],
+			"Resize tray": [
+				"Tepsinin boyutunu değiştir"
+			],
+			"This patch is applied to your current work. Removing it may require undoing overlapping edits.": [
+				"Bu yama, mevcut çalışmanıza uygulanmıştır. Yamayı kaldırmak için, birbiriyle çakışan düzenlemeleri geri almanız gerekli olabilir."
+			],
+			"Discard this ticket to its base": [
+				"Bu bileti tabanına geri al"
+			],
+			"Save a copy of your work": [
+				"Çalışmanızın bir kopyasını kaydedin"
+			],
+			"Revert this PR before applying another PR or patch file.": [
+				"Başka bir PR veya yama dosyası uygulamadan önce bu PR’yi geri alın."
+			],
+			"Try another patch on this ticket": [
+				"Bu bilet için başka bir yama deneyin"
+			],
+			"Revert this patch": [
+				"Bu yamayı geri al"
+			],
+			"Give feedback": [
+				"Görüşlerinizi paylaşın"
+			],
+			"It changes package-lock.json, so dependencies will be installed before the rebuild.": [
+				"Bu işlem package-lock.json dosyasını değiştirir; böylece yeniden derlemeden önce bağımlılıklar kurulacaktır."
+			],
+			"Apply and rebuild": [
+				"Uygula ve yeniden derle"
+			],
+			"%1$s changes %2$d file.": [
+				"%1$s %2$d dosyayı değiştirir.",
+				"%1$s %2$d dosyayı değiştirir."
+			],
+			"Apply %s": [
+				"%s dosyasını uygula"
+			],
+			"%s is a binary file and will be skipped.": [
+				"%s ikili bir dosyadır ve atlanacaktır.",
+				"%s ikili dosyalardır ve atlanacaktır."
+			],
+			"Apply PR #%d": [
+				"#%d numaralı PR'yi uygula"
+			],
+			"A .diff or .patch file is applied to the current branch as a removable layer.": [
+				"Bir .diff veya .patch dosyası, geçerli dala çıkarılabilir bir katman olarak uygulanır."
+			],
+			"Choose a .diff or .patch file…": [
+				"Bir .diff veya .patch dosyası seçin…"
+			],
+			"Diff": [
+				"Fark"
+			],
+			"Pull request": [
+				"Çekme isteği"
+			],
+			"Test changes in this checkout. Your own changes are preserved.": [
+				"Bu çalışma kopyasındaki değişiklikleri test edin. Kendi değişiklikleriniz korunur."
+			],
+			"Apply a patch or PR": [
+				"Bir yama veya PR uygulayın"
+			],
+			"Test a pull request in this checkout. Your own changes are preserved.": [
+				"Bu çalışma kopyasında bir çekme isteğini test edin. Kendi değişiklikleriniz korunur."
+			],
+			"Check out a pull request": [
+				"Bir çekme isteğini çalışma kopyasına alın"
+			],
+			"A pull request is checked out with its author’s commits.": [
+				"Bir çekme isteği, yazarının commit'leriyle birlikte çalışma kopyasına alınır."
+			],
+			"Apply PR": [
+				"PR'ı uygulayın"
+			],
+			"Pull request URL or number": [
+				"Çekme isteği adresi veya numarası"
+			],
+			"line %d of the patch": [
+				"yamanın %d. satırı"
+			],
+			"… %d more line": [
+				"… %d satır daha",
+				"… %d satır daha"
+			],
+			"Near %s": [
+				"%s yakınında"
+			],
+			"%1$s — %2$d of %3$d change": [
+				"%1$s — %2$d / %3$d değişiklik",
+				"%1$s — %3$d değişiklikten %2$d tanesi"
+			],
+			"The checkout was not changed.": [
+				"Çalışma kopyası değiştirilmedi."
+			],
+			"Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.": [
+				"Bu sitede başka bir komut çalışıyor. Komutun tamamlanmasını bekleyin ya da terminalde Ctrl+C tuşlarına basarak durdurun."
+			],
+			"text direction\u0004ltr": [
+				"ltr"
+			],
+			"Finish creating the current site first": [
+				"Önce mevcut sitenin oluşturulmasını tamamlayın"
+			],
+			"Open the feedback form ↗": [
+				"Geri bildirim formunu aç ↗"
+			],
+			"Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.": [
+				"Yanıtlar, ekibin düzenli olarak gözden geçirdiği ortak bir forma aktarılır. E-posta adresinizi eklemediğiniz sürece gönderimler anonim kalır."
+			],
+			"Your feedback helps decide what to build next.": [
+				"Geri bildirimleriniz, bundan sonra ne geliştireceğimize karar vermemize yardımcı oluyor."
+			],
+			"WordPress Contributor Toolkit": [
+				"WordPress Katkı Sağlayıcı Araç Seti"
+			],
+			"Please choose where to create the site.": [
+				"Lütfen sitenin nerede oluşturulacağını seçin."
+			],
+			"Please provide a site name.": [
+				"Lütfen bir site adı girin."
+			],
+			"Create site": [
+				"Site oluştur"
+			],
+			"Cancel": [
+				"İptal et"
+			],
+			"No folder selected yet.": [
+				"Henüz bir klasör seçilmedi."
+			],
+			"My WordPress site": [
+				"WordPress sitem"
+			],
+			"Site name": [
+				"Site adı"
+			],
+			"The wordpress-develop repository: Trac tickets, patches and pull requests.": [
+				"wordpress-develop deposu: Trac biletleri, yamalar ve çekme istekleri."
+			],
+			"The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.": [
+				"Blok düzenleyici, standart bir WordPress kurulumunda eklenti olarak geliştirilmiş ve çalıştırılmaktadır: GitHub sorunları ve çekme istekleri, kod deposunu indirerek erişilebilir."
+			]
+		}
+	}
+}

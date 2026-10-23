@@ -1,0 +1,3444 @@
+{
+	"translation-revision-date": "2026-10-21 06:06:24+0000",
+	"generator": "GlotPress/4.1.0",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": {
+				"domain": "messages",
+				"plural-forms": "nplurals=3; plural=(n % 10 == 1 && n % 100 != 11) ? 0 : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 1 : 2);",
+				"lang": "sr_RS"
+			},
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
+				"Преузимање најновије гране trunk није успело, па овај списак може да укључује и измене из гране trunk које нису део овог захтева за повлачење."
+			],
+			"That file could not be read: %s": [
+				"Читање те датотеке није могуће: %s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"Та датотека се не налази на сајту. Измена ју је можда избрисала."
+			],
+			"Changed files": [
+				"Измењене датотеке"
+			],
+			"You created this file": [
+				"Ви сте направили ову датотеку"
+			],
+			"You edited this file": [
+				"Ви сте уредили ову датотеку"
+			],
+			"Revert %s": [
+				"Врати %s"
+			],
+			"Discard your changes?": [
+				"Одбацити ваше измене?"
+			],
+			"PR #%d stays checked out.": [
+				"PR #%d остаје преузет."
+			],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"Примењена закрпа %s се такође уклања, јер апликација не може да је врати."
+			],
+			"The patch %s stays applied.": [
+				"Закрпа %s остаје примењена."
+			],
+			"Your edits to %d file are removed.": [
+				"Ваше измене на %d датотеци се уклањају.",
+				"Ваше измене на %d датотеке се уклањају.",
+				"Ваше измене на %d датотека се уклањају."
+			],
+			"There are no edits of yours to discard.": [
+				"Нема ваших измена за одбацивање."
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [
+				"Ваше измене су одбачене, али %s није могао бити враћен, па више није примењен."
+			],
+			"Your changes were discarded.": [
+				"Ваше измене су одбачене."
+			],
+			"Your changes to it are removed.": [
+				"Ваше измене на њој се уклањају."
+			],
+			"%s deleted.": [
+				"Ставка %s је избрисана."
+			],
+			"Delete file": [
+				"Избриши датотеку"
+			],
+			"You created this file.": [
+				"Ви сте направили ову датотеку."
+			],
+			"From PR #%d": [
+				"Из PR #%d"
+			],
+			"From the patch": [
+				"Из закрпе"
+			],
+			"Could not revert the file: %s": [
+				"Враћање датотеке није могуће: %s"
+			],
+			"%s reverted.": [
+				"Ставка %s је враћена."
+			],
+			"Revert file": [
+				"Врати датотеку"
+			],
+			"Revert %s?": [
+				"Вратити %s?"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"Ваше измене на њој се уклањају и враћа се у стање у ком ју је закрпа оставила."
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"Ваше измене на њој се уклањају и враћа се у стање какво има PR #%d."
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"Враћање ставке %1$s није успело, па је остављена каква је била: %2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"Враћање ставке %1$s (%2$s) није успело и није било могуће вратити је у претходно стање, па ваше измене на њој могу бити изгубљене: %3$s"
+			],
+			"%s has no changes to revert.": [
+				"%s нема измена за враћање."
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [
+				"Апликација није сачувала копију закрпе, па не може да врати %s у стање у ком га је закрпа оставила."
+			],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [
+				"%s је у стању у ком га је закрпа оставила, па нема ваших измена за враћање."
+			],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [
+				"Закрпа преименује %s, па се може вратити само са целом закрпом. Уместо тога користите Одбаци своје измене."
+			],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
+				"Још увек нема излаза развојног сервера. Оно што исписује док се покреће и ради — укључујући сваку грешку која га заустави — појављује се овде."
+			],
+			"Opened": [
+				"Отворено"
+			],
+			"Milestone": [
+				"Прекретница"
+			],
+			"Component": [
+				"Компонента"
+			],
+			"Type": [
+				"Врста"
+			],
+			"Read from Trac %s": [
+				"Прочитано са Trac-а %s"
+			],
+			"Review and submit": [
+				"Прегледај и пошаљи"
+			],
+			"Review changes": [
+				"Прегледај измене"
+			],
+			"They stay with this pull request's local copy when you revert this PR.": [
+				"Остају уз локалну копију овог захтева за повлачење када вратите овај PR."
+			],
+			"%1$d unsubmitted change for ticket #%2$s": [
+				"%1$d непослата измена за захтев #%2$s",
+				"%1$d непослате измене за захтев #%2$s",
+				"%1$d непослатих измена за захтев #%2$s"
+			],
+			"%1$d unsubmitted change for issue #%2$s": [
+				"%1$d непослата измена за проблем #%2$s",
+				"%1$d непослате измене за проблем #%2$s",
+				"%1$d непослатих измена за проблем #%2$s"
+			],
+			"Unsubmitted changes for ticket #%s": [
+				"Непослате измене за захтев #%s"
+			],
+			"Unsubmitted changes for issue #%s": [
+				"Непослате измене за проблем #%s"
+			],
+			"%1$d change on top of PR #%2$d": [
+				"%1$d измена поврх PR #%2$d",
+				"%1$d измене поврх PR #%2$d",
+				"%1$d измена поврх PR #%2$d"
+			],
+			"Changes on top of PR #%d": [
+				"Измене поврх PR #%d"
+			],
+			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
+				"Зумирање"
+			],
+			"Discard edits": [
+				"Одбаци измене"
+			],
+			"Discard the uncommitted edits on trunk?": [
+				"Одбацити непотврђене измене на грани trunk?"
+			],
+			"Discard changes": [
+				"Одбаци промене"
+			],
+			"This can’t be undone.": [
+				"Ово се не може опозвати."
+			],
+			"Discard all local changes?": [
+				"Одбацити све локалне измене?"
+			],
+			"Stop Speaking": [
+				"Заустави говор"
+			],
+			"Start Speaking": [
+				"Започни говор"
+			],
+			"Speech": [
+				"Говор"
+			],
+			"Text Replacement": [
+				"Замена текста"
+			],
+			"Smart Dashes": [
+				"Паметне црте"
+			],
+			"Smart Quotes": [
+				"Паметни наводници"
+			],
+			"Show Substitutions": [
+				"Прикажи замене"
+			],
+			"Substitutions": [
+				"Замене"
+			],
+			"Paste and Match Style": [
+				"Налепи и усклади стил"
+			],
+			"Paste": [
+				"Налепи"
+			],
+			"Cut": [
+				"Исеци"
+			],
+			"Redo": [
+				"Понови"
+			],
+			"Undo": [
+				"Опозови"
+			],
+			"Edit": [
+				"Уреди"
+			],
+			"Quit": [
+				"Изађи"
+			],
+			"Exit": [
+				"Излаз"
+			],
+			"Close Window": [
+				"Затвори прозор"
+			],
+			"File": [
+				"Датотека"
+			],
+			"Quit %s": [
+				"Напусти %s"
+			],
+			"Show All": [
+				"Прикажи све"
+			],
+			"Hide Others": [
+				"Сакриј остале"
+			],
+			"Hide %s": [
+				"Сакриј %s"
+			],
+			"Services": [
+				"Услуге"
+			],
+			"About %s": [
+				"О %s"
+			],
+			"Toggle Developer Tools": [
+				"Пребаци програмерске алате"
+			],
+			"Help": [
+				"Помоћ"
+			],
+			"Bring All to Front": [
+				"Постави све у први план"
+			],
+			"Minimize": [
+				"Умањи"
+			],
+			"Window": [
+				"Прозор"
+			],
+			"Toggle Full Screen": [
+				"Пребаци цео екран"
+			],
+			"Zoom Out": [
+				"Умањи приказ"
+			],
+			"Zoom In": [
+				"Увећај приказ"
+			],
+			"Actual Size": [
+				"Стварна величина"
+			],
+			"Force Reload": [
+				"Принудно поново учитај"
+			],
+			"Reload": [
+				"Поново учитај"
+			],
+			"View": [
+				"Преглед"
+			],
+			"Select All": [
+				"Изабери све"
+			],
+			"Delete": [
+				"Избриши"
+			],
+			"Choose folder…": [
+				"Изабери фасциклу…"
+			],
+			"Mail": [
+				"Пошта"
+			],
+			"ends a sentence that lacks a full stop\u0004%s.": [
+				"%s."
+			],
+			"Too much output to announce, navigate to rows manually to read": [
+				"Превише излаза за најаву, ручно се крећите кроз редове да бисте прочитали"
+			],
+			"Terminal input": [
+				"Унос терминала"
+			],
+			"Timed out starting web server": [
+				"Истекло је време за покретање веб сервера"
+			],
+			"Server exited before becoming ready": [
+				"Сервер је прекинуо рад пре него што је постао спреман"
+			],
+			"%s directory not found.": [
+				"Директоријум %s није пронађен."
+			],
+			"The patch you applied is applied. Revert it before submitting this checkout as your own work.": [
+				"Закрпа коју сте применили је активна. Вратите је пре слања овог преузимања као сопственог рада."
+			],
+			"%s is applied. Revert it before submitting this checkout as your own work.": [
+				"Примењено је %s. Вратите то пре слања овог преузимања као сопственог рада."
+			],
+			"an action that finished\u0004Done": [
+				"Готово"
+			],
+			"No such branch: %s": [
+				"Не постоји таква грана: %s"
+			],
+			"Refusing to delete a branch the app did not create": [
+				"Одбијено је да се избрише грана коју апликација није направила"
+			],
+			"Refusing to delete trunk": [
+				"Одбијено је да се избрише грана trunk"
+			],
+			"Trunk and this ticket's work disagree": [
+				"Грана trunk и рад на овом захтеву се не слажу"
+			],
+			"Trunk and this ticket's work disagree in %d file": [
+				"Грана trunk и рад на овом захтеву се не слажу у %d датотеци",
+				"Грана trunk и рад на овом захтеву се не слажу у %d датотеке",
+				"Грана trunk и рад на овом захтеву се не слажу у %d датотека"
+			],
+			"Already working on ticket #%s in this site": [
+				"Већ се ради на захтеву #%s на овом сајту"
+			],
+			"Already working on issue #%s in this site": [
+				"Већ се ради на проблему #%s на овом сајту"
+			],
+			"This site has no trunk branch": [
+				"Овај сајт нема грану trunk"
+			],
+			"Enter a ticket number or URL.": [
+				"Унесите број захтева или URL."
+			],
+			"Enter a ticket number like 62281, or a %s ticket URL.": [
+				"Унесите број захтева као што је 62281 или %s URL захтева."
+			],
+			"Only %s tickets are supported.": [
+				"Подржани су само %s захтеви."
+			],
+			"Trunk and your work disagree in: %s.": [
+				"Грана trunk и ваш рад се не слажу у: %s."
+			],
+			"Trunk added a file your work also adds, with different content: %s.": [
+				"Грана trunk је додала датотеку коју ваш рад такође додаје, са другачијим садржајем: %s.",
+				"Грана trunk је додала датотеке које ваш рад такође додаје, са другачијим садржајем: %s.",
+				"Грана trunk је додала датотеке које ваш рад такође додаје, са другачијим садржајем: %s."
+			],
+			"Deleted on one side and changed on the other: %s.": [
+				"Избрисано на једној страни и измењено на другој: %s."
+			],
+			"Trunk changed the same lines as your work in: %s.": [
+				"Грана trunk је променила исте редове као ваш рад у: %s."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.": [
+				"Сачувајте копију свог рада, раскините везу са захтевом, избришите његов рад са сајта, а затим поново успоставите везу са #%s и примените копију."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.": [
+				"Сачувајте копију свог рада, раскините везу са захтевом, избришите његов рад са сајта, а затим поново успоставите везу са захтевом и примените копију."
+			],
+			"Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.": [
+				"Задржите грану овог проблема и сачувајте копију кроз Прегледај и пошаљи измене. Замолите ментора да помогне око премештања рада на тренутну грану trunk; ова апликација не може да реши сукоб нити да увезе сачувану копију."
+			],
+			"Update this ticket to the current trunk": [
+				"Ажурирај овај захтев на тренутну грану trunk"
+			],
+			"Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.": [
+				"Новије закрпе се можда неће уредно применити. Преместите свој рад на тренутну грану trunk овде или сачувајте његову копију и започните захтев поново."
+			],
+			"Trunk has moved since this ticket started.": [
+				"Грана trunk је напредовала од почетка рада на овом захтеву."
+			],
+			"Update this issue to the current trunk": [
+				"Ажурирај овај проблем на тренутну грану trunk"
+			],
+			"Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.": [
+				"Преместите свој рад на тренутну грану trunk овде. Ако су измене у сукобу, ваша грана остаје нетакнута како бисте могли да добијете помоћ за њихово решавање."
+			],
+			"Trunk has moved since this issue started.": [
+				"Грана trunk је напредовала од почетка рада на овом проблему."
+			],
+			"Could not move the ticket onto the current trunk.": [
+				"Премештање захтева на тренутну грану trunk није успело."
+			],
+			"Could not move the issue onto the current trunk.": [
+				"Премештање проблема на тренутну грану trunk није успело."
+			],
+			"Only an issue branch can be moved onto the current trunk.": [
+				"Само грана проблема може бити премештена на тренутну грану trunk."
+			],
+			"Link a ticket first: trunk is what tickets are measured against.": [
+				"Прво успоставите везу са захтевом: грана trunk је оно у односу на шта се захтеви пореде."
+			],
+			"Link an issue first: trunk is what issues are measured against.": [
+				"Прво успоставите везу са проблемом: грана trunk је оно у односу на шта се проблеми пореде."
+			],
+			"The app does not know which trunk the ticket started from, so it cannot move the work safely.": [
+				"Апликација не зна од које гране trunk је захтев започет, па не може безбедно да премести рад."
+			],
+			"The app does not know which trunk the issue started from, so it cannot move the work safely.": [
+				"Апликација не зна од које гране trunk је проблем започет, па не може безбедно да премести рад."
+			],
+			"The app does not know which trunk #%s started from, so it cannot move the work safely.": [
+				"Апликација не зна од које гране trunk је #%s започет, па не може безбедно да премести рад."
+			],
+			"Nothing was moved.": [
+				"Ништа није премештено."
+			],
+			"Trunk and your work disagree.": [
+				"Грана trunk и ваш рад се не слажу."
+			],
+			"You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?": [
+				"Имате %d непотврђену измену на овом сајту, која још није ни на једном захтеву. Шта треба урадити са њом?",
+				"Имате %d непотврђене измене на овом сајту, које још нису ни на једном захтеву. Шта треба урадити са њима?",
+				"Имате %d непотврђених измена на овом сајту, које још нису ни на једном захтеву. Шта треба урадити са њима?"
+			],
+			"You have %d uncommitted change on this site, not on any issue yet. What should happen to them?": [
+				"Имате %d непотврђену измену на овом сајту, која још није ни на једном проблему. Шта треба урадити са њом?",
+				"Имате %d непотврђене измене на овом сајту, које још нису ни на једном проблему. Шта треба урадити са њима?",
+				"Имате %d непотврђених измена на овом сајту, које још нису ни на једном проблему. Шта треба урадити са њима?"
+			],
+			"Stop the dev server before updating the ticket.": [
+				"Зауставите развојни сервер пре ажурирања захтева."
+			],
+			"Stop the dev server before updating the issue.": [
+				"Зауставите развојни сервер пре ажурирања проблема."
+			],
+			"Wait for the discard to finish before updating the ticket.": [
+				"Сачекајте да се одбацивање заврши пре ажурирања захтева."
+			],
+			"Wait for the discard to finish before updating the issue.": [
+				"Сачекајте да се одбацивање заврши пре ажурирања проблема."
+			],
+			"Wait for the PR or patch operation to finish.": [
+				"Сачекајте да се операција са PR-ом или закрпом заврши."
+			],
+			"Wait for the ticket's work to finish deleting.": [
+				"Сачекајте да се рад на захтеву избрише до краја."
+			],
+			"Wait for the issue's work to finish deleting.": [
+				"Сачекајте да се рад на проблему избрише до краја."
+			],
+			"Wait for the current ticket change to finish.": [
+				"Сачекајте да се тренутна измена захтева заврши."
+			],
+			"Wait for the current issue change to finish.": [
+				"Сачекајте да се тренутна измена проблема заврши."
+			],
+			"This ticket already has its own work here, so these edits cannot come along into it.": [
+				"Овај захтев овде већ има сопствени рад, па се ове измене не могу пренети у њега."
+			],
+			"This issue already has its own work here, so these edits cannot come along into it.": [
+				"Овај проблем овде већ има сопствени рад, па се ове измене не могу пренети у њега."
+			],
+			"Discard them and continue on the ticket": [
+				"Одбаци их и настави на захтеву"
+			],
+			"Save them as a patch, then continue on the ticket…": [
+				"Сачувај их као закрпу, па настави на захтеву…"
+			],
+			"Discard them and continue on the issue": [
+				"Одбаци их и настави на проблему"
+			],
+			"Save them as a patch, then continue on the issue…": [
+				"Сачувај их као закрпу, па настави на проблему…"
+			],
+			"Discard them and continue on #%s": [
+				"Одбаци их и настави на #%s"
+			],
+			"Save them as a patch, then continue on #%s…": [
+				"Сачувај их као закрпу, па настави на #%s…"
+			],
+			"Discard them and start clean": [
+				"Одбаци их и почни испочетка"
+			],
+			"Save them as a patch, then start clean…": [
+				"Сачувај их као закрпу, па почни испочетка…"
+			],
+			"Take these edits into the ticket": [
+				"Пренеси ове измене у захтев"
+			],
+			"Take these edits into the issue": [
+				"Пренеси ове измене у проблем"
+			],
+			"Take these edits into #%s": [
+				"Пренеси ове измене у #%s"
+			],
+			"Discard them and check out PR #%d": [
+				"Одбаци их и преузми PR #%d"
+			],
+			"Save them as a patch, then check out PR #%d…": [
+				"Сачувај их као закрпу, па преузми PR #%d…"
+			],
+			"PR #%d is a separate checkout, so these edits cannot come along into it.": [
+				"PR #%d је засебно преузимање, па се ове измене не могу пренети у њега."
+			],
+			"You have uncommitted changes on this site, not on any ticket yet. What should happen to them?": [
+				"Имате непотврђене измене на овом сајту, које још нису ни на једном захтеву. Шта треба урадити са њима?"
+			],
+			"You have uncommitted changes on this site, not on any issue yet. What should happen to them?": [
+				"Имате непотврђене измене на овом сајту, које још нису ни на једном проблему. Шта треба урадити са њима?"
+			],
+			"Could not open the folder.": [
+				"Отварање фасцикле није могуће."
+			],
+			"Could not reach the app's main process: %s": [
+				"Није могуће приступити главном процесу апликације: %s"
+			],
+			"This app has no record of that folder, so it will not open it.": [
+				"Ова апликација нема евиденцију о тој фасцикли, па је неће отворити."
+			],
+			"The file manager would not open the folder: %s": [
+				"Управљач датотека није отворио фасциклу: %s"
+			],
+			"The application would not start: %s": [
+				"Апликација није могла да се покрене: %s"
+			],
+			"That application is no longer where it was. Choose another.": [
+				"Та апликација се више не налази тамо где је била. Изаберите другу."
+			],
+			"That is not an application this app can open a folder in.": [
+				"То није апликација у којој ова апликација може да отвори фасциклу."
+			],
+			"A merge started outside the app is in progress.": [
+				"У току је спајање започето изван апликације."
+			],
+			"every file the patch touched, not only the ones in conflict": [
+				"сваку датотеку коју је закрпа додирнула, не само оне у сукобу"
+			],
+			"git add the files": [
+				"покрените git add за датотеке"
+			],
+			"resolve the files, then git add them": [
+				"решите датотеке, а затим покрените git add за њих"
+			],
+			"A three-way patch apply started outside the app is in progress.": [
+				"У току је тросмерна примена закрпе започета изван апликације."
+			],
+			"A revert started outside the app is in progress.": [
+				"У току је враћање измена започето изван апликације."
+			],
+			"A cherry-pick started outside the app is in progress.": [
+				"У току је cherry-pick операција започета изван апликације."
+			],
+			"A rebase started outside the app is in progress.": [
+				"У току је пребазирање започето изван апликације."
+			],
+			"resolve the files, then git add them and run %s": [
+				"решите датотеке, а затим покрените git add за њих и покрените %s"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)": [
+				"Апликација није могла да провери да ли је спајање у току у овом преузимању, па ништа није промењено. Ако се у њему извршава Git команда из терминала, пустите је да заврши, па покушајте поново. (%s)"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again.": [
+				"Апликација није могла да провери да ли је спајање у току у овом преузимању, па ништа није промењено. Ако се у њему извршава Git команда из терминала, пустите је да заврши, па покушајте поново."
+			],
+			"Its conflicts are resolved but it is not finished. Finish it from a terminal (%1$s) or abandon it (%2$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"Његови сукоби су решени, али поступак није завршен. Завршите га из терминала (%1$s) или га напустите (%2$s) пре коришћења апликације на овом сајту. До тада су овде одбијени повезивање захтева преко везе, примена закрпа, одбацивање измена и ажурирање гране trunk."
+			],
+			"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"Има сукобе у %1$s. Завршите га из терминала (%2$s) или га напустите (%3$s) пре коришћења апликације на овом сајту. До тада су овде одбијени повезивање захтева преко везе, примена закрпа, одбацивање измена и ажурирање гране trunk."
+			],
+			"The app now runs on a different Git engine, so linking tickets, applying patches, discarding changes and updating trunk are refused here. Export your work as a patch, create a new site, apply the patch there, then delete this one.": [
+				"Апликација сада ради на другом Git систему, па су овде одбијени повезивање захтева преко везе, примена закрпа, одбацивање измена и ажурирање гране trunk. Извезите свој рад као закрпу, направите нови сајт, примените закрпу тамо, а затим избришите овај."
+			],
+			"This site was created by an earlier version of the app.": [
+				"Овај сајт је направљен у ранијем издању апликације."
+			],
+			"This site was created by an earlier version of the app and cannot be changed by this one. Create a new site to keep working; you can still export a patch of what is here, and delete this site.": [
+				"Овај сајт је направљен у ранијем издању апликације и ово издање не може да га мења. Направите нови сајт да бисте наставили са радом; и даље можете да извезете закрпу онога што је овде и да избришете овај сајт."
+			],
+			"Unable to copy path: %s": [
+				"Копирање путање није могуће: %s"
+			],
+			"Clipboard access is not available in this environment": [
+				"Приступ привременој меморији није доступан у овом окружењу"
+			],
+			"Dismiss": [
+				"Занемарити"
+			],
+			"Stopped": [
+				"Заустављено"
+			],
+			"Playground web server": [
+				"Playground веб сервер"
+			],
+			"Start Playground web server": [
+				"Покрени Playground веб сервер"
+			],
+			"Stop Playground web server": [
+				"Заустави Playground веб сервер"
+			],
+			"Starting the Playground web server": [
+				"Покретање Playground веб сервера"
+			],
+			"Server exited with code %d": [
+				"Сервер је прекинуо рад са кодом %d"
+			],
+			"Choose application…": [
+				"Изаберите апликацију…"
+			],
+			"Saved to %s. The edits are still in the working tree.": [
+				"Сачувано у %s. Измене су и даље у радном стаблу."
+			],
+			"Your edits were saved to %s and are no longer in the working tree.": [
+				"Ваше измене су сачуване у %s и више нису у радном стаблу."
+			],
+			"Your %1$d uncommitted change came along into #%2$s, and will go into its patch.": [
+				"Ваша %1$d непотврђена измена је пренета у #%2$s и ући ће у његову закрпу.",
+				"Ваше %1$d непотврђене измене су пренете у #%2$s и ући ће у његову закрпу.",
+				"Ваших %1$d непотврђених измена је пренето у #%2$s и ући ће у његову закрпу."
+			],
+			"Could not delete the branch.": [
+				"Није могуће избрисати грану."
+			],
+			"Could not save the patch.": [
+				"Чување закрпе није могуће."
+			],
+			"Could not discard the changes.": [
+				"Одбацивање измена није могуће."
+			],
+			"Could not save the ticket.": [
+				"Чување захтева није могуће."
+			],
+			"Only %s issues are supported.": [
+				"Подржани су само %s проблеми."
+			],
+			"Enter an issue number or URL.": [
+				"Унесите број проблема или URL."
+			],
+			"Enter an issue number like 1234, or a %s issue URL.": [
+				"Унесите број проблема као што је 1234 или %s URL проблема."
+			],
+			"Only %s issues can be linked here.": [
+				"Овде се може успоставити веза само са %s проблемима."
+			],
+			"That is a pull request. Link the issue it fixes instead.": [
+				"То је захтев за повлачење. Уместо тога успоставите везу са проблемом који он поправља."
+			],
+			"There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.": [
+				"Још увек не постоји сајт за рад на њему. Направите га из бочне траке и апликација ће понудити овај захтев када буде спреман."
+			],
+			"Ticket #%s is ready to link.": [
+				"Захтев #%s је спреман за успостављање везе."
+			],
+			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
+				"Број захтева потиче са везе. Повезивањем се одлаже оно на чему је сајт тренутно и преузима се грана овог захтева, па апликација прво тражи потврду."
+			],
+			"Link ticket #%1$s to %2$s?": [
+				"Повезати (успоставити везу) захтев #%1$s са %2$s?"
+			],
+			"A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.": [
+				"Trac захтев припада сајту Вордпрес језгра. Отворите један и апликација ће тамо понудити захтев."
+			],
+			"Ticket #%1$s cannot be linked to %2$s.": [
+				"Захтев #%1$s не може да успостави везу са %2$s."
+			],
+			"Raw": [
+				"Изворно"
+			],
+			"Rendered": [
+				"Приказано"
+			],
+			"Date:": [
+				"Датум:"
+			],
+			"CC:": [
+				"Копија:"
+			],
+			"To:": [
+				"За:"
+			],
+			"From:": [
+				"Од:"
+			],
+			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"Имате %1$d измену поврх PR #%2$d. Можете <review>да је прегледате</review> или <discard>одбаците своје измене</discard>. Остају уз локалну копију овог захтева за повлачење када вратите овај PR.",
+				"Имате %1$d измене поврх PR #%2$d. Можете <review>да их прегледате</review> или <discard>одбаците своје измене</discard>. Остају уз локалну копију овог захтева за повлачење када вратите овај PR.",
+				"Имате %1$d измена поврх PR #%2$d. Можете <review>да их прегледате</review> или <discard>одбаците своје измене</discard>. Остају уз локалну копију овог захтева за повлачење када вратите овај PR."
+			],
+			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"Имате измене поврх PR #%d. Можете <review>да их прегледате</review> или <discard>одбаците своје измене</discard>. Остају уз локалну копију овог захтева за повлачење када вратите овај PR."
+			],
+			"Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.": [
+				"Раскидање везе са овим захтевом не утиче на ваше локалне измене за овај захтев — оне остају прикачене уз њега на овом сајту, спремне за тренутак када поново успоставите везу са њим."
+			],
+			"Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.": [
+				"Раскидање везе са овим проблемом не утиче на ваше локалне измене за овај проблем — оне остају прикачене уз њега на овом сајту, спремне за тренутак када поново успоставите везу са њим."
+			],
+			"You have %d change not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Имате %d измену која није додељена ниједном захтеву. Можете <review>направити и сачувати закрпу</review> или <discard>одбацити своје измене</discard>.",
+				"Имате %d измене које нису додељене ниједном захтеву. Можете <review>направити и сачувати закрпу</review> или <discard>одбацити своје измене</discard>.",
+				"Имате %d измена које нису додељене ниједном захтеву. Можете <review>направити и сачувати закрпу</review> или <discard>одбацити своје измене</discard>."
+			],
+			"You have %d change not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Имате %d измену која није додељена ниједном проблему. Можете <review>направити и сачувати закрпу</review> или <discard>одбацити своје измене</discard>.",
+				"Имате %d измене које нису додељене ниједном проблему. Можете <review>направити и сачувати закрпу</review> или <discard>одбацити своје измене</discard>.",
+				"Имате %d измена које нису додељене ниједном проблему. Можете <review>направити и сачувати закрпу</review> или <discard>одбацити своје измене</discard>."
+			],
+			"You have changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Имате измене које нису додељене ниједном захтеву. Можете <review>направити и сачувати закрпу</review> или <discard>одбацити своје измене</discard>."
+			],
+			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Имате измене које нису додељене ниједном проблему. Можете <review>направити и сачувати закрпу</review> или <discard>одбацити своје измене</discard>."
+			],
+			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
+				"Овај захтев нема забележену почетну тачку, па апликација не може да премести његов рад на тренутни trunk."
+			],
+			"Only a ticket branch can be moved onto the current trunk.": [
+				"Само грана захтева може бити премештена на тренутни trunk."
+			],
+			"Link a ticket first: trunk is what tickets are measured against, not a ticket.": [
+				"Прво успоставите везу са захтевом: trunk је основа у односу на коју се захтеви пореде, а не сам захтев."
+			],
+			"There is uncommitted work on trunk — decide what happens to it before starting the ticket": [
+				"Постоје непотврђене измене на грани trunk — одлучите шта ће бити са њима пре него што започнете рад на захтеву"
+			],
+			"the editor could not be opened (exit code %s)": [
+				"уређивач није могао бити отворен (излазни кôд %s)"
+			],
+			"the saved work\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Враћено — надзор изградње је поново изградио пројекат. Отворите сајт да га испробате."
+			],
+			"the saved work\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Враћено — надзор изградње још увек компајлира ову измену. Сачекајте да заврши пре него што испробате сајт."
+			],
+			"the saved work\u0004Restored.": [
+				"Враћено."
+			],
+			"the saved work\u0004Restored — open the site to try it out.": [
+				"Враћено — отворите сајт да га испробате."
+			],
+			"the previous branch\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Враћена — надзор изградње је поново изградио пројекат. Отворите сајт да га испробате."
+			],
+			"the previous branch\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Враћена — надзор изградње још увек компајлира ову измену. Сачекајте да заврши пре него што испробате сајт."
+			],
+			"the previous branch\u0004Restored.": [
+				"Враћена."
+			],
+			"the previous branch\u0004Restored — open the site to try it out.": [
+				"Враћена — отворите сајт да га испробате."
+			],
+			"Now on trunk as of %s.": [
+				"Сада на грани trunk од %s."
+			],
+			"Resetting to latest trunk (%s)…": [
+				"Враћање на најновији trunk (%s)…"
+			],
+			"Already up to date.": [
+				"Већ је ажурно."
+			],
+			"Fetching latest trunk…": [
+				"Добављање најновијег стања гране trunk…"
+			],
+			"Trac returned %s — try opening the ticket again to pass the check.": [
+				"Trac је вратио %s — покушајте поново да отворите захтев како бисте прошли проверу."
+			],
+			"Only https core.trac.wordpress.org attachments are allowed": [
+				"Дозвољени су само HTTPS прилози са core.trac.wordpress.org"
+			],
+			"%s file": [
+				"%s датотека",
+				"%s датотеке",
+				"%s датотека"
+			],
+			"Ready to work on %s": [
+				"Спремно за рад на %s"
+			],
+			"Ready to try %s": [
+				"Спремно за испробавање %s"
+			],
+			"Checking which files change…": [
+				"Провера које се датотеке мењају…"
+			],
+			"Swapping files for %s…": [
+				"Замена датотека за %s…"
+			],
+			"Swapping files…": [
+				"Замена датотека…"
+			],
+			"Moving your work on %s onto the current trunk…": [
+				"Премештање вашег рада на %s на тренутни trunk…"
+			],
+			"Moving your edits on %s onto the current trunk…": [
+				"Премештање ваших измена на %s на тренутни trunk…"
+			],
+			"Moving your work onto the current trunk…": [
+				"Премештање вашег рада на тренутни trunk…"
+			],
+			"Saving your work on %s…": [
+				"Чување вашег рада на %s…"
+			],
+			"Saving your edits on %s…": [
+				"Чување ваших измена на %s…"
+			],
+			"Saving your work…": [
+				"Чување вашег рада…"
+			],
+			"The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.": [
+				"Надзор изградње поново гради пројекат након ове измене. Сачекајте да поново пређе у стање праћења пре него што испробате сајт."
+			],
+			"Start the build watch, or run %s in the Terminal.": [
+				"Покрените надзор изградње или покрените %s у терминалу."
+			],
+			"The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Надзор изградње још увек компајлира ову измену. Сачекајте да заврши пре него што испробате сајт."
+			],
+			"PR #%s is applied.": [
+				"PR #%s је примењен."
+			],
+			"The build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Надзор изградње се зауставио пре него што је завршио поновну изградњу, па сајт и даље користи старе ресурсе."
+			],
+			"PR #%s is applied but not built.": [
+				"PR #%s је примењен, али није изграђен."
+			],
+			"PR #%s is applied. The site is rebuilding.": [
+				"PR #%s је примењен. Сајт се поново гради."
+			],
+			"Update incomplete — the build watch stopped before it finished rebuilding.": [
+				"Ажурирање није потпуно — надзор изградње се зауставио пре него што је завршио поновну изградњу."
+			],
+			"Update complete — the build watch has rebuilt, and this site is now on the latest trunk.": [
+				"Ажурирање је завршено — надзор изградње је поново изградио пројекат и овај сајт је сада на најновијој грани trunk."
+			],
+			"Update incomplete — the build watch was stopped, so nothing rebuilt.": [
+				"Ажурирање није потпуно — надзор изградње је био заустављен, па ништа није поново изграђено."
+			],
+			"The code is new but the built assets are old; retry install & build from the banner above.": [
+				"Кôд је нов, али су изграђени ресурси стари; поново покушајте инсталацију и изградњу са банера изнад."
+			],
+			"The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Закрпа је примењена, али се надзор изградње зауставио пре него што је завршио поновну изградњу, па сајт и даље користи старе ресурсе."
+			],
+			"The patch is applied but the build watch was stopped, so the site still runs the old assets.": [
+				"Закрпа је примењена, али је надзор изградње био заустављен, па сајт и даље користи старе ресурсе."
+			],
+			"%s failed, so the build was skipped. The patch is applied but dependencies are stale.": [
+				"%s није успео, па је изградња прескочена. Закрпа је примењена, али су зависности застареле."
+			],
+			"The patch is applied but the build failed, so the site still runs the old assets.": [
+				"Закрпа је примењена, али изградња није успела, па сајт и даље користи старе ресурсе."
+			],
+			"The patch changes %1$s — running %2$s…": [
+				"Закрпа мења %1$s — покретање %2$s…"
+			],
+			"Applied — the build watch has rebuilt. Open the site to try it out.": [
+				"Примењено — надзор изградње је поново изградио пројекат. Отворите сајт да га испробате."
+			],
+			"Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Примењено — надзор изградње још увек компајлира ову измену. Сачекајте да заврши пре него што испробате сајт."
+			],
+			"Applied.": [
+				"Примењено."
+			],
+			"Applied — open the site to try it out.": [
+				"Примењено — отворите сајт да га испробате."
+			],
+			"The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Сачувани рад је враћен, али се надзор изградње зауставио пре него што је завршио поновну изградњу, па сајт и даље користи старе ресурсе."
+			],
+			"The saved work is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Сачувани рад је враћен, али је надзор изградње био заустављен, па сајт и даље користи старе ресурсе."
+			],
+			"%s failed, so the build was skipped. The saved work is restored but dependencies are stale.": [
+				"%s није успео, па је изградња прескочена. Сачувани рад је враћен, али су зависности застареле."
+			],
+			"The saved work is restored but the build failed, so the site still runs the old assets.": [
+				"Сачувани рад је враћен, али изградња није успела, па сајт и даље користи старе ресурсе."
+			],
+			"The saved work changes %1$s — running %2$s…": [
+				"Сачувани рад мења %1$s — покретање %2$s…"
+			],
+			"The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Претходна грана је враћена, али се надзор изградње зауставио пре него што је завршио поновну изградњу, па сајт и даље користи старе ресурсе."
+			],
+			"The previous branch is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Претходна грана је враћена, али је надзор изградње био заустављен, па сајт и даље користи старе ресурсе."
+			],
+			"%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.": [
+				"%s није успео, па је изградња прескочена. Претходна грана је враћена, али су зависности застареле."
+			],
+			"The previous branch is restored but the build failed, so the site still runs the old assets.": [
+				"Претходна грана је враћена, али изградња није успела, па сајт и даље користи старе ресурсе."
+			],
+			"The previous branch changes %1$s — running %2$s…": [
+				"Претходна грана мења %1$s — покретање %2$s…"
+			],
+			"The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Захтев за повлачење је преузет у радну копију, али се надзор изградње зауставио пре него што је завршио поновну изградњу, па сајт и даље користи старе ресурсе."
+			],
+			"The pull request is checked out but the build watch was stopped, so the site still runs the old assets.": [
+				"Захтев за повлачење је преузет у радну копију, али је надзор изградње био заустављен, па сајт и даље користи старе ресурсе."
+			],
+			"%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.": [
+				"%s није успео, па је изградња прескочена. Захтев за повлачење је преузет у радну копију, али су зависности застареле."
+			],
+			"The pull request is checked out but the build failed, so the site still runs the old assets.": [
+				"Захтев за повлачење је преузет у радну копију, али изградња није успела, па сајт и даље користи старе ресурсе."
+			],
+			"The pull request changes %1$s — running %2$s…": [
+				"Захтев за повлачење мења %1$s — покретање %2$s…"
+			],
+			"Checked out — the build watch has rebuilt. Open the site to try it out.": [
+				"Преузето — надзор изградње је поново изградио пројекат. Отворите сајт да га испробате."
+			],
+			"Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Преузето — надзор изградње још увек компајлира ову измену. Сачекајте да заврши пре него што испробате сајт."
+			],
+			"Checked out.": [
+				"Преузето."
+			],
+			"Checked out — open the site to try it out.": [
+				"Преузето — отворите сајт да га испробате."
+			],
+			"The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Закрпа је враћена на претходно стање, али се надзор изградње зауставио пре него што је завршио поновну изградњу, па сајт и даље користи старе ресурсе."
+			],
+			"The patch is reverted but the build watch was stopped, so the site still runs the old assets.": [
+				"Закрпа је враћена на претходно стање, али је надзор изградње био заустављен, па сајт и даље користи старе ресурсе."
+			],
+			"%s failed, so the build was skipped. The patch is reverted but dependencies are stale.": [
+				"%s није успео, па је изградња прескочена. Закрпа је враћена на претходно стање, али су зависности застареле."
+			],
+			"The patch is reverted but the build failed, so the site still runs the old assets.": [
+				"Закрпа је враћена на претходно стање, али изградња није успела, па сајт и даље користи старе ресурсе."
+			],
+			"Reverted — the build watch has rebuilt. Open the site to try it out.": [
+				"Враћено на претходно стање — надзор изградње је поново изградио пројекат. Отворите сајт да га испробате."
+			],
+			"Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Враћено на претходно стање — надзор изградње још увек компајлира ову измену. Сачекајте да заврши пре него што испробате сајт."
+			],
+			"Reverted.": [
+				"Враћено на претходно стање."
+			],
+			"Reverted — open the site to try it out.": [
+				"Враћено на претходно стање — отворите сајт да га испробате."
+			],
+			"The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.": [
+				"Надзор изградње поново гради %s од почетка када настави са радом — излаз је у одељку Записи, под Надзор изградње. Ажурирање се завршава када поново пређе у стање праћења."
+			],
+			"This pull request is closed. You can still check out its last head to investigate it.": [
+				"Овај захтев за повлачење је затворен. И даље можете преузети његово последње стање да бисте га истражили."
+			],
+			"Return to saved copy": [
+				"Врати се на сачувану копију"
+			],
+			"PR #%d is already on this site; you will switch to your local copy.": [
+				"PR #%d је већ на овом сајту; пребацићете се на своју локалну копију."
+			],
+			"PR #%d has moved on GitHub; your local copy will be updated.": [
+				"PR #%d је померен на GitHub-у; ваша локална копија ће бити ажурирана."
+			],
+			"PR #%d has moved on GitHub, but your copy has edits on top.": [
+				"PR #%d је померен на GitHub-у, али ваша копија има додатне измене."
+			],
+			"PR #%1$d changes %2$d file.": [
+				"PR #%1$d мења %2$d датотеку.",
+				"PR #%1$d мења %2$d датотеке.",
+				"PR #%1$d мења %2$d датотека."
+			],
+			"Could not switch this pull request. Check the log and try again.": [
+				"Пребацивање овог захтева за повлачење није успело. Проверите запис и покушајте поново."
+			],
+			"This pull request has no recorded starting point, so the app cannot safely save its edits. Save a patch before changing branches.": [
+				"Овај захтев за повлачење нема забележену почетну тачку, па апликација не може безбедно да сачува његове измене. Сачувајте закрпу пре промене гране."
+			],
+			"No pull request is checked out on this site.": [
+				"Ниједан захтев за повлачење није преузет на овом сајту."
+			],
+			"Enter a positive whole pull request number.": [
+				"Унесите позитиван цео број захтева за повлачење."
+			],
+			"PR #%d is already checked out. Revert it before applying it again.": [
+				"PR #%d је већ преузет. Вратите га на претходно стање пре него што га поново примените."
+			],
+			"This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.": [
+				"Овај сајт већ има грану под називом pr/%d коју није направила ова апликација. Преименујте или избришите ту грану из терминала пре него што покушате поново."
+			],
+			"PR #%d has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.": [
+				"PR #%d је померен на GitHub-у, а ваша копија има додатне измене. Одбаците те измене пре ажурирања или задржите копију коју имате."
+			],
+			"Revert this PR": [
+				"Врати овај PR на претходно"
+			],
+			"Edits you make here stay with your local copy of the PR.": [
+				"Измене које овде направите остају уз вашу локалну копију PR-а."
+			],
+			"Your edits here stay with your local copy of the PR.": [
+				"Ваше измене овде остају уз вашу локалну копију PR-а."
+			],
+			"Your ticket changes are saved separately and return when you revert this PR.": [
+				"Измене вашег захтева се чувају засебно и враћају се када вратите овај PR на претходно стање."
+			],
+			"Your issue changes are saved separately and return when you revert this PR.": [
+				"Измене вашег проблема се чувају засебно и враћају се када вратите овај PR на претходно стање."
+			],
+			"Reverting this PR returns to trunk.": [
+				"Враћање овог PR-а на претходно стање враћа вас на trunk."
+			],
+			"Setup failed: %s": [
+				"Подешавање није успело: %s"
+			],
+			"Site setup request completed.": [
+				"Захтев за подешавање сајта је завршен."
+			],
+			"Starting site setup…": [
+				"Покретање подешавања сајта…"
+			],
+			"Cloning repository…": [
+				"Клонирање спремишта…"
+			],
+			"Setup finished.": [
+				"Подешавање је завршено."
+			],
+			"Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.": [
+				"Укуцајте <code><command /></code> за приказ подржаних наредби. Притисните <code><keys /></code> да зауставите тренутну наредбу."
+			],
+			"Added a dependency to <code><file /></code>? Run <command />.": [
+				"Додали сте зависност у <code><file /></code>? Покрените <command />."
+			],
+			"Edited files in <code><folder /></code>? Run <command /> so the site picks them up.": [
+				"Уредили сте датотеке у <code><folder /></code>? Покрените <command /> како би их сајт учитао."
+			],
+			"Setting this site up — running %s…": [
+				"Подешавање овог сајта — покретање %s…"
+			],
+			"Stopping setup…": [
+				"Заустављање подешавања…"
+			],
+			"Debug.log": [
+				"Debug.log"
+			],
+			"Debug.log (%d)": [
+				"Debug.log (%d)"
+			],
+			"Discarded local changes.": [
+				"Локалне измене су одбачене."
+			],
+			"Saved your changes to %s and reset the working tree.": [
+				"Ваше измене су сачуване у %s и радно стабло је поништено."
+			],
+			"Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.": [
+				"Ажурирање није потпуно — %s није успео. Кôд је нов, али су зависности и изграђени ресурси стари; поново покушајте инсталацију и изградњу са банера изнад."
+			],
+			"%1$s changed — running %2$s (only the changed packages are downloaded)…": [
+				"%1$s је промењен — покретање %2$s (преузимају се само промењени пакети)…"
+			],
+			"Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.": [
+				"Ажурирање није потпуно — изградња није успела. Кôд је нов, али су изграђени ресурси стари; поново покушајте инсталацију и изградњу са банера изнад."
+			],
+			"Update complete — this site is now on the latest trunk.": [
+				"Ажурирање је завршено — овај сајт је сада на најновијој грани trunk."
+			],
+			"WordPress npm helper terminal.": [
+				"Помоћни npm терминал за Вордпрес."
+			],
+			"A command is already running. Press %s to stop it.": [
+				"Наредба се већ извршава. Притисните %s да је зауставите."
+			],
+			"Try \"%s\" for the list of supported commands.": [
+				"Покушајте са „%s“ за списак подржаних наредби."
+			],
+			"Unsupported command: %s": [
+				"Неподржана наредба: %s"
+			],
+			"Unsupported script \"%1$s\". Allowed scripts: %2$s": [
+				"Неподржана скрипта „%1$s“. Дозвољене скрипте: %2$s"
+			],
+			"Missing script name. Example: %s": [
+				"Недостаје назив скрипте. Пример: %s"
+			],
+			"Run them here whenever you change files or add a dependency afterwards.": [
+				"Покрените их овде кад год накнадно промените датотеке или додате зависност."
+			],
+			"The setup checklist runs %1$s and %2$s once.": [
+				"Контролна листа за подешавање једном покреће %1$s и %2$s."
+			],
+			"%1$s Run one of: %2$s": [
+				"%1$s Покрените једно од: %2$s"
+			],
+			"%1$s Run %2$s in the site directory": [
+				"%1$s Покрените %2$s у директоријуму сајта"
+			],
+			"%s Show this help text": [
+				"%s Прикажи овај текст помоћи"
+			],
+			"Available commands:": [
+				"Доступне наредбе:"
+			],
+			"Could not show the log file: %s": [
+				"Није могуће приказати датотеку записа: %s"
+			],
+			"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was not.": [
+				"Није могуће уклонити садржај датотеке debug.log за %1$s: %2$s. Панел је очишћен, али датотека није."
+			],
+			"Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.": [
+				"Покретање развојног сервера је отказано: надзор изградње се зауставио пре него што је %s завршен. Покрените га поново када надзор буде активан."
+			],
+			"%s is complete: starting the server without the build watch. Start build watch to compile edits on save.": [
+				"%s је завршен: покретање сервера без надзора изградње. Покрените надзор изградње да бисте компајлирали измене при чувању."
+			],
+			"Failed to start PHP server: %s": [
+				"Покретање PHP сервера није успело: %s"
+			],
+			"unknown error": [
+				"непозната грешка"
+			],
+			"Dev server failed to start: %s": [
+				"Покретање развојног сервера није успело: %s"
+			],
+			"Dev server stopped unexpectedly (see Help → %s for details).": [
+				"Развојни сервер се неочекивано зауставио (погледајте Помоћ → %s за детаље)."
+			],
+			"Resumed.": [
+				"Настављено."
+			],
+			"Paused while another operation uses the build.": [
+				"Паузирано док друга операција користи изградњу."
+			],
+			"%1$s failed with code %2$s — build watch not started.": [
+				"%1$s није успео уз кôд %2$s — надзор изградње није покренут."
+			],
+			"%s was stopped — build watch not started.": [
+				"%s је заустављен — надзор изградње није покренут."
+			],
+			"No completed build found — running %s first…": [
+				"Није пронађена завршена изградња — прво се покреће %s…"
+			],
+			"A command is already running in the terminal — stop it before starting the build watch.": [
+				"Наредба се већ извршава у терминалу — зауставите је пре покретања надзора изградње."
+			],
+			"%1$s exited with code %2$s": [
+				"%1$s је завршен уз излазни кôд %2$s"
+			],
+			"%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for \"%3$s\".": [
+				"%1$s поново гради %2$s пре него што почне са праћењем. Развојни сервер, ако сте га покренули, чека на „%3$s“."
+			],
+			"The patch could not be applied.": [
+				"Закрпа није могла бити примењена."
+			],
+			"%s The record of it could not be cleared, so this site still thinks it is applied.": [
+				"%s Запис о њој није могао бити уклоњен, па овај сајт и даље сматра да је примењена."
+			],
+			"%s The applied-patch record has been cleared.": [
+				"%s Запис о примењеној закрпи је уклоњен."
+			],
+			"A command is already running. Stop it before switching tickets.": [
+				"Наредба се већ извршава. Зауставите је пре промене захтева."
+			],
+			"Could not read that patch.": [
+				"Читање те закрпе није успело."
+			],
+			"Could not download %s.": [
+				"Преузимање %s није успело."
+			],
+			"Could not read that file: %s": [
+				"Читање те датотеке није успело: %s"
+			],
+			"Running %s…": [
+				"Покретање %s…"
+			],
+			"Build watch (exited %d)": [
+				"Надзор изградње (излазни кôд %d)"
+			],
+			"Build watch (stopped)": [
+				"Надзор изградње (заустављено)"
+			],
+			"Build watch (paused)": [
+				"Надзор изградње (паузирано)"
+			],
+			"Build watch (building)": [
+				"Надзор изградње (изградња у току)"
+			],
+			"Build watch (watching)": [
+				"Надзор изградње (праћење у току)"
+			],
+			"Build watch (compiling)": [
+				"Надзор изградње (компајлирање у току)"
+			],
+			"Could not copy": [
+				"Копирање није успело"
+			],
+			"The build failed — dependencies are installed. Its output is above; retry the build from the checklist.": [
+				"Изградња није успела — зависности су инсталиране. Њен излаз је изнад; поново покушајте изградњу са контролне листе."
+			],
+			"%s failed — setup stopped here. Its output is above; retry the install from the checklist.": [
+				"%s није успео — подешавање је овде заустављено. Његов излаз је изнад; поново покушајте инсталацију са контролне листе."
+			],
+			"Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.": [
+				"Подешавање је заустављено. Преостали кораци су на контролној листи изнад — покрените их када будете спремни."
+			],
+			"Setup complete — start the dev server when you are ready.": [
+				"Подешавање је завршено — покрените развојни сервер када будете спремни."
+			],
+			"Status update": [
+				"Ажурирање статуса"
+			],
+			"Status: done": [
+				"Статус: завршено"
+			],
+			"Status: cloning": [
+				"Статус: клонирање"
+			],
+			"Clear": [
+				"Уклони"
+			],
+			"Show in folder": [
+				"Прикажи у фасцикли"
+			],
+			"The log file appears once the dev server has run.": [
+				"Датотека записа се појављује након што се развојни сервер покрене."
+			],
+			"No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.": [
+				"Још увек нема PHP напомена нити грешака. Све што Вордпрес или ваш кôд упише — <code><function /></code>, напомене, застареле функције, критичне грешке — појављује се овде док развојни сервер ради."
+			],
+			"The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.": [
+				"Надзор изградње компајлира измене из <code><source /></code> у <code><build /></code>. Ради независно од развојног сервера — његов излаз, као и информација да ли прати, паузира или је заустављен, приказују се овде."
+			],
+			"it no longer fits": [
+				"више се не уклапа"
+			],
+			"Open the pull request": [
+				"Отвори захтев за повлачење"
+			],
+			"the code around it has changed": [
+				"кôд око њега се променио"
+			],
+			"looks like that change is not in your checkout any more": [
+				"изгледа да та измена више није у вашој радној копији"
+			],
+			"It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Она је сада део ваших измена. Поништавање ваших измена на тим линијама враћа дугме Врати на претходно назад; у супротном сачувајте копију свог рада и одбаците захтев на његову основу — на овом пројекту то је уобичајен начин рада, а не изгубљено поподне."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.": [
+				"Та закрпа се не може самостално издвојити назад: ваше сопствене измене се налазе на %1$d од њене %2$d измене, у %3$d датотека.",
+				"Те закрпе се не могу самостално издвојити назад: ваше сопствене измене се налазе на %1$d од њене %2$d измене, у %3$d датотека.",
+				"Та закрпа се не може самостално издвојити назад: ваше сопствене измене се налазе на %1$d од њених %2$d измена, у %3$d датотека."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.": [
+				"Та закрпа се не може самостално издвојити назад: ваше сопствене измене се налазе на %1$d од њене %2$d измене.",
+				"Та закрпа се не може самостално издвојити назад: ваше сопствене измене се налазе на %1$d од њене %2$d измене.",
+				"Та закрпа се не може самостално издвојити назад: ваше сопствене измене се налазе на %1$d од њених %2$d измена."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.": [
+				"%1$s се не може самостално издвојити назад: ваше сопствене измене се налазе на %2$d од њене %3$d измене, у %4$d датотека.",
+				"%1$s се не може самостално издвојити назад: ваше сопствене измене се налазе на %2$d од њене %3$d измене, у %4$d датотека.",
+				"%1$s се не може самостално издвојити назад: ваше сопствене измене се налазе на %2$d од њених %3$d измена, у %4$d датотека."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.": [
+				"%1$s се не може самостално издвојити назад: ваше сопствене измене се налазе на %2$d од њене %3$d измене.",
+				"%1$s се не може самостално издвојити назад: ваше сопствене измене се налазе на %2$d од њене %3$d измене.",
+				"%1$s се не може самостално издвојити назад: ваше сопствене измене се налазе на %2$d од њених %3$d измена."
+			],
+			"Ask its author for a rebase": [
+				"Затражите од аутора пребазирање (rebase)"
+			],
+			"Bringing it up to date is its author's work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.": [
+				"Ажурирање је посао његовог аутора — пребазирање (rebase) или спајање гране trunk. Остављање коментара на захтеву за повлачење како бисте их обавестили представља прави допринос сам по себи."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Овај захтев за повлачење је написан у односу на старији trunk и више се не уклапа у њега: за %1$d од његове %2$d измене, у %3$d датотека, потребна је дорада.",
+				"Овај захтев за повлачење је написан у односу на старији trunk и више се не уклапа у њега: за %1$d од његове %2$d измене, у %3$d датотека, потребна је дорада.",
+				"Овај захтев за повлачење је написан у односу на старији trunk и више се не уклапа у њега: за %1$d од његових %2$d измена, у %3$d датотека, потребна је дорада."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Овај захтев за повлачење је написан у односу на старији trunk и више се не уклапа у њега: за %1$d од његове %2$d измене, у %3$d датотеци, потребна је дорада.",
+				"Овај захтев за повлачење је написан у односу на старији trunk и више се не уклапа у њега: за %1$d од његове %2$d измене, у %3$d датотеци, потребна је дорада.",
+				"Овај захтев за повлачење је написан у односу на старији trunk и више се не уклапа у њега: за %1$d од његових %2$d измена, у %3$d датотеци, потребна је дорада."
+			],
+			"looks like it is already in your checkout": [
+				"изгледа да се већ налази у вашој радној копији"
+			],
+			"Your own work is also in %s, so it may be part of why the pull request does not fit.": [
+				"Ваш сопствени рад се такође налази у %s, па то може бити део разлога зашто се захтев за повлачење не уклапа."
+			],
+			"%s includes changes from the patch you applied and may also contain your own edits.": [
+				"%s обухвата измене из закрпе коју сте применили и може садржати и ваше сопствене измене.",
+				"%s обухватају измене из закрпе коју сте применили и могу садржати и ваше сопствене измене.",
+				"%s обухватају измене из закрпе коју сте применили и могу садржати и ваше сопствене измене."
+			],
+			"%1$s includes changes from %2$s and may also contain your own edits.": [
+				"%1$s обухвата измене из %2$s и може садржати и ваше сопствене измене.",
+				"%1$s обухватају измене из %2$s и могу садржати и ваше сопствене измене.",
+				"%1$s обухватају измене из %2$s и могу садржати и ваше сопствене измене."
+			],
+			"Other failures are in %s.": [
+				"Остали неуспеси су у %s."
+			],
+			"Your own work is also in %s and may be part of the failure.": [
+				"Ваш сопствени рад је такође у %s и може бити део узрока неуспеха."
+			],
+			"Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.": [
+				"Прво сачувајте закрпу свог рада да бисте задржали копију, а затим испробајте овај захтев за повлачење на чистом захтеву. Ако се ни тамо не уклапа, отворите захтев за повлачење и обавестите његовог аутора да је можда потребно ажурирање."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Овај захтев за повлачење се не уклапа у вашу радну копију: за %1$d од његове %2$d измене, у %3$d датотека, потребна је дорада.",
+				"Овај захтев за повлачење се не уклапа у вашу радну копију: за %1$d од његове %2$d измене, у %3$d датотека, потребна је дорада.",
+				"Овај захтев за повлачење се не уклапа у вашу радну копију: за %1$d од његових %2$d измена, у %3$d датотека, потребна је дорада."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Овај захтев за повлачење се не уклапа у вашу радну копију: за %1$d од његове %2$d измене, у %3$d датотеци, потребна је дорада.",
+				"Овај захтев за повлачење се не уклапа у вашу радну копију: за %1$d од његове %2$d измене, у %3$d датотеци, потребна је дорада.",
+				"Овај захтев за повлачење се не уклапа у вашу радну копију: за %1$d од његових %2$d измена, у %3$d датотеци, потребна је дорада."
+			],
+			"See why it was closed": [
+				"Погледајте зашто је затворен"
+			],
+			"Nobody is coming back to update a closed pull request — its discussion may say why it ended.": [
+				"Нико се неће вратити назад да уради ажурирање затвореног захтева за повлачење — у његовој дискусији можда пише зашто је затворен."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Овај захтев за повлачење је затворен и написан у односу на старији trunk — више се не уклапа: за %1$d од његове %2$d измене, у %3$d датотека, потребна је дорада.",
+				"Овај захтев за повлачење је затворен и написан у односу на старији trunk — више се не уклапа: за %1$d од његове %2$d измене, у %3$d датотека, потребна је дорада.",
+				"Овај захтев за повлачење је затворен и написан у односу на старији trunk — више се не уклапа: за %1$d од његових %2$d измена, у %3$d датотека, потребна је дорада."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Овај захтев за повлачење је затворен и написан у односу на старији trunk — више се не уклапа: за %1$d од његове %2$d измене, у %3$d датотеци, потребна је дорада.",
+				"Овај захтев за повлачење је затворен и написан у односу на старији trunk — више се не уклапа: за %1$d од његове %2$d измене, у %3$d датотеци, потребна је дорада.",
+				"Овај захтев за повлачење је затворен и написан у односу на старији trunk — више се не уклапа: за %1$d од његових %2$d измена, у %3$d датотеци, потребна је дорада."
+			],
+			"All %d of this pull request's change look like they are already in trunk — there is nothing left to apply.": [
+				"Сва %d измена овог захтева за повлачење изгледа као да је већ у грани trunk — нема више шта да се примени.",
+				"Све %d измене овог захтева за повлачење изгледају као да су већ у грани trunk — нема више шта да се примени.",
+				"Свих %d измена овог захтева за повлачење изгледа као да је већ у грани trunk — нема више шта да се примени."
+			],
+			"All %d of this pull request's change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.": [
+				"Сва %d измена овог захтева за повлачење изгледа као да је већ у грани trunk — вероватно је уврштена у језгро, због чега је затворен. Нема више шта да се примени.",
+				"Све %d измене овог захтева за повлачење изгледају као да су већ у грани trunk — вероватно су уврштене у језгро, због чега је затворен. Нема више шта да се примени.",
+				"Свих %d измена овог захтева за повлачење изгледа као да је већ у грани trunk — вероватно је уврштено у језгро, због чега је затворен. Нема више шта да се примени."
+			],
+			"All %d of this pull request's change look like they are already in your checkout — there is nothing left to apply.": [
+				"Сва %d измена овог захтева за повлачење изгледа као да је већ у вашој радној копији — нема више шта да се примени.",
+				"Све %d измене овог захтева за повлачење изгледају као да су већ у вашој радној копији — нема више шта да се примени.",
+				"Свих %d измена овог захтева за повлачење изгледа као да је већ у вашој радној копији — нема више шта да се примени."
+			],
+			"%1$s and %2$d more file": [
+				"%1$s и још %2$d датотека",
+				"%1$s и још %2$d датотеке",
+				"%1$s и још %2$d датотека"
+			],
+			"%1$d of this patch's %2$d change across %3$d files no longer fit — the other %4$d do.": [
+				"%1$d од %2$d измене ове закрпе у %3$d датотека се више не уклапа — преосталих %4$d се уклапа.",
+				"%1$d од %2$d измене ове закрпе у %3$d датотека се више не уклапају — преосталих %4$d се уклапа.",
+				"%1$d од %2$d измена ове закрпе у %3$d датотека се више не уклапа — преосталих %4$d се уклапа."
+			],
+			"%1$d of this patch's %2$d change no longer fit — the other %3$d do.": [
+				"%1$d од %2$d измене ове закрпе се више не уклапа — преосталих %3$d се уклапа.",
+				"%1$d од %2$d измене ове закрпе се више не уклапају — преосталих %3$d се уклапа.",
+				"%1$d од %2$d измена ове закрпе се више не уклапа — преосталих %3$d се уклапа."
+			],
+			"None of this patch's %1$d change across %2$d files still fit your checkout.": [
+				"Ниједна од %1$d измене ове закрпе у %2$d датотека се више не уклапа у вашу радну копију.",
+				"Ниједна од %1$d измене ове закрпе у %2$d датотека се више не уклапа у вашу радну копију.",
+				"Ниједна од %1$d измена ове закрпе у %2$d датотека се више не уклапа у вашу радну копију."
+			],
+			"None of this patch's %d change still fit your checkout.": [
+				"Ниједна од %d измене ове закрпе се више не уклапа у вашу радну копију.",
+				"Ниједна од %d измене ове закрпе се више не уклапа у вашу радну копију.",
+				"Ниједна од %d измена ове закрпе се више не уклапа у вашу радну копију."
+			],
+			"%1$d of this patch's %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.": [
+				"%1$d од %2$d измене ове закрпе у %3$d датотека изгледа као да је већ у вашој радној копији — преосталих %4$d се и даље уклапа.",
+				"%1$d од %2$d измене ове закрпе у %3$d датотека изгледају као да су већ у вашој радној копији — преосталих %4$d се и даље уклапа.",
+				"%1$d од %2$d измена ове закрпе у %3$d датотека изгледа као да је већ у вашој радној копији — преосталих %4$d се и даље уклапа."
+			],
+			"%1$d of this patch's %2$d change look like they are already in your checkout — the other %3$d still fit.": [
+				"%1$d од %2$d измене ове закрпе изгледа као да је већ у вашој радној копији — преосталих %3$d се и даље уклапа.",
+				"%1$d од %2$d измене ове закрпе изгледају као да су већ у вашој радној копији — преосталих %3$d се и даље уклапа.",
+				"%1$d од %2$d измена ове закрпе изгледа као да је већ у вашој радној копији — преосталих %3$d се и даље уклапа."
+			],
+			"All %1$d of this patch's change across %2$d files look like they are already in your checkout.": [
+				"Сва %1$d измена ове закрпе у %2$d датотека изгледа као да је већ у вашој радној копији.",
+				"Све %1$d измене ове закрпе у %2$d датотека изгледају као да су већ у вашој радној копији.",
+				"Свих %1$d измена ове закрпе у %2$d датотека изгледа као да је већ у вашој радној копији."
+			],
+			"All %d of this patch's change look like they are already in your checkout.": [
+				"Сва %d измена ове закрпе изгледа као да је већ у вашој радној копији.",
+				"Све %d измене ове закрпе изгледају као да су већ у вашој радној копији.",
+				"Свих %d измена ове закрпе изгледа као да је већ у вашој радној копији."
+			],
+			"The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.": [
+				"Закрпа се примењује преко тих измена: успева ако се не преклапају, а отказује без икаквих промена ако се преклапају."
+			],
+			"%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.": [
+				"%s обухвата измене из закрпе коју сте применили. Датотека може садржати и ваше сопствене измене.",
+				"%s обухватају измене из закрпе коју сте применили. Датотеке могу садржати и ваше сопствене измене.",
+				"%s обухватају измене из закрпе коју сте применили. Датотеке могу садржати и ваше сопствене измене."
+			],
+			"%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.": [
+				"%1$s обухвата измене из %2$s коју сте применили. Датотека може садржати и ваше сопствене измене.",
+				"%1$s обухватају измене из %2$s коју сте применили. Датотеке могу садржати и ваше сопствене измене.",
+				"%1$s обухватају измене из %2$s коју сте применили. Датотеке могу садржати и ваше сопствене измене."
+			],
+			"You have your own edits to %s. Save a patch of your work first if you want a copy.": [
+				"Имате сопствене измене у %s. Прво сачувајте закрпу свог рада ако желите копију."
+			],
+			"%1$s and %2$s": [
+				"%1$s и %2$s"
+			],
+			"It still counts as this ticket's one applied patch, so another cannot be applied until this ticket is reverted or discarded.": [
+				"Она се и даље рачуна као једна примењена закрпа овог захтева, па се друга не може применити док се овај захтев не врати на претходно стање или не одбаци."
+			],
+			"Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Прво сачувајте копију свог рада и захтев је безбедно одбацити назад на његову основу — на овом пројекту то је уобичајен начин рада, а не изгубљено поподне."
+			],
+			"The copy could not be saved: %s": [
+				"Копија није могла бити сачувана: %s"
+			],
+			"%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"%s је била превелика да би се сачувала њена копија за опозив, па се не може самостално издвојити назад."
+			],
+			"A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"Закрпа је била превелика да би се сачувала њена копија за опозив, па се не може самостално издвојити назад."
+			],
+			"A patch is applied — %d file.": [
+				"Закрпа је примењена — %d датотека.",
+				"Закрпа је примењена — %d датотеке.",
+				"Закрпа је примењена — %d датотека."
+			],
+			"A patch is applied — %1$d file, %2$s.": [
+				"Закрпа је примењена — %1$d датотека, %2$s.",
+				"Закрпа је примењена — %1$d датотеке, %2$s.",
+				"Закрпа је примењена — %1$d датотека, %2$s."
+			],
+			"%1$s is applied — %2$d file.": [
+				"%1$s је примењена — %2$d датотека.",
+				"%1$s је примењена — %2$d датотеке.",
+				"%1$s је примењена — %2$d датотека."
+			],
+			"%1$s is applied — %2$d file, %3$s.": [
+				"%1$s је примењена — %2$d датотека, %3$s.",
+				"%1$s је примењена — %2$d датотеке, %3$s.",
+				"%1$s је примењена — %2$d датотека, %3$s."
+			],
+			"Only %s pull requests can be applied here.": [
+				"Овде се могу применити само %s захтеви за повлачење."
+			],
+			"That does not look like a pull request URL.": [
+				"То не изгледа као URL захтева за повлачење."
+			],
+			"Only github.com pull requests are supported.": [
+				"Подржани су само захтеви за повлачење са github.com."
+			],
+			"That is not a pull request URL or number.": [
+				"То није URL нити број захтева за повлачење."
+			],
+			"Enter a pull request URL or number.": [
+				"Унесите URL или број захтева за повлачење."
+			],
+			"That does not look like a patch — no file changes found.": [
+				"То не изгледа као закрпа — нису пронађене измене датотека."
+			],
+			"No file changes found in the patch.": [
+				"У закрпи нису пронађене измене датотека."
+			],
+			"The patch is empty.": [
+				"Закрпа је празна."
+			],
+			"The empty file path is quoted or ambiguous.": [
+				"Празна путања датотеке је под наводницима или је двосмислена."
+			],
+			"Applied %d file.": [
+				"Примењена је %d датотека.",
+				"Примењене су %d датотеке.",
+				"Примењено је %d датотека."
+			],
+			"Reverted %d file.": [
+				"Враћена је %d датотека на претходно стање.",
+				"Враћене су %d датотеке на претходно стање.",
+				"Враћено је %d датотека на претходно стање."
+			],
+			"The patch could not be written, so the checkout was put back as it was: %s": [
+				"Закрпа није могла бити уписана, па је радна копија враћена назад у претходно стање: %s"
+			],
+			"The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s": [
+				"Закрпа није могла бити уписана, а радна копија није могла бити потпуно враћена назад — налази се у непознатом стању. Опозив није успео: %s"
+			],
+			"writing could not verify %1$s after git apply: %2$s": [
+				"уписивање није могло да потврди %1$s након примене преко git apply: %2$s"
+			],
+			"writing git apply exited %s": [
+				"уписивање и примена преко git apply су завршени уз %s"
+			],
+			"writing %s": [
+				"уписивање %s"
+			],
+			"Could not snapshot the checkout before applying the patch: %s": [
+				"Није могуће направити снимак стања радне копије пре примене закрпе: %s"
+			],
+			"The patch was not applied — the checkout is unchanged.": [
+				"Закрпа није примењена — радна копија је непромењена."
+			],
+			"That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.": [
+				"Та закрпа се више не налази у овој радној копији — нешто је извршило поништавање, вероватно ажурирање гране trunk или одбацивање. Ништа није враћено на претходно стање."
+			],
+			"The patch does not apply.": [
+				"Закрпа се не може применити."
+			],
+			"a file has moved on since the patch was written, so it no longer applies": [
+				"датотека је измењена откако је закрпа написана, па се више не може применити"
+			],
+			"%s has moved on since the patch was written, so it no longer applies": [
+				"%s је измењен откако је закрпа написана, па се више не може применити"
+			],
+			"%d more file was not checked one by one": [
+				"Још %d датотека није проверена једна по једна",
+				"Још %d датотеке нису проверене једна по једна",
+				"Још %d датотека није проверено једна по једна"
+			],
+			"The patch does not change any files.": [
+				"Закрпа не мења ниједну датотеку."
+			],
+			"(unnamed binary file)": [
+				"(неименована бинарна датотека)"
+			],
+			"Could not read the patch: %s": [
+				"Читање закрпе није успело: %s"
+			],
+			"Skipped %1$d binary file the app cannot apply: %2$s": [
+				"Прескочена је %1$d бинарна датотека коју апликација не може да примени: %2$s",
+				"Прескочене су %1$d бинарне датотеке које апликација не може да примени: %2$s",
+				"Прескочено је %1$d бинарних датотека које апликација не може да примени: %2$s"
+			],
+			"%s is not in this checkout, so the patch does not fit it": [
+				"%s се не налази у овој радној копији, па се закрпа не уклапа"
+			],
+			"%1$s already exists, so the patch cannot move %2$s onto it": [
+				"%1$s већ постоји, па закрпа не може да премести %2$s на то место"
+			],
+			"%s is not in this checkout, so the patch cannot move it": [
+				"%s се не налази у овој радној копији, па закрпа не може да је премести"
+			],
+			"%s could not be created from the patch": [
+				"%s није могао бити направљен из закрпе"
+			],
+			"%s already exists, so the patch cannot add it": [
+				"%s већ постоји, па закрпа не може да га дода"
+			],
+			"%s is already gone, so the patch cannot remove it": [
+				"%s већ не постоји, па закрпа не може да га уклони"
+			],
+			"%s points outside the site folder": [
+				"%s показује изван фасцикле сајта"
+			],
+			"%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do": [
+				"%1$s је измењен откако је закрпа написана: %2$d од његове %3$d измене се више не уклапа, а преосталих %4$d се уклапа",
+				"%1$s је измењен откако је закрпа написана: %2$d од његове %3$d измене се више не уклапају, а преосталих %4$d се уклапа",
+				"%1$s је измењен откако је закрпа написана: %2$d од његових %3$d измена се више не уклапа, а преосталих %4$d се уклапа"
+			],
+			"%1$s has moved on since the patch was written, so none of its %2$d change still fits": [
+				"%1$s је измењен откако је закрпа написана, па се ниједна од његове %2$d измене више не уклапа",
+				"%1$s је измењен откако је закрпа написана, па се ниједна од његове %2$d измене више не уклапа",
+				"%1$s је измењен откако је закрпа написана, па се ниједна од његових %2$d измена више не уклапа"
+			],
+			"Server did not start within %d second": [
+				"Сервер се није покренуо у року од %d секунде",
+				"Сервер се није покренуо у року од %d секунде",
+				"Сервер се није покренуо у року од %d секунди"
+			],
+			"Server exited with code %s before reporting a URL": [
+				"Сервер је завршио рад уз кôд %s пре него што је пријавио URL"
+			],
+			"Server exited with code %1$s (signal %2$s) before reporting a URL": [
+				"Сервер је завршио рад уз кôд %1$s (сигнал %2$s) пре него што је пријавио URL"
+			],
+			"Failed to start: %s": [
+				"Покретање није успело: %s"
+			],
+			"Retrying with engine checks relaxed…": [
+				"Поновни покушај уз ублажене провере окружења…"
+			],
+			"This site requires a newer Node.js than this app bundles.": [
+				"Овај сајт захтева новији Node.js од оног који је укључен у пакет ове апликације."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm је завршио рад уз кôд %s, али нешто што је покренуо и даље ради и задржава његов излаз. Прекидање праћења и завршавање."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm је завршио рад уз кôд %1$s (сигнал %2$s), али нешто што је покренуо и даље ради и задржава његов излаз. Прекидање праћења и завршавање."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm је завршио рад уз кôд %s, али нешто што је покренуо и даље ради и задржава његов излаз. Прекидање праћења; тај процес наставља да ради док се сам не заврши."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm је завршио рад уз кôд %1$s (сигнал %2$s), али нешто што је покренуо и даље ради и задржава његов излаз. Прекидање праћења; тај процес наставља да ради док се сам не заврши."
+			],
+			"Applying the patch failed: %s": [
+				"Примена закрпе није успела: %s"
+			],
+			"The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s": [
+				"Закрпа је примењена, али њен запис за враћање на претходно стање није могао бити сачуван нити опозван — радна копија садржи закрпу и апликација не може да је врати на претходно стање. %s"
+			],
+			"The patch applied but its revert record could not be saved, so it was undone. %s": [
+				"Закрпа је примењена, али њен запис за враћање на претходно стање није могао бити сачуван, па је опозвана. %s"
+			],
+			"This patch is too large to keep for an undo, so Revert will not be offered.": [
+				"Ова закрпа је превелика да би се чувала за опозив, па дугме Врати на претходно неће бити понуђено."
+			],
+			"Applying %s…": [
+				"Примена %s…"
+			],
+			"Reverting %s…": [
+				"Враћање %s на претходно стање…"
+			],
+			"%s is already applied. Revert it before applying another patch.": [
+				"%s је већ примењена. Вратите је на претходно стање пре примене друге закрпе."
+			],
+			"There is no stored patch to revert.": [
+				"Нема сачуване закрпе за враћање на претходно стање."
+			],
+			"Could not check your work for conflicts, so the preview was not shown.": [
+				"Није могуће проверити да ли у вашем раду има конфликата, па преглед није приказан."
+			],
+			"Restoring the files of your previous branch…": [
+				"Враћање датотека ваше претходне гране…"
+			],
+			"Could not remove the unused branch: %s": [
+				"Није могуће уклонити некоришћену грану: %s"
+			],
+			"Downloading the pull request's files and switching to its branch…": [
+				"Преузимање датотека захтева за повлачење и пребацивање на његову грану…"
+			],
+			"Returning to your saved copy of the pull request…": [
+				"Повратак на вашу сачувану копију захтева за повлачење…"
+			],
+			"Your work is safe — it is committed on %s. Apply that pull request again to return to it.": [
+				"Ваш рад је безбедан — сачуван је на грани %s. Поново примените тај захтев за повлачење да бисте му се вратили."
+			],
+			"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.": [
+				"Ваш рад на #%1$s је безбедан — сачуван је на грани %2$s. Поново успоставите везу са тим захтевом да бисте му се вратили."
+			],
+			"Update failed during fetch: %s": [
+				"Ажурирање није успело током добављања: %s"
+			],
+			"Update failed during checkout: %s": [
+				"Ажурирање није успело током преузимања радне копије: %s"
+			],
+			"Returning to your work on %s…": [
+				"Повратак на ваш рад на %s…"
+			],
+			"Parking your work on %s before updating…": [
+				"Одлагање вашег рада на %s пре ажурирања…"
+			],
+			"Fetch latest trunk": [
+				"Добави најновији trunk"
+			],
+			"The build watch is rebuilding — output in the Logs, under Build watch": [
+				"Надзор изградње поново гради пројекат — излаз је у одељку Записи, под Надзор изградње"
+			],
+			"Dependencies unchanged — skipping %s": [
+				"Зависности су непромењене — прескаче се %s"
+			],
+			"Dependencies unchanged, rebuilt.": [
+				"Зависности су непромењене, поново изграђено."
+			],
+			"Dependencies updated, rebuilt.": [
+				"Зависности су ажуриране, поново изграђено."
+			],
+			"Dependencies unchanged, rebuilt in %s.": [
+				"Зависности су непромењене, поново изграђено за %s."
+			],
+			"Dependencies updated, rebuilt in %s.": [
+				"Зависности су ажуриране, поново изграђено за %s."
+			],
+			"Install dependencies": [
+				"Инсталирај зависности"
+			],
+			"Download WordPress": [
+				"Преузми Вордпрес"
+			],
+			"Rebuild": [
+				"Поново изгради"
+			],
+			"Apply the patch": [
+				"Примени закрпу"
+			],
+			"Revert the pull request": [
+				"Врати захтев за повлачење на претходно"
+			],
+			"Apply the pull request": [
+				"Примени захтев за повлачење"
+			],
+			"The build watch rebuilds when it resumes": [
+				"Надзор изградње поново гради пројекат када настави са радом"
+			],
+			"The build watch will recompile the change": [
+				"Надзор изградње ће поново компајлирати измену"
+			],
+			"Rebuilt": [
+				"Поново изграђено"
+			],
+			"Rebuilding — output in the Terminal": [
+				"Поновна изградња — излаз је у терминалу"
+			],
+			"Dependencies changed — installing the difference…": [
+				"Зависности су промењене — инсталирање разлике…"
+			],
+			"Fetched and reset to trunk": [
+				"Добављено и поништено на trunk"
+			],
+			"Fetching and resetting to trunk…": [
+				"Добављање и поништавање на trunk…"
+			],
+			"Fetch and reset to trunk": [
+				"Добави и поништи на trunk"
+			],
+			"The build did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"Изградња се није завршила. Њен излаз је у терминалу — покушајте поново када га прочитате."
+			],
+			"Retry the build": [
+				"Понови изградњу"
+			],
+			"Build complete": [
+				"Изградња је завршена"
+			],
+			"The install did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"Инсталација се није завршила. Њен излаз је у терминалу — покушајте поново када га прочитате."
+			],
+			"Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.": [
+				"Инсталирано. Додали сте зависност у %1$s у међувремену? Покрените %2$s у терминалу."
+			],
+			"Install npm packages so commands can run.": [
+				"Инсталирајте npm пакете како би наредбе могле да се извршавају."
+			],
+			"Retry %s": [
+				"Понови %s"
+			],
+			"Dependencies installed": [
+				"Зависности су инсталиране"
+			],
+			"Ready": [
+				"Спремно"
+			],
+			"In progress": [
+				"У току"
+			],
+			"Locked": [
+				"Закључано"
+			],
+			"Pending": [
+				"На чекању"
+			],
+			"Failed": [
+				"Није успело"
+			],
+			"Completed": [
+				"Завршено"
+			],
+			"The trunk snapshot is old; update before making a patch.": [
+				"Снимак стања гране trunk је стар; урадите ажурирање пре прављења закрпе."
+			],
+			"The update left the build stale; install and build to recover.": [
+				"Ажурирање је оставило изградњу застарелом; инсталирајте и поново изградите пројекат за опоравак."
+			],
+			"A patch is staged — apply and rebuild, or cancel.": [
+				"Закрпа је припремљена — примените је и поново изградите, или откажите."
+			],
+			"The trunk update in progress.": [
+				"Ажурирање гране trunk је у току."
+			],
+			"A patch is being applied or reverted.": [
+				"Закрпа се примењује или враћа на претходно стање."
+			],
+			"The next step in the setup checklist.": [
+				"Следећи корак на контролној листи за подешавање."
+			],
+			"Link a Trac ticket to give your work a home.": [
+				"Успоставите везу са Trac захтевом како бисте свом раду дали место."
+			],
+			"Link a GitHub issue to give your work a home.": [
+				"Успоставите везу са GitHub проблемом како бисте свом раду дали место."
+			],
+			"You have uncommitted changes ready to review and submit.": [
+				"Имате непотврђене измене спремне за рецензију и слање (предај)."
+			],
+			"PR #%d is applied; revert it before applying another change.": [
+				"PR #%d је примењен; вратите га на претходно стање пре примене друге измене."
+			],
+			"Start the dev server to work on the site.": [
+				"Покрените развојни сервер да бисте радили на сајту."
+			],
+			"Setting up new site…": [
+				"Подешавање новог сајта…"
+			],
+			"Finish setting this site up first.": [
+				"Прво завршите подешавање овог сајта."
+			],
+			"Hide": [
+				"Сакриј"
+			],
+			"Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.": [
+				"Покретање комплетне изградње. Ово може трајати и до пола сата на систему Windows; терминал приказује шта се тренутно ради."
+			],
+			"Installing dependencies. You can leave this running — the build follows on its own.": [
+				"Инсталирање зависности. Можете оставити ово да ради — изградња се сама наставља."
+			],
+			"Setting this site up for you — step %1$d of %2$d": [
+				"Подешавање овог сајта за вас — корак %1$d од %2$d"
+			],
+			"Your changes were saved to %s before the reset.": [
+				"Ваше измене су сачуване у %s пре поништавања."
+			],
+			"Up to date with trunk as of today.": [
+				"Ажурно са граном trunk на данашњи дан."
+			],
+			"Most packages are already cached, so this is a download of the difference — not the whole tree.": [
+				"Већина пакета је већ кеширана, па се преузима само разлика — а не цело стабло."
+			],
+			"step %1$d of %2$d": [
+				"корак %1$d од %2$d"
+			],
+			"Patches you create now may not apply on Trac. Updating takes a few minutes.": [
+				"Закрпе које сада направите можда се неће моћи применити на систему Trac. Ажурирање траје неколико минута."
+			],
+			"This site's WordPress code is %d day old": [
+				"Вордпресов кôд овог сајта је стар %d дан",
+				"Вордпресов кôд овог сајта је стар %d дана",
+				"Вордпресов кôд овог сајта је стар %d дана"
+			],
+			"Retry install & build": [
+				"Понови инсталацију и изградњу"
+			],
+			"The code is new but the built assets are old. The site may not run correctly until install and build succeed.": [
+				"Кôд је нов, али су изграђени ресурси стари. Сајт можда неће исправно радити док се инсталација и изградња успешно не заврше."
+			],
+			"Update incomplete": [
+				"Ажурирање није потпуно"
+			],
+			"Next step: %s": [
+				"Следећи корак: %s"
+			],
+			"Starting… (%s)": [
+				"Покретање… (%s)"
+			],
+			"Start dev server and finish the wizard": [
+				"Покрени развојни сервер и заврши чаробњак"
+			],
+			"Stop dev server": [
+				"Заустави развојни сервер"
+			],
+			"Start dev server & finish wizard": [
+				"Покрени развојни сервер и заврши чаробњак"
+			],
+			"Run full build": [
+				"Покрени комплетну изградњу"
+			],
+			"Install npm dependencies": [
+				"Инсталирај npm зависности"
+			],
+			"Cloning the repository… install and build start on their own when it finishes.": [
+				"Клонирање спремишта… инсталација и изградња почињу сами када се то заврши."
+			],
+			"Failed to discard changes: %s": [
+				"Одбацивање измена није успело: %s"
+			],
+			"Saved your changes to %1$s, but resetting the working tree failed: %2$s": [
+				"Ваше измене су сачуване у %1$s, али поништавање радног стабла није успело: %2$s"
+			],
+			"Error saving diff: %s": [
+				"Грешка при чувању разлике (diff): %s"
+			],
+			"Please complete the full build before starting the dev server. You can also skip the wizard.": [
+				"Завршите комплетну изградњу пре покретања развојног сервера. Такође можете прескочити чаробњак."
+			],
+			"Updating to latest trunk": [
+				"Ажурирање на најновији trunk"
+			],
+			"Skip initialization wizard": [
+				"Прескочи чаробњак за иницијализацију"
+			],
+			"Nothing was lost — pick it back up with the buttons below whenever you want.": [
+				"Ништа није изгубљено — наставите назад помоћу дугмади испод кад год желите."
+			],
+			"Setup stopped.": [
+				"Подешавање је заустављено."
+			],
+			"Stop setup": [
+				"Заустави подешавање"
+			],
+			"Complete each step to prepare this site for development.": [
+				"Завршите сваки корак да бисте припремили овај сајт за развој."
+			],
+			"Initial setup checklist": [
+				"Контролна листа почетног подешавања"
+			],
+			"Save patch & update": [
+				"Сачувај закрпу и ажурирај"
+			],
+			"Discard & update": [
+				"Одбаци и ажурирај"
+			],
+			"— your changes are lost; this cannot be undone": [
+				"— ваше измене се губе; ово се не може опозвати"
+			],
+			"Discard them": [
+				"Одбаци их"
+			],
+			"— a .diff on your machine — nothing is sent to Trac": [
+				"— разлика (.diff) на вашем рачунару — ништа се не шаље на Trac"
+			],
+			"Save them as a patch first (as a local file)": [
+				"Прво их сачувај као закрпу (као локалну датотеку)"
+			],
+			"You've changed %d file in this site. Resetting to trunk would throw them away.": [
+				"Изменили сте %d датотеку на овом сајту. Враћање на trunk би их одбацило.",
+				"Изменили сте %d датотеке на овом сајту. Враћање на trunk би их одбацило.",
+				"Изменили сте %d датотека на овом сајту. Враћање на trunk би их одбацило."
+			],
+			"Update to latest trunk?": [
+				"Ажурирати на најновији trunk?"
+			],
+			"Launch the development server once to complete the WordPress setup wizard.": [
+				"Покрените развојни сервер једном да бисте завршили Вордпресов чаробњак за подешавање."
+			],
+			"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.": [
+				"Изграђено. У међувремену сте мењали датотеке у %1$s? Покрените %2$s у терминалу како би их сајт учитао — ажурирања и примењене закрпе сами поново граде пројекат."
+			],
+			"Compile WordPress Core to generate the dist files. Later updates rebuild automatically.": [
+				"Компајлирајте Вордпресово језгро да бисте генерисали dist датотеке. Каснија ажурирања аутоматски поново граде пројекат."
+			],
+			"Clone the WordPress develop repository.": [
+				"Клонирајте спремиште за развој Вордпреса (програмирати)."
+			],
+			"Download WordPress development version": [
+				"Преузми развојно издање Вордпреса"
+			],
+			"Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.": [
+				"Покрените Вордпрес са овом радном копијом као додатком Gutenberg, једном, да бисте завршили подешавање."
+			],
+			"Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.": [
+				"Изграђено. У међувремену сте мењали пакет? Покрените %s у терминалу како би га сајт учитао; ажурирања сама поново граде пројекат."
+			],
+			"Compile the Gutenberg packages. Later updates rebuild automatically.": [
+				"Компајлирајте Gutenberg пакете. Каснија ажурирања аутоматски поново граде пројекат."
+			],
+			"Clone the Gutenberg repository.": [
+				"Клонирајте спремиште Gutenberg."
+			],
+			"Download Gutenberg": [
+				"Преузми Gutenberg"
+			],
+			"the window’s theme: two colours of one’s own\u0004Custom": [
+				"Прилагођено"
+			],
+			"Choose a colour as six hex digits, like #3858e9.": [
+				"Изаберите боју као шест HEX цифара, на пример #3858e9."
+			],
+			"Choose light, dark, your system’s theme, or custom.": [
+				"Изаберите светлу, тамну, системску тему или прилагођено."
+			],
+			"Some text may be hard to read with these colours. They are kept as they are; choose others if it is.": [
+				"Неки делови текста могу бити тешки за читање са овим бојама. Оне се задржавају такве какве јесу; изаберите друге ако је читање отежано."
+			],
+			"Primary": [
+				"Примарни"
+			],
+			"Background": [
+				"Позадина"
+			],
+			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
+				"Систем прати светло или тамно подешавање вашег оперативног система. Прилагођено гради тему од две боје по вашем избору."
+			],
+			"%s colour picker": [
+				"бирач боје за %s"
+			],
+			"Working…": [
+				"У раду…"
+			],
+			"Opening the pull request…": [
+				"Отварање захтева за повлачење…"
+			],
+			"Uploading your changes…": [
+				"Отпремање ваших измена…"
+			],
+			"Bringing your fork up to date…": [
+				"Ажурирање вашег одвојка (fork)…"
+			],
+			"Creating your fork of %s…": [
+				"Прављење вашег одвојка (fork) за %s…"
+			],
+			"Could not start sign-in.": [
+				"Покретање пријављивања није успело."
+			],
+			"Sign-in did not complete.": [
+				"Пријављивање није завршено."
+			],
+			"The authorization was declined on GitHub. Nothing was changed.": [
+				"Ауторизација је одбијена на GitHub-у. Ништа није промењено."
+			],
+			"The pull request could not be opened.": [
+				"Отварање захтева за повлачење није успело."
+			],
+			"Your checkout was behind trunk, so the branch was based on today's trunk. None of your files were changed upstream in between — the pull request shows only your work.": [
+				"Ваша радна копија је каснила за граном trunk, па је грана заснована на данашњем стању гране trunk. Ниједна од ваших датотека није у међувремену промењена у изворном спремишту — захтев за повлачење приказује само ваш рад."
+			],
+			"Opened <link>pull request #%s</link> from <branch />.": [
+				"Отворен је <link>захтев за повлачење #%s</link> са гране <branch />."
+			],
+			"Dry run — branch <branch /> was created on your fork; no pull request was opened.": [
+				"Пробни рад — грана <branch /> је направљена на вашем одвојку (fork); ниједан захтев за повлачење није отворен."
+			],
+			"Save the patch file instead": [
+				"Уместо тога сачувај датотеку закрпе"
+			],
+			"Pull requests go to <target />, not to <upstream />.": [
+				"Захтеви за повлачење иду ка <target />, а не ка <upstream />."
+			],
+			"Dry run — a branch is pushed to your fork, no pull request is opened.": [
+				"Пробни рад — грана се шаље на ваш одвојак (fork), ниједан захтев за повлачење се не отвара."
+			],
+			"Test mode": [
+				"Пробни режим"
+			],
+			"Open a pull request": [
+				"Отвори захтев за повлачење"
+			],
+			"Not now": [
+				"Не сада"
+			],
+			"Sign in with GitHub": [
+				"Пријави се помоћу GitHub-а"
+			],
+			"Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.": [
+				"Пријављивање омогућава апликацији да направи одвојак (fork) за %s на вашем налогу, пошаље ову закрпу у грану на њему и отвори захтев за повлачење. Пријављује вас преко вашег прегледача, никада не тражи вашу лозинку и заборавља ауторизацију када изађете из апликације."
+			],
+			"Show this again": [
+				"Прикажи ово поново"
+			],
+			"Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.": [
+				"Нисте пријављени и ништа није послато. Датотека закрпе је и даље ту да је сачувате, а остала одредишта су непромењена."
+			],
+			"Signed in as <login /> — the fork and branch go to <fork />.": [
+				"Пријављени сте као <login /> — одвојак (fork) и грана иду у <fork />."
+			],
+			"Open pull request": [
+				"Отвори захтев за повлачење"
+			],
+			"Push branch (dry run)": [
+				"Пошаљи грану (пробни рад)"
+			],
+			"Anything you are unsure about.": [
+				"Било шта у шта нисте сигурни."
+			],
+			"How to see it working — the steps you used.": [
+				"Како се може видети да ради — кораци које сте користили."
+			],
+			"What the change does, and why.": [
+				"Шта измена ради и зашто."
+			],
+			"Notes for reviewers (optional)": [
+				"Белешке за рецензенте (необавезно)"
+			],
+			"Left empty, it will be titled <strong><title /></strong>.": [
+				"Ако остане празно, наслов ће бити <strong><title /></strong>."
+			],
+			"What the change does, in one line. Reviewers scan these.": [
+				"Шта измена ради, у једној линији. Рецензенти ово брзо прегледају."
+			],
+			"Title": [
+				"Наслов"
+			],
+			"Reject a theme zip in the plugin installer": [
+				"Одбиј ZIP архиву теме у инсталатеру додатка"
+			],
+			"No connection to GitHub.": [
+				"Нема повезивања са GitHub-ом."
+			],
+			"GitHub is rate-limiting this connection. It usually clears within the hour.": [
+				"GitHub ограничава број захтева за ово повезивање. Обично се уклони у року од сат времена."
+			],
+			"Waiting for you to finish in the browser…": [
+				"Чека се да завршите у прегледачу…"
+			],
+			"That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.": [
+				"Та пријава на GitHub више није исправна. Пријавите се поново или уместо тога сачувајте датотеку закрпе."
+			],
+			"Copy the code": [
+				"Направи копију кода"
+			],
+			"Code copied": [
+				"Кôд је копиран"
+			],
+			"Enter this code at <strong><address /></strong>, which has been opened in your browser.": [
+				"Унесите овај кôд на адреси <strong><address /></strong>, која је отворена у вашем прегледачу."
+			],
+			"This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.": [
+				"Ова изградња нема подешену GitHub апликацију, па не може да отвори захтев за повлачење. Остала одредишта и даље раде."
+			],
+			"Checking…": [
+				"Провера…"
+			],
+			"Open #%s to comment": [
+				"Отвори #%s за коментар"
+			],
+			"Copy the link": [
+				"Направи копију везе"
+			],
+			"Link copied": [
+				"Веза је копирана"
+			],
+			"Triage and props live on the ticket, so the link belongs there too.": [
+				"Тријажа и заслуге (props) се воде на захтеву, па и веза припада тамо."
+			],
+			"Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.": [
+				"Иде на врх описа. Веза ка захтеву и ваше корисничко име на WordPress.org се додају испод."
+			],
+			"It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.": [
+				"Не може да направи GitHub налог уместо вас и не може да објави чланак или поруку на систему Trac у ваше име."
+			],
+			"Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.": [
+				"На њему се извршавају аутоматске провере. Ипак, нико не прати сам GitHub — постављање везе на захтеву је оно што га чини видљивим."
+			],
+			"No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.": [
+				"Ниједан захтев нема успостављену везу са овим сајтом. Захтев за повлачење мора да се позове на један — успоставите везу у Trac картици."
+			],
+			"Link a GitHub issue to this site first. A pull request has to cite one.": [
+				"Прво успоставите везу између GitHub проблема и овог сајта. Захтев за повлачење мора да се позове на један."
+			],
+			"The Gutenberg contributing guide": [
+				"Упутство за допринос пројекту Gutenberg"
+			],
+			"Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.": [
+				"Рецензенти траже кораке за тестирање. Упишите их у белешке: шта отворити, шта притиснути, шта треба да се деси."
+			],
+			"The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.": [
+				"Захтев за повлачење је место где се измена прегледа и, када буде одобрена, спаја. Ништа не мора да се поставља било где другде да би било видљиво."
+			],
+			"How pull requests work in Gutenberg": [
+				"Како захтеви за повлачење функционишу у пројекту Gutenberg"
+			],
+			"The Fixes line already lists it on the issue. A comment there still tells the people watching it.": [
+				"Линија Fixes га већ наводи на проблему. Коментар на том месту ипак обавештава људе који га прате."
+			],
+			"Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.": [
+				"Иде на врх описа. Линија Fixes која успоставља везу са проблемом и ваше корисничко име на WordPress.org се додају испод."
+			],
+			"It cannot create the GitHub account for you.": [
+				"Не може да направи GitHub налог уместо вас."
+			],
+			"Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.": [
+				"На њему се извршавају аутоматске провере, и управо ту се прегледа и спаја: у пројекту Gutenberg захтев за повлачење је главно место."
+			],
+			"A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.": [
+				"GitHub налог. Одвојак (fork) се прави за вас; лозинка се не уноси у ову апликацију и никакви акредитиви се не уписују на диск."
+			],
+			"No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.": [
+				"Ниједан проблем нема успостављену везу са овим сајтом. Захтев за повлачење мора да се позове на један: успоставите везу у картици GitHub проблема."
+			],
+			"Link a Trac ticket to this site first. A pull request has to cite one.": [
+				"Прво успоставите везу између Trac захтева и овог сајта. Захтев за повлачење мора да се позове на један."
+			],
+			"The handbook page on pull requests": [
+				"Страница приручника о захтевима за повлачење"
+			],
+			"Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.": [
+				"Ништа се не спаја директно ни на GitHub-у. Развојни програмер са правом уписа сам примењује измену, а захтев је место где се о томе одлучује."
+			],
+			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
+				"Нико не прати списак захтева за повлачење. Ваш ће бити примећен зато што се његова веза налази на захтеву — због чега се овај ток завршава тако што вас враћа назад тамо."
+			],
+			"How pull requests work in core": [
+				"Како захтеви за повлачење функционишу у језгру"
+			],
+			"Sign in to GitHub first.": [
+				"Прво се пријавите на GitHub."
+			],
+			"Could not read the base commit": [
+				"Читање основне потврде (commit) није успело"
+			],
+			"Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.": [
+				"Грана trunk је напредовала испод датотеке коју сте уредили (%s). Урадите ажурирање овог сајта на најновији trunk, проверите да ли се ваше измене и даље могу применити и покушајте поново.",
+				"Грана trunk је напредовала испод датотека које сте уредили (%s). Урадите ажурирање овог сајта на најновији trunk, проверите да ли се ваше измене и даље могу применити и покушајте поново.",
+				"Грана trunk је напредовала испод датотека које сте уредили (%s). Урадите ажурирање овог сајта на најновији trunk, проверите да ли се ваше измене и даље могу применити и покушајте поново."
+			],
+			"There are no changes to open a pull request with.": [
+				"Нема измена са којима би се отворио захтев за повлачење."
+			],
+			"Could not open the pull request": [
+				"Отварање захтева за повлачење није успело"
+			],
+			"Could not find an unused branch name": [
+				"Проналажење некоришћеног назива гране није успело"
+			],
+			"Could not create the branch": [
+				"Није могуће направити грану"
+			],
+			"Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s": [
+				"Ваш одвојак (fork) се још увек подешава на GitHub-у. Покушајте поново за минут — датотека закрпе и даље ради.%s"
+			],
+			"Could not create the commit": [
+				"Није могуће направити потврду (commit)"
+			],
+			"Could not assemble the change": [
+				"Склапање измене није успело"
+			],
+			"Could not upload %s": [
+				"Није могуће отпремити %s"
+			],
+			"Could not read your fork’s %s": [
+				"Читање %s вашег одвојка (fork) није успело"
+			],
+			"Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.": [
+				"Ваш одвојак (fork) се још увек подешава на GitHub-у — за спремиште ове величине то може потрајати неколико минута. Покушајте поново ускоро; датотека закрпе и даље ради."
+			],
+			"Could not read your fork": [
+				"Читање вашег одвојка (fork) није успело"
+			],
+			"Could not fork %s": [
+				"Прављење одвојка (fork) за %s није успело"
+			],
+			"Could not check for your fork": [
+				"Провера вашег одвојка (fork) није успела"
+			],
+			"You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.": [
+				"Већ имате спремиште под називом %1$s које није одвојак (fork) од %2$s, па ово нема где да се пошаље. Датотека закрпе и даље ради."
+			],
+			"%1$s: %2$s%3$s": [
+				"%1$s: %2$s%3$s"
+			],
+			"This build has no GitHub application configured, so it cannot sign you in.": [
+				"Ова изградња нема подешену GitHub апликацију, па не може да вас пријави."
+			],
+			"GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke \"%1$s\" under %2$s, then sign in here again.": [
+				"GitHub је овој пријави доделио мањи приступ него што је потребно за отварање захтева за повлачење — вероватно је поново искоришћена старија ауторизација ове апликације. Опозовите „%1$s“ под %2$s, а затим се поново пријавите овде."
+			],
+			"GitHub returned %s": [
+				"GitHub је вратио %s"
+			],
+			"That sign-in is no longer valid.": [
+				"Та пријава више није исправна."
+			],
+			"The authorization was declined on GitHub.": [
+				"Ауторизација је одбијена на GitHub-у."
+			],
+			"The code expired before it was entered.": [
+				"Кôд је истекао пре него што је унет."
+			],
+			"Sign-in was canceled.": [
+				"Пријављивање је отказано."
+			],
+			"GitHub does not recognise this application, or device flow is not enabled on it.": [
+				"GitHub не препознаје ову апликацију или ток пријаве уређаја није омогућен на њој."
+			],
+			"Revert the patch you applied before opening a pull request from this checkout.": [
+				"Вратите примењену закрпу на претходно стање пре отварања захтева за повлачење из ове радне копије."
+			],
+			"Revert %s before opening a pull request from this checkout.": [
+				"Вратите %s на претходно стање пре отварања захтева за повлачење из ове радне копије."
+			],
+			"PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.": [
+				"PR #%d је примењен. Потврде (commits) његовог аутора чине историју ове радне копије, па се не може послати као ваш рад. Прво вратите овај PR на претходно стање."
+			],
+			"Unknown error": [
+				"Непозната грешка"
+			],
+			"Trac ticket number or URL": [
+				"Број Trac захтева или URL"
+			],
+			"Ticket number or URL, e.g. 62281": [
+				"Број захтева или URL, нпр. 62281"
+			],
+			"No ticket is linked to this site, so there is nowhere to attach it yet.": [
+				"Ниједан захтев нема успостављену везу са овим сајтом, па још увек нема где да се прикачи."
+			],
+			"Save, then open #%d": [
+				"Сачувај, а затим отвори #%d"
+			],
+			"No automated checks. Often followed by a request to open a pull request.": [
+				"Нема аутоматских провера. Често следи захтев да се отвори захтев за повлачење."
+			],
+			"A WordPress.org account — needed anyway, for props and to comment.": [
+				"Налог на WordPress.org — свакако је потребан, за заслуге (props) и за остављање коментара."
+			],
+			"Attach to Trac": [
+				"Прикачи на Trac"
+			],
+			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
+				"Апликација не може безбедно да одвоји измене њеног аутора од измена направљених након тога, па се ова комбинована закрпа не може послати као ваш рад. И даље можете користити <strong>Сачувај</strong> да задржите неприписану копију; вратите примењену закрпу на претходно стање пре слања."
+			],
+			"<strong>The patch you applied is part of this checkout.</strong>": [
+				"<strong>Закрпа коју сте применили је део ове радне копије.</strong>"
+			],
+			"<strong><label /> is part of this checkout.</strong>": [
+				"<strong><label /> је део ове радне копије.</strong>"
+			],
+			"You can still use <strong>Save</strong> to keep an unattributed copy of your edits.": [
+				"И даље можете користити <strong>Сачувај</strong> да бисте сачували неприписану копију својих измена."
+			],
+			"The pull request is the one the app sends for you. The others save a file for you to send.": [
+				"Захтев за повлачење је оно што апликација шаље уместо вас. Остале могућности чувају датотеку коју сами шаљете."
+			],
+			"Where this patch goes": [
+				"Куда иде ова закрпа"
+			],
+			"Could not load your changes. Close this panel and try again. The error is shown below.": [
+				"Учитавање ваших измена није успело. Затворите овај панел и покушајте поново. Грешка је приказана испод."
+			],
+			"This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.": [
+				"Вордпресов кôд овог сајта је стар %d дан — ова закрпа се можда неће моћи применити на систему Trac. Размислите о томе да прво урадите ажурирање на најновији trunk.",
+				"Вордпресов кôд овог сајта је стар %d дана — ова закрпа се можда неће моћи применити на систему Trac. Размислите о томе да прво урадите ажурирање на најновији trunk.",
+				"Вордпресов кôд овог сајта је стар %d дана — ова закрпа се можда неће моћи применити на систему Trac. Размислите о томе да прво урадите ажурирање на најновији trunk."
+			],
+			"Saved to %s": [
+				"Сачувано у %s"
+			],
+			"Discard your changes": [
+				"Одбаци своје измене"
+			],
+			"(<discard />)": [
+				"(<discard />)"
+			],
+			"Failed to generate patch": [
+				"Генерисање закрпе није успело"
+			],
+			"Error: %s": [
+				"Грешка: %s"
+			],
+			"No changes.": [
+				"Нема измена."
+			],
+			"Generating patch…": [
+				"Генерисање закрпе…"
+			],
+			"Could not save the patch: %s": [
+				"Није могуће сачувати закрпу: %s"
+			],
+			"Change these": [
+				"Промени ово"
+			],
+			"No event on the patch.": [
+				"Нема догађаја на закрпи."
+			],
+			"The patch will say it was written at <strong><event /></strong>.": [
+				"На закрпи ће писати да је написана на догађају <strong><event /></strong>."
+			],
+			"Save patch as %s": [
+				"Сачувај закрпу као %s"
+			],
+			"Someone else pushes it; the props still land on you.": [
+				"Неко други је шаље; заслуге (props) и даље припадају вама."
+			],
+			"No accounts at all. The patch carries your WordPress.org username, and the event you are at.": [
+				"Нису потребни никакви налози. Закрпа носи ваше корисничко име на WordPress.org и назив догађаја на ком се налазите."
+			],
+			"Hand it to a mentor": [
+				"Предајте је ментору"
+			],
+			"Remember this": [
+				"Запамти ово"
+			],
+			"Event this patch was written at": [
+				"Догађај на ком је ова закрпа написана"
+			],
+			"Event, e.g. WordCamp Europe 2026 (optional)": [
+				"Догађај, нпр. WordCamp Europe 2026 (необавезно)"
+			],
+			"WordPress.org username, e.g. janedoe": [
+				"Корисничко име на WordPress.org, нпр. janedoe"
+			],
+			"Asked once and remembered for every site — these are facts about you, not about this checkout.": [
+				"Тражи се једном и памти за сваки сајт — ово су подаци о вама, а не о овој радној копији."
+			],
+			"There is nothing to send yet — this site has no changes against its copy of trunk.": [
+				"Још увек нема шта да се пошаље — овај сајт нема измена у односу на своју копију гране trunk."
+			],
+			"Everything this site has that its copy of trunk does not.": [
+				"Све што овај сајт има, а његова копија гране trunk нема."
+			],
+			"Your changes": [
+				"Ваше измене"
+			],
+			"There are no changes on top of PR #%d.": [
+				"Нема додатних измена преко PR #%d."
+			],
+			"Edits to this local copy, compared with the original PR commits.": [
+				"Измене на овој локалној копији у поређењу са изворним потврдама (commits) PR-а."
+			],
+			"Your changes on top of PR #%d": [
+				"Ваше измене преко PR #%d"
+			],
+			"Your changes for ticket #%d": [
+				"Ваше измене за захтев #%d"
+			],
+			"Your changes for issue #%d": [
+				"Ваше измене за проблем #%d"
+			],
+			"Stop the dev server before discarding changes.": [
+				"Зауставите развојни сервер пре одбацивања измена."
+			],
+			"Wait for the build to finish before discarding changes.": [
+				"Сачекајте да се изградња заврши пре одбацивања измена."
+			],
+			"Wait for the installation to finish before discarding changes.": [
+				"Сачекајте да се инсталација заврши пре одбацивања измена."
+			],
+			"Wait for the trunk update to finish before discarding changes.": [
+				"Сачекајте да се ажурирање гране trunk заврши пре одбацивања измена."
+			],
+			"There are no changes to discard.": [
+				"Нема измена за одбацивање."
+			],
+			"Changes could not be loaded.": [
+				"Измене нису могле бити учитане."
+			],
+			"Wait for your changes to finish loading.": [
+				"Сачекајте да се учитавање ваших измена заврши."
+			],
+			"Changes are already being discarded.": [
+				"Измене се већ одбацују."
+			],
+			"the window’s theme: the operating system’s\u0004System": [
+				"Системски"
+			],
+			"the window’s theme\u0004Dark": [
+				"Тамна"
+			],
+			"the window’s theme\u0004Light": [
+				"Светла"
+			],
+			"Theme": [
+				"Тема"
+			],
+			"Choose what happens when the app quits.": [
+				"Изаберите шта се дешава при изласку из апликације."
+			],
+			"Stop them, and start them again next time": [
+				"Заустави их и покрени поново следећи пут"
+			],
+			"Stop them": [
+				"Заустави их"
+			],
+			"So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.": [
+				"Тако су сајт и wp-admin спремни без додатног притискања дугмета. На Вордпресовом језгру надзор изградње се покреће заједно са њим."
+			],
+			"Start the server when I open a site": [
+				"Покрени сервер када отворим сајт"
+			],
+			"Opening and quitting": [
+				"Отварање и излазак"
+			],
+			"Quitting always stops them; they can be started again when the app next opens.": [
+				"Излазак из апликације их увек зауставља; могу се поново покренути када се апликација следећи пут отвори."
+			],
+			"When I quit, running servers and build watches": [
+				"При изласку из апликације, активни сервери и надзори изградње"
+			],
+			"So edits are compiled as they are saved.": [
+				"Тако се измене компајлирају чим се сачувају."
+			],
+			"Start the build watch when I open a site": [
+				"Покрени надзор изградње када отворим сајт"
+			],
+			"The app does not have that PHP version.": [
+				"Апликација нема то PHP издање."
+			],
+			"Choose on or off.": [
+				"Изаберите укључено или искључено."
+			],
+			"Off": [
+				"Искључено"
+			],
+			"Debugging": [
+				"Отклањање грешака"
+			],
+			"%1$s · PHP %2$s": [
+				"%1$s · PHP %2$s"
+			],
+			"PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.": [
+				"Изабран је PHP %1$s, али ово издање апликације га нема; сервери се покрећу на систему PHP %2$s."
+			],
+			"Sites": [
+				"Сајтови"
+			],
+			"Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.": [
+				"Језгро испоручује свој JavaScript и CSS у неумањеном облику, тако да се могу читати и пратити корак по корак у прегледачу."
+			],
+			"Use unminified scripts (SCRIPT_DEBUG)": [
+				"Користи неумањене скрипте за отклањање грешака (SCRIPT_DEBUG)"
+			],
+			"Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.": [
+				"Када је искључено, напомене и застареле функције се не пријављују. Упозорења и грешке за отклањање квара и даље стижу у запис debug.log и у прегледач, а позиви error_log() и даље стижу у debug.log."
+			],
+			"Report notices and deprecations (WP_DEBUG)": [
+				"Пријављуј напомене и застареле функције за отклањање грешака (WP_DEBUG)"
+			],
+			"PHP version": [
+				"PHP издање"
+			],
+			"Applies the next time a site’s server starts. A server that is running keeps what it started with.": [
+				"Примењује се следећи пут када се покрене сервер сајта. Сервер који тренутно ради задржава оно са чиме је покренут."
+			],
+			"Development server": [
+				"Развојни сервер"
+			],
+			"The PHP versions could not be read. Quit the app and open it again.": [
+				"Није могуће прочитати PHP издања. Изађите из апликације и отворите је поново."
+			],
+			"Could not keep that.": [
+				"Није могуће задржати то."
+			],
+			"The app has no translation for that language.": [
+				"Апликација нема превод за тај језик."
+			],
+			"Choose a language.": [
+				"Изаберите језик."
+			],
+			"Your system’s language": [
+				"Језик вашег система"
+			],
+			"Relaunch now": [
+				"Поново покрени сада"
+			],
+			"The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.": [
+				"Апликација приказује нови језик након поновног покретања. Активни сервери и изградње се заустављају, као и при изласку из апликације."
+			],
+			"Which language the app is shown in. A change applies after a relaunch.": [
+				"На ком језику се приказује апликација. Измена се примењује након поновног покретања."
+			],
+			"Language": [
+				"Језик"
+			],
+			"The app could not relaunch. Quit it and open it again.": [
+				"Апликација није могла поново да се покрене. Изађите из ње и отворите је поново."
+			],
+			"Could not keep that language.": [
+				"Није могуће задржати тај језик."
+			],
+			"Appearance": [
+				"Изглед"
+			],
+			"Enter your WordPress.org username.": [
+				"Унесите своје корисничко име на WordPress.org."
+			],
+			"Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.": [
+				"Унесите своје корисничко име на WordPress.org, као што је janedoe, или свој URL са profiles.wordpress.org."
+			],
+			"Only %s profile links are supported.": [
+				"Подржане су само везе профила са %s."
+			],
+			"There is no such setting.": [
+				"Не постоји такво подешавање."
+			],
+			"That folder does not exist.": [
+				"Та фасцикла не постоји."
+			],
+			"Choose a folder by its full path.": [
+				"Изаберите фасциклу према њеној пуној путањи."
+			],
+			"Choose a folder.": [
+				"Изаберите фасциклу."
+			],
+			"Not set: the create-site dialog asks each time.": [
+				"Није подешено: дијалог за прављење сајта пита сваки пут."
+			],
+			"Reading…": [
+				"Читање…"
+			],
+			"Not signed in. The app asks you to sign in when you open a pull request.": [
+				"Нисте пријављени. Апликација ће затражити да се пријавите када отворите захтев за повлачење."
+			],
+			"Signed in as %s.": [
+				"Пријављени сте као %s."
+			],
+			"Sign-in is not set up in this build.": [
+				"Пријављивање није подешено у овој изградњи."
+			],
+			"Could not save that event.": [
+				"Није могуће сачувати тај догађај."
+			],
+			"Could not save that username.": [
+				"Није могуће сачувати то корисничко име."
+			],
+			"Forget this folder": [
+				"Заборави ову фасциклу"
+			],
+			"Each new site is created in a subfolder of this location.": [
+				"Сваки нови сајт се прави у потфасцикли ове локације."
+			],
+			"New sites go here": [
+				"Нови сајтови иду овде"
+			],
+			"New sites": [
+				"Нови сајтови"
+			],
+			"Could not keep that folder.": [
+				"Није могуће задржати ту фасциклу."
+			],
+			"Account": [
+				"Налог"
+			],
+			"General": [
+				"Опште"
+			],
+			"Sign out": [
+				"Одјавите се"
+			],
+			"GitHub": [
+				"GitHub"
+			],
+			"Save": [
+				"Сачувај"
+			],
+			"Saving": [
+				"Чување"
+			],
+			"Saved.": [
+				"Сачувано."
+			],
+			"Where you are contributing from, if you are at an event. Leave it empty otherwise.": [
+				"Одакле доприносите, ако се налазите на неком догађају. У супротном оставите празно."
+			],
+			"Event": [
+				"Догађај"
+			],
+			"Goes on a patch you hand to a mentor, so the props land on you.": [
+				"Додаје се на закрпу коју предајете ментору, како би заслуге (props) припале вама."
+			],
+			"WordPress.org username": [
+				"Корисничко име на WordPress.org"
+			],
+			"How you contribute": [
+				"Како доприносите"
+			],
+			"Settings": [
+				"Подешавања"
+			],
+			"The event name has to fit on one line.": [
+				"Назив догађаја мора да стане у једну линију."
+			],
+			"Enter the event name, or leave it empty.": [
+				"Унесите назив догађаја или оставите празно."
+			],
+			"Keep the event name under %d characters.": [
+				"Нека назив догађаја има мање од %d знакова."
+			],
+			"Settings…": [
+				"Подешавања…"
+			],
+			"Show Logs Folder": [
+				"Прикажи фасциклу записа"
+			],
+			"Open App Log": [
+				"Отвори запис апликације"
+			],
+			"Choose the application to open this folder in": [
+				"Изаберите апликацију у којој желите да отворите ову фасциклу"
+			],
+			"Programs": [
+				"Програми"
+			],
+			"Applications": [
+				"Пријаве"
+			],
+			"All Files": [
+				"Све датотеке"
+			],
+			"Patch Files": [
+				"Датотеке закрпа"
+			],
+			"Choose a patch file": [
+				"Изаберите датотеку закрпе"
+			],
+			"Save Diff File": [
+				"Сачувај датотеку разлике (diff)"
+			],
+			"Save Patch for Handoff": [
+				"Сачувај закрпу за предају"
+			],
+			"Email": [
+				"Е-пошта"
+			],
+			"Logs": [
+				"Записи"
+			],
+			"Terminal": [
+				"Терминал"
+			],
+			"Closed": [
+				"Затворено"
+			],
+			"Merged": [
+				"Спојено"
+			],
+			"No pull requests cite this ticket yet.": [
+				"Ниједан захтев за повлачење се још увек не позива на овај захтев."
+			],
+			"See the work that already exists on this ticket before adding your own.": [
+				"Погледајте рад који већ постоји на овом захтеву пре него што додате свој."
+			],
+			"Open in Trac": [
+				"Отвори у систему Trac"
+			],
+			"Browse good first bugs on Trac": [
+				"Прегледај добре прве багове на систему Trac"
+			],
+			"Linking ticket": [
+				"Успостављање везе са захтевом"
+			],
+			"Link ticket": [
+				"Успостави везу са захтевом"
+			],
+			"e.g. 62281": [
+				"нпр. 62281"
+			],
+			"Ticket number or URL": [
+				"Број захтева или URL"
+			],
+			"Link the ticket you’re working on.": [
+				"Успоставите везу са захтевом на ком радите."
+			],
+			"Trac ticket": [
+				"Trac захтев"
+			],
+			"No pull requests cite this issue yet.": [
+				"Ниједан захтев за повлачење се још увек не позива на овај проблем."
+			],
+			"See the work that already exists on this issue before adding your own.": [
+				"Погледајте рад који већ постоји на овом проблему пре него што додате свој."
+			],
+			"Open on GitHub": [
+				"Отвори на GitHub-у"
+			],
+			"Browse good first issues on GitHub": [
+				"Прегледај добре прве проблеме на GitHub-у"
+			],
+			"Linking issue": [
+				"Успостављање везе са проблемом"
+			],
+			"Link issue": [
+				"Успостави везу са проблемом"
+			],
+			"e.g. 71234": [
+				"нпр. 71234"
+			],
+			"Issue number or URL": [
+				"Број проблема или URL"
+			],
+			"Link the issue you’re working on.": [
+				"Успоставите везу са проблемом на ком радите."
+			],
+			"GitHub issue": [
+				"GitHub проблем"
+			],
+			"Could not read the attachments from Trac. (%s)": [
+				"Није могуће прочитати прилоге са система Trac. (%s)"
+			],
+			"Could not read the attachments from Trac.": [
+				"Није могуће прочитати прилоге са система Trac."
+			],
+			"The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.": [
+				"Прозор система Trac је затворен пре него што се завршило учитавање прилога. Притисните „Освежи“ да покушате поново."
+			],
+			"Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.": [
+				"Провера да нисте робот на систему Trac није завршена на време. Покушајте поново и притисните „I am human“ ако се појави."
+			],
+			"by %s": [
+				"од %s"
+			],
+			"Showing what was last seen %s.": [
+				"Приказује се оно што је последњи пут виђено %s."
+			],
+			"No cached list to fall back on.": [
+				"Нема кешираног списка на који би се могло вратити назад."
+			],
+			"Could not reach GitHub.": [
+				"Повезивање са GitHub-ом није успело."
+			],
+			"GitHub is rate-limiting this connection.": [
+				"GitHub ограничава број захтева за ово повезивање."
+			],
+			"Could not read the pull requests from GitHub.": [
+				"Читање захтева за повлачење са GitHub-а није успело."
+			],
+			"Updated %s": [
+				"Ажурирано %s"
+			],
+			"Last commit %s": [
+				"Последња потврда (commit) %s"
+			],
+			"Open": [
+				"Отвори"
+			],
+			"Edited on %s": [
+				"Уређено %s"
+			],
+			"Edited %d day ago": [
+				"Уређено пре %d дан",
+				"Уређено пре %d дана",
+				"Уређено пре %d дана"
+			],
+			"Edited %d hour ago": [
+				"Уређено пре %d сат",
+				"Уређено пре %d сата",
+				"Уређено пре %d сати"
+			],
+			"Edited %d minute ago": [
+				"Уређено пре %d минут",
+				"Уређено пре %d минута",
+				"Уређено пре %d минута"
+			],
+			"Edited just now": [
+				"Уређено управо сада"
+			],
+			"Delete this ticket’s work": [
+				"Избриши рад на овом захтеву"
+			],
+			"This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.": [
+				"Овим ћете трајно избрисати сваку измену направљену за овај захтев на овом сајту, без обзира на то да ли је послата. Ово се не може опозвати."
+			],
+			"Delete all work on ticket #%d?": [
+				"Избрисати сав рад на захтеву #%d?"
+			],
+			"Delete this issue’s work": [
+				"Избриши рад на овом проблему"
+			],
+			"This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.": [
+				"Овим ћете трајно избрисати сваку измену направљену за овај проблем на овом сајту, без обзира на то да ли је послата. Ово се не може опозвати."
+			],
+			"Delete all work on issue #%d?": [
+				"Избрисати сав рад на проблему #%d?"
+			],
+			"Your tickets on this site": [
+				"Ваши захтеви на овом сајту"
+			],
+			"Other tickets on this site": [
+				"Остали захтеви на овом сајту"
+			],
+			"Your issues on this site": [
+				"Ваши проблеми на овом сајту"
+			],
+			"Other issues on this site": [
+				"Остали проблеми на овом сајту"
+			],
+			"Deleting": [
+				"Брисање"
+			],
+			"Continue working": [
+				"Настави са радом"
+			],
+			"Switch": [
+				"Пребаци"
+			],
+			"Deleting site…": [
+				"Брисање сајта…"
+			],
+			"WordPress code is %d day old — update to latest trunk": [
+				"Вордпресов кôд је стар %d дан — урадите ажурирање на најновији trunk",
+				"Вордпресов кôд је стар %d дана — урадите ажурирање на најновији trunk",
+				"Вордпресов кôд је стар %d дана — урадите ажурирање на најновији trunk"
+			],
+			"Update incomplete — code is new, built assets are old": [
+				"Ажурирање није потпуно — кôд је нов, изграђени ресурси су стари"
+			],
+			"Build watching": [
+				"Надзор изградње прати"
+			],
+			"Build compiling": [
+				"Изградња компајлира"
+			],
+			"Edits in %s are compiled as they are saved.": [
+				"Измене у %s се компајлирају чим се сачувају."
+			],
+			"Start build watch": [
+				"Покрени надзор изградње"
+			],
+			"Start": [
+				"Започните"
+			],
+			"Stop build watch": [
+				"Заустави надзор изградње"
+			],
+			"Stop": [
+				"Заустави"
+			],
+			"The development server could not start. Its last lines are in the Logs.": [
+				"Развојни сервер није могао да се покрене. Његове последње линије су у одељку Записи."
+			],
+			"The development server stopped by itself. Its last lines are in the Logs.": [
+				"Развојни сервер се сам зауставио. Његове последње линије су у одељку Записи."
+			],
+			"Start development server": [
+				"Покрени развојни сервер"
+			],
+			"Server stopped": [
+				"Сервер је заустављен"
+			],
+			"Stop development server": [
+				"Заустави развојни сервер"
+			],
+			"Server running": [
+				"Сервер ради"
+			],
+			"Starting…": [
+				"Покретање…"
+			],
+			"Starting development server…": [
+				"Покретање развојног сервера…"
+			],
+			"Server starting…": [
+				"Покретање сервера…"
+			],
+			"Dev server is starting… (%s)": [
+				"Развојни сервер се покреће… (%s)"
+			],
+			"Database": [
+				"База података"
+			],
+			"wp-admin": [
+				"wp-admin"
+			],
+			"View site": [
+				"Погледајте сајт"
+			],
+			"Build stopped": [
+				"Изградња је заустављена"
+			],
+			"The build watch ended by itself, with exit code %d. Its last lines are in the Logs.": [
+				"Надзор изградње се сам завршио, уз излазни кôд %d. Његове последње линије су у одељку Записи."
+			],
+			"The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.": [
+				"Изградња која мора да се заврши пре него што надзор може да се покрене није успела, па надзор није покренут. Њене последње линије су у одељку Записи."
+			],
+			"The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.": [
+				"Изградња која мора да се заврши пре него што надзор може да се покрене није успела, уз излазни кôд %d, па надзор није покренут. Њене последње линије су у одељку Записи."
+			],
+			"The build watch ended by itself. Its last lines are in the Logs.": [
+				"Надзор изградње се сам завршио. Његове последње линије су у одељку Записи."
+			],
+			"Paused while another operation builds the site. It comes back by itself.": [
+				"Паузирано док друга операција гради сајт. Враћа се назад само од себе."
+			],
+			"Build paused": [
+				"Изградња је паузирана"
+			],
+			"Building the site before watching it.": [
+				"Изградња сајта пре почетка праћења."
+			],
+			"Build building": [
+				"Изградња у току"
+			],
+			"Wait for the build to finish.": [
+				"Сачекајте да се изградња заврши."
+			],
+			"Wait for the installation to finish.": [
+				"Сачекајте да се инсталација заврши."
+			],
+			"Wait for the trunk update to finish.": [
+				"Сачекајте да се ажурирање гране trunk заврши."
+			],
+			"Looking for applications…": [
+				"Тражење апликација…"
+			],
+			"Other application…": [
+				"Друга апликација…"
+			],
+			"Show in file manager": [
+				"Прикажи у менаџеру датотека"
+			],
+			"Show in Explorer": [
+				"Прикажи у програму Explorer"
+			],
+			"Show in Finder": [
+				"Прикажи у програму Finder"
+			],
+			"Deleting…": [
+				"Брисање…"
+			],
+			"Open in": [
+				"Отвори у"
+			],
+			"Copy path": [
+				"Направи копију путање"
+			],
+			"Rename…": [
+				"Преименуј…"
+			],
+			"Update to latest trunk": [
+				"Ажурирај на најновији trunk"
+			],
+			"(no subject)": [
+				"(без теме)"
+			],
+			"No mail yet. WordPress transactional email will appear here once the site sends any.": [
+				"Још увек нема поште. Трансакциона е-пошта Вордпреса ће се појавити овде чим је сајт пошаље."
+			],
+			"SMTP listening on 127.0.0.1:%d": [
+				"SMTP ослушкује на 127.0.0.1:%d"
+			],
+			"SMTP will start with the dev server.": [
+				"SMTP ће се покренути са развојним сервером."
+			],
+			"Delete site": [
+				"Избриши сајт"
+			],
+			"This will permanently delete the site and all of its files from your computer. This can’t be undone.": [
+				"Овим ћете трајно избрисати сајт и све његове датотеке са свог рачунара. Ово се не може опозвати."
+			],
+			"Delete %s?": [
+				"Избрисати %s?"
+			],
+			"Site name cannot be empty.": [
+				"Назив сајта не може бити празан."
+			],
+			"Checkout": [
+				"Потврда куповине"
+			],
+			"Local path": [
+				"Локална путања"
+			],
+			"%d day old": [
+				"стар %d дан",
+				"стар %d дана",
+				"стар %d дана"
+			],
+			"Trunk as of": [
+				"Стање гране trunk од"
+			],
+			"Created": [
+				"Направљено"
+			],
+			"Uninitialized": [
+				"Неиницијализовано"
+			],
+			"Initialized": [
+				"Иницијализовано"
+			],
+			"Setup": [
+				"Подешавање"
+			],
+			"Show sites list": [
+				"Прикажи списак сајтова"
+			],
+			"Hide sites list": [
+				"Сакриј списак сајтова"
+			],
+			"Site": [
+				"Сајт"
+			],
+			"Create your first site to begin contributing": [
+				"Направите свој први сајт да бисте започели са доприносом"
+			],
+			"No sites": [
+				"Нема сајтова"
+			],
+			"All changes discarded.": [
+				"Све измене су одбачене."
+			],
+			"This site is ready to work on": [
+				"Овај сајт је спреман за рад"
+			],
+			"Copied the path": [
+				"Путања је копирана"
+			],
+			"Updated to the latest trunk": [
+				"Ажурирано на најновији trunk"
+			],
+			"Local changes discarded.": [
+				"Локалне измене су одбачене."
+			],
+			"Already up to date with trunk": [
+				"Већ је ажурно са граном trunk"
+			],
+			"%d unseen line in Debug.log": [
+				"%d непрегледана линија у запису за отклањање грешака Debug.log",
+				"%d непрегледане линије у запису за отклањање грешака Debug.log",
+				"%d непрегледаних линија у запису за отклањање грешака Debug.log"
+			],
+			"A site’s project cannot be changed later.": [
+				"Пројекат сајта се не може касније променити."
+			],
+			"Opened pull request #%1$s on %2$s": [
+				"Отворен је захтев за повлачење #%1$s на %2$s"
+			],
+			"Dry run — branch created, no pull request opened": [
+				"Пробни рад — грана је направљена, ниједан захтев за повлачење није отворен"
+			],
+			"Saved your changes to %s and reset the working tree": [
+				"Ваше измене су сачуване у %s и радно стабло је поништено"
+			],
+			"Patch saved to %s": [
+				"Закрпа је сачувана у %s"
+			],
+			"Restored the saved work": [
+				"Сачувани рад је враћен"
+			],
+			"Restored the previous branch": [
+				"Претходна грана је враћена"
+			],
+			"Checked out the pull request": [
+				"Захтев за повлачење је преузет"
+			],
+			"Reverted the patch": [
+				"Закрпа је враћена на претходно стање"
+			],
+			"Applied the patch": [
+				"Закрпа је примењена"
+			],
+			"The site could not be created. %s": [
+				"Сајт није могао бити направљен. %s"
+			],
+			"The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s": [
+				"Сајт је и даље на списку зато што његова фасцикла није могла бити избрисана. Затворите све програме који је користе, па покушајте поново. Фасцикла: %s"
+			],
+			"The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s": [
+				"Сајт је и даље на списку зато што његова фасцикла није могла бити избрисана (%1$s). Затворите све програме који је користе, па покушајте поново. Фасцикла: %2$s"
+			],
+			"Opened pull request #%s": [
+				"Отворен је захтев за повлачење #%s"
+			],
+			"Notifications": [
+				"Обавештења"
+			],
+			"Checking GitHub…": [
+				"Провера GitHub-а…"
+			],
+			"Checking GitHub": [
+				"Провера GitHub-а"
+			],
+			"Linked pull requests": [
+				"Повезани захтеви за повлачење"
+			],
+			"Keywords": [
+				"Кључне речи"
+			],
+			"Apply…": [
+				"Примени…"
+			],
+			"The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.": [
+				"Најновија закрпа на овом захтеву је датотека прилога, а не захтев за повлачење — погледајте Trac прилоге испод."
+			],
+			"Read details from Trac": [
+				"Прочитај детаље са система Trac"
+			],
+			"Reading the ticket on Trac": [
+				"Читање захтева на систему Trac"
+			],
+			"Unlink": [
+				"Раскини везу"
+			],
+			"Refresh": [
+				"Освежи"
+			],
+			"Not sure yet?": [
+				"Још увек нисте сигурни?"
+			],
+			"If you have edited anything already, you will be asked what should happen to those edits.": [
+				"Ако сте већ нешто уредили, бићете упитани шта треба да се уради са тим изменама."
+			],
+			"Latest": [
+				"Најновије"
+			],
+			"No patch files attached to this ticket.": [
+				"Уз овај захтев нема прикачених датотека закрпа."
+			],
+			"Opening the ticket on Trac…": [
+				"Отварање захтева на систему Trac…"
+			],
+			"Show Trac attachments": [
+				"Прикажи Trac прилоге"
+			],
+			"Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.": [
+				"Датотеке закрпа се понекад каче на Trac уместо PR-а. Њихово читање отвара захтев како бисте једном прошли проверу да нисте робот."
+			],
+			"Opening the ticket on Trac": [
+				"Отварање захтева на систему Trac"
+			],
+			"Trac attachments": [
+				"Trac прилози"
+			],
+			"Applied": [
+				"Примењено"
+			],
+			"My sites": [
+				"Моји сајтови"
+			],
+			"Create new site": [
+				"Направи нови сајт"
+			],
+			"(Deleting)": [
+				"(Брисање)"
+			],
+			"(%s)": [
+				"(%s)"
+			],
+			"Name": [
+				"Име"
+			],
+			"Site actions": [
+				"Радње сајта"
+			],
+			"Show details": [
+				"Прикажи детаље"
+			],
+			"Hide details": [
+				"Сакриј детаље"
+			],
+			"Review & submit changes": [
+				"Прегледај за рецензију и предај измене"
+			],
+			"Review": [
+				"Рецензија"
+			],
+			"Show password": [
+				"Прикажи лозинку"
+			],
+			"Hide password": [
+				"Сакриј лозинку"
+			],
+			"Password": [
+				"Лозинка"
+			],
+			"Username": [
+				"Корисничко име"
+			],
+			"Admin credentials": [
+				"Администраторски приступни подаци"
+			],
+			"Server": [
+				"Сервер"
+			],
+			"Copied": [
+				"Копирано"
+			],
+			"Copy": [
+				"Копија"
+			],
+			"Details": [
+				"Детаљи"
+			],
+			"Details of %s": [
+				"Детаљи за %s"
+			],
+			"Build watch offline": [
+				"Надзор изградње је ван мреже"
+			],
+			"Build watch": [
+				"Надзор изградње"
+			],
+			"Development server offline": [
+				"Развојни сервер је ван мреже"
+			],
+			"Rename": [
+				"Преименуј"
+			],
+			"Renaming the site": [
+				"Преименовање сајта"
+			],
+			"Rename site": [
+				"Преименуј сајт"
+			],
+			"Clear emails": [
+				"Уклони поруке е-поште"
+			],
+			"Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.": [
+				"Изаберите надређену фасциклу у којој желите да овај нови сајт буде направљен. За сајт ће бити направљен нови поддиректоријум."
+			],
+			"Location": [
+				"Локација"
+			],
+			"Setting up a site": [
+				"Подешавање сајта"
+			],
+			"Project": [
+				"Пројекат"
+			],
+			"Close": [
+				"Затвори"
+			],
+			"Resize tray": [
+				"Промени величину траке"
+			],
+			"This patch is applied to your current work. Removing it may require undoing overlapping edits.": [
+				"Ова закрпа је примењена на ваш тренутни рад. Њено уклањање може захтевати поништавање измена које се преклапају."
+			],
+			"Discard this ticket to its base": [
+				"Одбаци овај захтев на његову основу"
+			],
+			"Save a copy of your work": [
+				"Сачувај копију свог рада"
+			],
+			"Revert this PR before applying another PR or patch file.": [
+				"Вратите овај PR на претходно стање пре примене другог PR-а или датотеке закрпе."
+			],
+			"Try another patch on this ticket": [
+				"Испробај другу закрпу на овом захтеву"
+			],
+			"Revert this patch": [
+				"Врати ову закрпу на претходно"
+			],
+			"Give feedback": [
+				"Пошаљи мишљење"
+			],
+			"It changes package-lock.json, so dependencies will be installed before the rebuild.": [
+				"Мења package-lock.json, па ће зависности бити инсталиране пре поновне изградње."
+			],
+			"Apply and rebuild": [
+				"Примени и поново изгради"
+			],
+			"%1$s changes %2$d file.": [
+				"%1$s мења %2$d датотеку.",
+				"%1$s мења %2$d датотеке.",
+				"%1$s мења %2$d датотека."
+			],
+			"Apply %s": [
+				"Примени %s"
+			],
+			"%s is a binary file and will be skipped.": [
+				"%s је бинарна датотека и биће прескочена.",
+				"%s су бинарне датотеке и биће прескочене.",
+				"%s су бинарне датотеке и биће прескочене."
+			],
+			"Apply PR #%d": [
+				"Примени PR #%d"
+			],
+			"A .diff or .patch file is applied to the current branch as a removable layer.": [
+				"Датотека разлике (.diff) или .patch се примењује на тренутну грану као слој који се може уклонити."
+			],
+			"Choose a .diff or .patch file…": [
+				"Изаберите датотеку разлике (.diff) или .patch…"
+			],
+			"Diff": [
+				"Разлика"
+			],
+			"Pull request": [
+				"Захтев за повлачење"
+			],
+			"Test changes in this checkout. Your own changes are preserved.": [
+				"Испробајте измене у овој радној копији. Ваше сопствене измене остају сачуване."
+			],
+			"Apply a patch or PR": [
+				"Примени закрпу или PR"
+			],
+			"Test a pull request in this checkout. Your own changes are preserved.": [
+				"Испробајте захтев за повлачење у овој радној копији. Ваше сопствене измене остају сачуване."
+			],
+			"Check out a pull request": [
+				"Преузми захтев за повлачење"
+			],
+			"A pull request is checked out with its author’s commits.": [
+				"Захтев за повлачење се преузима заједно са потврдама (commits) његовог аутора."
+			],
+			"Apply PR": [
+				"Примени PR"
+			],
+			"Pull request URL or number": [
+				"URL или број захтева за повлачење"
+			],
+			"line %d of the patch": [
+				"линија %d закрпе"
+			],
+			"… %d more line": [
+				"… још %d линија",
+				"… још %d линије",
+				"… још %d линија"
+			],
+			"Near %s": [
+				"Близу %s"
+			],
+			"%1$s — %2$d of %3$d change": [
+				"%1$s — %2$d од %3$d измене",
+				"%1$s — %2$d од %3$d измене",
+				"%1$s — %2$d од %3$d измена"
+			],
+			"The checkout was not changed.": [
+				"Радна копија није промењена."
+			],
+			"Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.": [
+				"Друга наредба се већ извршава на овом сајту. Сачекајте да се заврши или је зауставите помоћу Ctrl+C у терминалу."
+			],
+			"text direction\u0004ltr": [
+				"ltr"
+			],
+			"Finish creating the current site first": [
+				"Прво завршите прављење тренутног сајта"
+			],
+			"Open the feedback form ↗": [
+				"Отвори образац за повратне информације ↗"
+			],
+			"Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.": [
+				"Одговори иду у заједнички образац који тим редовно прегледа. Поднесци су анонимни осим ако не додате своју адресу е-поште."
+			],
+			"Your feedback helps decide what to build next.": [
+				"Ваше повратне информације помажу да се одлучи шта ће се следеће правити."
+			],
+			"WordPress Contributor Toolkit": [
+				"Вордпрес Contributor Toolkit"
+			],
+			"Please choose where to create the site.": [
+				"Изаберите где ће се сајт направити."
+			],
+			"Please provide a site name.": [
+				"Наведите назив сајта."
+			],
+			"Create site": [
+				"Направи сајт"
+			],
+			"Cancel": [
+				"Откажи"
+			],
+			"No folder selected yet.": [
+				"Још није изабрана ниједна фасцикла."
+			],
+			"My WordPress site": [
+				"Мој Вордпрес сајт"
+			],
+			"Site name": [
+				"Назив сајта"
+			],
+			"The wordpress-develop repository: Trac tickets, patches and pull requests.": [
+				"Складиште wordpress-develop: Trac пријаве, закрпе и захтеви за повлачење."
+			],
+			"The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.": [
+				"Уређивач блокова, изграђен и покренут као додатак у обичном Вордпресу: GitHub проблеми и захтеви за повлачење по преузимању."
+			]
+		}
+	}
+}

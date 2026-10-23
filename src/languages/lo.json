@@ -1,0 +1,3214 @@
+{
+	"translation-revision-date": "2026-10-18 04:39:22+0000",
+	"generator": "GlotPress/4.1.0",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": {
+				"domain": "messages",
+				"plural-forms": "nplurals=1; plural=0;",
+				"lang": "lo_LA"
+			},
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [],
+			"That file could not be read: %s": [],
+			"That file is not in the site. The change may have deleted it.": [],
+			"Changed files": [],
+			"You created this file": [],
+			"You edited this file": [],
+			"Revert %s": [],
+			"Discard your changes?": [],
+			"PR #%d stays checked out.": [],
+			"The applied patch %s is removed too, because the app can’t put it back.": [],
+			"The patch %s stays applied.": [],
+			"Your edits to %d file are removed.": [],
+			"There are no edits of yours to discard.": [],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [],
+			"Your changes were discarded.": [],
+			"Your changes to it are removed.": [],
+			"%s deleted.": [],
+			"Delete file": [],
+			"You created this file.": [],
+			"From PR #%d": [],
+			"From the patch": [],
+			"Could not revert the file: %s": [],
+			"%s reverted.": [],
+			"Revert file": [],
+			"Revert %s?": [],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [],
+			"Could not revert %1$s, so it was left as it was: %2$s": [],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [],
+			"%s has no changes to revert.": [],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [],
+			"Opened": [],
+			"Milestone": [],
+			"Component": [],
+			"Type": [],
+			"Read from Trac %s": [],
+			"Review and submit": [],
+			"Review changes": [],
+			"They stay with this pull request's local copy when you revert this PR.": [],
+			"%1$d unsubmitted change for ticket #%2$s": [],
+			"%1$d unsubmitted change for issue #%2$s": [],
+			"Unsubmitted changes for ticket #%s": [],
+			"Unsubmitted changes for issue #%s": [],
+			"%1$d change on top of PR #%2$d": [],
+			"Changes on top of PR #%d": [],
+			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
+				"ຂະຫຍາຍ"
+			],
+			"Discard edits": [
+				"ຍົກເລີກການແກ້ໄຂ"
+			],
+			"Discard the uncommitted edits on trunk?": [
+				"ຍົກເລີກການແກ້ໄຂທີ່ຍັງບໍ່ໄດ້ຄອມມິດໃນ trunk ບໍ?"
+			],
+			"Discard changes": [
+				"ຍົກເລີກການປ່ຽນແປງ"
+			],
+			"This can’t be undone.": [
+				"ການກະທຳນີ້ບໍ່ສາມາດຍ້ອນກັບໄດ້."
+			],
+			"Discard all local changes?": [
+				"ຍົກເລີກການປ່ຽນແປງທັງໝົດໃນເຄື່ອງບໍ?"
+			],
+			"Stop Speaking": [
+				"ຢຸດການອອກສຽງ"
+			],
+			"Start Speaking": [
+				"ເລີ່ມຕົ້ນການອອກສຽງ"
+			],
+			"Speech": [
+				"ການອອກສຽງ"
+			],
+			"Text Replacement": [
+				"ການແທນບ່ອນຂໍ້ຄວາມ"
+			],
+			"Smart Dashes": [
+				"ຂີດຕໍ່ອັດສະລິຍະ"
+			],
+			"Smart Quotes": [
+				"ໝາຍຢືມອັດສະລິຍະ"
+			],
+			"Show Substitutions": [
+				"ສະແດງການແທນບ່ອນ"
+			],
+			"Substitutions": [
+				"ການແທນບ່ອນ"
+			],
+			"Paste and Match Style": [
+				"ວາງ ແລະ ປັບໃຫ້ກົງກັບຮູບແບບ"
+			],
+			"Paste": [
+				"ວາງ"
+			],
+			"Cut": [
+				"ຕັດ"
+			],
+			"Redo": [
+				"ເຮັດຄືນ"
+			],
+			"Undo": [
+				"ຍົກເລີກ"
+			],
+			"Edit": [
+				"ແກ້ໄຂ"
+			],
+			"Quit": [
+				"ອອກ"
+			],
+			"Exit": [
+				"ອອກ"
+			],
+			"Close Window": [
+				"ປິດປ່ອງຢ້ຽມ"
+			],
+			"File": [
+				"ໄຟລ໌"
+			],
+			"Quit %s": [
+				"ອອກຈາກ %s"
+			],
+			"Show All": [
+				"ສະແດງທັງໝົດ"
+			],
+			"Hide Others": [
+				"ເຊື່ອງອື່ນໆ"
+			],
+			"Hide %s": [
+				"ເຊື່ອງ %s"
+			],
+			"Services": [
+				"ການບໍລິການ"
+			],
+			"About %s": [
+				"ກ່ຽວກັບ %s"
+			],
+			"Toggle Developer Tools": [
+				"ເປີດ/ປິດ ເຄື່ອງມືນັກພັດທະນາ"
+			],
+			"Help": [
+				"ການຊ່ວຍເຫຼືອ"
+			],
+			"Bring All to Front": [
+				"ນຳທັງໝົດມາໄວ້ທາງໜ້າ"
+			],
+			"Minimize": [
+				"ຫຍໍ້ລົງ"
+			],
+			"Window": [
+				"ປ່ອງຢ້ຽມ"
+			],
+			"Toggle Full Screen": [
+				"ເປີດ/ປິດ ເຕັມຈໍ"
+			],
+			"Zoom Out": [
+				"ຫຍໍ້ອອກ"
+			],
+			"Zoom In": [
+				"ຊູມເຂົ້າ"
+			],
+			"Actual Size": [
+				"ຂະໜາດຕົວຈິງ"
+			],
+			"Force Reload": [
+				"ບັງຄັບໂຫຼດຄືນໃໝ່"
+			],
+			"Reload": [
+				"ໂຫຼດຄືນໃໝ່"
+			],
+			"View": [
+				"ມຸມມອງ"
+			],
+			"Select All": [
+				"ເລືອກທັງໝົດ"
+			],
+			"Delete": [
+				"ລຶບ"
+			],
+			"Choose folder…": [
+				"ເລືອກໂຟນເດີ…"
+			],
+			"Mail": [
+				"ຈົດໝາຍ"
+			],
+			"ends a sentence that lacks a full stop\u0004%s.": [
+				"%s."
+			],
+			"Too much output to announce, navigate to rows manually to read": [
+				"ມີຜົນອອກຫຼາຍເກີນໄປທີ່ຈະແຈ້ງໃຫ້ຊາບ, ກະລຸນາເລື່ອນໄປທີ່ແຖວດ້ວຍຕົນເອງເພື່ອອ່ານ"
+			],
+			"Terminal input": [
+				"ການປ້ອນຂໍ້ມູນເທິມີນໍ"
+			],
+			"Timed out starting web server": [
+				"ໝົດເວລາໃນການເລີ່ມຕົ້ນເວັບເຊີບເວີ"
+			],
+			"Server exited before becoming ready": [
+				"ເຊີບເວີປິດການເຮັດວຽກກ່ອນທີ່ຈະພ້ອມໃຊ້ງານ"
+			],
+			"%s directory not found.": [
+				"ບໍ່ພົບໄດເຣັກທໍຣີ %s."
+			],
+			"The patch you applied is applied. Revert it before submitting this checkout as your own work.": [
+				"ແພັດຊ໌ທີ່ທ່ານນຳໃຊ້ຖືກນຳໃຊ້ແລ້ວ. ໃຫ້ຍ້ອນກັບມັນກ່ອນທີ່ຈະສົ່ງ checkout ນີ້ເປັນຜົນງານຂອງທ່ານເອງ."
+			],
+			"%s is applied. Revert it before submitting this checkout as your own work.": [
+				"%s ຖືກນຳໃຊ້ແລ້ວ. ໃຫ້ຍ້ອນກັບມັນກ່ອນທີ່ຈະສົ່ງ checkout ນີ້ເປັນຜົນງານຂອງທ່ານເອງ."
+			],
+			"an action that finished\u0004Done": [
+				"ສຳເລັດ"
+			],
+			"No such branch: %s": [
+				"ບໍ່ມີບຣານຊ໌ນີ້: %s"
+			],
+			"Refusing to delete a branch the app did not create": [
+				"ປະຕິເສດການລຶບບຣານຊ໌ທີ່ແອັບບໍ່ໄດ້ສ້າງຂຶ້ນ"
+			],
+			"Refusing to delete trunk": [
+				"ປະຕິເສດການລຶບ trunk"
+			],
+			"Trunk and this ticket's work disagree": [
+				"Trunk ແລະ ງານຂອງທິກເກັດນີ້ມີຄວາມຂັດແຍ່ງກັນ"
+			],
+			"Trunk and this ticket's work disagree in %d file": [
+				"Trunk ແລະ ງານຂອງທິກເກັດນີ້ມີຄວາມຂັດແຍ່ງກັນໃນ %d ໄຟລ໌"
+			],
+			"Already working on ticket #%s in this site": [
+				"ກຳລັງເຮັດວຽກໃນທິກເກັດ #%s ໃນເວັບໄຊນີ້ຢູ່ແລ້ວ"
+			],
+			"Already working on issue #%s in this site": [
+				"ກຳລັງເຮັດວຽກໃນບັນຫາ #%s ໃນເວັບໄຊນີ້ຢູ່ແລ້ວ"
+			],
+			"This site has no trunk branch": [
+				"ເວັບໄຊນີ້ບໍ່ມີບຣານຊ໌ trunk"
+			],
+			"Enter a ticket number or URL.": [
+				"ປ້ອນໝາຍເລກທິກເກັດ ຫຼື URL."
+			],
+			"Enter a ticket number like 62281, or a %s ticket URL.": [
+				"ປ້ອນໝາຍເລກທິກເກັດ ເຊັ່ນ 62281, ຫຼື URL ທິກເກັດຂອງ %s."
+			],
+			"Only %s tickets are supported.": [
+				"ຮອງຮັບສະເພາະທິກເກັດ %s ເທົ່ານັ້ນ."
+			],
+			"Trunk and your work disagree in: %s.": [
+				"Trunk ແລະ ງານຂອງທ່ານມີຄວາມຂັດແຍ່ງກັນໃນ: %s."
+			],
+			"Trunk added a file your work also adds, with different content: %s.": [
+				"Trunk ໄດ້ເພີ່ມໄຟລ໌ທີ່ງານຂອງທ່ານເພີ່ມເຊັ່ນກັນ ໂດຍມີເນື້ອຫາຕ່າງກັນ: %s."
+			],
+			"Deleted on one side and changed on the other: %s.": [
+				"ຖືກລຶບອອກຈາກຝັ່ງໜຶ່ງ ແລະ ມີການປ່ຽນແປງໃນອີກຝັ່ງໜຶ່ງ: %s."
+			],
+			"Trunk changed the same lines as your work in: %s.": [
+				"Trunk ໄດ້ປ່ຽນແປງແຖວດຽວກັນກັບງານຂອງທ່ານໃນ: %s."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.": [
+				"ບັນທຶກສຳເນົາງານຂອງທ່ານ, ຍົກເລີກການເຊື່ອມໂຍງທິກເກັດ, ລຶບງານນັ້ນອອກຈາກເວັບໄຊ, ຈາກນັ້ນເຊື່ອມໂຍງ #%s ອີກຄັ້ງ ແລະ ນຳໃຊ້ສຳເນົານັ້ນ."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.": [
+				"ບັນທຶກສຳເນົາງານຂອງທ່ານ, ຍົກເລີກການເຊື່ອມໂຍງທິກເກັດ, ລຶບງານນັ້ນອອກຈາກເວັບໄຊ, ຈາກນັ້ນເຊື່ອມໂຍງທິກເກັດອີກຄັ້ງ ແລະ ນຳໃຊ້ສຳເນົານັ້ນ."
+			],
+			"Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.": [
+				"ຮັກສາບຣານຊ໌ຂອງບັນຫານີ້ໄວ້ ແລະ ບັນທຶກສຳເນົາຜ່ານ ກວດສອບ ແລະ ສົ່ງການປ່ຽນແປງ. ຂໍໃຫ້ທີ່ປຶກສາຊ່ວຍຍ້າຍງານໄປໃສ່ trunk ປະຈຸບັນ; ແອັບນີ້ບໍ່ສາມາດແກ້ໄຂຂໍ້ຂັດແຍ່ງ ຫຼື ນຳເຂົ້າສຳເນົາທີ່ບັນທຶກໄວ້ໄດ້."
+			],
+			"Update this ticket to the current trunk": [
+				"ອັບເດດທິກເກັດນີ້ໃຫ້ເປັນ trunk ປະຈຸບັນ"
+			],
+			"Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.": [
+				"ແພັດຊ໌ທີ່ໃໝ່ກວ່າອາດຈະນຳໃຊ້ໄດ້ບໍ່ສົມບູນ. ຍ້າຍງານຂອງທ່ານໄປໃສ່ trunk ປະຈຸບັນຢູ່ນີ້, ຫຼື ບັນທຶກສຳເນົາໄວ້ແລ້ວເລີ່ມຕົ້ນທິກເກັດໃໝ່."
+			],
+			"Trunk has moved since this ticket started.": [
+				"Trunk ມີການປ່ຽນແປງຕັ້ງແຕ່ເລີ່ມຕົ້ນທິກເກັດນີ້."
+			],
+			"Update this issue to the current trunk": [
+				"ອັບເດດບັນຫານີ້ໃຫ້ເປັນ trunk ປະຈຸບັນ"
+			],
+			"Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.": [
+				"ຍ້າຍງານຂອງທ່ານໄປໃສ່ trunk ປະຈຸບັນຢູ່ນີ້. ຖ້າການປ່ຽນແປງຂັດແຍ່ງກັນ, ບຣານຊ໌ຂອງທ່ານຈະຍັງຄົງເດີມ ເພື່ອໃຫ້ທ່ານຂໍຄວາມຊ່ວຍເຫຼືອໃນການແກ້ໄຂໄດ້."
+			],
+			"Trunk has moved since this issue started.": [
+				"Trunk ມີການປ່ຽນແປງຕັ້ງແຕ່ເລີ່ມຕົ້ນບັນຫານີ້."
+			],
+			"Could not move the ticket onto the current trunk.": [
+				"ບໍ່ສາມາດຍ້າຍທິກເກັດໄປໃສ່ trunk ປະຈຸບັນໄດ້."
+			],
+			"Could not move the issue onto the current trunk.": [
+				"ບໍ່ສາມາດຍ້າຍບັນຫາໄປໃສ່ trunk ປະຈຸບັນໄດ້."
+			],
+			"Only an issue branch can be moved onto the current trunk.": [
+				"ສະເພາະບຣານຊ໌ຂອງບັນຫາເທົ່ານັ້ນທີ່ສາມາດຍ້າຍໄປໃສ່ trunk ປະຈຸບັນໄດ້."
+			],
+			"Link a ticket first: trunk is what tickets are measured against.": [
+				"ເຊື່ອມໂຍງທິກເກັດກ່ອນ: trunk ຄືສິ່ງທີ່ໃຊ້ທຽບກັບທິກເກັດ."
+			],
+			"Link an issue first: trunk is what issues are measured against.": [
+				"ເຊື່ອມໂຍງບັນຫາກ່ອນ: trunk ຄືສິ່ງທີ່ໃຊ້ທຽບກັບບັນຫາ."
+			],
+			"The app does not know which trunk the ticket started from, so it cannot move the work safely.": [
+				"ແອັບບໍ່ຮູ້ວ່າທິກເກັດເລີ່ມຕົ້ນມາຈາກ trunk ໃດ, ຈຶ່ງບໍ່ສາມາດຍ້າຍງານໄດ້ຢ່າງປອດໄພ."
+			],
+			"The app does not know which trunk the issue started from, so it cannot move the work safely.": [
+				"ແອັບບໍ່ຮູ້ວ່າບັນຫາເລີ່ມຕົ້ນມາຈາກ trunk ໃດ, ຈຶ່ງບໍ່ສາມາດຍ້າຍງານໄດ້ຢ່າງປອດໄພ."
+			],
+			"The app does not know which trunk #%s started from, so it cannot move the work safely.": [
+				"ແອັບບໍ່ຮູ້ວ່າ #%s ເລີ່ມຕົ້ນມາຈາກ trunk ໃດ, ຈຶ່ງບໍ່ສາມາດຍ້າຍງານໄດ້ຢ່າງປອດໄພ."
+			],
+			"Nothing was moved.": [
+				"ບໍ່ມີສິ່ງໃດຖືກຍ້າຍ."
+			],
+			"Trunk and your work disagree.": [
+				"Trunk ແລະ ງານຂອງທ່ານມີຄວາມຂັດແຍ່ງກັນ."
+			],
+			"You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?": [
+				"ທ່ານມີການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ຄອມມິດ %d ລາຍການໃນເວັບໄຊນີ້ ເຊິ່ງຍັງບໍ່ໄດ້ຢູ່ໃນທິກເກັດໃດ. ທ່ານຕ້ອງການຈັດການແນວໃດກັບພວກມັນ?"
+			],
+			"You have %d uncommitted change on this site, not on any issue yet. What should happen to them?": [
+				"ທ່ານມີການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ຄອມມິດ %d ລາຍການໃນເວັບໄຊນີ້ ເຊິ່ງຍັງບໍ່ໄດ້ຢູ່ໃນບັນຫາໃດ. ທ່ານຕ້ອງການຈັດການແນວໃດກັບພວກມັນ?"
+			],
+			"Stop the dev server before updating the ticket.": [
+				"ຢຸດເຊີບເວີພັດທະນາກ່ອນທີ່ຈະອັບເດດທິກເກັດ."
+			],
+			"Stop the dev server before updating the issue.": [
+				"ຢຸດເຊີບເວີພັດທະນາກ່ອນທີ່ຈະອັບເດດບັນຫາ."
+			],
+			"Wait for the discard to finish before updating the ticket.": [
+				"ລໍຖ້າໃຫ້ການຍົກເລີກສຳເລັດກ່ອນທີ່ຈະອັບເດດທິກເກັດ."
+			],
+			"Wait for the discard to finish before updating the issue.": [
+				"ລໍຖ້າໃຫ້ການຍົກເລີກສຳເລັດກ່ອນທີ່ຈະອັບເດດບັນຫາ."
+			],
+			"Wait for the PR or patch operation to finish.": [
+				"ລໍຖ້າໃຫ້ການດຳເນີນການ PR ຫຼື ແພັດຊ໌ສຳເລັດກ່ອນ."
+			],
+			"Wait for the ticket's work to finish deleting.": [
+				"ລໍຖ້າໃຫ້ການລຶບງານຂອງທິກເກັດສຳເລັດກ່ອນ."
+			],
+			"Wait for the issue's work to finish deleting.": [
+				"ລໍຖ້າໃຫ້ການລຶບງານຂອງບັນຫາສຳເລັດກ່ອນ."
+			],
+			"Wait for the current ticket change to finish.": [
+				"ລໍຖ້າໃຫ້ການປ່ຽນແປງທິກເກັດປະຈຸບັນສຳເລັດກ່ອນ."
+			],
+			"Wait for the current issue change to finish.": [
+				"ລໍຖ້າໃຫ້ການປ່ຽນແປງບັນຫາປະຈຸບັນສຳເລັດກ່ອນ."
+			],
+			"This ticket already has its own work here, so these edits cannot come along into it.": [
+				"ທິກເກັດນີ້ມີງານຂອງມັນຢູ່ນີ້ແລ້ວ, ສະນັ້ນການແກ້ໄຂເຫຼົ່ານີ້ຈຶ່ງບໍ່ສາມາດນຳເຂົ້າໄປໃສ່ໄດ້."
+			],
+			"This issue already has its own work here, so these edits cannot come along into it.": [
+				"ບັນຫານີ້ມີງານຂອງມັນຢູ່ນີ້ແລ້ວ, ສະນັ້ນການແກ້ໄຂເຫຼົ່ານີ້ຈຶ່ງບໍ່ສາມາດນຳເຂົ້າໄປໃສ່ໄດ້."
+			],
+			"Discard them and continue on the ticket": [
+				"ຍົກເລີກພວກມັນ ແລະ ສືບຕໍ່ໃນທິກເກັດ"
+			],
+			"Save them as a patch, then continue on the ticket…": [
+				"ບັນທຶກພວກມັນເປັນແພັດຊ໌, ແລ້ວສືບຕໍ່ໃນທິກເກັດ…"
+			],
+			"Discard them and continue on the issue": [
+				"ຍົກເລີກພວກມັນ ແລະ ສືບຕໍ່ໃນບັນຫາ"
+			],
+			"Save them as a patch, then continue on the issue…": [
+				"ບັນທຶກພວກມັນເປັນແພັດຊ໌, ແລ້ວສືບຕໍ່ໃນບັນຫາ…"
+			],
+			"Discard them and continue on #%s": [
+				"ຍົກເລີກພວກມັນ ແລະ ສືບຕໍ່ໃນ #%s"
+			],
+			"Save them as a patch, then continue on #%s…": [
+				"ບັນທຶກພວກມັນເປັນແພັດຊ໌, ແລ້ວສືບຕໍ່ໃນ #%s…"
+			],
+			"Discard them and start clean": [
+				"ຍົກເລີກພວກມັນ ແລະ ເລີ່ມຕົ້ນໃໝ່ທັງໝົດ"
+			],
+			"Save them as a patch, then start clean…": [
+				"ບັນທຶກພວກມັນເປັນແພັດຊ໌, ແລ້ວເລີ່ມຕົ້ນໃໝ່ທັງໝົດ…"
+			],
+			"Take these edits into the ticket": [
+				"ນຳການແກ້ໄຂເຫຼົ່ານີ້ເຂົ້າໄປໃນທິກເກັດ"
+			],
+			"Take these edits into the issue": [
+				"ນຳການແກ້ໄຂເຫຼົ່ານີ້ເຂົ້າໄປໃນບັນຫາ"
+			],
+			"Take these edits into #%s": [
+				"ນຳການແກ້ໄຂເຫຼົ່ານີ້ເຂົ້າໄປໃນ #%s"
+			],
+			"Discard them and check out PR #%d": [
+				"ຍົກເລີກພວກມັນ ແລະ ເຊັກເອົາທ໌ PR #%d"
+			],
+			"Save them as a patch, then check out PR #%d…": [
+				"ບັນທຶກພວກມັນເປັນແພັດຊ໌, ແລ້ວເຊັກເອົາທ໌ PR #%d…"
+			],
+			"PR #%d is a separate checkout, so these edits cannot come along into it.": [
+				"PR #%d ເປັນ checkout ແຍກຕ່າງຫາກ, ສະນັ້ນການແກ້ໄຂເຫຼົ່ານີ້ຈຶ່ງບໍ່ສາມາດນຳເຂົ້າໄປໃສ່ໄດ້."
+			],
+			"You have uncommitted changes on this site, not on any ticket yet. What should happen to them?": [
+				"ທ່ານມີການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ຄອມມິດໃນເວັບໄຊນີ້ ເຊິ່ງຍັງບໍ່ໄດ້ຢູ່ໃນທິກເກັດໃດ. ທ່ານຕ້ອງການຈັດການແນວໃດກັບພວກມັນ?"
+			],
+			"You have uncommitted changes on this site, not on any issue yet. What should happen to them?": [
+				"ທ່ານມີການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ຄອມມິດໃນເວັບໄຊນີ້ ເຊິ່ງຍັງບໍ່ໄດ້ຢູ່ໃນບັນຫາໃດ. ທ່ານຕ້ອງການຈັດການແນວໃດກັບພວກມັນ?"
+			],
+			"Could not open the folder.": [
+				"ບໍ່ສາມາດເປີດໂຟນເດີໄດ້."
+			],
+			"Could not reach the app's main process: %s": [
+				"ບໍ່ສາມາດຕິດຕໍ່ໂ प्रक्रियाຫຼັກຂອງແອັບໄດ້: %s"
+			],
+			"This app has no record of that folder, so it will not open it.": [
+				"ແອັບນີ້ບໍ່ມີຂໍ້ມູນບັນທຶກຂອງໂຟນເດີດັ່ງກ່າວ, ຈຶ່ງຈະບໍ່ເປີດມັນ."
+			],
+			"The file manager would not open the folder: %s": [
+				"ຕົວຈັດການໄຟລ໌ບໍ່ສາມາດເປີດໂຟນເດີໄດ້: %s"
+			],
+			"The application would not start: %s": [
+				"ແອັບພລິເຄຊັນບໍ່ສາມາດເລີ່ມຕົ້ນໄດ້: %s"
+			],
+			"That application is no longer where it was. Choose another.": [
+				"ແອັບພລິເຄຊັນນັ້ນບໍ່ໄດ້ຢູ່ບ່ອນເກົ່າແລ້ວ. ກະລຸນາເລືອກອັນອື່ນ."
+			],
+			"That is not an application this app can open a folder in.": [
+				"ນັ້ນບໍ່ແມ່ນແອັບພລິເຄຊັນທີ່ແອັບນີ້ສາມາດໃຊ້ເປີດໂຟນເດີໄດ້."
+			],
+			"A merge started outside the app is in progress.": [
+				"ການຮວມ (merge) ທີ່ເລີ່ມຕົ້ນຈາກພາຍນອກແອັບກຳລັງດຳເນີນຢູ່."
+			],
+			"every file the patch touched, not only the ones in conflict": [
+				"ທຸກໄຟລ໌ທີ່ແພັດຊ໌ມີການແຕະຕ້ອງ, ບໍ່ສະເພາະແຕ່ໄຟລ໌ທີ່ຂັດແຍ່ງກັນ"
+			],
+			"git add the files": [
+				"git add ໄຟລ໌ເຫຼົ່ານັ້ນ"
+			],
+			"resolve the files, then git add them": [
+				"ແກ້ໄຂໄຟລ໌, ຈາກນັ້ນ git add ພວກມັນ"
+			],
+			"A three-way patch apply started outside the app is in progress.": [
+				"ການນຳໃຊ້ແພັດຊ໌ແບບສາມທາງທີ່ເລີ່ມຕົ້ນຈາກພາຍນອກແອັບກຳລັງດຳເນີນຢູ່."
+			],
+			"A revert started outside the app is in progress.": [
+				"ການຍ້ອນກັບ (revert) ທີ່ເລີ່ມຕົ້ນຈາກພາຍນອກແອັບກຳລັງດຳເນີນຢູ່."
+			],
+			"A cherry-pick started outside the app is in progress.": [
+				"ການ cherry-pick ທີ່ເລີ່ມຕົ້ນຈາກພາຍນອກແອັບກຳລັງດຳເນີນຢູ່."
+			],
+			"A rebase started outside the app is in progress.": [
+				"ການ rebase ທີ່ເລີ່ມຕົ້ນຈາກພາຍນອກແອັບກຳລັງດຳເນີນຢູ່."
+			],
+			"resolve the files, then git add them and run %s": [
+				"ແກ້ໄຂໄຟລ໌, ຈາກນັ້ນ git add ພວກມັນ ແລະ ສັ່ງໃຊ້ງານ %s"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)": [
+				"ແອັບບໍ່ສາມາດກວດສອບໄດ້ວ່າມີການ merge ກຳລັງດຳເນີນຢູ່ໃນ checkout ນີ້ຫຼືບໍ່, ຈຶ່ງບໍ່ມີສິ່ງໃດປ່ຽນແປງ. ຖ້າມີຄຳສັ່ງ Git ກຳລັງເຮັດວຽກຈາກເທິມີນໍ, ໃຫ້ລໍຖ້າໃຫ້ສຳເລັດກ່ອນ, ແລ້ວລອງໃໝ່ອີກຄັ້ງ. (%s)"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again.": [
+				"ແອັບບໍ່ສາມາດກວດສອບໄດ້ວ່າມີການ merge ກຳລັງດຳເນີນຢູ່ໃນ checkout ນີ້ຫຼືບໍ່, ຈຶ່ງບໍ່ມີສິ່ງໃດປ່ຽນແປງ. ຖ້າມີຄຳສັ່ງ Git ກຳລັງເຮັດວຽກຈາກເທິມີນໍ, ໃຫ້ລໍຖ້າໃຫ້ສຳເລັດກ່ອນ, ແລ້ວລອງໃໝ່ອີກຄັ້ງ."
+			],
+			"Its conflicts are resolved but it is not finished. Finish it from a terminal (%1$s) or abandon it (%2$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"ຂໍ້ຂັດແຍ່ງຖືກແກ້ໄຂແລ້ວແຕ່ຍັງບໍ່ສຳເລັດສົມບູນ. ໃຫ້ເຮັດໃຫ້ສຳເລັດຈາກເທິມີນໍ (%1$s) ຫຼື ຍົກເລີກມັນ (%2$s) ກ່ອນໃຊ້ງານແອັບໃນເວັບໄຊນີ້. ຈົນກວ່າຈະຮອດເວລານັ້ນ, ການເຊື່ອມໂຍງທິກເກັດ, ການນຳໃຊ້ແພັດຊ໌, ການຍົກເລີກການປ່ຽນແປງ ແລະ ການອັບເດດ trunk ຈະຖືກປະຕິເສດຢູ່ນີ້."
+			],
+			"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"ມີຂໍ້ຂັດແຍ່ງໃນ %1$s. ໃຫ້ເຮັດໃຫ້ສຳເລັດຈາກເທິມີນໍ (%2$s) ຫຼື ຍົກເລີກມັນ (%3$s) ກ່ອນໃຊ້ງານແອັບໃນເວັບໄຊນີ້. ຈົນກວ່າຈະຮອດເວລານັ້ນ, ການເຊື່ອມໂຍງທິກເກັດ, ການນຳໃຊ້ແພັດຊ໌, ການຍົກເລີກການປ່ຽນແປງ ແລະ ການອັບເດດ trunk ຈະຖືກປະຕິເສດຢູ່ນີ້."
+			],
+			"The app now runs on a different Git engine, so linking tickets, applying patches, discarding changes and updating trunk are refused here. Export your work as a patch, create a new site, apply the patch there, then delete this one.": [
+				"ປະຈຸບັນແອັບເຮັດວຽກຢູ່ເທິງ Git engine ອື່ນ, ສະນັ້ນການເຊື່ອມໂຍງທິກເກັດ, ການນຳໃຊ້ແພັດຊ໌, ການຍົກເລີກການປ່ຽນແປງ ແລະ ການອັບເດດ trunk ຈະຖືກປະຕິເສດຢູ່ນີ້. ສົ່ງອອກງານຂອງທ່ານເປັນແພັດຊ໌, ສ້າງເວັບໄຊໃໝ່, ນຳໃຊ້ແພັດຊ໌ຢູ່ນັ້ນ, ແລ້ວຈຶ່ງລຶບເວັບໄຊນີ້ອອກ."
+			],
+			"This site was created by an earlier version of the app.": [
+				"ເວັບໄຊນີ້ຖືກສ້າງຂຶ້ນໂດຍແອັບລຸ້ນກ່ອນໜ້າ."
+			],
+			"This site was created by an earlier version of the app and cannot be changed by this one. Create a new site to keep working; you can still export a patch of what is here, and delete this site.": [
+				"ເວັບໄຊນີ້ຖືກສ້າງຂຶ້ນໂດຍແອັບລຸ້ນກ່ອນໜ້າ ແລະ ບໍ່ສາມາດປ່ຽນແປງໂດຍລຸ້ນນີ້ໄດ້. ສ້າງເວັບໄຊໃໝ່ເພື່ອສືບຕໍ່ເຮັດວຽກ; ທ່ານຍັງສາມາດສົ່ງອອກແພັດຊ໌ຂອງສິ່ງທີ່ມີຢູ່ນີ້, ແລະ ລຶບເວັບໄຊນີ້ໄດ້."
+			],
+			"Unable to copy path: %s": [
+				"ບໍ່ສາມາດສຳເນົາເສັ້ນທາງໄດ້: %s"
+			],
+			"Clipboard access is not available in this environment": [
+				"ບໍ່ສາມາດເຂົ້າເຖິງຄລິບບອດໄດ້ໃນສະພາບແວດລ້ອມນີ້"
+			],
+			"Dismiss": [
+				"ປິດໄວ້"
+			],
+			"Stopped": [
+				"ຢຸດແລ້ວ"
+			],
+			"Playground web server": [
+				"ເວັບເຊີບເວີ Playground"
+			],
+			"Start Playground web server": [
+				"ເລີ່ມຕົ້ນເວັບເຊີບເວີ Playground"
+			],
+			"Stop Playground web server": [
+				"ຢຸດເວັບເຊີບເວີ Playground"
+			],
+			"Starting the Playground web server": [
+				"ກຳລັງເລີ່ມຕົ້ນເວັບເຊີບເວີ Playground"
+			],
+			"Server exited with code %d": [
+				"ເຊີບເວີປິດການເຮັດວຽກດ້ວຍລະຫັດ %d"
+			],
+			"Choose application…": [
+				"ເລືອກແອັບພລິເຄຊັນ…"
+			],
+			"Saved to %s. The edits are still in the working tree.": [
+				"ບັນທຶກໄປທີ່ %s ແລ້ວ. ການແກ້ໄຂຍັງຄົງຢູ່ໃນ working tree."
+			],
+			"Your edits were saved to %s and are no longer in the working tree.": [
+				"ການແກ້ໄຂຂອງທ່ານຖືກບັນທຶກໄປທີ່ %s ແລ້ວ ແລະ ບໍ່ໄດ້ຢູ່ໃນ working tree ອີກຕໍ່ໄປ."
+			],
+			"Your %1$d uncommitted change came along into #%2$s, and will go into its patch.": [
+				"ການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ຄອມມິດ %1$d ລາຍການຂອງທ່ານຖືກນຳເຂົ້າໄປໃນ #%2$s ແລ້ວ, ແລະ ຈະຖືກລວມເຂົ້າໃນແພັດຊ໌ຂອງມັນ."
+			],
+			"Could not delete the branch.": [
+				"ບໍ່ສາມາດລຶບບຣານຊ໌ໄດ້."
+			],
+			"Could not save the patch.": [
+				"ບໍ່ສາມາດບັນທຶກແພັດຊ໌ໄດ້."
+			],
+			"Could not discard the changes.": [
+				"ບໍ່ສາມາດຍົກເລີກການປ່ຽນແປງໄດ້."
+			],
+			"Could not save the ticket.": [
+				"ບໍ່ສາມາດບັນທຶກທິກເກັດໄດ້."
+			],
+			"Only %s issues are supported.": [
+				"ຮອງຮັບສະເພາະບັນຫາ %s ເທົ່ານັ້ນ."
+			],
+			"Enter an issue number or URL.": [
+				"ປ້ອນໝາຍເລກບັນຫາ ຫຼື URL."
+			],
+			"Enter an issue number like 1234, or a %s issue URL.": [
+				"ປ້ອນໝາຍເລກບັນຫາ ເຊັ່ນ 1234, ຫຼື URL ບັນຫາຂອງ %s."
+			],
+			"Only %s issues can be linked here.": [
+				"ສະເພາະບັນຫາ %s ເທົ່ານັ້ນທີ່ສາມາດເຊື່ອມໂຍງຢູ່ນີ້ໄດ້."
+			],
+			"That is a pull request. Link the issue it fixes instead.": [
+				"ນັ້ນແມ່ນ pull request. ໃຫ້ເຊື່ອມໂຍງບັນຫາທີ່ມັນແກ້ໄຂແທນ."
+			],
+			"There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.": [
+				"ຍັງບໍ່ມີເວັບໄຊສຳລັບເຮັດວຽກນີ້ເທື່ອ. ສ້າງຂຶ້ນມາໃໝ່ຈາກແຖບຂ້າງ ແລະ ແອັບຈະສະເໜີທິກເກັດນີ້ເມື່ອພ້ອມໃຊ້ງານ."
+			],
+			"Ticket #%s is ready to link.": [
+				"ທິກເກັດ #%s ພ້ອມທີ່ຈະເຊື່ອມໂຍງແລ້ວ."
+			],
+			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
+				"ໝາຍເລກທິກເກັດມາຈາກລິ້ງ. ການເຊື່ອມໂຍງມັນຈະພັກສິ່ງທີ່ເວັບໄຊກຳລັງເປີດຢູ່ຕອນນີ້ໄວ້ກ່ອນ ແລະ ຈະເຊັກເອົາທ໌ບຣານຊ໌ຂອງທິກເກັດນີ້, ແອັບຈຶ່ງຕ້ອງຖາມກ່ອນ."
+			],
+			"Link ticket #%1$s to %2$s?": [
+				"ເຊື່ອມໂຍງທິກເກັດ #%1$s ໃສ່ %2$s ບໍ?"
+			],
+			"A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.": [
+				"ທິກເກັດ Trac ຕ້ອງໃຊ້ກັບເວັບໄຊ WordPress Core. ເປີດເວັບໄຊດັ່ງກ່າວ ແລະ ແອັບຈະສະເໜີທິກເກັດຢູ່ນັ້ນ."
+			],
+			"Ticket #%1$s cannot be linked to %2$s.": [
+				"ທິກເກັດ #%1$s ບໍ່ສາມາດເຊື່ອມໂຍງໃສ່ %2$s ໄດ້."
+			],
+			"Raw": [
+				"ດິບ"
+			],
+			"Rendered": [
+				"ສະແດງຜົນແລ້ວ"
+			],
+			"Date:": [
+				"ວັນທີ:"
+			],
+			"CC:": [
+				"ສຳເນົາເຖິງ:"
+			],
+			"To:": [
+				"ເຖິງ:"
+			],
+			"From:": [
+				"ຈາກ:"
+			],
+			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"ທ່ານມີການປ່ຽນແປງ %1$d ລາຍການຢູ່ເທິງ PR #%2$d. ທ່ານສາມາດ <review>ກວດສອບພວກມັນ</review> ຫຼື <discard>ຍົກເລີກການປ່ຽນແປງຂອງທ່ານ</discard> ໄດ້. ພວກມັນຈະຍັງຄົງຢູ່ກັບສຳເນົາໃນເຄື່ອງຂອງ pull request ນີ້ ເມື່ອທ່ານຍ້ອນກັບ PR ນີ້."
+			],
+			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"ທ່ານມີການປ່ຽນແປງຢູ່ເທິງ PR #%d. ທ່ານສາມາດ <review>ກວດສອບພວກມັນ</review> ຫຼື <discard>ຍົກເລີກການປ່ຽນແປງຂອງທ່ານ</discard> ໄດ້. ພວກມັນຈະຍັງຄົງຢູ່ກັບສຳເນົາໃນເຄື່ອງຂອງ pull request ນີ້ ເມື່ອທ່ານຍ້ອນກັບ PR ນີ້."
+			],
+			"Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.": [
+				"ການຍົກເລີກການເຊື່ອມໂຍງທິກເກັດນີ້ບໍ່ມີຜົນຕໍ່ການປ່ຽນແປງໃນເຄື່ອງສຳລັບທິກເກັດນີ້ — ພວກມັນຈະຍັງຄົງຕິດຢູ່ກັບເວັບໄຊນີ້, ພ້ອມສຳລັບຕອນທີ່ທ່ານເຊື່ອມໂຍງມັນອີກຄັ້ງ."
+			],
+			"Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.": [
+				"ການຍົກເລີກການເຊື່ອມໂຍງບັນຫານີ້ບໍ່ມີຜົນຕໍ່ການປ່ຽນແປງໃນເຄື່ອງສຳລັບບັນຫານີ້ — ພວກມັນຈະຍັງຄົງຕິດຢູ່ກັບເວັບໄຊນີ້, ພ້ອມສຳລັບຕອນທີ່ທ່ານເຊື່ອມໂຍງມັນອີກຄັ້ງ."
+			],
+			"You have %d change not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"ທ່ານມີການປ່ຽນແປງ %d ລາຍການທີ່ຍັງບໍ່ໄດ້ກຳນົດໃຫ້ທິກເກັດໃດ. ທ່ານສາມາດ <review>ສ້າງ ແລະ ບັນທຶກແພັດຊ໌</review> ຫຼື <discard>ຍົກເລີກການປ່ຽນແປງຂອງທ່ານ</discard> ໄດ້."
+			],
+			"You have %d change not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"ທ່ານມີການປ່ຽນແປງ %d ລາຍການທີ່ຍັງບໍ່ໄດ້ກຳນົດໃຫ້ບັນຫາໃດ. ທ່ານສາມາດ <review>ສ້າງ ແລະ ບັນທຶກແພັດຊ໌</review> ຫຼື <discard>ຍົກເລີກການປ່ຽນແປງຂອງທ່ານ</discard> ໄດ້."
+			],
+			"You have changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"ທ່ານມີການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ກຳນົດໃຫ້ທິກເກັດໃດ. ທ່ານສາມາດ <review>ສ້າງ ແລະ ບັນທຶກແພັດຊ໌</review> ຫຼື <discard>ຍົກເລີກການປ່ຽນແປງຂອງທ່ານ</discard> ໄດ້."
+			],
+			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"ທ່ານມີການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ກຳນົດໃຫ້ບັນຫາໃດ. ທ່ານສາມາດ <review>ສ້າງ ແລະ ບັນທຶກແພັດຊ໌</review> ຫຼື <discard>ຍົກເລີກການປ່ຽນແປງຂອງທ່ານ</discard> ໄດ້."
+			],
+			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
+				"ທິກເກັດນີ້ບໍ່ມີຈຸດເລີ່ມຕົ້ນທີ່ບັນທຶກໄວ້, ແອັບຈຶ່ງບໍ່ສາມາດຍ້າຍງານໄປໃສ່ trunk ປະຈຸບັນໄດ້."
+			],
+			"Only a ticket branch can be moved onto the current trunk.": [
+				"ສະເພາະບຣານຊ໌ຂອງທິກເກັດເທົ່ານັ້ນທີ່ສາມາດຍ້າຍໄປໃສ່ trunk ປະຈຸບັນໄດ້."
+			],
+			"Link a ticket first: trunk is what tickets are measured against, not a ticket.": [
+				"ເຊື່ອມໂຍງທິກເກັດກ່ອນ: trunk ຄືສິ່ງທີ່ໃຊ້ທຽບກັບທິກເກັດ ບໍ່ແມ່ນທິກເກັດທຽບກັນເອງ."
+			],
+			"There is uncommitted work on trunk — decide what happens to it before starting the ticket": [
+				"ມີງານທີ່ຍັງບໍ່ໄດ້ຄອມມິດໃນ trunk — ຕັດສິນໃຈວ່າຈະເຮັດແນວໃດກັບມັນກ່ອນທີ່ຈະເລີ່ມຕົ້ນທິກເກັດ"
+			],
+			"the editor could not be opened (exit code %s)": [
+				"ບໍ່ສາມາດເປີດຕົວແກ້ໄຂໄດ້ (ລະຫັດອອກ %s)"
+			],
+			"the saved work\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"ກູ້ຄືນແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ໄດ້ບິວດ໌ໃໝ່ແລ້ວ. ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"the saved work\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"ກູ້ຄືນແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ກຳລັງຄອມໄພລ໌ການປ່ຽນແປງນີ້ຢູ່. ລໍຖ້າໃຫ້ມັນສຳເລັດກ່ອນທີ່ຈະທົດລອງເວັບໄຊ."
+			],
+			"the saved work\u0004Restored.": [
+				"ກູ້ຄືນແລ້ວ."
+			],
+			"the saved work\u0004Restored — open the site to try it out.": [
+				"ກູ້ຄືນແລ້ວ — ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"the previous branch\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"ກູ້ຄືນແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ໄດ້ບິວດ໌ໃໝ່ແລ້ວ. ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"the previous branch\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"ກູ້ຄືນແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ກຳລັງຄອມໄພລ໌ການປ່ຽນແປງນີ້ຢູ່. ລໍຖ້າໃຫ້ມັນສຳເລັດກ່ອນທີ່ຈະທົດລອງເວັບໄຊ."
+			],
+			"the previous branch\u0004Restored.": [
+				"ກູ້ຄືນແລ້ວ."
+			],
+			"the previous branch\u0004Restored — open the site to try it out.": [
+				"ກູ້ຄືນແລ້ວ — ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"Now on trunk as of %s.": [
+				"ປະຈຸບັນຢູ່ເທິງ trunk ນັບແຕ່ %s."
+			],
+			"Resetting to latest trunk (%s)…": [
+				"ກຳລັງຣີເຊັດໄປທີ່ trunk ຫຼ້າສຸດ (%s)…"
+			],
+			"Already up to date.": [
+				"ເປັນລຸ້ນຫຼ້າສຸດຢູ່ແລ້ວ."
+			],
+			"Fetching latest trunk…": [
+				"ກຳລັງດຶງຂໍ້ມູນ trunk ຫຼ້າສຸດ…"
+			],
+			"Trac returned %s — try opening the ticket again to pass the check.": [
+				"Trac ສົ່ງຄືນຄ່າ %s — ລອງເປີດທິກເກັດອີກຄັ້ງເພື່ອໃຫ້ຜ່ານການກວດສອບ."
+			],
+			"Only https core.trac.wordpress.org attachments are allowed": [
+				"ອະນຸຍາດສະເພາະໄຟລ໌ແນບຈາກ https core.trac.wordpress.org ເທົ່ານັ້ນ"
+			],
+			"%s file": [
+				"%s ໄຟລ໌"
+			],
+			"Ready to work on %s": [
+				"ພ້ອມທີ່ຈະເຮັດວຽກໃນ %s"
+			],
+			"Ready to try %s": [
+				"ພ້ອມທີ່ຈະທົດລອງ %s"
+			],
+			"Checking which files change…": [
+				"ກຳລັງກວດສອບວ່າໄຟລ໌ໃດມີການປ່ຽນແປງ…"
+			],
+			"Swapping files for %s…": [
+				"ກຳລັງສະຫຼັບໄຟລ໌ສຳລັບ %s…"
+			],
+			"Swapping files…": [
+				"ກຳລັງສະຫຼັບໄຟລ໌…"
+			],
+			"Moving your work on %s onto the current trunk…": [
+				"ກຳລັງຍ້າຍງານຂອງທ່ານໃນ %s ໄປໃສ່ trunk ປະຈຸບັນ…"
+			],
+			"Moving your edits on %s onto the current trunk…": [
+				"ກຳລັງຍ້າຍການແກ້ໄຂຂອງທ່ານໃນ %s ໄປໃສ່ trunk ປະຈຸບັນ…"
+			],
+			"Moving your work onto the current trunk…": [
+				"ກຳລັງຍ້າຍງານຂອງທ່ານໄປໃສ່ trunk ປະຈຸບັນ…"
+			],
+			"Saving your work on %s…": [
+				"ກຳລັງບັນທຶກງານຂອງທ່ານໃນ %s…"
+			],
+			"Saving your edits on %s…": [
+				"ກຳລັງບັນທຶກການແກ້ໄຂຂອງທ່ານໃນ %s…"
+			],
+			"Saving your work…": [
+				"ກຳລັງບັນທຶກງານຂອງທ່ານ…"
+			],
+			"The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.": [
+				"ຕົວຕິດຕາມການບິວດ໌ກຳລັງບິວດ໌ໃໝ່ຫຼັງຈາກການປ່ຽນແປງນີ້. ລໍຖ້າໃຫ້ມັນກັບມາຕິດຕາມອີກຄັ້ງກ່ອນທີ່ຈະທົດລອງເວັບໄຊ."
+			],
+			"Start the build watch, or run %s in the Terminal.": [
+				"ເລີ່ມຕົ້ນຕົວຕິດຕາມການບິວດ໌, ຫຼື ສັ່ງໃຊ້ງານ %s ໃນເທິມີນໍ."
+			],
+			"The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"ຕົວຕິດຕາມການບິວດ໌ກຳລັງຄອມໄພລ໌ການປ່ຽນແປງນີ້ຢູ່. ລໍຖ້າໃຫ້ມັນສຳເລັດກ່ອນທີ່ຈະທົດລອງເວັບໄຊ."
+			],
+			"PR #%s is applied.": [
+				"PR #%s ຖືກນຳໃຊ້ແລ້ວ."
+			],
+			"The build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"ຕົວຕິດຕາມການບິວດ໌ຢຸດເຮັດວຽກກ່ອນທີ່ຈະບິວດ໌ໃໝ່ສຳເລັດ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນ (assets) ເກົ່າຢູ່."
+			],
+			"PR #%s is applied but not built.": [
+				"PR #%s ຖືກນຳໃຊ້ແລ້ວແຕ່ຍັງບໍ່ໄດ້ບິວດ໌."
+			],
+			"PR #%s is applied. The site is rebuilding.": [
+				"PR #%s ຖືກນຳໃຊ້ແລ້ວ. ເວັບໄຊກຳລັງບິວດ໌ໃໝ່."
+			],
+			"Update incomplete — the build watch stopped before it finished rebuilding.": [
+				"ການອັບເດດບໍ່ສົມບູນ — ຕົວຕິດຕາມການບິວດ໌ຢຸດເຮັດວຽກກ່ອນທີ່ຈະບິວດ໌ໃໝ່ສຳເລັດ."
+			],
+			"Update complete — the build watch has rebuilt, and this site is now on the latest trunk.": [
+				"ການອັບເດດສຳເລັດແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ໄດ້ບິວດ໌ໃໝ່ແລ້ວ, ແລະ ເວັບໄຊນີ້ຢູ່ເທິງ trunk ຫຼ້າສຸດແລ້ວ."
+			],
+			"Update incomplete — the build watch was stopped, so nothing rebuilt.": [
+				"ການອັບເດດບໍ່ສົມບູນ — ຕົວຕິດຕາມການບິວດ໌ຖືກຢຸດໄວ້, ຈຶ່ງບໍ່ມີສິ່ງໃດຖືກບິວດ໌ໃໝ່."
+			],
+			"The code is new but the built assets are old; retry install & build from the banner above.": [
+				"ໂຄດເປັນອັນໃໝ່ແຕ່ຊັບພະຍາກອນທີ່ບິວດ໌ຍັງເປັນອັນເກົ່າ; ລອງຕິດຕັ້ງ ແລະ ບິວດ໌ໃໝ່ອີກຄັ້ງຈາກແຖບປ້າຍດ້ານເທິງ."
+			],
+			"The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"ແພັດຊ໌ຖືກນຳໃຊ້ແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຢຸດເຮັດວຽກກ່ອນທີ່ຈະບິວດ໌ໃໝ່ສຳເລັດ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"The patch is applied but the build watch was stopped, so the site still runs the old assets.": [
+				"ແພັດຊ໌ຖືກນຳໃຊ້ແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຖືກຢຸດໄວ້, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"%s failed, so the build was skipped. The patch is applied but dependencies are stale.": [
+				"%s ຫຼົ້ມເຫຼວ, ການບິວດ໌ຈຶ່ງຖືກຂ້າມໄປ. ແພັດຊ໌ຖືກນຳໃຊ້ແລ້ວແຕ່ dependency ຍັງເປັນລຸ້ນເກົ່າ."
+			],
+			"The patch is applied but the build failed, so the site still runs the old assets.": [
+				"ແພັດຊ໌ຖືກນຳໃຊ້ແລ້ວ ແຕ່ການບິວດ໌ຫຼົ້ມເຫຼວ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"The patch changes %1$s — running %2$s…": [
+				"ແພັດຊ໌ມີການປ່ຽນແປງ %1$s — ກຳລັງສັ່ງໃຊ້ງານ %2$s…"
+			],
+			"Applied — the build watch has rebuilt. Open the site to try it out.": [
+				"ນຳໃຊ້ແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ໄດ້ບິວດ໌ໃໝ່ແລ້ວ. ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"ນຳໃຊ້ແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ກຳລັງຄອມໄພລ໌ການປ່ຽນແປງນີ້ຢູ່. ລໍຖ້າໃຫ້ມັນສຳເລັດກ່ອນທີ່ຈະທົດລອງເວັບໄຊ."
+			],
+			"Applied.": [
+				"ນຳໃຊ້ແລ້ວ."
+			],
+			"Applied — open the site to try it out.": [
+				"ນຳໃຊ້ແລ້ວ — ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"ງານທີ່ບັນທຶກໄວ້ຖືກກູ້ຄືນແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຢຸດເຮັດວຽກກ່ອນທີ່ຈະບິວດ໌ໃໝ່ສຳເລັດ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"The saved work is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"ງານທີ່ບັນທຶກໄວ້ຖືກກູ້ຄືນແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຖືກຢຸດໄວ້, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"%s failed, so the build was skipped. The saved work is restored but dependencies are stale.": [
+				"%s ຫຼົ້ມເຫຼວ, ການບິວດ໌ຈຶ່ງຖືກຂ້າມໄປ. ງານທີ່ບັນທຶກໄວ້ຖືກກູ້ຄືນແລ້ວແຕ່ dependency ຍັງເປັນລຸ້ນເກົ່າ."
+			],
+			"The saved work is restored but the build failed, so the site still runs the old assets.": [
+				"ງານທີ່ບັນທຶກໄວ້ຖືກກູ້ຄືນແລ້ວ ແຕ່ການບິວດ໌ຫຼົ້ມເຫຼວ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"The saved work changes %1$s — running %2$s…": [
+				"ງານທີ່ບັນທຶກໄວ້ມີການປ່ຽນແປງ %1$s — ກຳລັງສັ່ງໃຊ້ງານ %2$s…"
+			],
+			"The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"ບຣານຊ໌ກ່ອນໜ້າຖືກກູ້ຄືນແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຢຸດເຮັດວຽກກ່ອນທີ່ຈະບິວດ໌ໃໝ່ສຳເລັດ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"The previous branch is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"ບຣານຊ໌ກ່ອນໜ້າຖືກກູ້ຄືນແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຖືກຢຸດໄວ້, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.": [
+				"%s ຫຼົ້ມເຫຼວ, ການບິວດ໌ຈຶ່ງຖືກຂ້າມໄປ. ບຣານຊ໌ກ່ອນໜ້າຖືກກູ້ຄືນແລ້ວແຕ່ dependency ຍັງເປັນລຸ້ນເກົ່າ."
+			],
+			"The previous branch is restored but the build failed, so the site still runs the old assets.": [
+				"ບຣານຊ໌ກ່ອນໜ້າຖືກກູ້ຄືນແລ້ວ ແຕ່ການບິວດ໌ຫຼົ້ມເຫຼວ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"The previous branch changes %1$s — running %2$s…": [
+				"ບຣານຊ໌ກ່ອນໜ້າມີການປ່ຽນແປງ %1$s — ກຳລັງສັ່ງໃຊ້ງານ %2$s…"
+			],
+			"The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Pull request ຖືກເຊັກເອົາທ໌ແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຢຸດເຮັດວຽກກ່ອນທີ່ຈະບິວດ໌ໃໝ່ສຳເລັດ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"The pull request is checked out but the build watch was stopped, so the site still runs the old assets.": [
+				"Pull request ຖືກເຊັກເອົາທ໌ແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຖືກຢຸດໄວ້, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.": [
+				"%s ຫຼົ້ມເຫຼວ, ການບິວດ໌ຈຶ່ງຖືກຂ້າມໄປ. Pull request ຖືກເຊັກເອົາທ໌ແລ້ວແຕ່ dependency ຍັງເປັນລຸ້ນເກົ່າ."
+			],
+			"The pull request is checked out but the build failed, so the site still runs the old assets.": [
+				"Pull request ຖືກເຊັກເອົາທ໌ແລ້ວ ແຕ່ການບິວດ໌ຫຼົ້ມເຫຼວ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"The pull request changes %1$s — running %2$s…": [
+				"Pull request ມີການປ່ຽນແປງ %1$s — ກຳລັງສັ່ງໃຊ້ງານ %2$s…"
+			],
+			"Checked out — the build watch has rebuilt. Open the site to try it out.": [
+				"ເຊັກເອົາທ໌ແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ໄດ້ບິວດ໌ໃໝ່ແລ້ວ. ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"ເຊັກເອົາທ໌ແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ກຳລັງຄອມໄພລ໌ການປ່ຽນແປງນີ້ຢູ່. ລໍຖ້າໃຫ້ມັນສຳເລັດກ່ອນທີ່ຈະທົດລອງເວັບໄຊ."
+			],
+			"Checked out.": [
+				"ເຊັກເອົາທ໌ແລ້ວ."
+			],
+			"Checked out — open the site to try it out.": [
+				"ເຊັກເອົາທ໌ແລ້ວ — ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"ແພັດຊ໌ຖືກຍ້ອນກັບແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຢຸດເຮັດວຽກກ່ອນທີ່ຈະບິວດ໌ໃໝ່ສຳເລັດ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"The patch is reverted but the build watch was stopped, so the site still runs the old assets.": [
+				"ແພັດຊ໌ຖືກຍ້ອນກັບແລ້ວ ແຕ່ຕົວຕິດຕາມການບິວດ໌ຖືກຢຸດໄວ້, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"%s failed, so the build was skipped. The patch is reverted but dependencies are stale.": [
+				"%s ຫຼົ້ມເຫຼວ, ການບິວດ໌ຈຶ່ງຖືກຂ້າມໄປ. ແພັດຊ໌ຖືກຍ້ອນກັບແລ້ວແຕ່ dependency ຍັງເປັນລຸ້ນເກົ່າ."
+			],
+			"The patch is reverted but the build failed, so the site still runs the old assets.": [
+				"ແພັດຊ໌ຖືກຍ້ອນກັບແລ້ວ ແຕ່ການບິວດ໌ຫຼົ້ມເຫຼວ, ເວັບໄຊຈຶ່ງຍັງໃຊ້ຊັບພະຍາກອນເກົ່າຢູ່."
+			],
+			"Reverted — the build watch has rebuilt. Open the site to try it out.": [
+				"ຍ້ອນກັບແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ໄດ້ບິວດ໌ໃໝ່ແລ້ວ. ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"ຍ້ອນກັບແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ກຳລັງຄອມໄພລ໌ການປ່ຽນແປງນີ້ຢູ່. ລໍຖ້າໃຫ້ມັນສຳເລັດກ່ອນທີ່ຈະທົດລອງເວັບໄຊ."
+			],
+			"Reverted.": [
+				"ຍ້ອນກັບແລ້ວ."
+			],
+			"Reverted — open the site to try it out.": [
+				"ຍ້ອນກັບແລ້ວ — ເປີດເວັບໄຊເພື່ອທົດລອງໃຊ້ງານ."
+			],
+			"The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.": [
+				"ຕົວຕິດຕາມການບິວດ໌ຈະບິວດ໌ %s ໃໝ່ທັງໝົດເມື່ອເລີ່ມຕົ້ນໃໝ່ — ເບິ່ງຜົນໄດ້ທີ່ ບັນທຶກເຫດການ (Logs), ພາຍໃຕ້ ຕົວຕິດຕາມການບິວດ໌. ການອັບເດດຈະສຳເລັດເມື່ອມັນກັບມາຕິດຕາມອີກຄັ້ງ."
+			],
+			"This pull request is closed. You can still check out its last head to investigate it.": [
+				"Pull request ນີ້ຖືກປິດແລ້ວ. ທ່ານຍັງສາມາດເຊັກເອົາທ໌ head ຫຼ້າສຸດຂອງມັນເພື່ອກວດສອບໄດ້."
+			],
+			"Return to saved copy": [
+				"ກັບຄືນໄປຍັງສຳເນົາທີ່ບັນທຶກໄວ້"
+			],
+			"PR #%d is already on this site; you will switch to your local copy.": [
+				"PR #%d ມີຢູ່ໃນເວັບໄຊນີ້ແລ້ວ; ທ່ານຈະສະຫຼັບໄປຍັງສຳເນົາໃນເຄື່ອງຂອງທ່ານ."
+			],
+			"PR #%d has moved on GitHub; your local copy will be updated.": [
+				"PR #%d ມີການເຄື່ອນໄຫວໃນ GitHub; ສຳເນົາໃນເຄື່ອງຂອງທ່ານຈະຖືກອັບເດດ."
+			],
+			"PR #%d has moved on GitHub, but your copy has edits on top.": [
+				"PR #%d ມີການເຄື່ອນໄຫວໃນ GitHub, ແຕ່ສຳເນົາຂອງທ່ານມີການແກ້ໄຂເພີ່ມເຕີມ."
+			],
+			"PR #%1$d changes %2$d file.": [
+				"PR #%1$d ປ່ຽນແປງ %2$d ໄຟລ໌."
+			],
+			"Could not switch this pull request. Check the log and try again.": [
+				"ບໍ່ສາມາດສະຫຼັບ pull request ນີ້ໄດ້. ກວດສອບບັນທຶກເຫດການ ແລ້ວລອງໃໝ່ອີກຄັ້ງ."
+			],
+			"This pull request has no recorded starting point, so the app cannot safely save its edits. Save a patch before changing branches.": [
+				"Pull request ນີ້ບໍ່ມີຈຸດເລີ່ມຕົ້ນທີ່ບັນທຶກໄວ້, ແອັບຈຶ່ງບໍ່ສາມາດບັນທຶກການແກ້ໄຂໄດ້ຢ່າງປອດໄພ. ບັນທຶກແພັດຊ໌ກ່ອນທີ່ຈະປ່ຽນບຣານຊ໌."
+			],
+			"No pull request is checked out on this site.": [
+				"ບໍ່ມີ pull request ທີ່ຖືກເຊັກເອົາທ໌ໃນເວັບໄຊນີ້."
+			],
+			"Enter a positive whole pull request number.": [
+				"ປ້ອນໝາຍເລກ pull request ເປັນຈຳນວນຖ້ວນບວກ."
+			],
+			"PR #%d is already checked out. Revert it before applying it again.": [
+				"PR #%d ຖືກເຊັກເອົາທ໌ແລ້ວ. ໃຫ້ຍ້ອນກັບມັນກ່ອນທີ່ຈະນຳໃຊ້ອີກຄັ້ງ."
+			],
+			"This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.": [
+				"ເວັບໄຊນີ້ມີບຣານຊ໌ຊື່ pr/%d ທີ່ແອັບບໍ່ໄດ້ສ້າງຂຶ້ນຢູ່ແລ້ວ. ປ່ຽນຊື່ ຫຼື ລຶບບຣານຊ໌ນັ້ນຈາກເທິມີນໍກ່ອນທີ່ຈະລອງໃໝ່."
+			],
+			"PR #%d has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.": [
+				"PR #%d ມີການເຄື່ອນໄຫວໃນ GitHub ແລະ ສຳເນົາຂອງທ່ານມີການແກ້ໄຂເພີ່ມເຕີມ. ຍົກເລີກການແກ້ໄຂເຫຼົ່ານັ້ນກ່ອນທີ່ຈະອັບເດດ, ຫຼື ເກັບຮັກສາສຳເນົາທີ່ທ່ານມີໄວ້."
+			],
+			"Revert this PR": [
+				"ຍ້ອນກັບ PR ນີ້"
+			],
+			"Edits you make here stay with your local copy of the PR.": [
+				"ການແກ້ໄຂທີ່ທ່ານເຮັດຢູ່ນີ້ຈະຢູ່ກັບສຳເນົາ PR ໃນເຄື່ອງຂອງທ່ານ."
+			],
+			"Your edits here stay with your local copy of the PR.": [
+				"ການແກ້ໄຂຂອງທ່ານຢູ່ນີ້ຈະຢູ່ກັບສຳເນົາ PR ໃນເຄື່ອງຂອງທ່ານ."
+			],
+			"Your ticket changes are saved separately and return when you revert this PR.": [
+				"ການປ່ຽນແປງທິກເກັດຂອງທ່ານຖືກບັນທຶກແຍກຕ່າງຫາກ ແລະ ຈະກັບຄືນມາເມື່ອທ່ານຍ້ອນກັບ PR ນີ້."
+			],
+			"Your issue changes are saved separately and return when you revert this PR.": [
+				"ການປ່ຽນແປງບັນຫາຂອງທ່ານຖືກບັນທຶກແຍກຕ່າງຫາກ ແລະ ຈະກັບຄືນມາເມື່ອທ່ານຍ້ອນກັບ PR ນີ້."
+			],
+			"Reverting this PR returns to trunk.": [
+				"ການຍ້ອນກັບ PR ນີ້ຈະກັບຄືນສູ່ trunk."
+			],
+			"Setup failed: %s": [
+				"ການຕິດຕັ້ງຫຼົ້ມເຫຼວ: %s"
+			],
+			"Site setup request completed.": [
+				"ຄຳຮ້ອງຂໍຕິດຕັ້ງເວັບໄຊສຳເລັດແລ້ວ."
+			],
+			"Starting site setup…": [
+				"ກຳລັງເລີ່ມຕົ້ນການຕິດຕັ້ງເວັບໄຊ…"
+			],
+			"Cloning repository…": [
+				"ກຳລັງໂຄລນຄັງເກັບໂຄດ (repository)…"
+			],
+			"Setup finished.": [
+				"ການຕິດຕັ້ງສຳເລັດແລ້ວ."
+			],
+			"Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.": [
+				"ພິມ <code><command /></code> ເພື່ອເບິ່ງລາຍການຄຳສັ່ງທີ່ຮອງຮັບ. ກົດ <code><keys /></code> ເພື່ອຢຸດຄຳສັ່ງປະຈຸບັນ."
+			],
+			"Added a dependency to <code><file /></code>? Run <command />.": [
+				"ເພີ່ມ dependency ເຂົ້າໃນ <code><file /></code> ແລ້ວບໍ? ສັ່ງໃຊ້ງານ <command />."
+			],
+			"Edited files in <code><folder /></code>? Run <command /> so the site picks them up.": [
+				"ແກ້ໄຂໄຟລ໌ໃນ <code><folder /></code> ແລ້ວບໍ? ສັ່ງໃຊ້ງານ <command /> ເພື່ອໃຫ້ເວັບໄຊດຶງການປ່ຽນແປງໄປໃຊ້."
+			],
+			"Setting this site up — running %s…": [
+				"ກຳລັງຕິດຕັ້ງເວັບໄຊນີ້ — ກຳລັງສັ່ງໃຊ້ງານ %s…"
+			],
+			"Stopping setup…": [
+				"ກຳລັງຢຸດການຕິດຕັ້ງ…"
+			],
+			"Debug.log": [
+				"Debug.log"
+			],
+			"Debug.log (%d)": [
+				"Debug.log (%d)"
+			],
+			"Discarded local changes.": [
+				"ຍົກເລີກການປ່ຽນແປງໃນເຄື່ອງແລ້ວ."
+			],
+			"Saved your changes to %s and reset the working tree.": [
+				"ບັນທຶກການປ່ຽນແປງຂອງທ່ານໄປທີ່ %s ແລະ ຣີເຊັດ working tree ແລ້ວ."
+			],
+			"Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.": [
+				"ການອັບເດດບໍ່ສົມບູນ — %s ຫຼົ້ມເຫຼວ. ໂຄດເປັນອັນໃໝ່ແຕ່ dependency ແລະ ຊັບພະຍາກອນທີ່ບິວດ໌ຍັງເປັນອັນເກົ່າ; ລອງຕິດຕັ້ງ ແລະ ບິວດ໌ໃໝ່ອີກຄັ້ງຈາກແຖບປ້າຍດ້ານເທິງ."
+			],
+			"%1$s changed — running %2$s (only the changed packages are downloaded)…": [
+				"%1$s ມີການປ່ຽນແປງ — ກຳລັງສັ່ງໃຊ້ງານ %2$s (ດາວໂຫຼດສະເພາະແພັກເກດທີ່ມີການປ່ຽນແປງເທົ່ານັ້ນ)…"
+			],
+			"Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.": [
+				"ການອັບເດດບໍ່ສົມບູນ — ການບິວດ໌ຫຼົ້ມເຫຼວ. ໂຄດເປັນອັນໃໝ່ແຕ່ຊັບພະຍາກອນທີ່ບິວດ໌ຍັງເປັນອັນເກົ່າ; ລອງຕິດຕັ້ງ ແລະ ບິວດ໌ໃໝ່ອີກຄັ້ງຈາກແຖບປ້າຍດ້ານເທິງ."
+			],
+			"Update complete — this site is now on the latest trunk.": [
+				"ການອັບເດດສຳເລັດແລ້ວ — ເວັບໄຊນີ້ຢູ່ເທິງ trunk ຫຼ້າສຸດແລ້ວ."
+			],
+			"WordPress npm helper terminal.": [
+				"ເທິມີນໍຊ່ວຍເຫຼືອ npm ຂອງ WordPress."
+			],
+			"A command is already running. Press %s to stop it.": [
+				"ມີຄຳສັ່ງກຳລັງເຮັດວຽກຢູ່ແລ້ວ. ກົດ %s ເພື່ອຢຸດ."
+			],
+			"Try \"%s\" for the list of supported commands.": [
+				"ລອງໃຊ້ \"%s\" ເພື່ອເບິ່ງລາຍການຄຳສັ່ງທີ່ຮອງຮັບ."
+			],
+			"Unsupported command: %s": [
+				"ຄຳສັ່ງທີ່ບໍ່ຮອງຮັບ: %s"
+			],
+			"Unsupported script \"%1$s\". Allowed scripts: %2$s": [
+				"ສະຄຣິບ \"%1$s\" ບໍ່ໄດ້ຮັບການຮອງຮັບ. ສະຄຣິບທີ່ອະນຸຍາດ: %2$s"
+			],
+			"Missing script name. Example: %s": [
+				"ຂາດຊື່ສະຄຣິບ. ຕົວຢ່າງ: %s"
+			],
+			"Run them here whenever you change files or add a dependency afterwards.": [
+				"ສັ່ງໃຊ້ງານພວກມັນຢູ່ນີ້ເມື່ອໃດກໍຕາມທີ່ທ່ານປ່ຽນແປງໄຟລ໌ ຫຼື ເພີ່ມ dependency ພາຍຫຼັງ."
+			],
+			"The setup checklist runs %1$s and %2$s once.": [
+				"ລາຍການກວດສອບການຕິດຕັ້ງຈະສັ່ງໃຊ້ງານ %1$s ແລະ %2$s ຄັ້ງດຽວ."
+			],
+			"%1$s Run one of: %2$s": [
+				"%1$s ສັ່ງໃຊ້ງານອັນໃດອັນໜຶ່ງໃນນີ້: %2$s"
+			],
+			"%1$s Run %2$s in the site directory": [
+				"%1$s ສັ່ງໃຊ້ງານ %2$s ໃນໄດເຣັກທໍຣີເວັບໄຊ"
+			],
+			"%s Show this help text": [
+				"%s ສະແດງຂໍ້ຄວາມຊ່ວຍເຫຼືອນີ້"
+			],
+			"Available commands:": [
+				"ຄຳສັ່ງທີ່ສາມາດໃຊ້ໄດ້:"
+			],
+			"Could not show the log file: %s": [
+				"ບໍ່ສາມາດສະແດງໄຟລ໌ບັນທຶກເຫດການໄດ້: %s"
+			],
+			"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was not.": [
+				"ບໍ່ສາມາດລຶບ debug.log ຂອງ %1$s ໄດ້: %2$s. ແຜງຄວບຄຸມຖືກລຶບແລ້ວ ແຕ່ໄຟລ໌ຍັງບໍ່ໄດ້ຖືກລຶບ."
+			],
+			"Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.": [
+				"ການເລີ່ມຕົ້ນເຊີບເວີພັດທະນາຖືກຍົກເລີກ: ຕົວຕິດຕາມການບິວດ໌ຢຸດເຮັດວຽກກ່ອນທີ່ %s ຈະສຳເລັດ. ເລີ່ມຕົ້ນມັນໃໝ່ເມື່ອຕົວຕິດຕາມເຮັດວຽກແລ້ວ."
+			],
+			"%s is complete: starting the server without the build watch. Start build watch to compile edits on save.": [
+				"%s ສຳເລັດແລ້ວ: ກຳລັງເລີ່ມຕົ້ນເຊີບເວີໂດຍບໍ່ມີຕົວຕິດຕາມການບິວດ໌. ເລີ່ມຕົ້ນຕົວຕິດຕາມການບິວດ໌ເພື່ອຄອມໄພລ໌ການແກ້ໄຂເມື່ອບັນທຶກ."
+			],
+			"Failed to start PHP server: %s": [
+				"ເລີ່ມຕົ້ນເຊີບເວີ PHP ບໍ່ສຳເລັດ: %s"
+			],
+			"unknown error": [
+				"ຂໍ້ຜິດພາດທີ່ບໍ່ຮູ້ສາເຫດ"
+			],
+			"Dev server failed to start: %s": [
+				"ເລີ່ມຕົ້ນເຊີບເວີພັດທະນາບໍ່ສຳເລັດ: %s"
+			],
+			"Dev server stopped unexpectedly (see Help → %s for details).": [
+				"ເຊີບເວີພັດທະນາຢຸດເຮັດວຽກໂດຍບໍ່ຄາດຄິດ (ເບິ່ງ ການຊ່ວຍເຫຼືອ → %s ສຳລັບລາຍລະອຽດ)."
+			],
+			"Resumed.": [
+				"ສືບຕໍ່ແລ້ວ."
+			],
+			"Paused while another operation uses the build.": [
+				"ຢຸດຊົ່ວຄາວໃນຂະນະທີ່ການດຳເນີນການອື່ນກຳລັງໃຊ້ງານການບິວດ໌."
+			],
+			"%1$s failed with code %2$s — build watch not started.": [
+				"%1$s ຫຼົ້ມເຫຼວດ້ວຍລະຫັດ %2$s — ຕົວຕິດຕາມການບິວດ໌ບໍ່ໄດ້ເລີ່ມຕົ້ນ."
+			],
+			"%s was stopped — build watch not started.": [
+				"%s ຖືກຢຸດແລ້ວ — ຕົວຕິດຕາມການບິວດ໌ບໍ່ໄດ້ເລີ່ມຕົ້ນ."
+			],
+			"No completed build found — running %s first…": [
+				"ບໍ່ພົບການບິວດ໌ທີ່ສຳເລັດ — ກຳລັງສັ່ງໃຊ້ງານ %s ກ່ອນ…"
+			],
+			"A command is already running in the terminal — stop it before starting the build watch.": [
+				"ມີຄຳສັ່ງກຳລັງເຮັດວຽກຢູ່ໃນເທິມີນໍແລ້ວ — ຢຸດມັນກ່ອນທີ່ຈະເລີ່ມຕົ້ນຕົວຕິດຕາມການບິວດ໌."
+			],
+			"%1$s exited with code %2$s": [
+				"%1$s ອອກຈາກການເຮັດວຽກດ້ວຍລະຫັດ %2$s"
+			],
+			"%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for \"%3$s\".": [
+				"%1$s ບິວດ໌ %2$s ໃໝ່ກ່ອນທີ່ຈະເລີ່ມຕິດຕາມ. ເຊີບເວີພັດທະນາ (ຖ້າທ່ານເລີ່ມຕົ້ນໄວ້) ຈະລໍຖ້າ \"%3$s\"."
+			],
+			"The patch could not be applied.": [
+				"ບໍ່ສາມາດນຳໃຊ້ແພັດຊ໌ໄດ້."
+			],
+			"%s The record of it could not be cleared, so this site still thinks it is applied.": [
+				"%s ບໍ່ສາມາດລຶບປະຫວັດບັນທຶກຂອງມັນໄດ້, ເວັບໄຊນີ້ຈຶ່ງຍັງຄິດວ່າມັນຖືກນຳໃຊ້ອີກຢູ່."
+			],
+			"%s The applied-patch record has been cleared.": [
+				"%s ປະຫວັດບັນທຶກແພັດຊ໌ທີ່ນຳໃຊ້ແລ້ວຖືກລຶບລ້າງອອກແລ້ວ."
+			],
+			"A command is already running. Stop it before switching tickets.": [
+				"ມີຄຳສັ່ງກຳລັງເຮັດວຽກຢູ່ແລ້ວ. ຢຸດມັນກ່ອນທີ່ຈະສະຫຼັບທິກເກັດ."
+			],
+			"Could not read that patch.": [
+				"ບໍ່ສາມາດອ່ານແພັດຊ໌ນັ້ນໄດ້."
+			],
+			"Could not download %s.": [
+				"ບໍ່ສາມາດດາວໂຫຼດ %s ໄດ້."
+			],
+			"Could not read that file: %s": [
+				"ບໍ່ສາມາດອ່ານໄຟລ໌ນັ້ນໄດ້: %s"
+			],
+			"Running %s…": [
+				"ກຳລັງສັ່ງໃຊ້ງານ %s…"
+			],
+			"Build watch (exited %d)": [
+				"ຕົວຕິດຕາມການບິວດ໌ (ອອກດ້ວຍລະຫັດ %d)"
+			],
+			"Build watch (stopped)": [
+				"ຕົວຕິດຕາມການບິວດ໌ (ຢຸດແລ້ວ)"
+			],
+			"Build watch (paused)": [
+				"ຕົວຕິດຕາມການບິວດ໌ (ຢຸດຊົ່ວຄາວ)"
+			],
+			"Build watch (building)": [
+				"ຕົວຕິດຕາມການບິວດ໌ (ກຳລັງບິວດ໌)"
+			],
+			"Build watch (watching)": [
+				"ຕົວຕິດຕາມການບິວດ໌ (ກຳລັງຕິດຕາມ)"
+			],
+			"Build watch (compiling)": [
+				"ຕົວຕິດຕາມການບິວດ໌ (ກຳລັງຄອມໄພລ໌)"
+			],
+			"Could not copy": [
+				"ບໍ່ສາມາດສຳເນົາໄດ້"
+			],
+			"The build failed — dependencies are installed. Its output is above; retry the build from the checklist.": [
+				"ການບິວດ໌ຫຼົ້ມເຫຼວ — dependency ຖືກຕິດຕັ້ງແລ້ວ. ຜົນການເຮັດວຽກຢູ່ດ້ານເທິງ; ລອງບິວດ໌ໃໝ່ຈາກລາຍການກວດສອບ."
+			],
+			"%s failed — setup stopped here. Its output is above; retry the install from the checklist.": [
+				"%s ຫຼົ້ມເຫຼວ — ການຕິດຕັ້ງຢຸດລົງຢູ່ນີ້. ຜົນການເຮັດວຽກຢູ່ດ້ານເທິງ; ລອງຕິດຕັ້ງໃໝ່ຈາກລາຍການກວດສອບ."
+			],
+			"Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.": [
+				"ການຕິດຕັ້ງຢຸດແລ້ວ. ຂັ້ນຕອນທີ່ເຫຼືອຢູ່ໃນລາຍການກວດສອບດ້ານເທິງ — ສັ່ງໃຊ້ງານເມື່ອທ່ານພ້ອມ."
+			],
+			"Setup complete — start the dev server when you are ready.": [
+				"ການຕິດຕັ້ງສຳເລັດແລ້ວ — ເລີ່ມຕົ້ນເຊີບເວີພັດທະນາເມື່ອທ່ານພ້ອມ."
+			],
+			"Status update": [
+				"ອັບເດດສະຖານະ"
+			],
+			"Status: done": [
+				"ສະຖານະ: ສຳເລັດ"
+			],
+			"Status: cloning": [
+				"ສະຖານະ: ກຳລັງໂຄລນ"
+			],
+			"Clear": [
+				"ລຶບລ້າງ"
+			],
+			"Show in folder": [
+				"ສະແດງໃນໂຟນເດີ"
+			],
+			"The log file appears once the dev server has run.": [
+				"ໄຟລ໌ບັນທຶກເຫດການຈະປາກົດຂຶ້ນເມື່ອເຊີບເວີພັດທະນາໄດ້ເລີ່ມເຮັດວຽກ."
+			],
+			"No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.": [
+				"ຍັງບໍ່ມີແຈ້ງເຕືອນ (notices) ຫຼື ຂໍ້ຜິດພາດ (errors) ຂອງ PHP. ສິ່ງຕ່າງໆທີ່ WordPress ຫຼື ໂຄດຂອງທ່ານຂຽນອອກມາ — <code><function /></code>, ແຈ້ງເຕືອນ, deprecations, fatals — ຈະປາກົດຢູ່ນີ້ໃນຂະນະທີ່ເຊີບເວີພັດທະນາກຳລັງເຮັດວຽກ."
+			],
+			"The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.": [
+				"ຕົວຕິດຕາມການບິວດ໌ຈະຄອມໄພລ໌ການແກ້ໄຂ <code><source /></code> ໄປເປັນ <code><build /></code>. ມັນເຮັດວຽກແຍກຕ່າງຫາກຈາກເຊີບເວີພັດທະນາ — ຜົນການເຮັດວຽກຂອງມັນ, ແລະ ສະຖານະບໍ່ວ່າຈະກຳລັງຕິດຕາມ, ຢຸດຊົ່ວຄາວ, ຫຼື ຢຸດແລ້ວ ຈະປາກົດຢູ່ນີ້."
+			],
+			"it no longer fits": [
+				"ມັນບໍ່ເຂົ້າກັນອີກຕໍ່ໄປ"
+			],
+			"Open the pull request": [
+				"ເປີດ pull request"
+			],
+			"the code around it has changed": [
+				"ໂຄດອ້ອມຂ້າງມີການປ່ຽນແປງ"
+			],
+			"looks like that change is not in your checkout any more": [
+				"ເບິ່ງຄືວ່າການປ່ຽນແປງນັ້ນບໍ່ໄດ້ຢູ່ໃນ checkout ຂອງທ່ານອີກຕໍ່ໄປ"
+			],
+			"It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"ຕອນນີ້ມັນເປັນສ່ວນໜຶ່ງຂອງການປ່ຽນແປງຂອງທ່ານແລ້ວ. ການຍົກເລີກການແກ້ໄຂຂອງທ່ານໃນແຖວເຫຼົ່ານັ້ນຈະນຳປຸ່ມ ຍ້ອນກັບ (Revert) ກັບຄືນມາ; ຖ້າບໍ່ດັ່ງນັ້ນ ໃຫ້ບັນທຶກສຳເນົາງານຂອງທ່ານ ແລະ ຍົກເລີກທິກເກັດກັບໄປສູ່ຄ່າເລີ່ມຕົ້ນ — ໃນໂຄງການນີ້ ນັ້ນເປັນວິທີແກ້ໄຂປົກກະຕິ, ບໍ່ໄດ້ເສຍເວລາລ້າໆ."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.": [
+				"ແພັດຊ໌ນັ້ນບໍ່ສາມາດຖອນອອກໄດ້ດ້ວຍຕົນເອງ: ການແກ້ໄຂຂອງທ່ານຢູ່ໃນ %1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການ, ໃນ %3$d ໄຟລ໌."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.": [
+				"ແພັດຊ໌ນັ້ນບໍ່ສາມາດຖອນອອກໄດ້ດ້ວຍຕົນເອງ: ການແກ້ໄຂຂອງທ່ານຢູ່ໃນ %1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການ."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.": [
+				"%1$s ບໍ່ສາມາດຖອນອອກໄດ້ດ້ວຍຕົນເອງ: ການແກ້ໄຂຂອງທ່ານຢູ່ໃນ %2$d ຂອງການປ່ຽນແປງ %3$d ລາຍການ, ໃນ %4$d ໄຟລ໌."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.": [
+				"%1$s ບໍ່ສາມາດຖອນອອກໄດ້ດ້ວຍຕົນເອງ: ການແກ້ໄຂຂອງທ່ານຢູ່ໃນ %2$d ຂອງການປ່ຽນແປງ %3$d ລາຍການ."
+			],
+			"Ask its author for a rebase": [
+				"ຂໍໃຫ້ຜູ້ຂຽນທຳການ rebase"
+			],
+			"Bringing it up to date is its author's work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.": [
+				"ການເຮັດໃຫ້ມັນເປັນປັດຈຸບັນເປັນໜ້າທີ່ຂອງຜູ້ຂຽນ — ການ rebase, ຫຼື ການ merge trunk ເຂົ້າ. ການຂຽນຄຳເຫັນໃນ pull request ເພື່ອແຈ້ງໃຫ້ພວກເຂົາຊາບ ກໍຖືເປັນການປະກອບສ່ວນທີ່ແທ້ຈິງແລ້ວ."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Pull request ນີ້ຖືກຂຽນຂຶ້ນເທິງ trunk ລຸ້ນເກົ່າ ແລະ ບໍ່ເຂົ້າກັນອີກຕໍ່ໄປ: %1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການ, ໃນ %3$d ໄຟລ໌, ຈຳເປັນຕ້ອງໄດ້ແກ້ໄຂໃໝ່."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Pull request ນີ້ຖືກຂຽນຂຶ້ນເທິງ trunk ລຸ້ນເກົ່າ ແລະ ບໍ່ເຂົ້າກັນອີກຕໍ່ໄປ: %1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການ, ໃນ %3$d ໄຟລ໌, ຈຳເປັນຕ້ອງໄດ້ແກ້ໄຂໃໝ່."
+			],
+			"looks like it is already in your checkout": [
+				"ເບິ່ງຄືວ່າມັນມີຢູ່ໃນ checkout ຂອງທ່ານແລ້ວ"
+			],
+			"Your own work is also in %s, so it may be part of why the pull request does not fit.": [
+				"ງານຂອງທ່ານເອງກໍຢູ່ໃນ %s ເຊັ່ນກັນ, ຈຶ່ງອາດເປັນສ່ວນໜຶ່ງທີ່ເຮັດໃຫ້ pull request ບໍ່ເຂົ້າກັນ."
+			],
+			"%s includes changes from the patch you applied and may also contain your own edits.": [
+				"%s ລວມມີການປ່ຽນແປງຈາກແພັດຊ໌ທີ່ທ່ານນຳໃຊ້ ແລະ ອາດມີການແກ້ໄຂຂອງທ່ານເອງນຳດ້ວຍ."
+			],
+			"%1$s includes changes from %2$s and may also contain your own edits.": [
+				"%1$s ລວມມີການປ່ຽນແປງຈາກ %2$s ແລະ ອາດມີການແກ້ໄຂຂອງທ່ານເອງນຳດ້ວຍ."
+			],
+			"Other failures are in %s.": [
+				"ຂໍ້ຜິດພາດອື່ນໆຢູ່ໃນ %s."
+			],
+			"Your own work is also in %s and may be part of the failure.": [
+				"ງານຂອງທ່ານເອງກໍຢູ່ໃນ %s ເຊັ່ນກັນ ແລະ ອາດເປັນສ່ວນໜຶ່ງຂອງຂໍ້ຜິດພາດ."
+			],
+			"Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.": [
+				"ບັນທຶກແພັດຊ໌ຂອງງານທ່ານກ່ອນເພື່ອເກັບສຳເນົາໄວ້, ຈາກນັ້ນທົດລອງ pull request ນີ້ໃນທິກເກັດທີ່ສະອາດ (clean). ຖ້າມັນຍັງບໍ່ເຂົ້າກັນຢູ່ນັ້ນ, ໃຫ້ເປີດ pull request ແລະ ແຈ້ງໃຫ້ຜູ້ຂຽນຊາບວ່າມັນອາດຕ້ອງໄດ້ຮັບການອັບເດດ."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Pull request ນີ້ບໍ່ເຂົ້າກັບ checkout ຂອງທ່ານ: %1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການ, ໃນ %3$d ໄຟລ໌, ຈຳເປັນຕ້ອງໄດ້ແກ້ໄຂໃໝ່."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Pull request ນີ້ບໍ່ເຂົ້າກັບ checkout ຂອງທ່ານ: %1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການ, ໃນ %3$d ໄຟລ໌, ຈຳເປັນຕ້ອງໄດ້ແກ້ໄຂໃໝ່."
+			],
+			"See why it was closed": [
+				"ເບິ່ງເຫດຜົນທີ່ມັນຖືກປິດ"
+			],
+			"Nobody is coming back to update a closed pull request — its discussion may say why it ended.": [
+				"ບໍ່ມີໃຜຈະກັບມາອັບເດດ pull request ທີ່ປິດໄປແລ້ວ — ການສົນທະນາໃນນັ້ນອາດບອກເຫດຜົນທີ່ມັນສິ້ນສຸດລົງ."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Pull request ນີ້ຖືກປິດແລ້ວ ແລະ ຖືກຂຽນຂຶ້ນເທິງ trunk ລຸ້ນເກົ່າ — ມັນບໍ່ເຂົ້າກັນອີກຕໍ່ໄປ: %1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການ, ໃນ %3$d ໄຟລ໌, ຈຳເປັນຕ້ອງໄດ້ແກ້ໄຂໃໝ່."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Pull request ນີ້ຖືກປິດແລ້ວ ແລະ ຖືກຂຽນຂຶ້ນເທິງ trunk ລຸ້ນເກົ່າ — ມັນບໍ່ເຂົ້າກັນອີກຕໍ່ໄປ: %1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການ, ໃນ %3$d ໄຟລ໌, ຈຳເປັນຕ້ອງໄດ້ແກ້ໄຂໃໝ່."
+			],
+			"All %d of this pull request's change look like they are already in trunk — there is nothing left to apply.": [
+				"ການປ່ຽນແປງທັງໝົດ %d ລາຍການຂອງ pull request ນີ້ເບິ່ງຄືວ່າມີຢູ່ໃນ trunk ແລ້ວ — ບໍ່ມີຫຍັງເຫຼືອໃຫ້ນຳໃຊ້ອີກ."
+			],
+			"All %d of this pull request's change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.": [
+				"ການປ່ຽນແປງທັງໝົດ %d ລາຍການຂອງ pull request ນີ້ເບິ່ງຄືວ່າມີຢູ່ໃນ trunk ແລ້ວ — ມັນອາດຈະຖືກຄອມມິດລົງ core ແລ້ວ ເຊິ່ງເປັນເຫດຜົນທີ່ມັນຖືກປິດ. ບໍ່ມີຫຍັງເຫຼືອໃຫ້ນຳໃຊ້ອີກ."
+			],
+			"All %d of this pull request's change look like they are already in your checkout — there is nothing left to apply.": [
+				"ການປ່ຽນແປງທັງໝົດ %d ລາຍການຂອງ pull request ນີ້ເບິ່ງຄືວ່າມີຢູ່ໃນ checkout ຂອງທ່ານແລ້ວ — ບໍ່ມີຫຍັງເຫຼືອໃຫ້ນຳໃຊ້ອີກ."
+			],
+			"%1$s and %2$d more file": [
+				"%1$s ແລະ ອີກ %2$d ໄຟລ໌"
+			],
+			"%1$d of this patch's %2$d change across %3$d files no longer fit — the other %4$d do.": [
+				"%1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການໃນແພັດຊ໌ນີ້ໃນ %3$d ໄຟລ໌ບໍ່ເຂົ້າກັນອີກຕໍ່ໄປ — ແຕ່ອີກ %4$d ລາຍການຍັງເຂົ້າກັນໄດ້."
+			],
+			"%1$d of this patch's %2$d change no longer fit — the other %3$d do.": [
+				"%1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການໃນແພັດຊ໌ນີ້ບໍ່ເຂົ້າກັນອີກຕໍ່ໄປ — ແຕ່ອີກ %3$d ລາຍການຍັງເຂົ້າກັນໄດ້."
+			],
+			"None of this patch's %1$d change across %2$d files still fit your checkout.": [
+				"ບໍ່ມີການປ່ຽນແປງໃດໆໃນ %1$d ລາຍການໃນແພັດຊ໌ນີ້ໃນ %2$d ໄຟລ໌ທີ່ຍັງເຂົ້າກັບ checkout ຂອງທ່ານໄດ້ເລີຍ."
+			],
+			"None of this patch's %d change still fit your checkout.": [
+				"ບໍ່ມີການປ່ຽນແປງໃດໆໃນ %d ລາຍການໃນແພັດຊ໌ນີ້ທີ່ຍັງເຂົ້າກັບ checkout ຂອງທ່ານໄດ້ເລີຍ."
+			],
+			"%1$d of this patch's %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.": [
+				"%1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການໃນແພັດຊ໌ນີ້ໃນ %3$d ໄຟລ໌ເບິ່ງຄືວ່າມີຢູ່ໃນ checkout ຂອງທ່ານແລ້ວ — ແຕ່ອີກ %4$d ລາຍການຍັງເຂົ້າກັນໄດ້."
+			],
+			"%1$d of this patch's %2$d change look like they are already in your checkout — the other %3$d still fit.": [
+				"%1$d ຂອງການປ່ຽນແປງ %2$d ລາຍການໃນແພັດຊ໌ນີ້ເບິ່ງຄືວ່າມີຢູ່ໃນ checkout ຂອງທ່ານແລ້ວ — ແຕ່ອີກ %3$d ລາຍການຍັງເຂົ້າກັນໄດ້."
+			],
+			"All %1$d of this patch's change across %2$d files look like they are already in your checkout.": [
+				"ການປ່ຽນແປງທັງໝົດ %1$d ລາຍການໃນແພັດຊ໌ນີ້ໃນ %2$d ໄຟລ໌ເບິ່ງຄືວ່າມີຢູ່ໃນ checkout ຂອງທ່ານແລ້ວ."
+			],
+			"All %d of this patch's change look like they are already in your checkout.": [
+				"ການປ່ຽນແປງທັງໝົດ %d ລາຍການໃນແພັດຊ໌ນີ້ເບິ່ງຄືວ່າມີຢູ່ໃນ checkout ຂອງທ່ານແລ້ວ."
+			],
+			"The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.": [
+				"ແພັດຊ໌ຖືກນຳໃຊ້ລົງເທິງການປ່ຽນແປງເຫຼົ່ານັ້ນ: ຈະສຳເລັດຖ້າພວກມັນບໍ່ຊ້ອນທັບກັນ, ແລະ ຈະຫຼົ້ມເຫຼວໂດຍບໍ່ແຕະຕ້ອງສິ່ງໃດຫາກມີການຊ້ອນທັບກັນ."
+			],
+			"%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.": [
+				"%s ລວມມີການປ່ຽນແປງຈາກແພັດຊ໌ທີ່ທ່ານນຳໃຊ້. ໄຟລ໌ອາດມີການແກ້ໄຂຂອງທ່ານເອງນຳດ້ວຍ."
+			],
+			"%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.": [
+				"%1$s ລວມມີການປ່ຽນແປງຈາກ %2$s ທີ່ທ່ານນຳໃຊ້. ໄຟລ໌ອາດມີການແກ້ໄຂຂອງທ່ານເອງນຳດ້ວຍ."
+			],
+			"You have your own edits to %s. Save a patch of your work first if you want a copy.": [
+				"ທ່ານມີການແກ້ໄຂຂອງທ່ານເອງໃນ %s. ບັນທຶກແພັດຊ໌ຂອງງານທ່ານກ່ອນຖ້າທ່ານຕ້ອງການເກັບສຳເນົາໄວ້."
+			],
+			"%1$s and %2$s": [
+				"%1$s ແລະ %2$s"
+			],
+			"It still counts as this ticket's one applied patch, so another cannot be applied until this ticket is reverted or discarded.": [
+				"ມັນຍັງຖືວ່າເປັນແພັດຊ໌ໜຶ່ງທີ່ຖືກນຳໃຊ້ສຳລັບທິກເກັດນີ້, ສະນັ້ນຈຶ່ງບໍ່ສາມາດນຳໃຊ້ແພັດຊ໌ອື່ນໄດ້ຈົນກວ່າທິກເກັດນີ້ຈະຖືກຍ້ອນກັບ ຫຼື ຖືກຍົກເລີກ."
+			],
+			"Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"ບັນທຶກສຳເນົາງານຂອງທ່ານກ່ອນ ແລະ ທິກເກັດຈະປອດໄພທີ່ຈະຍົກເລີກກັບໄປສູ່ຄ່າເລີ່ມຕົ້ນ — ໃນໂຄງການນີ້ ນັ້ນເປັນວິທີແກ້ໄຂປົກກະຕິ, ບໍ່ໄດ້ເສຍເວລາລ້າໆ."
+			],
+			"The copy could not be saved: %s": [
+				"ບໍ່ສາມາດບັນທຶກສຳເນົາໄດ້: %s"
+			],
+			"%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"%s ມີຂະໜາດໃຫຍ່ເກີນໄປທີ່ຈະເກັບສຳເນົາໄວ້ສຳລັບການຍົກເລີກ, ຈຶ່ງບໍ່ສາມາດຖອນອອກໄດ້ດ້ວຍຕົນເອງ."
+			],
+			"A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"ແພັດຊ໌ມີຂະໜາດໃຫຍ່ເກີນໄປທີ່ຈະເກັບສຳເນົາໄວ້ສຳລັບການຍົກເລີກ, ຈຶ່ງບໍ່ສາມາດຖອນອອກໄດ້ດ້ວຍຕົນເອງ."
+			],
+			"A patch is applied — %d file.": [
+				"ແພັດຊ໌ຖືກນຳໃຊ້ແລ້ວ — %d ໄຟລ໌."
+			],
+			"A patch is applied — %1$d file, %2$s.": [
+				"ແພັດຊ໌ຖືກນຳໃຊ້ແລ້ວ — %1$d ໄຟລ໌, %2$s."
+			],
+			"%1$s is applied — %2$d file.": [
+				"%1$s ຖືກນຳໃຊ້ແລ້ວ — %2$d ໄຟລ໌."
+			],
+			"%1$s is applied — %2$d file, %3$s.": [
+				"%1$s ຖືກນຳໃຊ້ແລ້ວ — %2$d ໄຟລ໌, %3$s."
+			],
+			"Only %s pull requests can be applied here.": [
+				"ສະເພາະ pull request ຂອງ %s ເທົ່ານັ້ນທີ່ສາມາດນຳໃຊ້ຢູ່ນີ້ໄດ້."
+			],
+			"That does not look like a pull request URL.": [
+				"ນັ້ນເບິ່ງຄືວ່າບໍ່ແມ່ນ URL ຂອງ pull request."
+			],
+			"Only github.com pull requests are supported.": [
+				"ຮອງຮັບສະເພາະ pull request ຈາກ github.com ເທົ່ານັ້ນ."
+			],
+			"That is not a pull request URL or number.": [
+				"ນັ້ນບໍ່ແມ່ນ URL ຫຼື ໝາຍເລກຂອງ pull request."
+			],
+			"Enter a pull request URL or number.": [
+				"ປ້ອນ URL ຫຼື ໝາຍເລກຂອງ pull request."
+			],
+			"That does not look like a patch — no file changes found.": [
+				"ນັ້ນເບິ່ງຄືວ່າບໍ່ແມ່ນແພັດຊ໌ — ບໍ່ພົບການປ່ຽນແປງໄຟລ໌."
+			],
+			"No file changes found in the patch.": [
+				"ບໍ່ພົບການປ່ຽນແປງໄຟລ໌ໃນແພັດຊ໌."
+			],
+			"The patch is empty.": [
+				"ແພັດຊ໌ຫວ່າງເປົ່າ."
+			],
+			"The empty file path is quoted or ambiguous.": [
+				"ເສັ້ນທາງໄຟລ໌ທີ່ຫວ່າງເປົ່າມີເຄື່ອງໝາຍຢືມ ຫຼື ບໍ່ຈະແຈ້ງ."
+			],
+			"Applied %d file.": [
+				"ນຳໃຊ້ແລ້ວ %d ໄຟລ໌."
+			],
+			"Reverted %d file.": [
+				"ຍ້ອນກັບແລ້ວ %d ໄຟລ໌."
+			],
+			"The patch could not be written, so the checkout was put back as it was: %s": [
+				"ບໍ່ສາມາດຂຽນແພັດຊ໌ໄດ້, checkout ຈຶ່ງຖືກປັບຄືນສູ່ສະພາບເດີມ: %s"
+			],
+			"The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s": [
+				"ບໍ່ສາມາດຂຽນແພັດຊ໌ໄດ້, ແລະ checkout ບໍ່ສາມາດປັບຄືນໄດ້ຢ່າງສົມບູນ — ມັນຢູ່ໃນສະຖານະທີ່ບໍ່ຮູ້ຈັກ. ບໍ່ສາມາດຍົກເລີກໄດ້: %s"
+			],
+			"writing could not verify %1$s after git apply: %2$s": [
+				"ການຂຽນບໍ່ສາມາດກວດສອບ %1$s ຫຼັງຈາກ git apply: %2$s"
+			],
+			"writing git apply exited %s": [
+				"ການຂຽນ git apply ອອກຈາກການເຮັດວຽກດ້ວຍລະຫັດ %s"
+			],
+			"writing %s": [
+				"ກຳລັງຂຽນ %s"
+			],
+			"Could not snapshot the checkout before applying the patch: %s": [
+				"ບໍ່ສາມາດ snapshot ສະຖານະຂອງ checkout ກ່ອນທີ່ຈະນຳໃຊ້ແພັດຊ໌ໄດ້: %s"
+			],
+			"The patch was not applied — the checkout is unchanged.": [
+				"ແພັດຊ໌ບໍ່ໄດ້ຖືກນຳໃຊ້ — checkout ບໍ່ມີການປ່ຽນແປງ."
+			],
+			"That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.": [
+				"ແພັດຊ໌ນັ້ນບໍ່ໄດ້ຢູ່ໃນ checkout ນີ້ອີກຕໍ່ໄປ — ມີບາງຢ່າງຣີເຊັດມັນ, ອາດຈະແມ່ນການອັບເດດ trunk ຫຼື ການຍົກເລີກການປ່ຽນແປງ. ບໍ່ມີສິ່ງໃດຖືກຍ້ອນກັບ."
+			],
+			"The patch does not apply.": [
+				"ແພັດຊ໌ບໍ່ສາມາດນຳໃຊ້ໄດ້."
+			],
+			"a file has moved on since the patch was written, so it no longer applies": [
+				"ໄຟລ໌ມີການປ່ຽນແປງຕັ້ງແຕ່ຕອນທີ່ແພັດຊ໌ຖືກຂຽນຂຶ້ນ, ມັນຈຶ່ງບໍ່ສາມາດນຳໃຊ້ໄດ້ອີກຕໍ່ໄປ"
+			],
+			"%s has moved on since the patch was written, so it no longer applies": [
+				"%s ມີການປ່ຽນແປງຕັ້ງແຕ່ຕອນທີ່ແພັດຊ໌ຖືກຂຽນຂຶ້ນ, ມັນຈຶ່ງບໍ່ສາມາດນຳໃຊ້ໄດ້ອີກຕໍ່ໄປ"
+			],
+			"%d more file was not checked one by one": [
+				"ອີກ %d ໄຟລ໌ບໍ່ໄດ້ຖືກກວດສອບເທື່ອລະໄຟລ໌"
+			],
+			"The patch does not change any files.": [
+				"ແພັດຊ໌ບໍ່ໄດ້ປ່ຽນແປງໄຟລ໌ໃດໆ."
+			],
+			"(unnamed binary file)": [
+				"(ໄຟລ໌ໄບນານີທີ່ບໍ່ມີຊື່)"
+			],
+			"Could not read the patch: %s": [
+				"ບໍ່ສາມາດອ່ານແພັດຊ໌ໄດ້: %s"
+			],
+			"Skipped %1$d binary file the app cannot apply: %2$s": [
+				"ຂ້າມ %1$d ໄຟລ໌ໄບນານີທີ່ແອັບບໍ່ສາມາດນຳໃຊ້ໄດ້: %2$s"
+			],
+			"%s is not in this checkout, so the patch does not fit it": [
+				"%s ບໍ່ໄດ້ຢູ່ໃນ checkout ນີ້, ແພັດຊ໌ຈຶ່ງບໍ່ເຂົ້າກັນກັບມັນ"
+			],
+			"%1$s already exists, so the patch cannot move %2$s onto it": [
+				"%1$s ມີຢູ່ແລ້ວ, ແພັດຊ໌ຈຶ່ງບໍ່ສາມາດຍ້າຍ %2$s ໄປທັບມັນໄດ້"
+			],
+			"%s is not in this checkout, so the patch cannot move it": [
+				"%s ບໍ່ໄດ້ຢູ່ໃນ checkout ນີ້, ແພັດຊ໌ຈຶ່ງບໍ່ສາມາດຍ້າຍມັນໄດ້"
+			],
+			"%s could not be created from the patch": [
+				"ບໍ່ສາມາດສ້າງ %s ຈາກແພັດຊ໌ໄດ້"
+			],
+			"%s already exists, so the patch cannot add it": [
+				"%s ມີຢູ່ແລ້ວ, ແພັດຊ໌ຈຶ່ງບໍ່ສາມາດເພີ່ມມັນໄດ້"
+			],
+			"%s is already gone, so the patch cannot remove it": [
+				"%s ບໍ່ມີຢູ່ແລ້ວ, ແພັດຊ໌ຈຶ່ງບໍ່ສາມາດລຶບມັນອອກໄດ້"
+			],
+			"%s points outside the site folder": [
+				"%s ຊີ້ໄປນອກໂຟນເດີຂອງເວັບໄຊ"
+			],
+			"%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do": [
+				"%1$s ມີການປ່ຽນແປງຕັ້ງແຕ່ຕອນທີ່ແພັດຊ໌ຖືກຂຽນຂຶ້ນ: %2$d ຂອງການປ່ຽນແປງ %3$d ລາຍການບໍ່ເຂົ້າກັນອີກຕໍ່ໄປ, ແລະ ອີກ %4$d ລາຍການຍັງເຂົ້າກັນໄດ້"
+			],
+			"%1$s has moved on since the patch was written, so none of its %2$d change still fits": [
+				"%1$s ມີການປ່ຽນແປງຕັ້ງແຕ່ຕອນທີ່ແພັດຊ໌ຖືກຂຽນຂຶ້ນ, ຈຶ່ງບໍ່ມີການປ່ຽນແປງໃດໃນ %2$d ລາຍການທີ່ຍັງເຂົ້າກັນໄດ້ເລີຍ"
+			],
+			"Server did not start within %d second": [
+				"ເຊີບເວີບໍ່ເລີ່ມຕົ້ນພາຍໃນ %d ວິນາທີ"
+			],
+			"Server exited with code %s before reporting a URL": [
+				"ເຊີບເວີປິດການເຮັດວຽກດ້ວຍລະຫັດ %s ກ່ອນທີ່ຈະແຈ້ງລາຍງານ URL"
+			],
+			"Server exited with code %1$s (signal %2$s) before reporting a URL": [
+				"ເຊີບເວີປິດການເຮັດວຽກດ້ວຍລະຫັດ %1$s (ສັນຍານ %2$s) ກ່ອນທີ່ຈະແຈ້ງລາຍງານ URL"
+			],
+			"Failed to start: %s": [
+				"ເລີ່ມຕົ້ນບໍ່ສຳເລັດ: %s"
+			],
+			"Retrying with engine checks relaxed…": [
+				"ກຳລັງລອງໃໝ່ໂດຍຜ່ອນຜັນການກວດສອບ engine…"
+			],
+			"This site requires a newer Node.js than this app bundles.": [
+				"ເວັບໄຊນີ້ຕ້ອງການ Node.js ລຸ້ນໃໝ່ກວ່າທີ່ມາພ້ອມກັບແອັບນີ້."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm ອອກຈາກການເຮັດວຽກດ້ວຍລະຫັດ %s, ແຕ່ບາງຢ່າງທີ່ມັນເລີ່ມຕົ້ນໄວ້ຍັງເຮັດວຽກຢູ່ ແລະ ຄ້າງການສະແດງຜົນໄວ້. ກຳລັງປ່ອຍ ແລະ ປິດມັນລົງ."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm ອອກຈາກການເຮັດວຽກດ້ວຍລະຫັດ %1$s (ສັນຍານ %2$s), ແຕ່ບາງຢ່າງທີ່ມັນເລີ່ມຕົ້ນໄວ້ຍັງເຮັດວຽກຢູ່ ແລະ ຄ້າງການສະແດງຜົນໄວ້. ກຳລັງປ່ອຍ ແລະ ປິດມັນລົງ."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm ອອກຈາກການເຮັດວຽກດ້ວຍລະຫັດ %s, ແຕ່ບາງຢ່າງທີ່ມັນເລີ່ມຕົ້ນໄວ້ຍັງເຮັດວຽກຢູ່ ແລະ ຄ້າງການສະແດງຜົນໄວ້. ປ່ອຍຜ່ານ; ໂປຣເຊສນັ້ນຈະເຮັດວຽກຕໍ່ໄປຈົນກວ່າຈະສຳເລັດດ້ວຍຕົນເອງ."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm ອອກຈາກການເຮັດວຽກດ້ວຍລະຫັດ %1$s (ສັນຍານ %2$s), ແຕ່ບາງຢ່າງທີ່ມັນເລີ່ມຕົ້ນໄວ້ຍັງເຮັດວຽກຢູ່ ແລະ ຄ້າງການສະແດງຜົນໄວ້. ປ່ອຍຜ່ານ; ໂປຣເຊສນັ້ນຈະເຮັດວຽກຕໍ່ໄປຈົນກວ່າຈະສຳເລັດດ້ວຍຕົນເອງ."
+			],
+			"Applying the patch failed: %s": [
+				"ການນຳໃຊ້ແພັດຊ໌ຫຼົ້ມເຫຼວ: %s"
+			],
+			"The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s": [
+				"ແພັດຊ໌ຖືກນຳໃຊ້ແລ້ວ ແຕ່ບໍ່ສາມາດບັນທຶກປະຫວັດການຍ້ອນກັບໄດ້ ແລະ ບໍ່ສາມາດຍົກເລີກໄດ້ — checkout ມີແພັດຊ໌ຢູ່ ແລະ ແອັບບໍ່ສາມາດຍ້ອນກັບມັນໄດ້. %s"
+			],
+			"The patch applied but its revert record could not be saved, so it was undone. %s": [
+				"ແພັດຊ໌ຖືກນຳໃຊ້ແລ້ວ ແຕ່ບໍ່ສາມາດບັນທຶກປະຫວັດການຍ້ອນກັບໄດ້, ມັນຈຶ່ງຖືກຍົກເລີກ. %s"
+			],
+			"This patch is too large to keep for an undo, so Revert will not be offered.": [
+				"ແພັດຊ໌ນີ້ມີຂະໜາດໃຫຍ່ເກີນໄປທີ່ຈະເກັບໄວ້ສຳລັບການຍົກເລີກ, ຈຶ່ງຈະບໍ່ມີຕົວເລືອກ ຍ້ອນກັບ (Revert) ໃຫ້."
+			],
+			"Applying %s…": [
+				"ກຳລັງນຳໃຊ້ %s…"
+			],
+			"Reverting %s…": [
+				"ກຳລັງຍ້ອນກັບ %s…"
+			],
+			"%s is already applied. Revert it before applying another patch.": [
+				"%s ຖືກນຳໃຊ້ແລ້ວ. ໃຫ້ຍ້ອນກັບມັນກ່ອນທີ່ຈະນຳໃຊ້ແພັດຊ໌ອື່ນ."
+			],
+			"There is no stored patch to revert.": [
+				"ບໍ່ມີແພັດຊ໌ທີ່ບັນທຶກໄວ້ເພື່ອຍ້ອນກັບ."
+			],
+			"Could not check your work for conflicts, so the preview was not shown.": [
+				"ບໍ່ສາມາດກວດສອບຂໍ້ຂັດແຍ່ງໃນງານຂອງທ່ານໄດ້, ຕົວຢ່າງສະແດງຜົນຈຶ່ງບໍ່ຖືກສະແດງ."
+			],
+			"Restoring the files of your previous branch…": [
+				"ກຳລັງກູ້ຄືນໄຟລ໌ຂອງບຣານຊ໌ກ່ອນໜ້າຂອງທ່ານ…"
+			],
+			"Could not remove the unused branch: %s": [
+				"ບໍ່ສາມາດລຶບບຣານຊ໌ທີ່ບໍ່ໄດ້ໃຊ້ງານອອກໄດ້: %s"
+			],
+			"Downloading the pull request's files and switching to its branch…": [
+				"ກຳລັງດາວໂຫຼດໄຟລ໌ຂອງ pull request ແລະ ກຳລັງສະຫຼັບໄປຍັງບຣານຊ໌ຂອງມັນ…"
+			],
+			"Returning to your saved copy of the pull request…": [
+				"ກຳລັງກັບຄືນໄປຍັງສຳເນົາ pull request ທີ່ບັນທຶກໄວ້ຂອງທ່ານ…"
+			],
+			"Your work is safe — it is committed on %s. Apply that pull request again to return to it.": [
+				"ງານຂອງທ່ານປອດໄພ — ມັນຖືກຄອມມິດໄວ້ໃນ %s ແລ້ວ. ນຳໃຊ້ pull request ນັ້ນອີກຄັ້ງເພື່ອກັບຄືນຫາມັນ."
+			],
+			"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.": [
+				"ງານຂອງທ່ານໃນ #%1$s ປອດໄພ — ມັນຖືກຄອມມິດໄວ້ໃນ %2$s ແລ້ວ. ເຊື່ອມໂຍງທິກເກັດນັ້ນອີກຄັ້ງເພື່ອກັບຄືນຫາມັນ."
+			],
+			"Update failed during fetch: %s": [
+				"ການອັບເດດຫຼົ້ມເຫຼວລະຫວ່າງການດຶງຂໍ້ມູນ (fetch): %s"
+			],
+			"Update failed during checkout: %s": [
+				"ການອັບເດດຫຼົ້ມເຫຼວລະຫວ່າງການເຊັກເອົາທ໌ (checkout): %s"
+			],
+			"Returning to your work on %s…": [
+				"ກຳລັງກັບຄືນສູ່ງານຂອງທ່ານໃນ %s…"
+			],
+			"Parking your work on %s before updating…": [
+				"ກຳລັງພັກງານຂອງທ່ານໃນ %s ໄວ້ກ່ອນທີ່ຈະອັບເດດ…"
+			],
+			"Fetch latest trunk": [
+				"ດຶງຂໍ້ມູນ trunk ຫຼ້າສຸດ"
+			],
+			"The build watch is rebuilding — output in the Logs, under Build watch": [
+				"ຕົວຕິດຕາມການບິວດ໌ກຳລັງບິວດ໌ໃໝ່ — ເບິ່ງຜົນໄດ້ທີ່ ບັນທຶກເຫດການ, ພາຍໃຕ້ ຕົວຕິດຕາມການບິວດ໌"
+			],
+			"Dependencies unchanged — skipping %s": [
+				"Dependencies ບໍ່ມີການປ່ຽນແປງ — ຂ້າມ %s"
+			],
+			"Dependencies unchanged, rebuilt.": [
+				"Dependencies ບໍ່ມີການປ່ຽນແປງ, ບິວດ໌ໃໝ່ແລ້ວ."
+			],
+			"Dependencies updated, rebuilt.": [
+				"Dependencies ຖືກອັບເດດແລ້ວ, ບິວດ໌ໃໝ່ແລ້ວ."
+			],
+			"Dependencies unchanged, rebuilt in %s.": [
+				"Dependencies ບໍ່ມີການປ່ຽນແປງ, ບິວດ໌ໃໝ່ໃນ %s."
+			],
+			"Dependencies updated, rebuilt in %s.": [
+				"Dependencies ຖືກອັບເດດແລ້ວ, ບິວດ໌ໃໝ່ໃນ %s."
+			],
+			"Install dependencies": [
+				"ຕິດຕັ້ງ dependencies"
+			],
+			"Download WordPress": [
+				"ດາວໂຫຼດ WordPress"
+			],
+			"Rebuild": [
+				"ບິວດ໌ໃໝ່"
+			],
+			"Apply the patch": [
+				"ນຳໃຊ້ແພັດຊ໌"
+			],
+			"Revert the pull request": [
+				"ຍ້ອນກັບ pull request"
+			],
+			"Apply the pull request": [
+				"ນຳໃຊ້ pull request"
+			],
+			"The build watch rebuilds when it resumes": [
+				"ຕົວຕິດຕາມການບິວດ໌ຈະບິວດ໌ໃໝ່ເມື່ອມັນເລີ່ມເຮັດວຽກຕໍ່"
+			],
+			"The build watch will recompile the change": [
+				"ຕົວຕິດຕາມການບິວດ໌ຈະຄອມໄພລ໌ການປ່ຽນແປງຄືນໃໝ່"
+			],
+			"Rebuilt": [
+				"ບິວດ໌ໃໝ່ແລ້ວ"
+			],
+			"Rebuilding — output in the Terminal": [
+				"ກຳລັງບິວດ໌ໃໝ່ — ເບິ່ງຜົນໄດ້ໃນເທິມີນໍ"
+			],
+			"Dependencies changed — installing the difference…": [
+				"Dependencies ມີການປ່ຽນແປງ — ກຳລັງຕິດຕັ້ງສ່ວນຕ່າງ…"
+			],
+			"Fetched and reset to trunk": [
+				"ດຶງຂໍ້ມູນ ແລະ ຣີເຊັດໄປທີ່ trunk ແລ້ວ"
+			],
+			"Fetching and resetting to trunk…": [
+				"ກຳລັງດຶງຂໍ້ມູນ ແລະ ຣີເຊັດໄປທີ່ trunk…"
+			],
+			"Fetch and reset to trunk": [
+				"ດຶງຂໍ້ມູນ ແລະ ຣີເຊັດໄປທີ່ trunk"
+			],
+			"The build did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"ການບິວດ໌ຍັງບໍ່ສຳເລັດ. ຜົນການເຮັດວຽກຢູ່ໃນເທິມີນໍ — ລອງໃໝ່ອີກຄັ້ງເມື່ອທ່ານອ່ານລາຍລະອຽດແລ້ວ."
+			],
+			"Retry the build": [
+				"ລອງບິວດ໌ໃໝ່ອີກຄັ້ງ"
+			],
+			"Build complete": [
+				"ການບິວດ໌ສຳເລັດແລ້ວ"
+			],
+			"The install did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"ການຕິດຕັ້ງຍັງບໍ່ສຳເລັດ. ຜົນການເຮັດວຽກຢູ່ໃນເທິມີນໍ — ລອງໃໝ່ອີກຄັ້ງເມື່ອທ່ານອ່ານລາຍລະອຽດແລ້ວ."
+			],
+			"Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.": [
+				"ຕິດຕັ້ງແລ້ວ. ໄດ້ມີການເພີ່ມ dependency ເຂົ້າໃນ %1$s ຫຼັງຈາກນັ້ນບໍ? ໃຫ້ສັ່ງໃຊ້ງານ %2$s ໃນເທິມີນໍ."
+			],
+			"Install npm packages so commands can run.": [
+				"ຕິດຕັ້ງແພັກເກດ npm ເພື່ອໃຫ້ຄຳສັ່ງຕ່າງໆສາມາດເຮັດວຽກໄດ້."
+			],
+			"Retry %s": [
+				"ລອງ %s ໃໝ່ອີກຄັ້ງ"
+			],
+			"Dependencies installed": [
+				"ຕິດຕັ້ງ dependencies ສຳເລັດແລ້ວ"
+			],
+			"Ready": [
+				"ພ້ອມແລ້ວ"
+			],
+			"In progress": [
+				"ກຳລັງດຳເນີນການ"
+			],
+			"Locked": [
+				"ຖືກລັອກ"
+			],
+			"Pending": [
+				"ກຳລັງລໍຖ້າ"
+			],
+			"Failed": [
+				"ຫຼົ້ມເຫຼວ"
+			],
+			"Completed": [
+				"ສຳເລັດສົມບູນ"
+			],
+			"The trunk snapshot is old; update before making a patch.": [
+				"ພາບຖ່າຍສະຖານະ (snapshot) ຂອງ trunk ເກົ່າແລ້ວ; ກະລຸນາອັບເດດກ່ອນສ້າງແພັດຊ໌ (patch)."
+			],
+			"The update left the build stale; install and build to recover.": [
+				"ການອັບເດດເຮັດໃຫ້ບິວດ໌ (build) ບໍ່ເປັນປັດຈຸບັນ; ກະລຸນາຕິດຕັ້ງ ແລະ ບິວດ໌ໃໝ່ເພື່ອແກ້ໄຂ."
+			],
+			"A patch is staged — apply and rebuild, or cancel.": [
+				"ແພັດຊ໌ຖືກຈັດກຽມໄວ້ແລ້ວ — ນຳໃຊ້ ແລະ ບິວດ໌ໃໝ່, ຫຼື ຍົກເລີກ."
+			],
+			"The trunk update in progress.": [
+				"ກຳລັງດຳເນີນການອັບເດດ trunk."
+			],
+			"A patch is being applied or reverted.": [
+				"ກຳລັງນຳໃຊ້ ຫຼື ຍົກເລີກການນຳໃຊ້ແພັດຊ໌."
+			],
+			"The next step in the setup checklist.": [
+				"ຂັ້ນຕອນຕໍ່ໄປໃນລາຍການກວດສອບການຕິດຕັ້ງ."
+			],
+			"Link a Trac ticket to give your work a home.": [
+				"ເຊື່ອມໂຍງທິກເກັດ Trac ເພື່ອເກັບກຳຜົນງານຂອງທ່ານ."
+			],
+			"Link a GitHub issue to give your work a home.": [
+				"ເຊື່ອມໂຍງ GitHub issue ເພື່ອເກັບກຳຜົນງານຂອງທ່ານ."
+			],
+			"You have uncommitted changes ready to review and submit.": [
+				"ທ່ານມີການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ຄອມມິດ ເຊິ່ງພ້ອມສຳລັບການກວດສອບ ແລະ ສົ່ງແລ້ວ."
+			],
+			"PR #%d is applied; revert it before applying another change.": [
+				"PR #%d ຖືກນຳໃຊ້ແລ້ວ; ກະລຸນາຍ້ອນກັບກ່ອນທີ່ຈະນຳໃຊ້ການປ່ຽນແປງອື່ນ."
+			],
+			"Start the dev server to work on the site.": [
+				"ເລີ່ມຕົ້ນເຊີເວີພັດທະນາ (dev server) ເພື່ອເຮັດວຽກກັບເວັບໄຊ."
+			],
+			"Setting up new site…": [
+				"ກຳລັງຕິດຕັ້ງເວັບໄຊໃໝ່…"
+			],
+			"Finish setting this site up first.": [
+				"ກະລຸນາຕິດຕັ້ງເວັບໄຊນີ້ໃຫ້ສຳເລັດກ່ອນ."
+			],
+			"Hide": [
+				"ເຊື່ອງ"
+			],
+			"Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.": [
+				"ກຳລັງດຳເນີນການບິວດ໌ແບບເຕັມຮູບແບບ. ຂັ້ນຕອນນີ້ອາດໃຊ້ເວລາເຖິງເຄິ່ງຊົ່ວໂມງໃນ Windows; ເທີມິນອນຈະສະແດງສິ່ງທີ່ກຳລັງເຮັດຢູ່."
+			],
+			"Installing dependencies. You can leave this running — the build follows on its own.": [
+				"ກຳລັງຕິດຕັ້ງແພັກເກດທີ່ຈຳເປັນ. ທ່ານສາມາດປະໃຫ້ມັນເຮັດວຽກຕໍ່ໄປໄດ້ — ລະບົບຈະເລີ່ມບິວດ໌ຕໍ່ເອງໂດຍອັດຕະໂນມັດ."
+			],
+			"Setting this site up for you — step %1$d of %2$d": [
+				"ກຳລັງຕິດຕັ້ງເວັບໄຊນີ້ໃຫ້ທ່ານ — ຂັ້ນຕອນ %1$d ຈາກ %2$d"
+			],
+			"Your changes were saved to %s before the reset.": [
+				"ການປ່ຽນແປງຂອງທ່ານຖືກບັນທຶກໄວ້ທີ່ %s ກ່ອນທີ່ຈະຣີເຊັດ."
+			],
+			"Up to date with trunk as of today.": [
+				"ອັບເດດຕົງກັບ trunk ຫຼ້າສຸດໃນມື້ນີ້ແລ້ວ."
+			],
+			"Most packages are already cached, so this is a download of the difference — not the whole tree.": [
+				"ແພັກເກດສ່ວນໃຫຍ່ຖືກເກັບໄວ້ໃນແຄຊແລ້ວ, ສະນັ້ນນີ້ແມ່ນການດາວໂຫຼດສະເພາະສ່ວນທີ່ຕ່າງກັນ — ບໍ່ແມ່ນທັງໝົດ."
+			],
+			"step %1$d of %2$d": [
+				"ຂັ້ນຕອນ %1$d ຈາກ %2$d"
+			],
+			"Patches you create now may not apply on Trac. Updating takes a few minutes.": [
+				"ແພັດຊ໌ທີ່ທ່ານສ້າງຕອນນີ້ອາດຈະນຳໃຊ້ບໍ່ໄດ້ໃນ Trac. ການອັບເດດຈະໃຊ້ເວລາພຽງບໍ່ເທົ່າໃດນາທີ."
+			],
+			"This site's WordPress code is %d day old": [
+				"ໂຄ້ດ WordPress ຂອງເວັບໄຊນີ້ເກົ່າກວ່າ %d ມື້ແລ້ວ"
+			],
+			"Retry install & build": [
+				"ລອງຕິດຕັ້ງ ແລະ ບິວດ໌ໃໝ່ອີກຄັ້ງ"
+			],
+			"The code is new but the built assets are old. The site may not run correctly until install and build succeed.": [
+				"ໂຄ້ດເປັນລຸ້ນໃໝ່ແຕ່ໄຟລ໌ asset ທີ່ບິວດ໌ຍັງເປັນຂອງເກົ່າ. ເວັບໄຊອາດຈະເຮັດວຽກບໍ່ຖືກຕ້ອງຈົນກວ່າການຕິດຕັ້ງ ແລະ ການບິວດ໌ຈະສຳເລັດ."
+			],
+			"Update incomplete": [
+				"ການອັບເດດບໍ່ສຳເລັດສົມບູນ"
+			],
+			"Next step: %s": [
+				"ຂັ້ນຕອນຕໍ່ໄປ: %s"
+			],
+			"Starting… (%s)": [
+				"ກຳລັງເລີ່ມຕົ້ນ… (%s)"
+			],
+			"Start dev server and finish the wizard": [
+				"ເລີ່ມຕົ້ນເຊີເວີພັດທະນາ ແລະ ເຮັດຂັ້ນຕອນແນະນຳໃຫ້ສຳເລັດ"
+			],
+			"Stop dev server": [
+				"ຢຸດເຊີເວີພັດທະນາ"
+			],
+			"Start dev server & finish wizard": [
+				"ເລີ່ມເຊີເວີພັດທະນາ ແລະ ສຳເລັດຂັ້ນຕອນແນະນຳ"
+			],
+			"Run full build": [
+				"ສັ່ງບິວດ໌ເຕັມຮູບແບບ"
+			],
+			"Install npm dependencies": [
+				"ຕິດຕັ້ງ npm dependencies"
+			],
+			"Cloning the repository… install and build start on their own when it finishes.": [
+				"ກຳລັງໂຄລນຄັງເກັບໂຄ້ດ… ການຕິດຕັ້ງ ແລະ ການບິວດ໌ຈະເລີ່ມຕົ້ນເອງເມື່ອສຳເລັດ."
+			],
+			"Failed to discard changes: %s": [
+				"ບໍ່ສາມາດຍົກເລີກການປ່ຽນແປງ: %s"
+			],
+			"Saved your changes to %1$s, but resetting the working tree failed: %2$s": [
+				"ບັນທຶກການປ່ຽນແປງຂອງທ່ານໄວ້ທີ່ %1$s ແລ້ວ, ແຕ່ການຣີເຊັດ working tree ບໍ່ສຳເລັດ: %2$s"
+			],
+			"Error saving diff: %s": [
+				"ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກ diff: %s"
+			],
+			"Please complete the full build before starting the dev server. You can also skip the wizard.": [
+				"ກະລຸນາບິວດ໌ແບບເຕັມຮູບແບບໃຫ້ສຳເລັດກ່ອນເລີ່ມເຊີເວີພັດທະນາ. ທ່ານຍັງສາມາດຂ້າມຂັ້ນຕອນແນະນຳໄດ້."
+			],
+			"Updating to latest trunk": [
+				"ກຳລັງອັບເດດເປັນ trunk ຫຼ້າສຸດ"
+			],
+			"Skip initialization wizard": [
+				"ຂ້າມຂັ້ນຕອນການເລີ່ມຕົ້ນ"
+			],
+			"Nothing was lost — pick it back up with the buttons below whenever you want.": [
+				"ບໍ່ມີຂໍ້ມູນໃດສູນຫາຍ — ກົດປຸ່ມດ້ານລຸ່ມເພື່ອດຳເນີນການຕໍ່ໄດ້ທຸກເວລາ."
+			],
+			"Setup stopped.": [
+				"ການຕິດຕັ້ງຖືກຢຸດແລ້ວ."
+			],
+			"Stop setup": [
+				"ຢຸດການຕິດຕັ້ງ"
+			],
+			"Complete each step to prepare this site for development.": [
+				"ເຮັດແຕ່ລະຂັ້ນຕອນໃຫ້ສຳເລັດເພື່ອຕຽມເວັບໄຊນີ້ສຳລັບການພັດທະນາ."
+			],
+			"Initial setup checklist": [
+				"ລາຍການກວດສອບການຕິດຕັ້ງເລີ່ມຕົ້ນ"
+			],
+			"Save patch & update": [
+				"ບັນທຶກແພັດຊ໌ ແລະ ອັບເດດ"
+			],
+			"Discard & update": [
+				"ຍົກເລີກການປ່ຽນແປງ ແລະ ອັບເດດ"
+			],
+			"— your changes are lost; this cannot be undone": [
+				"— ການປ່ຽນແປງຂອງທ່ານຈະສູນຫາຍ; ການກະທຳນີ້ບໍ່ສາມາດຍ້ອນກັບໄດ້"
+			],
+			"Discard them": [
+				"ຍົກເລີກການປ່ຽນແປງເຫຼົ່ານີ້"
+			],
+			"— a .diff on your machine — nothing is sent to Trac": [
+				"— ໄຟລ໌ .diff ໃນເຄື່ອງຂອງທ່ານ — ບໍ່ມີສິ່ງໃດຖືກສົ່ງໄປຍັງ Trac"
+			],
+			"Save them as a patch first (as a local file)": [
+				"ບັນທຶກເປັນໄຟລ໌ແພັດຊ໌ກ່ອນ (ເປັນໄຟລ໌ໃນເຄື່ອງ)"
+			],
+			"You've changed %d file in this site. Resetting to trunk would throw them away.": [
+				"ທ່ານໄດ້ປ່ຽນແປງ %d ໄຟລ໌ໃນເວັບໄຊນີ້. ການຣີເຊັດກັບໄປເປັນ trunk ຈະລຶບການປ່ຽນແປງເຫຼົ່ານັ້ນຖິ້ມ."
+			],
+			"Update to latest trunk?": [
+				"ອັບເດດເປັນ trunk ຫຼ້າສຸດບໍ່?"
+			],
+			"Launch the development server once to complete the WordPress setup wizard.": [
+				"ເປີດໃຊ້ງານເຊີເວີພັດທະນາໜຶ່ງຄັ້ງເພື່ອເຮັດໃຫ້ຂັ້ນຕອນການຕິດຕັ້ງ WordPress ສຳເລັດ."
+			],
+			"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.": [
+				"ບິວດ໌ສຳເລັດແລ້ວ. ໄດ້ແກ້ໄຂໄຟລ໌ໃນ %1$s ຫຼັງຈາກນັ້ນບໍ່? ໃຫ້ເປີດໃຊ້ %2$s ໃນເທີມິນອນເພື່ອໃຫ້ນຳໃຊ້ການແກ້ໄຂ — ການອັບເດດ ແລະ ແພັດຊ໌ທີ່ນຳໃຊ້ຈະບິວດ໌ໃໝ່ເອງໂດຍອັດຕະໂນມັດ."
+			],
+			"Compile WordPress Core to generate the dist files. Later updates rebuild automatically.": [
+				"ຄອມໄພລ໌ WordPress Core ເພື່ອສ້າງໄຟລ໌ dist. ການອັບເດດໃນພາຍຫຼັງຈະບິວດ໌ໃໝ່ໂດຍອັດຕະໂນມັດ."
+			],
+			"Clone the WordPress develop repository.": [
+				"ໂຄລນຄັງເກັບໂຄ້ດ WordPress develop."
+			],
+			"Download WordPress development version": [
+				"ດາວໂຫຼດ WordPress ເວີຊັນສຳລັບການພັດທະນາ"
+			],
+			"Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.": [
+				"ເປີດໃຊ້ WordPress ໂດຍໃຊ້ checkout ນີ້ເປັນປລັກອິນ Gutenberg ໜຶ່ງຄັ້ງ ເພື່ອສຳເລັດການຕິດຕັ້ງ."
+			],
+			"Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.": [
+				"ບິວດ໌ສຳເລັດແລ້ວ. ມີການແກ້ໄຂແພັກເກດຫຼັງຈາກນັ້ນບໍ່? ໃຫ້ເປີດໃຊ້ %s ໃນເທີມິນອນເພື່ອໃຫ້ນຳໃຊ້ການແກ້ໄຂ; ການອັບເດດຈະບິວດ໌ໃໝ່ເອງໂດຍອັດຕະໂນມັດ."
+			],
+			"Compile the Gutenberg packages. Later updates rebuild automatically.": [
+				"ຄອມໄພລ໌ແພັກເກດ Gutenberg. ການອັບເດດໃນພາຍຫຼັງຈະບິວດ໌ໃໝ່ໂດຍອັດຕະໂນມັດ."
+			],
+			"Clone the Gutenberg repository.": [
+				"ໂຄລນຄັງເກັບໂຄ້ດ Gutenberg."
+			],
+			"Download Gutenberg": [
+				"ດາວໂຫຼດ Gutenberg"
+			],
+			"the window’s theme: two colours of one’s own\u0004Custom": [
+				"ກຳນົດເອງ"
+			],
+			"Choose a colour as six hex digits, like #3858e9.": [
+				"ເລືອກລະຫັດສີຖານ 16 ຈຳນວນ 6 ຫຼັກ ເຊັ່ນ #3858e9."
+			],
+			"Choose light, dark, your system’s theme, or custom.": [
+				"ເລືອກແບບແຈ້ງ, ແບບມືດ, ຕາມລະບົບຂອງທ່ານ, ຫຼື ກຳນົດເອງ."
+			],
+			"Some text may be hard to read with these colours. They are kept as they are; choose others if it is.": [
+				"ຂໍ້ຄວາມບາງສ່ວນອາດຈະອ່ານຍາກເມື່ອໃຊ້ສີເຫຼົ່ານີ້. ລະບົບຈະຮັກສາສີໄວ້ຕາມນີ້; ທ່ານສາມາດເລືອກສີອື່ນໄດ້ຫາກອ່ານຍາກ."
+			],
+			"Primary": [
+				"ສີຫຼັກ"
+			],
+			"Background": [
+				"ພື້ນຫຼັງ"
+			],
+			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
+				"ລະບົບຈະປັບຕາມການຕັ້ງຄ່າແຈ້ງ ຫຼື ມືດ ຂອງລະບົບປະຕິບັດການຂອງທ່ານ. ສ່ວນກຳນົດເອງຈະສ້າງຮູບແບບຈາກສອງສີທີ່ທ່ານເລືອກ."
+			],
+			"%s colour picker": [
+				"ເຄື່ອງມືເລືອກສີ %s"
+			],
+			"Working…": [
+				"ກຳລັງເຮັດວຽກ…"
+			],
+			"Opening the pull request…": [
+				"ກຳລັງເປີດ pull request…"
+			],
+			"Uploading your changes…": [
+				"ກຳລັງອັບໂຫຼດການປ່ຽນແປງຂອງທ່ານ…"
+			],
+			"Bringing your fork up to date…": [
+				"ກຳລັງອັບເດດ fork ຂອງທ່ານໃຫ້ເປັນປັດຈຸບັນ…"
+			],
+			"Creating your fork of %s…": [
+				"ກຳລັງສ້າງ fork ຂອງທ່ານຈາກ %s…"
+			],
+			"Could not start sign-in.": [
+				"ບໍ່ສາມາດເລີ່ມຕົ້ນການເຂົ້າສູ່ລະບົບໄດ້."
+			],
+			"Sign-in did not complete.": [
+				"ການເຂົ້າສູ່ລະບົບບໍ່ສຳເລັດ."
+			],
+			"The authorization was declined on GitHub. Nothing was changed.": [
+				"ການອະນຸຍາດຖືກປະຕິເສດໃນ GitHub. ບໍ່ມີສິ່ງໃດຖືກປ່ຽນແປງ."
+			],
+			"The pull request could not be opened.": [
+				"ບໍ່ສາມາດເປີດ pull request ໄດ້."
+			],
+			"Your checkout was behind trunk, so the branch was based on today's trunk. None of your files were changed upstream in between — the pull request shows only your work.": [
+				"checkout ຂອງທ່ານຫຼ້າຊ້າກວ່າ trunk, ດັ່ງນັ້ນ branch ຈຶ່ງອີງຕາມ trunk ຂອງມື້ນີ້. ບໍ່ມີໄຟລ໌ໃດຖືກປ່ຽນແປງໃນ upstream ໃນໄລຍະເວລານີ້ — pull request ຈະສະແດງສະເພາະຜົນງານຂອງທ່ານ."
+			],
+			"Opened <link>pull request #%s</link> from <branch />.": [
+				"ເປີດ <link>pull request #%s</link> ຈາກ <branch /> ສຳເລັດແລ້ວ."
+			],
+			"Dry run — branch <branch /> was created on your fork; no pull request was opened.": [
+				"ການທົດລອງແລ່ນ — branch <branch /> ຖືກສ້າງຂຶ້ນໃນ fork ຂອງທ່ານແລ້ວ; ບໍ່ມີການເປີດ pull request."
+			],
+			"Save the patch file instead": [
+				"ບັນທຶກເປັນໄຟລ໌ແພັດຊ໌ແທນ"
+			],
+			"Pull requests go to <target />, not to <upstream />.": [
+				"Pull request ຈະສົ່ງໄປທີ່ <target />, ບໍ່ແມ່ນ <upstream />."
+			],
+			"Dry run — a branch is pushed to your fork, no pull request is opened.": [
+				"ການທົດລອງແລ່ນ — branch ຖືກ push ໄປທີ່ fork ຂອງທ່ານແລ້ວ, ແຕ່ບໍ່ມີການເປີດ pull request."
+			],
+			"Test mode": [
+				"ໂໝດທົດສອບ"
+			],
+			"Open a pull request": [
+				"ເປີດ pull request"
+			],
+			"Not now": [
+				"ບໍ່ແມ່ນຕອນນີ້"
+			],
+			"Sign in with GitHub": [
+				"ເຂົ້າສູ່ລະບົບດ້ວຍ GitHub"
+			],
+			"Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.": [
+				"ການເຂົ້າສູ່ລະບົບຈະຊ່ວຍໃຫ້ແອັບ fork %s ໄປຍັງບັນຊີຂອງທ່ານ, push ແພັດຊ໌ນີ້ໄປຍັງ branch ດັ່ງກ່າວ, ແລະ ເປີດ pull request. ລະບົບຈະໃຫ້ເຂົ້າສູ່ລະບົບຜ່ານບຣາວເຊີ, ບໍ່ຖາມລະຫັດຜ່ານຂອງທ່ານ, ແລະ ຈະຍົກເລີກການອະນຸຍາດເມື່ອທ່ານອອກຈາກແອັບ."
+			],
+			"Show this again": [
+				"ສະແດງສິ່ງນີ້ອີກຄັ້ງ"
+			],
+			"Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.": [
+				"ບໍ່ມີການເຂົ້າສູ່ລະບົບ ແລະ ບໍ່ມີຂໍ້ມູນໃດຖືກສົ່ງ. ທ່ານຍັງສາມາດບັນທຶກໄຟລ໌ແພັດຊ໌ໄດ້, ແລະ ປາຍທາງອື່ນໆ ຍັງຄົງຄືເກົ່າ."
+			],
+			"Signed in as <login /> — the fork and branch go to <fork />.": [
+				"ເຂົ້າສູ່ລະບົບໃນຊື່ <login /> ແລ້ວ — fork ແລະ branch ຈະໄປທີ່ <fork />."
+			],
+			"Open pull request": [
+				"ເປີດ pull request"
+			],
+			"Push branch (dry run)": [
+				"Push branch (ທົດລອງແລ່ນ)"
+			],
+			"Anything you are unsure about.": [
+				"ສິ່ງໃດກໍຕາມທີ່ທ່ານຍັງບໍ່ແນ່ໃຈ."
+			],
+			"How to see it working — the steps you used.": [
+				"ວິທີການທົດສອບການເຮັດວຽກ — ຂັ້ນຕອນທີ່ທ່ານໃຊ້."
+			],
+			"What the change does, and why.": [
+				"ການປ່ຽນແປງນີ້ເຮັດຫຍັງແດ່, ແລະ ເຮັດຍ້ອນຫຍັງ."
+			],
+			"Notes for reviewers (optional)": [
+				"ໝາຍເຫດສຳລັບຜູ້ກວດສອບ (ເລືອກໃສ່ໄດ້)"
+			],
+			"Left empty, it will be titled <strong><title /></strong>.": [
+				"ຫາກປະວ່າງໄວ້, ຈະຕັ້ງຫົວຂໍ້ເປັນ <strong><title /></strong>."
+			],
+			"What the change does, in one line. Reviewers scan these.": [
+				"ສິ່ງທີ່ການປ່ຽນແປງນີ້ເຮັດ ໃນໜຶ່ງແຖວ. ຜູ້ກວດສອບຈະອ່ານສ່ວນນີ້."
+			],
+			"Title": [
+				"ຫົວຂໍ້"
+			],
+			"Reject a theme zip in the plugin installer": [
+				"ປະຕິເສດໄຟລ໌ zip ຂອງຮູບແບບໃນຕົວຕິດຕັ້ງປລັກອິນ"
+			],
+			"No connection to GitHub.": [
+				"ບໍ່ມີການເຊື່ອມຕໍ່ກັບ GitHub."
+			],
+			"GitHub is rate-limiting this connection. It usually clears within the hour.": [
+				"GitHub ກຳລັງຈຳກັດຄວາມຖີ່ໃນການເຊື່ອມຕໍ່ (rate-limit). ປົກກະຕິແລ້ວຈະກັບມາໃຊ້ໄດ້ພາຍໃນໜຶ່ງຊົ່ວໂມງ."
+			],
+			"Waiting for you to finish in the browser…": [
+				"ກຳລັງລໍຖ້າໃຫ້ທ່ານເຮັດສຳເລັດໃນບຣາວເຊີ…"
+			],
+			"That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.": [
+				"ການເຂົ້າສູ່ລະບົບ GitHub ນັ້ນໝົດອາຍຸແລ້ວ. ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່, ຫຼື ບັນທຶກເປັນໄຟລ໌ແພັດຊ໌ແທນ."
+			],
+			"Copy the code": [
+				"ສຳເນົາລະຫັດ"
+			],
+			"Code copied": [
+				"ສຳເນົາລະຫັດແລ້ວ"
+			],
+			"Enter this code at <strong><address /></strong>, which has been opened in your browser.": [
+				"ປ້ອນລະຫັດນີ້ທີ່ <strong><address /></strong> ເຊິ່ງໄດ້ເປີດຂຶ້ນໃນບຣາວເຊີຂອງທ່ານແລ້ວ."
+			],
+			"This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.": [
+				"ບິວດ໌ນີ້ບໍ່ມີການຕັ້ງຄ່າແອັບພລິເຄຊັນ GitHub, ດັ່ງນັ້ນຈຶ່ງບໍ່ສາມາດເປີດ pull request ໄດ້. ແຕ່ປາຍທາງອື່ນໆ ຍັງຄົງເຮັດວຽກໄດ້."
+			],
+			"Checking…": [
+				"ກຳລັງກວດສອບ…"
+			],
+			"Open #%s to comment": [
+				"ເປີດ #%s ເພື່ອສະແດງຄວາມຄິດເຫັນ"
+			],
+			"Copy the link": [
+				"ສຳເນົາລິ້ງ"
+			],
+			"Link copied": [
+				"ສຳເນົາລິ້ງແລ້ວ"
+			],
+			"Triage and props live on the ticket, so the link belongs there too.": [
+				"ການຈັດການ ແລະ ການໃຫ້ກຽດ (props) ແມ່ນຢູ່ໃນທິກເກັດ, ດັ່ງນັ້ນລິ້ງຈຶ່ງຄວນໃສ່ໄວ້ທີ່ນັ້ນເຊັ່ນກັນ."
+			],
+			"Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.": [
+				"ຈະຢູ່ສ່ວນເທິງສຸດຂອງຄຳອະທິບາຍ. ລິ້ງທິກເກັດ ແລະ ຊື່ຜູ້ໃຊ້ WordPress.org ຂອງທ່ານຈະຖືກຕື່ມໃສ່ດ້ານລຸ່ມ."
+			],
+			"It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.": [
+				"ລະບົບບໍ່ສາມາດສ້າງບັນຊີ GitHub ໃຫ້ທ່ານໄດ້, ແລະ ບໍ່ສາມາດໂພສຕ໌ລົງ Trac ແທນທ່ານໄດ້."
+			],
+			"Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.": [
+				"ລະບົບກວດສອບອັດຕະໂນມັດກຳລັງເຮັດວຽກ. ແນວໃດກໍຕາມ ບໍ່ຄ່ອຍມີໃຜເບິ່ງໃນ GitHub — ການໂພສຕ໌ລິ້ງລົງໃນທິກເກັດຈະຊ່ວຍໃຫ້ຄົນອື່ນເຫັນໄດ້ຫຼາຍກວ່າ."
+			],
+			"No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.": [
+				"ບໍ່ມີທິກເກັດໃດຖືກເຊື່ອມໂຍງກັບເວັບໄຊນີ້. Pull request ຕ້ອງມີການອ້າງອີງທິກເກັດ — ເຊື່ອມໂຍງມັນໃນບັດ Trac."
+			],
+			"Link a GitHub issue to this site first. A pull request has to cite one.": [
+				"ເຊື່ອມໂຍງ GitHub issue ກັບເວັບໄຊນີ້ກ່ອນ. Pull request ຈຳເປັນຕ້ອງອ້າງອີງໃສ່ issue."
+			],
+			"The Gutenberg contributing guide": [
+				"ຄູ່ມືການມີສ່ວນຮ່ວມໃນ Gutenberg"
+			],
+			"Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.": [
+				"ຜູ້ກວດສອບຕ້ອງການຂັ້ນຕອນການທົດສອບ. ລະບຸໄວ້ໃນໝາຍເຫດ: ເປີດຫຍັງ, ກົດຫຍັງ, ແລະ ຜົນທີ່ຄວນເກີດຂຶ້ນແມ່ນຫຍັງ."
+			],
+			"The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.": [
+				"Pull request ແມ່ນບ່ອນທີ່ການປ່ຽນແປງຖືກກວດສອບ ແລະ ຖືກຮວມ (merge) ເມື່ອໄດ້ຮັບການອະນຸມັດ. ບໍ່ຈຳເປັນຕ້ອງໄປໂພສຕ໌ບ່ອນອື່ນເພື່ອໃຫ້ຄົນເຫັນ."
+			],
+			"How pull requests work in Gutenberg": [
+				"Pull request ເຮັດວຽກແນວໃດໃນ Gutenberg"
+			],
+			"The Fixes line already lists it on the issue. A comment there still tells the people watching it.": [
+				"ແຖວ Fixes ໄດ້ລະບຸໄວ້ໃນ issue ແລ້ວ. ການສະແດງຄວາມຄິດເຫັນຢູ່ທີ່ນັ້ນຈະແຈ້ງເຕືອນຜູ້ທີ່ກຳລັງຕິດຕາມຢູ່."
+			],
+			"Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.": [
+				"ຈະຢູ່ສ່ວນເທິງສຸດຂອງຄຳອະທິບາຍ. ແຖວ Fixes ທີ່ເຊື່ອມໂຍງ issue ແລະ ຊື່ຜູ້ໃຊ້ WordPress.org ຂອງທ່ານຈະຖືກຕື່ມໃສ່ດ້ານລຸ່ມ."
+			],
+			"It cannot create the GitHub account for you.": [
+				"ລະບົບບໍ່ສາມາດສ້າງບັນຊີ GitHub ໃຫ້ທ່ານໄດ້."
+			],
+			"Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.": [
+				"ລະບົບກວດສອບອັດຕະໂນມັດເຮັດວຽກ, ພ້ອມທັງຖືກກວດສອບ ແລະ ຮວມໂຄ້ດຢູ່ທີ່ນັ້ນໂດຍກົງ: ສຳລັບ Gutenberg ແລ້ວ pull request ແມ່ນບ່ອນຫຼັກ."
+			],
+			"A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.": [
+				"ບັນຊີ GitHub. ການ fork ຈະເຮັດໃຫ້ທ່ານໂດຍອັດຕະໂນມັດ; ບໍ່ມີການພິມລະຫັດຜ່ານລົງໃນແອັບນີ້ ແລະ ບໍ່ມີການບັນທຶກຂໍ້ມູນປະຈຳຕົວລົງໃນດິສກ໌."
+			],
+			"No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.": [
+				"ບໍ່ມີ issue ໃດຖືກເຊື່ອມໂຍງກັບເວັບໄຊນີ້. Pull request ຕ້ອງມີການອ້າງອີງ: ເຊື່ອມໂຍງມັນໃນບັດ GitHub issue."
+			],
+			"Link a Trac ticket to this site first. A pull request has to cite one.": [
+				"ເຊື່ອມໂຍງທິກເກັດ Trac ກັບເວັບໄຊນີ້ກ່ອນ. Pull request ຈຳເປັນຕ້ອງອ້າງອີງທິກເກັດ."
+			],
+			"The handbook page on pull requests": [
+				"ໜ້າຄູ່ມືກ່ຽວກັບ pull request"
+			],
+			"Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.": [
+				"ບໍ່ມີສິ່ງໃດຖືກຮວມໃນ GitHub ເຊັ່ນກັນ. ຜູ້ມີສິດຄອມມິດ (committer) ຈະນຳໃຊ້ການປ່ຽນແປງດ້ວຍຕົນເອງ, ແລະ ທິກເກັດແມ່ນບ່ອນທີ່ພວກເຂົາຕັດສິນໃຈ."
+			],
+			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
+				"ບໍ່ຄ່ອຍມີໃຜຕິດຕາມລາຍການ pull request. ສິ່ງທີ່ທ່ານເຮັດຈະມີຄົນເຫັນໄດ້ຍ້ອນມີລິ້ງຢູ່ໃນທິກເກັດ — ນີ້ຄືເຫດຜົນທີ່ຂັ້ນຕອນນີ້ຈະພາທ່ານກັບໄປທີ່ນັ້ນ."
+			],
+			"How pull requests work in core": [
+				"Pull request ເຮັດວຽກແນວໃດໃນ core"
+			],
+			"Sign in to GitHub first.": [
+				"ກະລຸນາເຂົ້າສູ່ລະບົບ GitHub ກ່ອນ."
+			],
+			"Could not read the base commit": [
+				"ບໍ່ສາມາດອ່ານ base commit ໄດ້"
+			],
+			"Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.": [
+				"Trunk ມີການປ່ຽນແປງທັບຊ້ອນກັບໄຟລ໌ທີ່ທ່ານແກ້ໄຂ (%s). ກະລຸນາອັບເດດເວັບໄຊນີ້ເປັນ trunk ຫຼ້າສຸດ, ກວດສອບວ່າການປ່ຽນແປງຂອງທ່ານຍັງນຳໃຊ້ໄດ້, ແລ້ວລອງໃໝ່ອີກຄັ້ງ."
+			],
+			"There are no changes to open a pull request with.": [
+				"ບໍ່ມີການປ່ຽນແປງໃດໆ ສຳລັບການເປີດ pull request."
+			],
+			"Could not open the pull request": [
+				"ບໍ່ສາມາດເປີດ pull request ໄດ້"
+			],
+			"Could not find an unused branch name": [
+				"ບໍ່ພົບຊື່ branch ທີ່ຍັງຫວ່າງຢູ່"
+			],
+			"Could not create the branch": [
+				"ບໍ່ສາມາດສ້າງ branch ໄດ້"
+			],
+			"Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s": [
+				"fork ຂອງທ່ານກຳລັງຢູ່ໃນຂັ້ນຕອນການຕິດຕັ້ງເທິງ GitHub. ກະລຸນາລອງໃໝ່ອີກຈັກໜ່ອຍ — ໄຟລ໌ແພັດຊ໌ຍັງສາມາດໃຊ້ງານໄດ້.%s"
+			],
+			"Could not create the commit": [
+				"ບໍ່ສາມາດສ້າງ commit ໄດ້"
+			],
+			"Could not assemble the change": [
+				"ບໍ່ສາມາດຮວບຮວມການປ່ຽນແປງໄດ້"
+			],
+			"Could not upload %s": [
+				"ບໍ່ສາມາດອັບໂຫຼດ %s ໄດ້"
+			],
+			"Could not read your fork’s %s": [
+				"ບໍ່ສາມາດອ່ານ %s ຂອງ fork ຂອງທ່ານໄດ້"
+			],
+			"Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.": [
+				"fork ຂອງທ່ານກຳລັງຢູ່ໃນຂັ້ນຕອນການຕິດຕັ້ງເທິງ GitHub — ສຳລັບຄັງເກັບໂຄ້ດຂະໜາດໃຫຍ່ນີ້ອາດໃຊ້ເວລາສອງສາມນາທີ. ກະລຸນາລອງໃໝ່ໃນອີກຈັກໜ່ອຍ; ໄຟລ໌ແພັດຊ໌ຍັງໃຊ້ງານໄດ້."
+			],
+			"Could not read your fork": [
+				"ບໍ່ສາມາດອ່ານ fork ຂອງທ່ານໄດ້"
+			],
+			"Could not fork %s": [
+				"ບໍ່ສາມາດ fork %s ໄດ້"
+			],
+			"Could not check for your fork": [
+				"ບໍ່ສາມາດກວດສອບ fork ຂອງທ່ານໄດ້"
+			],
+			"You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.": [
+				"ທ່ານມີຄັງເກັບໂຄ້ດຊື່ %1$s ຢູ່ແລ້ວເຊິ່ງບໍ່ແມ່ນ fork ຂອງ %2$s, ຈຶ່ງບໍ່ມີບ່ອນສຳລັບ push ສິ່ງນີ້. ໄຟລ໌ແພັດຊ໌ຍັງຄົງໃຊ້ງານໄດ້."
+			],
+			"%1$s: %2$s%3$s": [
+				"%1$s: %2$s%3$s"
+			],
+			"This build has no GitHub application configured, so it cannot sign you in.": [
+				"ບິວດ໌ນີ້ບໍ່ມີການຕັ້ງຄ່າແອັບພລິເຄຊັນ GitHub, ຈຶ່ງບໍ່ສາມາດພາທ່ານເຂົ້າສູ່ລະບົບໄດ້."
+			],
+			"GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke \"%1$s\" under %2$s, then sign in here again.": [
+				"GitHub ໃຫ້ສິດການເຂົ້າສູ່ລະບົບນີ້ນ້ອຍກວ່າທີ່ການເປີດ pull request ຕ້ອງການ — ອາດຈະເປັນຍ້ອນການໃຊ້ສິດເກົ່າຂອງແອັບນີ້ຊ້ຳ. ກະລຸນາຍົກເລີກສິດ \"%1$s\" ພາຍໃຕ້ %2$s, ແລ້ວເຂົ້າສູ່ລະບົບທີ່ນີ້ອີກຄັ້ງ."
+			],
+			"GitHub returned %s": [
+				"GitHub ສົ່ງຄ່າກັບມາ: %s"
+			],
+			"That sign-in is no longer valid.": [
+				"ການເຂົ້າສູ່ລະບົບນັ້ນໝົດອາຍຸແລ້ວ."
+			],
+			"The authorization was declined on GitHub.": [
+				"ການອະນຸຍາດຖືກປະຕິເສດໃນ GitHub."
+			],
+			"The code expired before it was entered.": [
+				"ລະຫັດໝົດອາຍຸກ່ອນທີ່ຈະຖືກປ້ອນ."
+			],
+			"Sign-in was canceled.": [
+				"ການເຂົ້າສູ່ລະບົບຖືກຍົກເລີກ."
+			],
+			"GitHub does not recognise this application, or device flow is not enabled on it.": [
+				"GitHub ບໍ່ຮູ້ຈັກແອັບພລິເຄຊັນນີ້, ຫຼື ບໍ່ໄດ້ເປີດໃຊ້ device flow ໃນແອັບ."
+			],
+			"Revert the patch you applied before opening a pull request from this checkout.": [
+				"ຍ້ອນກັບແພັດຊ໌ທີ່ທ່ານໄດ້ນຳໃຊ້ ກ່ອນທີ່ຈະເປີດ pull request ຈາກ checkout ນີ້."
+			],
+			"Revert %s before opening a pull request from this checkout.": [
+				"ຍ້ອນກັບ %s ກ່ອນທີ່ຈະເປີດ pull request ຈາກ checkout ນີ້."
+			],
+			"PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.": [
+				"PR #%d ຖືກນຳໃຊ้อยູ່. ປະຫວັດ commit ຂອງຜູ້ຂຽນແມ່ນປະຫວັດຂອງ checkout ນີ້, ສະນັ້ນຈຶ່ງບໍ່ສາມາດສົ່ງເປັນຜົນງານຂອງທ່ານໄດ້. ກະລຸນາຍ້ອນກັບ PR ນີ້ກ່ອນ."
+			],
+			"Unknown error": [
+				"ເກີດຂໍ້ຜິດພາດທີ່ບໍ່ຮູ້ສາເຫດ"
+			],
+			"Trac ticket number or URL": [
+				"ໝາຍເລກທິກເກັດ Trac ຫຼື URL"
+			],
+			"Ticket number or URL, e.g. 62281": [
+				"ໝາຍເລກທິກເກັດ ຫຼື URL, ເຊັ່ນ 62281"
+			],
+			"No ticket is linked to this site, so there is nowhere to attach it yet.": [
+				"ບໍ່ມີທິກເກັດໃດຖືກເຊື່ອມໂຍງກັບເວັບໄຊນີ້, ຈຶ່ງຍັງບໍ່ມີບ່ອນສຳລັບແນບໄຟລ໌."
+			],
+			"Save, then open #%d": [
+				"ບັນທຶກ, ແລ້ວເປີດ #%d"
+			],
+			"No automated checks. Often followed by a request to open a pull request.": [
+				"ບໍ່ມີການກວດສອບອັດຕະໂນມັດ. ມັກຈະຕາມມາດ້ວຍການຮ້ອງຂໍໃຫ້ເປີດ pull request."
+			],
+			"A WordPress.org account — needed anyway, for props and to comment.": [
+				"ບັນຊີ WordPress.org — ຈຳເປັນຕ້ອງມີ ເພື່ອຮັບ props ແລະ ສະແດງຄວາມຄິດເຫັນ."
+			],
+			"Attach to Trac": [
+				"ແນບໃສ່ Trac"
+			],
+			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
+				"ແອັບບໍ່ສາມາດແຍກການປ່ຽນແປງຂອງຜູ້ຂຽນອອກຈາກການແກ້ໄຂທີ່ເກີດຂຶ້ນພາຍຫຼັງໄດ້ຢ່າງປອດໄພ, ດັ່ງນັ້ນແພັດຊ໌ລວມນີ້ຈຶ່ງບໍ່ສາມາດສົ່ງເປັນຜົນງານຂອງທ່ານໄດ້. ທ່ານຍັງສາມາດໃຊ້ <strong>ບັນທຶກ</strong> ເພື່ອເກັບສຳເນົາໄວ້ໄດ້; ກະລຸນາຍ້ອນກັບແພັດຊ໌ທີ່ນຳໃຊ້ກ່ອນທີ່ຈະສົ່ງ."
+			],
+			"<strong>The patch you applied is part of this checkout.</strong>": [
+				"<strong>ແພັດຊ໌ທີ່ທ່ານນຳໃຊ້ເປັນສ່ວນໜຶ່ງຂອງ checkout ນີ້.</strong>"
+			],
+			"<strong><label /> is part of this checkout.</strong>": [
+				"<strong><label /> ເປັນສ່ວນໜຶ່ງຂອງ checkout ນີ້.</strong>"
+			],
+			"You can still use <strong>Save</strong> to keep an unattributed copy of your edits.": [
+				"ທ່ານຍັງສາມາດໃຊ້ <strong>ບັນທຶກ</strong> ເພື່ອເກັບສຳເນົາການແກ້ໄຂຂອງທ່ານໄວ້ໄດ້."
+			],
+			"The pull request is the one the app sends for you. The others save a file for you to send.": [
+				"Pull request ແມ່ນສິ່ງທີ່ແອັບສົ່ງໃຫ້ທ່ານໂດຍກົງ. ສ່ວນອື່ນໆ ຈະບັນທຶກເປັນໄຟລ໌ເພື່ອໃຫ້ທ່ານສົ່ງເອງ."
+			],
+			"Where this patch goes": [
+				"ບ່ອນທີ່ແພັດຊ໌ນີ້ຈະໄປ"
+			],
+			"Could not load your changes. Close this panel and try again. The error is shown below.": [
+				"ບໍ່ສາມາດໂຫຼດການປ່ຽນແປງຂອງທ່ານໄດ້. ກະລຸນາປິດໜ້າຕ່າງນີ້ແລ້ວລອງໃໝ່ອີກຄັ້ງ. ຂໍ້ຜິດພາດສະແດງຢູ່ດ້ານລຸ່ມ."
+			],
+			"This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.": [
+				"ໂຄ້ດ WordPress ຂອງເວັບໄຊນີ້ເກົ່າກວ່າ %d ມື້ແລ້ວ — ແພັດຊ໌ນີ້ອາດຈະນຳໃຊ້ບໍ່ໄດ້ໃນ Trac. ແນະນຳໃຫ້ອັບເດດເປັນ trunk ຫຼ້າສຸດກ່ອນ."
+			],
+			"Saved to %s": [
+				"ບັນທຶກໄວ້ທີ່ %s ແລ້ວ"
+			],
+			"Discard your changes": [],
+			"(<discard />)": [
+				"(<discard />)"
+			],
+			"Failed to generate patch": [
+				"ບໍ່ສາມາດສ້າງແພັດຊ໌ໄດ້"
+			],
+			"Error: %s": [
+				"ຂໍ້ຜິດພາດ: %s"
+			],
+			"No changes.": [
+				"ບໍ່ມີການປ່ຽນແປງ."
+			],
+			"Generating patch…": [
+				"ກຳລັງສ້າງແພັດຊ໌…"
+			],
+			"Could not save the patch: %s": [
+				"ບໍ່ສາມາດບັນທຶກແພັດຊ໌ໄດ້: %s"
+			],
+			"Change these": [
+				"ປ່ຽນແປງສິ່ງເຫຼົ່ານີ້"
+			],
+			"No event on the patch.": [
+				"ບໍ່ມີກິດຈະກຳລະບຸໄວ້ໃນແພັດຊ໌."
+			],
+			"The patch will say it was written at <strong><event /></strong>.": [
+				"ແພັດຊ໌ຈະລະບຸວ່າຖືກຂຽນຂຶ້ນທີ່ <strong><event /></strong>."
+			],
+			"Save patch as %s": [
+				"ບັນທຶກແພັດຊ໌ເປັນ %s"
+			],
+			"Someone else pushes it; the props still land on you.": [
+				"ຄົນອື່ນເປັນຜູ້ push ໂຄ້ດ; ແຕ່ການໃຫ້ກຽດ (props) ຍັງເປັນຂອງທ່ານ."
+			],
+			"No accounts at all. The patch carries your WordPress.org username, and the event you are at.": [
+				"ບໍ່ມີບັນຊີໃດໆ. ແພັດຊ໌ຈະລະບຸຊື່ຜູ້ໃຊ້ WordPress.org ຂອງທ່ານ, ແລະ ກິດຈະກຳທີ່ທ່ານເຂົ້າຮ່ວມ."
+			],
+			"Hand it to a mentor": [
+				"ສົ່ງຕໍ່ໃຫ້ກັບທີ່ປຶກສາ (mentor)"
+			],
+			"Remember this": [
+				"ຈື່ສິ່ງນີ້ໄວ້"
+			],
+			"Event this patch was written at": [
+				"ກິດຈະກຳທີ່ແພັດຊ໌ນີ້ຖືກຂຽນຂຶ້ນ"
+			],
+			"Event, e.g. WordCamp Europe 2026 (optional)": [
+				"ກິດຈະກຳ, ເຊັ່ນ WordCamp Europe 2026 (ເລືອກໃສ່ໄດ້)"
+			],
+			"WordPress.org username, e.g. janedoe": [
+				"ຊື່ຜູ້ໃຊ້ WordPress.org, ເຊັ່ນ janedoe"
+			],
+			"Asked once and remembered for every site — these are facts about you, not about this checkout.": [
+				"ຖາມພຽງຄັ້ງດຽວ ແລະ ຈະຈື່ໄວ້ສຳລັບທຸກໆ ເວັບໄຊ — ນີ້ແມ່ນຂໍ້ມູນກ່ຽວກັບຕົວທ່ານ, ບໍ່ແມ່ນກ່ຽວກັບ checkout ນີ້."
+			],
+			"There is nothing to send yet — this site has no changes against its copy of trunk.": [
+				"ຍັງບໍ່ມີຫຍັງທີ່ຈະສົ່ງ — ເວັບໄຊນີ້ບໍ່ມີການປ່ຽນແປງໃດໆ ເມື່ອທຽບກັບ trunk."
+			],
+			"Everything this site has that its copy of trunk does not.": [
+				"ທຸກສິ່ງທີ່ເວັບໄຊນີ້ມີ ແຕ່ trunk ບໍ່ມີ."
+			],
+			"Your changes": [
+				"ການປ່ຽນແປງຂອງທ່ານ"
+			],
+			"There are no changes on top of PR #%d.": [
+				"ບໍ່ມີການປ່ຽນແປງເພີ່ມເຕີມຈາກ PR #%d."
+			],
+			"Edits to this local copy, compared with the original PR commits.": [
+				"ການແກ້ໄຂໃນເຄື່ອງນີ້, ເມື່ອປຽບທຽບກັບ commit ຕົ້ນສະບັບຂອງ PR."
+			],
+			"Your changes on top of PR #%d": [
+				"ການປ່ຽນແປງຂອງທ່ານເພີ່ມເຕີມຈາກ PR #%d"
+			],
+			"Your changes for ticket #%d": [
+				"ການປ່ຽນແປງຂອງທ່ານສຳລັບທິກເກັດ #%d"
+			],
+			"Your changes for issue #%d": [
+				"ການປ່ຽນແປງຂອງທ່ານສຳລັບ issue #%d"
+			],
+			"Stop the dev server before discarding changes.": [
+				"ຢຸດເຊີເວີພັດທະນາກ່ອນທີ່ຈະຍົກເລີກການປ່ຽນແປງ."
+			],
+			"Wait for the build to finish before discarding changes.": [
+				"ລໍຖ້າໃຫ້ການບິວດ໌ສຳເລັດກ່ອນທີ່ຈະຍົກເລີກການປ່ຽນແປງ."
+			],
+			"Wait for the installation to finish before discarding changes.": [
+				"ລໍຖ້າໃຫ້ການຕິດຕັ້ງສຳເລັດກ່ອນທີ່ຈະຍົກເລີກການປ່ຽນແປງ."
+			],
+			"Wait for the trunk update to finish before discarding changes.": [
+				"ລໍຖ້າໃຫ້ການອັບເດດ trunk ສຳເລັດກ່ອນທີ່ຈະຍົກເລີກການປ່ຽນແປງ."
+			],
+			"There are no changes to discard.": [
+				"ບໍ່ມີການປ່ຽນແປງໃດໆ ໃຫ້ຍົກເລີກ."
+			],
+			"Changes could not be loaded.": [
+				"ບໍ່ສາມາດໂຫຼດການປ່ຽນແປງໄດ້."
+			],
+			"Wait for your changes to finish loading.": [
+				"ລໍຖ້າໃຫ້ການປ່ຽນແປງຂອງທ່ານໂຫຼດສຳເລັດກ່ອນ."
+			],
+			"Changes are already being discarded.": [
+				"ກຳລັງຢູ່ໃນຂັ້ນຕອນຍົກເລີກການປ່ຽນແປງ."
+			],
+			"the window’s theme: the operating system’s\u0004System": [
+				"ຕາມລະບົບ"
+			],
+			"the window’s theme\u0004Dark": [
+				"ມືດ"
+			],
+			"the window’s theme\u0004Light": [
+				"ແຈ້ງ"
+			],
+			"Theme": [
+				"ຮູບແບບ (Theme)"
+			],
+			"Choose what happens when the app quits.": [
+				"ເລືອກສິ່ງທີ່ຈະໃຫ້ເກີດຂຶ້ນເມື່ອປິດແອັບ."
+			],
+			"Stop them, and start them again next time": [
+				"ຢຸດການເຮັດວຽກ, ແລະ ເລີ່ມຕົ້ນໃໝ່ໃນຄັ້ງຕໍ່ໄປ"
+			],
+			"Stop them": [
+				"ຢຸດການເຮັດວຽກ"
+			],
+			"So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.": [
+				"ເພື່ອໃຫ້ເວັບໄຊ ແລະ wp-admin ພ້ອມໃຊ້ງານໂດຍບໍ່ຕ້ອງກົດເລີ່ມ. ໃນ WordPress Core ລະບົບຕິດຕາມການບິວດ໌ (build watch) ຈະເລີ່ມຂຶ້ນພ້ອມກັນ."
+			],
+			"Start the server when I open a site": [
+				"ເລີ່ມຕົ້ນເຊີເວີເມື່ອຂ້ອຍເປີດເວັບໄຊ"
+			],
+			"Opening and quitting": [
+				"ການເປີດ ແລະ ການປິດອອກ"
+			],
+			"Quitting always stops them; they can be started again when the app next opens.": [
+				"ການປິດແອັບຈະຢຸດການເຮັດວຽກສະເໝີ; ລະບົບສາມາດເລີ່ມຕົ້ນໃໝ່ໄດ້ເມື່ອເປີດແອັບໃນຄັ້ງຕໍ່ໄປ."
+			],
+			"When I quit, running servers and build watches": [
+				"ເມື່ອຂ້ອຍປິດແອັບ, ສຳລັບເຊີເວີ ແລະ build watch ທີ່ກຳລັງແລ່ນຢູ່"
+			],
+			"So edits are compiled as they are saved.": [
+				"ເພື່ອໃຫ້ສິ່ງທີ່ແກ້ໄຂຖືກຄອມໄພລ໌ທັນທີເມື່ອຖືກບັນທຶກ."
+			],
+			"Start the build watch when I open a site": [
+				"ເລີ່ມຕິດຕາມການບິວດ໌ (build watch) ເມື່ອຂ້ອຍເປີດເວັບໄຊ"
+			],
+			"The app does not have that PHP version.": [
+				"ແອັບນີ້ບໍ່ມີ PHP ເວີຊັນດັ່ງກ່າວ."
+			],
+			"Choose on or off.": [
+				"ເລືອກເປີດ ຫຼື ປິດ."
+			],
+			"Off": [
+				"ປິດ"
+			],
+			"Debugging": [
+				"ການແກ້ໄຂຈຸດບົກຜ່ອງ (Debugging)"
+			],
+			"%1$s · PHP %2$s": [
+				"%1$s · PHP %2$s"
+			],
+			"PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.": [
+				"ເລືອກ PHP %1$s ໄວ້, ແຕ່ແອັບເວີຊັນນີ້ບໍ່ມີເວີຊັນດັ່ງກ່າວ; ເຊີເວີຈະເລີ່ມຕົ້ນດ້ວຍ PHP %2$s ແທນ."
+			],
+			"Sites": [
+				"ເວັບໄຊ"
+			],
+			"Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.": [
+				"Core ຈະໃຫ້ບໍລິການ JavaScript ແລະ CSS ແບບບໍ່ໄດ້ບີບອັດ (unminified), ເພື່ອໃຫ້ສາມາດອ່ານ ແລະ ກວດສອບໂຄ້ດໃນບຣາວເຊີໄດ້ງ່າຍ."
+			],
+			"Use unminified scripts (SCRIPT_DEBUG)": [
+				"ໃຊ້ສະຄຣິບຕ໌ແບບບໍ່ບີບອັດ (SCRIPT_DEBUG)"
+			],
+			"Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.": [
+				"ເມື່ອປິດ, ການແຈ້ງເຕືອນ (notices) ແລະ ຟັງຊັນທີ່ເຊົາໃຊ້ (deprecations) ຈະບໍ່ຖືກລາຍງານ. ແຕ່ຄຳເຕືອນ (warnings) ແລະ ຂໍ້ຜິດພາດ (errors) ຍັງຄົງບັນທຶກລົງ debug.log ແລະ ສະແດງໃນບຣາວເຊີ, ແລະ ຄຳສັ່ງ error_log() ກໍຍັງບັນທຶກລົງ debug.log."
+			],
+			"Report notices and deprecations (WP_DEBUG)": [
+				"ລາຍງານຂໍ້ແຈ້ງເຕືອນ ແລະ ຟັງຊັນທີ່ເຊົາໃຊ້ (WP_DEBUG)"
+			],
+			"PHP version": [
+				"ເວີຊັນ PHP"
+			],
+			"Applies the next time a site’s server starts. A server that is running keeps what it started with.": [
+				"ມີຜົນໃນຄັ້ງຕໍ່ໄປທີ່ເຊີເວີຂອງເວັບໄຊເລີ່ມຕົ້ນ. ເຊີເວີທີ່ກຳລັງແລ່ນຢູ່ຈະຍັງໃຊ້ເວີຊັນເດີມທີ່ເລີ່ມໄວ້."
+			],
+			"Development server": [
+				"ເຊີເວີພັດທະນາ"
+			],
+			"The PHP versions could not be read. Quit the app and open it again.": [
+				"ບໍ່ສາມາດອ່ານເວີຊັນ PHP ໄດ້. ກະລຸນາປິດແອັບແລ້ວເປີດໃໝ່ອີກຄັ້ງ."
+			],
+			"Could not keep that.": [
+				"ບໍ່ສາມາດບັນທຶກຄ່ານັ້ນໄດ້."
+			],
+			"The app has no translation for that language.": [
+				"ແອັບຍັງບໍ່ມີການແປສຳລັບພາສານັ້ນ."
+			],
+			"Choose a language.": [
+				"ເລືອກພາສາ."
+			],
+			"Your system’s language": [
+				"ພາສາຕາມລະບົບຂອງທ່ານ"
+			],
+			"Relaunch now": [
+				"ເລີ່ມຕົ້ນແອັບໃໝ່ດຽວນີ້"
+			],
+			"The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.": [
+				"ແອັບຈະສະແດງພາສາໃໝ່ເມື່ອເລີ່ມຕົ້ນໃໝ່ແລ້ວ. ເຊີເວີ ແລະ ການບິວດ໌ທີ່ກຳລັງແລ່ນຢູ່ຈະຢຸດລົງ ຄືກັນກັບຕອນປິດແອັບ."
+			],
+			"Which language the app is shown in. A change applies after a relaunch.": [
+				"ພາສາທີ່ແອັບຈະສະແດງ. ການປ່ຽນແປງຈະມີຜົນຫຼັງຈາກເລີ່ມຕົ້ນແອັບໃໝ່."
+			],
+			"Language": [
+				"ພາສາ"
+			],
+			"The app could not relaunch. Quit it and open it again.": [
+				"ແອັບບໍ່ສາມາດເລີ່ມຕົ້ນໃໝ່ໄດ້. ກະລຸນາປິດແອັບແລ້ວເປີດຄືນໃໝ່."
+			],
+			"Could not keep that language.": [
+				"ບໍ່ສາມາດບັນທຶກພາສານັ້ນໄດ້."
+			],
+			"Appearance": [
+				"ຮູບລັກສະນະ"
+			],
+			"Enter your WordPress.org username.": [
+				"ປ້ອນຊື່ຜູ້ໃຊ້ WordPress.org ຂອງທ່ານ."
+			],
+			"Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.": [
+				"ປ້ອນຊື່ຜູ້ໃຊ້ WordPress.org ຂອງທ່ານ, ເຊັ່ນ janedoe, ຫຼື URL ໂປຣໄຟລ໌ profiles.wordpress.org ຂອງທ່ານ."
+			],
+			"Only %s profile links are supported.": [
+				"ຮອງຮັບສະເພາະ %s ລິ້ງໂປຣໄຟລ໌ເທົ່ານັ້ນ."
+			],
+			"There is no such setting.": [
+				"ບໍ່ມີການຕັ້ງຄ່ານີ້."
+			],
+			"That folder does not exist.": [
+				"ໂຟນເດີນັ້ນບໍ່ມີຢູ່."
+			],
+			"Choose a folder by its full path.": [
+				"ເລືອກໂຟນເດີໂດຍໃຊ້ເສັ້ນທາງເຕັມ (full path)."
+			],
+			"Choose a folder.": [
+				"ເລືອກໂຟນເດີ."
+			],
+			"Not set: the create-site dialog asks each time.": [
+				"ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ: ກ່ອງສ້າງເວັບໄຊຈະຖາມທຸກຄັ້ງ."
+			],
+			"Reading…": [
+				"ກຳລັງອ່ານ…"
+			],
+			"Not signed in. The app asks you to sign in when you open a pull request.": [
+				"ຍັງບໍ່ໄດ້ເຂົ້າສູ່ລະບົບ. ແອັບຈະແຈ້ງເຕືອນໃຫ້ທ່ານເຂົ້າສູ່ລະບົບເມື່ອທ່ານເປີດ pull request."
+			],
+			"Signed in as %s.": [
+				"ເຂົ້າສູ່ລະບົບໃນຊື່ %s ແລ້ວ."
+			],
+			"Sign-in is not set up in this build.": [
+				"ບິວດ໌ນີ້ບໍ່ໄດ້ຕັ້ງຄ່າການເຂົ້າສູ່ລະບົບໄວ້."
+			],
+			"Could not save that event.": [
+				"ບໍ່ສາມາດບັນທຶກກິດຈະກຳນັ້ນໄດ້."
+			],
+			"Could not save that username.": [
+				"ບໍ່ສາມາດບັນທຶກຊື່ຜູ້ໃຊ້ນັ້ນໄດ້."
+			],
+			"Forget this folder": [
+				"ລຶບໂຟນເດີນີ້ອອກຈາກຄວາມຈຳ"
+			],
+			"Each new site is created in a subfolder of this location.": [
+				"ແຕ່ລະເວັບໄຊໃໝ່ຈະຖືກສ້າງຂຶ້ນໃນໂຟນເດີຍ່ອຍຂອງບ່ອນນີ້."
+			],
+			"New sites go here": [
+				"ເວັບໄຊໃໝ່ຈະຖືກເກັບໄວ້ທີ່ນີ້"
+			],
+			"New sites": [
+				"ເວັບໄຊໃໝ່"
+			],
+			"Could not keep that folder.": [
+				"ບໍ່ສາມາດບັນທຶກໂຟນເດີນັ້ນໄດ້."
+			],
+			"Account": [
+				"ບັນຊີ"
+			],
+			"General": [
+				"ທົ່ວໄປ"
+			],
+			"Sign out": [
+				"ອອກຈາກລະບົບ"
+			],
+			"GitHub": [
+				"GitHub"
+			],
+			"Save": [
+				"ບັນທຶກ"
+			],
+			"Saving": [
+				"ກຳລັງບັນທຶກ"
+			],
+			"Saved.": [
+				"ບັນທຶກແລ້ວ."
+			],
+			"Where you are contributing from, if you are at an event. Leave it empty otherwise.": [
+				"ສະຖານທີ່ທີ່ທ່ານເຂົ້າຮ່ວມພັດທະນາ, ຫາກທ່ານຢູ່ໃນກິດຈະກຳ. ຫາກບໍ່ມີໃຫ້ປະວ່າງໄວ້."
+			],
+			"Event": [
+				"ກິດຈະກຳ"
+			],
+			"Goes on a patch you hand to a mentor, so the props land on you.": [
+				"ຈະຕິດໄປກັບແພັດຊ໌ທີ່ທ່ານສົ່ງໃຫ້ທີ່ປຶກສາ, ເພື່ອໃຫ້ທ່ານໄດ້ຮັບການໃຫ້ກຽດ (props)."
+			],
+			"WordPress.org username": [
+				"ຊື່ຜູ້ໃຊ້ WordPress.org"
+			],
+			"How you contribute": [
+				"ວິທີທີ່ທ່ານມີສ່ວນຮ່ວມ"
+			],
+			"Settings": [
+				"ການຕັ້ງຄ່າ"
+			],
+			"The event name has to fit on one line.": [
+				"ຊື່ກິດຈະກຳຕ້ອງຢູ່ໃນແຖວດຽວ."
+			],
+			"Enter the event name, or leave it empty.": [
+				"ປ້ອນຊື່ກິດຈະກຳ, ຫຼື ປະວ່າງໄວ້."
+			],
+			"Keep the event name under %d characters.": [
+				"ຕັ້ງຊື່ກິດຈະກຳບໍ່ໃຫ້ເກີນ %d ຕົວອັກສອນ."
+			],
+			"Settings…": [
+				"ການຕັ້ງຄ່າ…"
+			],
+			"Show Logs Folder": [
+				"ສະແດງໂຟນເດີບັນທຶກ (Logs)"
+			],
+			"Open App Log": [
+				"ເປີດບັນທຶກການເຮັດວຽກຂອງແອັບ (App Log)"
+			],
+			"Choose the application to open this folder in": [
+				"ເລືອກແອັບພລິເຄຊັນເພື່ອເປີດໂຟນເດີນີ້"
+			],
+			"Programs": [
+				"ໂປຣແກຣມ"
+			],
+			"Applications": [
+				"ແອັບພລິເຄຊັນ"
+			],
+			"All Files": [
+				"ໄຟລ໌ທັງໝົດ"
+			],
+			"Patch Files": [
+				"ໄຟລ໌ແພັດຊ໌"
+			],
+			"Choose a patch file": [
+				"ເລືອກໄຟລ໌ແພັດຊ໌"
+			],
+			"Save Diff File": [
+				"ບັນທຶກໄຟລ໌ Diff"
+			],
+			"Save Patch for Handoff": [
+				"ບັນທຶກແພັດຊ໌ເພື່ອສົ່ງຕໍ່"
+			],
+			"Email": [
+				"ອີເມວ"
+			],
+			"Logs": [
+				"ບັນທຶກ (Logs)"
+			],
+			"Terminal": [
+				"ເທີມິນອນ"
+			],
+			"Closed": [
+				"ປິດແລ້ວ"
+			],
+			"Merged": [
+				"ຮວມແລ້ວ (Merged)"
+			],
+			"No pull requests cite this ticket yet.": [
+				"ຍັງບໍ່ມີ pull request ໃດອ້າງອີງເຖິງທິກເກັດນີ້."
+			],
+			"See the work that already exists on this ticket before adding your own.": [
+				"ເບິ່ງວຽກທີ່ມີຢູ່ແລ້ວໃນທິກເກັດນີ້ ກ່ອນທີ່ຈະເພີ່ມວຽກຂອງທ່ານໃສ່."
+			],
+			"Open in Trac": [
+				"ເປີດໃນ Trac"
+			],
+			"Browse good first bugs on Trac": [
+				"ເບິ່ງລາຍການບັກທີ່ເໝາະສຳລັບຜູ້ເລີ່ມຕົ້ນໃນ Trac"
+			],
+			"Linking ticket": [
+				"ກຳລັງເຊື່ອມໂຍງທິກເກັດ"
+			],
+			"Link ticket": [
+				"ເຊື່ອມໂຍງທິກເກັດ"
+			],
+			"e.g. 62281": [
+				"ເຊັ່ນ 62281"
+			],
+			"Ticket number or URL": [
+				"ໝາຍເລກທິກເກັດ ຫຼື URL"
+			],
+			"Link the ticket you’re working on.": [
+				"ເຊື່ອມໂຍງທິກເກັດທີ່ທ່ານກຳລັງເຮັດວຽກຢູ່."
+			],
+			"Trac ticket": [
+				"ທິກເກັດ Trac"
+			],
+			"No pull requests cite this issue yet.": [
+				"ຍັງບໍ່ມີ pull request ໃດອ້າງອີງເຖິງ issue ນີ້."
+			],
+			"See the work that already exists on this issue before adding your own.": [
+				"ເບິ່ງວຽກທີ່ມີຢູ່ແລ້ວໃນ issue ນີ້ ກ່ອນທີ່ຈະເພີ່ມວຽກຂອງທ່ານໃສ່."
+			],
+			"Open on GitHub": [
+				"ເປີດໃນ GitHub"
+			],
+			"Browse good first issues on GitHub": [
+				"ເບິ່ງລາຍການ issue ທີ່ເໝາະສຳລັບຜູ້ເລີ່ມຕົ້ນໃນ GitHub"
+			],
+			"Linking issue": [
+				"ກຳລັງເຊື່ອມໂຍງ issue"
+			],
+			"Link issue": [
+				"ເຊື່ອມໂຍງ issue"
+			],
+			"e.g. 71234": [
+				"ເຊັ່ນ 71234"
+			],
+			"Issue number or URL": [
+				"ໝາຍເລກ issue ຫຼື URL"
+			],
+			"Link the issue you’re working on.": [
+				"ເຊື່ອມໂຍງ issue ທີ່ທ່ານກຳລັງເຮັດວຽກຢູ່."
+			],
+			"GitHub issue": [
+				"GitHub issue"
+			],
+			"Could not read the attachments from Trac. (%s)": [
+				"ບໍ່ສາມາດອ່ານໄຟລ໌ແນບຈາກ Trac ໄດ້. (%s)"
+			],
+			"Could not read the attachments from Trac.": [
+				"ບໍ່ສາມາດອ່ານໄຟລ໌ແນບຈາກ Trac ໄດ້."
+			],
+			"The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.": [
+				"ໜ້າຕ່າງ Trac ຖືກປິດກ່ອນທີ່ໄຟລ໌ແນບຈະໂຫຼດສຳເລັດ. ກົດ “ໂຫຼດໃໝ່” ເພື່ອລອງອີກຄັ້ງ."
+			],
+			"Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.": [
+				"ການກວດສອບຄວາມເປັນມະນຸດຂອງ Trac ບໍ່ສຳເລັດຕາມເວລາ. ກະລຸນາລອງໃໝ່, ແລະ ກົດ “ຂ້ອຍເປັນມະນຸດ” ຫາກມີປາກົດຂຶ້ນ."
+			],
+			"by %s": [
+				"ໂດຍ %s"
+			],
+			"Showing what was last seen %s.": [
+				"ສະແດງສິ່ງທີ່ພົບເຫັນຫຼ້າສຸດ %s."
+			],
+			"No cached list to fall back on.": [
+				"ບໍ່ມີລາຍການໃນແຄຊໃຫ້ກັບຄືນໄປໃຊ້."
+			],
+			"Could not reach GitHub.": [
+				"ບໍ່ສາມາດເຊື່ອມຕໍ່ຫາ GitHub ໄດ້."
+			],
+			"GitHub is rate-limiting this connection.": [
+				"GitHub ກຳລັງຈຳກັດຄວາມຖີ່ໃນການເຊື່ອມຕໍ່ (rate-limiting)."
+			],
+			"Could not read the pull requests from GitHub.": [
+				"ບໍ່ສາມາດອ່ານ pull request ຈາກ GitHub ໄດ້."
+			],
+			"Updated %s": [
+				"ອັບເດດເມື່ອ %s"
+			],
+			"Last commit %s": [
+				"commit ຫຼ້າສຸດ %s"
+			],
+			"Open": [
+				"ເປີດ"
+			],
+			"Edited on %s": [
+				"ແກ້ໄຂເມື່ອ %s"
+			],
+			"Edited %d day ago": [
+				"ແກ້ໄຂເມື່ອ %d ມື້ກ່ອນ"
+			],
+			"Edited %d hour ago": [
+				"ແກ້ໄຂເມື່ອ %d ຊົ່ວໂມງກ່ອນ"
+			],
+			"Edited %d minute ago": [
+				"ແກ້ໄຂເມື່ອ %d ນາທີກ່ອນ"
+			],
+			"Edited just now": [
+				"ແກ້ໄຂເມື່ອກີ້ນີ້"
+			],
+			"Delete this ticket’s work": [
+				"ລຶບວຽກຂອງທິກເກັດນີ້"
+			],
+			"This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.": [
+				"ການກະທຳນີ້ຈະລຶບທຸກໆ ການປ່ຽນແປງທີ່ສ້າງຂຶ້ນສຳລັບທິກເກັດນີ້ໃນເວັບໄຊຢ່າງຖາວອນ ບໍ່ວ່າຈະສົ່ງແລ້ວຫຼືບໍ່ກໍຕາມ. ສິ່ງນີ້ບໍ່ສາມາດຍ້ອນກັບໄດ້."
+			],
+			"Delete all work on ticket #%d?": [
+				"ລຶບວຽກທັງໝົດໃນທິກເກັດ #%d ບໍ່?"
+			],
+			"Delete this issue’s work": [
+				"ລຶບວຽກຂອງ issue ນີ້"
+			],
+			"This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.": [
+				"ການກະທຳນີ້ຈະລຶບທຸກໆ ການປ່ຽນແປງທີ່ສ້າງຂຶ້ນສຳລັບ issue ນີ້ໃນເວັບໄຊຢ່າງຖາວອນ ບໍ່ວ່າຈະສົ່ງແລ້ວຫຼືບໍ່ກໍຕາມ. ສິ່ງນີ້ບໍ່ສາມາດຍ້ອນກັບໄດ້."
+			],
+			"Delete all work on issue #%d?": [
+				"ລຶບວຽກທັງໝົດໃນ issue #%d ບໍ່?"
+			],
+			"Your tickets on this site": [
+				"ທິກເກັດຂອງທ່ານໃນເວັບໄຊນີ້"
+			],
+			"Other tickets on this site": [
+				"ທິກເກັດອື່ນໆ ໃນເວັບໄຊນີ້"
+			],
+			"Your issues on this site": [
+				"issue ຂອງທ່ານໃນເວັບໄຊນີ້"
+			],
+			"Other issues on this site": [
+				"issue ອື່ນໆ ໃນເວັບໄຊນີ້"
+			],
+			"Deleting": [
+				"ກຳລັງລຶບ"
+			],
+			"Continue working": [
+				"ເຮັດວຽກຕໍ່"
+			],
+			"Switch": [
+				"ສະຫຼັບ"
+			],
+			"Deleting site…": [
+				"ກຳລັງລຶບເວັບໄຊ…"
+			],
+			"WordPress code is %d day old — update to latest trunk": [
+				"ໂຄ້ດ WordPress ເກົ່າກວ່າ %d ມື້ແລ້ວ — ອັບເດດເປັນ trunk ຫຼ້າສຸດ"
+			],
+			"Update incomplete — code is new, built assets are old": [
+				"ການອັບເດດບໍ່ສົມບູນ — ໂຄ້ດເປັນລຸ້ນໃໝ່, ແຕ່ asset ທີ່ບິວດ໌ຍັງເປັນຂອງເກົ່າ"
+			],
+			"Build watching": [
+				"ກຳລັງຕິດຕາມການບິວດ໌ (watching)"
+			],
+			"Build compiling": [
+				"ກຳລັງຄອມໄພລ໌ບິວດ໌"
+			],
+			"Edits in %s are compiled as they are saved.": [
+				"ການແກ້ໄຂໃນ %s ຈະຖືກຄອມໄພລ໌ທັນທີເມື່ອມີການບັນທຶກ."
+			],
+			"Start build watch": [
+				"ເລີ່ມຕິດຕາມການບິວດ໌ (build watch)"
+			],
+			"Start": [
+				"ເລີ່ມຕົ້ນ"
+			],
+			"Stop build watch": [
+				"ຢຸດຕິດຕາມການບິວດ໌ (build watch)"
+			],
+			"Stop": [
+				"ຢຸດ"
+			],
+			"The development server could not start. Its last lines are in the Logs.": [
+				"ເຊີເວີພັດທະນາບໍ່ສາມາດເລີ່ມຕົ້ນໄດ້. ຂໍ້ຄວາມຫຼ້າສຸດສະແດງຢູ່ໃນບັນທຶກ (Logs)."
+			],
+			"The development server stopped by itself. Its last lines are in the Logs.": [
+				"ເຊີເວີພັດທະນາຢຸດເຮັດວຽກເອງ. ຂໍ້ຄວາມຫຼ້າສຸດສະແດງຢູ່ໃນບັນທຶກ (Logs)."
+			],
+			"Start development server": [
+				"ເລີ່ມຕົ້ນເຊີເວີພັດທະນາ"
+			],
+			"Server stopped": [
+				"ເຊີເວີຢຸດແລ້ວ"
+			],
+			"Stop development server": [
+				"ຢຸດເຊີເວີພັດທະນາ"
+			],
+			"Server running": [
+				"ເຊີເວີກຳລັງເຮັດວຽກ"
+			],
+			"Starting…": [
+				"ກຳລັງເລີ່ມຕົ້ນ…"
+			],
+			"Starting development server…": [
+				"ກຳລັງເລີ່ມຕົ້ນເຊີເວີພັດທະນາ…"
+			],
+			"Server starting…": [
+				"ກຳລັງເລີ່ມຕົ້ນເຊີເວີ…"
+			],
+			"Dev server is starting… (%s)": [
+				"ເຊີເວີພັດທະນາກຳລັງເລີ່ມຕົ້ນ… (%s)"
+			],
+			"Database": [
+				"ຖານຂໍ້ມູນ"
+			],
+			"wp-admin": [
+				"wp-admin"
+			],
+			"View site": [
+				"ເບິ່ງເວັບໄຊ"
+			],
+			"Build stopped": [
+				"ການບິວດ໌ຢຸດແລ້ວ"
+			],
+			"The build watch ended by itself, with exit code %d. Its last lines are in the Logs.": [
+				"ການຕິດຕາມການບິວດ໌ສິ້ນສຸດລົງເອງ ດ້ວຍລະຫັດ %d. ຂໍ້ຄວາມຫຼ້າສຸດສະແດງຢູ່ໃນບັນທຶກ (Logs)."
+			],
+			"The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.": [
+				"ການບິວດ໌ທີ່ຕ້ອງເຮັດໃຫ້ແລ້ວກ່ອນເລີ່ມຕິດຕາມນັ້ນລົ້ມເຫຼວ, ສະນັ້ນຈຶ່ງບໍ່ໄດ້ເລີ່ມຕິດຕາມ. ຂໍ້ຄວາມຫຼ້າສຸດສະແດງຢູ່ໃນບັນທຶກ (Logs)."
+			],
+			"The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.": [
+				"ການບິວດ໌ທີ່ຕ້ອງເຮັດໃຫ້ແລ້ວກ່ອນເລີ່ມຕິດຕາມນັ້ນລົ້ມເຫຼວ ດ້ວຍລະຫັດ %d, ສະນັ້ນຈຶ່ງບໍ່ໄດ້ເລີ່ມຕິດຕາມ. ຂໍ້ຄວາມຫຼ້າສຸດສະແດງຢູ່ໃນບັນທຶກ (Logs)."
+			],
+			"The build watch ended by itself. Its last lines are in the Logs.": [
+				"ການຕິດຕາມການບິວດ໌ສິ້ນສຸດລົງເອງ. ຂໍ້ຄວາມຫຼ້າສຸດສະແດງຢູ່ໃນບັນທຶກ (Logs)."
+			],
+			"Paused while another operation builds the site. It comes back by itself.": [
+				"ຢຸດຊົ່ວຄາວໃນຂະນະທີ່ຂະບວນການອື່ນກຳລັງບິວດ໌ເວັບໄຊ. ລະບົບຈະກັບມາເຮັດວຽກເອງໂດຍອັດຕະໂນມັດ."
+			],
+			"Build paused": [
+				"ການບິວດ໌ຖືກພັກໄວ້ຊົ່ວຄາວ"
+			],
+			"Building the site before watching it.": [
+				"ກຳລັງບິວດ໌ເວັບໄຊກ່ອນທີ່ຈະເລີ່ມຕິດຕາມ."
+			],
+			"Build building": [
+				"ກຳລັງບິວດ໌"
+			],
+			"Wait for the build to finish.": [
+				"ລໍຖ້າໃຫ້ການບິວດ໌ສຳເລັດ."
+			],
+			"Wait for the installation to finish.": [
+				"ລໍຖ້າໃຫ້ການຕິດຕັ້ງສຳເລັດ."
+			],
+			"Wait for the trunk update to finish.": [
+				"ລໍຖ້າໃຫ້ການອັບເດດ trunk ສຳເລັດ."
+			],
+			"Looking for applications…": [
+				"ກຳລັງຊອກຫາແອັບພລິເຄຊັນ…"
+			],
+			"Other application…": [
+				"ແອັບພລິເຄຊັນອື່ນ…"
+			],
+			"Show in file manager": [
+				"ສະແດງໃນຕົວຈັດການໄຟລ໌"
+			],
+			"Show in Explorer": [
+				"ສະແດງໃນ Explorer"
+			],
+			"Show in Finder": [
+				"ສະແດງໃນ Finder"
+			],
+			"Deleting…": [
+				"ກຳລັງລຶບ…"
+			],
+			"Open in": [
+				"ເປີດໃນ"
+			],
+			"Copy path": [
+				"ສຳເນົາເສັ້ນທາງ (path)"
+			],
+			"Rename…": [
+				"ປ່ຽນຊື່…"
+			],
+			"Update to latest trunk": [
+				"ອັບເດດເປັນ trunk ຫຼ້າສຸດ"
+			],
+			"(no subject)": [
+				"(ບໍ່ມີຫົວຂໍ້)"
+			],
+			"No mail yet. WordPress transactional email will appear here once the site sends any.": [
+				"ຍັງບໍ່ມີອີເມວ. ອີເມວແຈ້ງເຕືອນຈາກ WordPress ຈະສະແດງຢູ່ນີ້ເມື່ອເວັບໄຊມີການສົ່ງ."
+			],
+			"SMTP listening on 127.0.0.1:%d": [
+				"SMTP ກຳລັງລໍຖ້າການເຊື່ອມຕໍ່ທີ່ 127.0.0.1:%d"
+			],
+			"SMTP will start with the dev server.": [
+				"SMTP ຈະເລີ່ມຕົ້ນພ້ອມກັບເຊີເວີພັດທະນາ."
+			],
+			"Delete site": [
+				"ລຶບເວັບໄຊ"
+			],
+			"This will permanently delete the site and all of its files from your computer. This can’t be undone.": [
+				"ການກະທຳນີ້ຈະລຶບເວັບໄຊ ແລະ ໄຟລ໌ທັງໝົດອອກຈາກຄອມພິວເຕີຂອງທ່ານຢ່າງຖາວອນ. ສິ່ງນີ້ບໍ່ສາມາດຍ້ອນກັບໄດ້."
+			],
+			"Delete %s?": [
+				"ລຶບ %s ບໍ່?"
+			],
+			"Site name cannot be empty.": [
+				"ຊື່ເວັບໄຊບໍ່ສາມາດປະວ່າງໄດ້."
+			],
+			"Checkout": [
+				"Checkout"
+			],
+			"Local path": [
+				"ເສັ້ນທາງໃນເຄື່ອງ (Local path)"
+			],
+			"%d day old": [
+				"ເກົ່າກວ່າ %d ມື້ແລ້ວ"
+			],
+			"Trunk as of": [
+				"Trunk ນັບຕັ້ງແຕ່"
+			],
+			"Created": [
+				"ສ້າງເມື່ອ"
+			],
+			"Uninitialized": [
+				"ຍັງບໍ່ໄດ້ເລີ່ມຕົ້ນ"
+			],
+			"Initialized": [
+				"ເລີ່ມຕົ້ນແລ້ວ"
+			],
+			"Setup": [
+				"ຕິດຕັ້ງ"
+			],
+			"Show sites list": [
+				"ສະແດງລາຍການເວັບໄຊ"
+			],
+			"Hide sites list": [
+				"ເຊື່ອງລາຍການເວັບໄຊ"
+			],
+			"Site": [
+				"ເວັບໄຊ"
+			],
+			"Create your first site to begin contributing": [
+				"ສ້າງເວັບໄຊທຳອິດຂອງທ່ານເພື່ອເລີ່ມຕົ້ນການມີສ່ວນຮ່ວມ"
+			],
+			"No sites": [
+				"ບໍ່ມີເວັບໄຊ"
+			],
+			"All changes discarded.": [
+				"ຍົກເລີກການປ່ຽນແປງທັງໝົດແລ້ວ."
+			],
+			"This site is ready to work on": [
+				"ເວັບໄຊນີ້ພ້ອມສຳລັບການເຮັດວຽກແລ້ວ"
+			],
+			"Copied the path": [
+				"ສຳເນົາເສັ້ນທາງແລ້ວ"
+			],
+			"Updated to the latest trunk": [
+				"ອັບເດດເປັນ trunk ຫຼ້າສຸດແລ້ວ"
+			],
+			"Local changes discarded.": [
+				"ຍົກເລີກການປ່ຽນແປງໃນເຄື່ອງແລ້ວ."
+			],
+			"Already up to date with trunk": [
+				"ອັບເດດເປັນປັດຈຸບັນຕົງກັບ trunk ແລ້ວ"
+			],
+			"%d unseen line in Debug.log": [
+				"ມີ %d ແຖວທີ່ຍັງບໍ່ໄດ້ອ່ານໃນ Debug.log"
+			],
+			"A site’s project cannot be changed later.": [
+				"ໂຄງການຂອງເວັບໄຊບໍ່ສາມາດປ່ຽນແປງໃນພາຍຫຼັງໄດ້."
+			],
+			"Opened pull request #%1$s on %2$s": [
+				"ເປີດ pull request #%1$s ໃນ %2$s ສຳເລັດແລ້ວ"
+			],
+			"Dry run — branch created, no pull request opened": [
+				"ການທົດລອງແລ່ນ — ສ້າງ branch ແລ້ວ, ບໍ່ມີການເປີດ pull request"
+			],
+			"Saved your changes to %s and reset the working tree": [
+				"ບັນທຶກການປ່ຽນແປງຂອງທ່ານໄວ້ທີ່ %s ແລະ ຣີເຊັດ working tree ສຳເລັດແລ້ວ"
+			],
+			"Patch saved to %s": [
+				"ບັນທຶກແພັດຊ໌ໄວ້ທີ່ %s ແລ້ວ"
+			],
+			"Restored the saved work": [
+				"ກູ້ຄືນວຽກທີ່ບັນທຶກໄວ້ແລ້ວ"
+			],
+			"Restored the previous branch": [
+				"ກູ້ຄືນ branch ກ່ອນໜ້ານີ້ແລ້ວ"
+			],
+			"Checked out the pull request": [
+				"Checked out pull request ສຳເລັດແລ້ວ"
+			],
+			"Reverted the patch": [
+				"ຍ້ອນກັບແພັດຊ໌ແລ້ວ"
+			],
+			"Applied the patch": [
+				"ນຳໃຊ້ແພັດຊ໌ແລ້ວ"
+			],
+			"The site could not be created. %s": [
+				"ບໍ່ສາມາດສ້າງເວັບໄຊໄດ້. %s"
+			],
+			"The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s": [
+				"ເວັບໄຊຍັງຄົງສະແດງຢູ່ໃນລາຍການຍ້ອນບໍ່ສາມາດລຶບໂຟນເດີໄດ້. ກະລຸນາປິດໂປຣແກຣມທີ່ກຳລັງໃຊ້ງານມັນຢູ່, ແລ້ວລອງໃໝ່. ໂຟນເດີ: %s"
+			],
+			"The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s": [
+				"ເວັບໄຊຍັງຄົງສະແດງຢູ່ໃນລາຍການຍ້ອນບໍ່ສາມາດລຶບໂຟນເດີໄດ້ (%1$s). ກະລຸນາປິດໂປຣແກຣມທີ່ກຳລັງໃຊ້ງານມັນຢູ່, ແລ້ວລອງໃໝ່. ໂຟນເດີ: %2$s"
+			],
+			"Opened pull request #%s": [
+				"ເປີດ pull request #%s ແລ້ວ"
+			],
+			"Notifications": [
+				"ການແຈ້ງເຕືອນ"
+			],
+			"Checking GitHub…": [
+				"ກຳລັງກວດສອບ GitHub…"
+			],
+			"Checking GitHub": [
+				"ກວດສອບ GitHub"
+			],
+			"Linked pull requests": [
+				"Pull requests ທີ່ເຊື່ອມໂຍງໄວ້"
+			],
+			"Keywords": [],
+			"Apply…": [
+				"ນຳໃຊ້…"
+			],
+			"The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.": [
+				"ແພັດຊ໌ຫຼ້າສຸດໃນທິກເກັດນີ້ແມ່ນໄຟລ໌ແນບ, ບໍ່ແມ່ນ pull request — ເບິ່ງໄຟລ໌ແນບ Trac ດ້ານລຸ່ມ."
+			],
+			"Read details from Trac": [
+				"ອ່ານລາຍລະອຽດຈາກ Trac"
+			],
+			"Reading the ticket on Trac": [
+				"ກຳລັງອ່ານທິກເກັດໃນ Trac"
+			],
+			"Unlink": [
+				"ຍົກເລີກການເຊື່ອມໂຍງ"
+			],
+			"Refresh": [
+				"ໂຫຼດໃໝ່"
+			],
+			"Not sure yet?": [
+				"ຍັງບໍ່ແນ່ໃຈເທື່ອບໍ?"
+			],
+			"If you have edited anything already, you will be asked what should happen to those edits.": [
+				"ຫາກທ່ານມີການແກ້ໄຂສິ່ງໃດແລ້ວ, ລະບົບຈະຖາມວ່າຕ້ອງການຈັດການກັບສິ່ງທີ່ແກ້ໄຂນັ້ນແນວໃດ."
+			],
+			"Latest": [
+				"ຫຼ້າສຸດ"
+			],
+			"No patch files attached to this ticket.": [
+				"ບໍ່ມີໄຟລ໌ແພັດຊ໌ແນບຢູ່ໃນທິກເກັດນີ້."
+			],
+			"Opening the ticket on Trac…": [
+				"ກຳລັງເປີດທິກເກັດໃນ Trac…"
+			],
+			"Show Trac attachments": [
+				"ສະແດງໄຟລ໌ແນບ Trac"
+			],
+			"Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.": [
+				"ບາງຄັ້ງໄຟລ໌ແພັດຊ໌ກໍຖືກແນບໄວ້ໃນ Trac ແທນ PR. ການເປີດອ່ານຈະເປັນການເປີດທິກເກັດເພື່ອໃຫ້ທ່ານຜ່ານການກວດສອບຄວາມເປັນມະນຸດໜຶ່ງຄັ້ງ."
+			],
+			"Opening the ticket on Trac": [
+				"ກຳລັງເປີດທິກເກັດໃນ Trac"
+			],
+			"Trac attachments": [
+				"ໄຟລ໌ແນບ Trac"
+			],
+			"Applied": [
+				"ນຳໃຊ້ແລ້ວ"
+			],
+			"My sites": [
+				"ເວັບໄຊຂອງຂ້ອຍ"
+			],
+			"Create new site": [
+				"ສ້າງເວັບໄຊໃໝ່"
+			],
+			"(Deleting)": [
+				"(ກຳລັງລຶບ)"
+			],
+			"(%s)": [
+				"(%s)"
+			],
+			"Name": [
+				"ຊື່"
+			],
+			"Site actions": [
+				"ການຈັດການເວັບໄຊ"
+			],
+			"Show details": [
+				"ສະແດງລາຍລະອຽດ"
+			],
+			"Hide details": [
+				"ເຊື່ອງລາຍລະອຽດ"
+			],
+			"Review & submit changes": [
+				"ກວດສອບ ແລະ ສົ່ງການປ່ຽນແປງ"
+			],
+			"Review": [
+				"ກວດສອບ"
+			],
+			"Show password": [
+				"ສະແດງລະຫັດຜ່ານ"
+			],
+			"Hide password": [
+				"ເຊື່ອງລະຫັດຜ່ານ"
+			],
+			"Password": [
+				"ລະຫັດຜ່ານ"
+			],
+			"Username": [
+				"ຊື່ຜູ້ໃຊ້"
+			],
+			"Admin credentials": [
+				"ຂໍ້ມູນເຂົ້າສູ່ລະບົບຂອງຜູ້ດູແລລະບົບ (Admin)"
+			],
+			"Server": [
+				"ເຊີເວີ"
+			],
+			"Copied": [
+				"ສຳເນົາແລ້ວ"
+			],
+			"Copy": [
+				"ສຳເນົາ"
+			],
+			"Details": [
+				"ລາຍລະອຽດ"
+			],
+			"Details of %s": [
+				"ລາຍລະອຽດຂອງ %s"
+			],
+			"Build watch offline": [
+				"Build watch ອອບລາຍ"
+			],
+			"Build watch": [
+				"Build watch"
+			],
+			"Development server offline": [
+				"ເຊີເວີພັດທະນາອອບລາຍ"
+			],
+			"Rename": [
+				"ປ່ຽນຊື່"
+			],
+			"Renaming the site": [
+				"ກຳລັງປ່ຽນຊື່ເວັບໄຊ"
+			],
+			"Rename site": [
+				"ປ່ຽນຊື່ເວັບໄຊ"
+			],
+			"Clear emails": [
+				"ລຶບລ້າງອີເມວ"
+			],
+			"Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.": [
+				"ເລືອກໂຟນເດີຫຼັກບ່ອນທີ່ທ່ານຕ້ອງການສ້າງເວັບໄຊໃໝ່ນີ້. ໂຟນເດີຍ່ອຍໃໝ່ຈະຖືກສ້າງຂຶ້ນສຳລັບເວັບໄຊ."
+			],
+			"Location": [
+				"ສະຖານທີ່ເກັບ"
+			],
+			"Setting up a site": [
+				"ກຳລັງຕິດຕັ້ງເວັບໄຊ"
+			],
+			"Project": [
+				"ໂຄງການ"
+			],
+			"Close": [
+				"ປິດ"
+			],
+			"Resize tray": [
+				"ປັບຂະໜາດຖາດ"
+			],
+			"This patch is applied to your current work. Removing it may require undoing overlapping edits.": [
+				"ແພັດຊ໌ນີ້ຖືກນຳໃຊ້ກັບວຽກປັດຈຸບັນຂອງທ່ານແລ້ວ. ການລຶບມັນອອກອາດຈຳເປັນຕ້ອງຍົກເລີກການແກ້ໄຂທີ່ທັບຊ້ອນກັນ."
+			],
+			"Discard this ticket to its base": [
+				"ຍົກເລີກທິກເກັດນີ້ກັບໄປສູ່ຄ່າເລີ່ມຕົ້ນ"
+			],
+			"Save a copy of your work": [
+				"ບັນທຶກສຳເນົາວຽກຂອງທ່ານ"
+			],
+			"Revert this PR before applying another PR or patch file.": [
+				"ຍ້ອນກັບ PR ນີ້ກ່ອນທີ່ຈະນຳໃຊ້ PR ອື່ນ ຫຼື ໄຟລ໌ແພັດຊ໌ອື່ນ."
+			],
+			"Try another patch on this ticket": [
+				"ລອງໃຊ້ແພັດຊ໌ອື່ນໃນທິກເກັດນີ້"
+			],
+			"Revert this patch": [
+				"ຍ້ອນກັບແພັດຊ໌ນີ້"
+			],
+			"Give feedback": [
+				"ສົ່ງຄຳຕິຊົມ"
+			],
+			"It changes package-lock.json, so dependencies will be installed before the rebuild.": [
+				"ມີການປ່ຽນແປງ package-lock.json, ດັ່ງນັ້ນແພັກເກດທີ່ຈຳເປັນຈະຖືກຕິດຕັ້ງກ່ອນການບິວດ໌ໃໝ່."
+			],
+			"Apply and rebuild": [
+				"ນຳໃຊ້ ແລະ ບິວດ໌ໃໝ່"
+			],
+			"%1$s changes %2$d file.": [
+				"%1$s ປ່ຽນແປງ %2$d ໄຟລ໌."
+			],
+			"Apply %s": [
+				"ນຳໃຊ້ %s"
+			],
+			"%s is a binary file and will be skipped.": [
+				"%s ແມ່ນໄຟລ໌ໄບນາຣີ ແລະ ຈະຖືກຂ້າມໄປ."
+			],
+			"Apply PR #%d": [
+				"ນຳໃຊ້ PR #%d"
+			],
+			"A .diff or .patch file is applied to the current branch as a removable layer.": [
+				"ໄຟລ໌ .diff ຫຼື .patch ຈະຖືກນຳໃຊ້ກັບ branch ປັດຈຸບັນໃນຮູບແບບເລເຢີທີ່ສາມາດລຶບອອກໄດ້."
+			],
+			"Choose a .diff or .patch file…": [
+				"ເລືອກໄຟລ໌ .diff ຫຼື .patch…"
+			],
+			"Diff": [
+				"Diff"
+			],
+			"Pull request": [
+				"Pull request"
+			],
+			"Test changes in this checkout. Your own changes are preserved.": [
+				"ທົດສອບການປ່ຽນແປງໃນ checkout ນີ້. ການປ່ຽນແປງຂອງທ່ານເອງຈະຍັງຖືກຮັກສາໄວ້."
+			],
+			"Apply a patch or PR": [
+				"ນຳໃຊ້ແພັດຊ໌ ຫຼື PR"
+			],
+			"Test a pull request in this checkout. Your own changes are preserved.": [
+				"ທົດສອບ pull request ໃນ checkout ນີ້. ການປ່ຽນແປງຂອງທ່ານເອງຈະຍັງຖືກຮັກສາໄວ້."
+			],
+			"Check out a pull request": [
+				"Check out pull request"
+			],
+			"A pull request is checked out with its author’s commits.": [
+				"Pull request ຖືກ checked out ພ້ອມກັບ commit ຂອງຜູ້ຂຽນ."
+			],
+			"Apply PR": [
+				"ນຳໃຊ້ PR"
+			],
+			"Pull request URL or number": [
+				"URL ຫຼື ໝາຍເລກຂອງ pull request"
+			],
+			"line %d of the patch": [
+				"ແຖວທີ %d ຂອງແພັດຊ໌"
+			],
+			"… %d more line": [
+				"… ອີກ %d ແຖວ"
+			],
+			"Near %s": [
+				"ໃກ້ກັບ %s"
+			],
+			"%1$s — %2$d of %3$d change": [
+				"%1$s — ການປ່ຽນແປງ %2$d ຈາກ %3$d"
+			],
+			"The checkout was not changed.": [
+				"checkout ບໍ່ມີການປ່ຽນແປງໃດໆ."
+			],
+			"Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.": [
+				"ມີຄຳສັ່ງອື່ນກຳລັງເຮັດວຽກໃນເວັບໄຊນີ້. ລໍຖ້າໃຫ້ມັນສຳເລັດກ່ອນ, ຫຼື ກົດ Ctrl+C ໃນເທີມິນອນເພື່ອຢຸດ."
+			],
+			"text direction\u0004ltr": [
+				"ltr"
+			],
+			"Finish creating the current site first": [
+				"ສ້າງເວັບໄຊປັດຈຸບັນໃຫ້ສຳເລັດກ່ອນ"
+			],
+			"Open the feedback form ↗": [
+				"ເປີດແບບຟອມຕິຊົມ ↗"
+			],
+			"Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.": [
+				"ຄຳຕອບຈະຖືກສົ່ງໄປຍັງແບບຟອມສ່ວນກາງທີ່ທີມງານກວດສອບເປັນປະຈຳ. ການສົ່ງຈະບໍ່ລະບຸຕົວຕົນ ນອກຈາກວ່າທ່ານຈະໃສ່ອີເມວຂອງທ່ານ."
+			],
+			"Your feedback helps decide what to build next.": [
+				"ຄຳຕິຊົມຂອງທ່ານຊ່ວຍໃນການຕັດສິນໃຈວ່າຈະພັດທະນາສິ່ງໃດຕໍ່ໄປ."
+			],
+			"WordPress Contributor Toolkit": [
+				"WordPress Contributor Toolkit"
+			],
+			"Please choose where to create the site.": [
+				"ກະລຸນາເລືອກບ່ອນທີ່ຈະສ້າງເວັບໄຊ."
+			],
+			"Please provide a site name.": [
+				"ກະລຸນາລະບຸຊື່ເວັບໄຊ."
+			],
+			"Create site": [
+				"ສ້າງເວັບໄຊ"
+			],
+			"Cancel": [
+				"ຍົກເລີກ"
+			],
+			"No folder selected yet.": [
+				"ຍັງບໍ່ໄດ້ເລືອກໂຟນເດີ."
+			],
+			"My WordPress site": [
+				"ເວັບໄຊ WordPress ຂອງຂ້ອຍ"
+			],
+			"Site name": [
+				"ຊື່ເວັບໄຊ"
+			],
+			"The wordpress-develop repository: Trac tickets, patches and pull requests.": [
+				"ຄັງເກັບໂຄ້ດ wordpress-develop: ສຳລັບ Trac ticket, ແພັດຊ໌ ແລະ pull request."
+			],
+			"The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.": [
+				"ຕົວແກ້ໄຂແບບບລັອກ (Block Editor), ບິວດ໌ ແລະ ເຮັດວຽກເປັນປລັກອິນໃນ WordPress ມາດຕະຖານ: GitHub issue, ແລະ pull request ຜ່ານ checkout."
+			]
+		}
+	}
+}

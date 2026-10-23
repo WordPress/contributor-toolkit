@@ -1,7 +1,7 @@
 {
   "name": "electron-setup-wordpress-core",
   "author": "WordPress.org",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0",
   "private": true,
   "license": "GPL-2.0-or-later",
   "description": "Desktop app that sets up a WordPress core development environment with no prerequisites, applies the work already on a Trac ticket, and submits a contribution back",
@@ -92,7 +92,9 @@
       "en_GB",
       "hu",
       "nl",
-      "pl"
+      "pl",
+      "sr",
+      "tr"
     ],
     "icon": "build/icon.png",
     "linux": {
