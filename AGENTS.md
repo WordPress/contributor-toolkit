@@ -4,7 +4,7 @@ Instructions for AI coding agents working in this repository. Tool-neutral and c
 
 ## Where things are, whatever agent you use
 
-Two files, and neither is specific to one tool despite what their paths suggest:
+The review standard and its skill, and neither is specific to one tool despite what their paths suggest:
 
 **The review standard** — [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md). The five dimensions, this project's invariants, the procedure to run them, and the reporting format. Read it directly if your agent has not already.
 
@@ -15,11 +15,13 @@ It sits under `.github/instructions/` because Copilot code review reads that dir
 - [`.claude/skills/self-review/`](.claude/skills/self-review/) — Claude Code and Copilot. In Claude Code it is `/self-review`.
 - [`.agents/skills/self-review/`](.agents/skills/self-review/) — the Agent Skills open-standard path that Command Code and others scan.
 
-Both are pointers to the one instructions file, not copies of the standard. If your agent looks somewhere else again (`.github/skills/`, `.cursor/skills/`, `.codex/skills/`, or its own convention), add a wrapper there or skip it entirely and follow the instructions file — that is where all the content lives. The wrapper only adds two things: run the judgement pass in a fresh context, and report without touching GitHub.
+Both are pointers to the one instructions file, not copies of the standard. If your agent looks somewhere else again (`.github/skills/`, `.cursor/skills/`, `.codex/skills/`, or its own convention), add a wrapper there or skip it entirely and follow the instructions file — that is where all the content lives. The review wrapper only adds two things: run the judgement pass in a fresh context, and report without touching GitHub.
 
 In Codex, `/review` is the built-in user-facing review command. Whenever `/review` runs, read and follow [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md) in full as the review standard. `self-review` is the local skill name, not a Codex command; do not tell users to invoke `self-review`.
 
 There is deliberately no per-tool copy of the *standard*. A wrapper is a few lines that defer to it; duplicating the standard itself is the thing to avoid — if you find yourself doing that, fix the pointer, not the number of copies.
+
+**Releasing** — [`RELEASING.md`](RELEASING.md) is the procedure, wrapped the same way as the `release` skill in [`.claude/skills/release/`](.claude/skills/release/) (`/release X.Y.Z` in Claude Code) and [`.agents/skills/release/`](.agents/skills/release/). The wrapper adds the stops before each public step and leaves the merge to the person.
 
 ## What this is
 
