@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-10-09 11:00:11+0000",
+	"translation-revision-date": "2026-10-21 12:38:25+0000",
 	"generator": "GlotPress/4.1.0",
 	"domain": "messages",
 	"locale_data": {
@@ -9,6 +9,138 @@
 				"plural-forms": "nplurals=3; plural=(n == 1) ? 0 : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 1 : 2);",
 				"lang": "pl"
 			},
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [],
+			"That file could not be read: %s": [
+				"Nie można było odczytać tego pliku: %s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"Ten plik nie znajduje się na witrynie. Zmiana mogła go usunąć."
+			],
+			"Changed files": [
+				"Zmienione pliki"
+			],
+			"You created this file": [
+				"Utworzyłeś ten plik"
+			],
+			"You edited this file": [
+				"Edytowałeś ten plik"
+			],
+			"Revert %s": [
+				"Przywróć %s"
+			],
+			"Discard your changes?": [
+				"Odrzucić twoje zmiany?"
+			],
+			"PR #%d stays checked out.": [],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"Zastosowana poprawka %s jest również usuwana, ponieważ aplikacja nie może jej przywrócić."
+			],
+			"The patch %s stays applied.": [
+				"Poprawka %s pozostaje aktywna."
+			],
+			"Your edits to %d file are removed.": [],
+			"There are no edits of yours to discard.": [
+				"Nie ma żadnych twoich zmian do odrzucenia."
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [],
+			"Your changes were discarded.": [
+				"Twoje zmiany zostały odrzucone."
+			],
+			"Your changes to it are removed.": [
+				"Twoje zmiany w tym pliku zostały usunięte."
+			],
+			"%s deleted.": [
+				"%s usunięto."
+			],
+			"Delete file": [
+				"Usuń plik"
+			],
+			"You created this file.": [
+				"Utworzyłeś ten plik."
+			],
+			"From PR #%d": [],
+			"From the patch": [],
+			"Could not revert the file: %s": [
+				"Nie można było przywrócić pliku: %s"
+			],
+			"%s reverted.": [
+				"%s przywrócono."
+			],
+			"Revert file": [
+				"Przywróć plik"
+			],
+			"Revert %s?": [
+				"Przywrócić %s?"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"Twoje zmiany zostały usunięte, a plik wrócił do stanu, w jakim zastała go ta poprawka."
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"Twoje zmiany zostały usunięte, a wersja powróciła do stanu sprzed PR #%d."
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"Nie można było przywrócić %1$s, więc pozostawiono to bez zmian: %2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"Nie można było przywrócić %1$s (%2$s) ani przywrócić go do poprzedniego stanu, więc zmiany w nim mogą zostać utracone: %3$s"
+			],
+			"%s has no changes to revert.": [
+				"%s nie ma żadnych zmian do cofnięcia."
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
+				"Na razie nie ma żadnych wyników z serwera deweloperskiego. To, co wyświetla się podczas uruchamiania i działania — w tym wszelkie błędy, które powodują zatrzymanie programu — pojawia się tutaj."
+			],
+			"Opened": [
+				"Otwarte"
+			],
+			"Milestone": [
+				"Kamień milowy"
+			],
+			"Component": [
+				"Komponent"
+			],
+			"Type": [
+				"Typ"
+			],
+			"Read from Trac %s": [
+				"Odczyt z Trac %s"
+			],
+			"Review and submit": [
+				"Sprawdź i wyślij"
+			],
+			"Review changes": [
+				"Przejrzyj zmiany"
+			],
+			"They stay with this pull request's local copy when you revert this PR.": [
+				"Gdy cofniesz ten pull request, pozostaną one w lokalnej kopii tego pull requestu."
+			],
+			"%1$d unsubmitted change for ticket #%2$s": [
+				"%1$d niezgłoszonych zmian dla zgłoszenia nr %2$s",
+				"%1$d niezgłoszone zmiany dla zgłoszenia nr %2$s",
+				"%1$d niezgłoszonych zmian dla zgłoszenia nr %2$s"
+			],
+			"%1$d unsubmitted change for issue #%2$s": [
+				"%1$d niezgłoszona zmiana dotycząca zgłoszenia nr %2$s",
+				"%1$d niezgłoszone zmiany dotyczące zgłoszenia nr %2$s",
+				"%1$d niezgłoszonych zmian dotyczących zgłoszenia nr %2$s"
+			],
+			"Unsubmitted changes for ticket #%s": [
+				"Niezgłoszone zmiany dotyczące zgłoszenia nr %s"
+			],
+			"Unsubmitted changes for issue #%s": [
+				"Niezgłoszone zmiany dotyczące zgłoszenia nr %s"
+			],
+			"%1$d change on top of PR #%2$d": [
+				"%1$d zmiana w ramach PR nr %2$d",
+				"%1$d zmiany w ramach PR nr %2$d",
+				"%1$d zmian w ramach PR nr %2$d"
+			],
+			"Changes on top of PR #%d": [
+				"Zmiany wprowadzone w ramach PR nr %d"
+			],
 			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
 				"Powiększ"
 			],
@@ -39,40 +171,108 @@
 			"Text Replacement": [
 				"Zastąpienie tekstu"
 			],
-			"Smart Dashes": [],
-			"Smart Quotes": [],
-			"Show Substitutions": [],
-			"Substitutions": [],
-			"Paste and Match Style": [],
-			"Paste": [],
-			"Cut": [],
-			"Redo": [],
-			"Undo": [],
-			"Edit": [],
-			"Quit": [],
-			"Exit": [],
-			"Close Window": [],
-			"File": [],
-			"Quit %s": [],
-			"Show All": [],
-			"Hide Others": [],
-			"Hide %s": [],
-			"Services": [],
-			"About %s": [],
-			"Toggle Developer Tools": [],
-			"Help": [],
-			"Bring All to Front": [],
-			"Minimize": [],
-			"Window": [],
-			"Toggle Full Screen": [],
-			"Zoom Out": [],
-			"Zoom In": [],
-			"Actual Size": [],
-			"Force Reload": [],
-			"Reload": [],
-			"View": [],
-			"Select All": [],
-			"Delete": [],
+			"Smart Dashes": [
+				"Inteligentne myślniki"
+			],
+			"Smart Quotes": [
+				"Inteligentne cudzysłowy"
+			],
+			"Show Substitutions": [
+				"Pokaż zamienniki"
+			],
+			"Substitutions": [
+				"Zamienniki"
+			],
+			"Paste and Match Style": [
+				"Wklej i dopasuj styl"
+			],
+			"Paste": [
+				"Wklej"
+			],
+			"Cut": [
+				"Wytnij"
+			],
+			"Redo": [
+				"Ponów"
+			],
+			"Undo": [
+				"Cofnij"
+			],
+			"Edit": [
+				"Edytuj"
+			],
+			"Quit": [
+				"Opuść"
+			],
+			"Exit": [
+				"Wyjdź"
+			],
+			"Close Window": [
+				"Zamknij okno"
+			],
+			"File": [
+				"Plik"
+			],
+			"Quit %s": [
+				"Opuść %s"
+			],
+			"Show All": [
+				"Pokaż wszystko"
+			],
+			"Hide Others": [
+				"Ukryj inne"
+			],
+			"Hide %s": [
+				"Ukryj %s"
+			],
+			"Services": [
+				"Usługi"
+			],
+			"About %s": [
+				"Informacje o %s"
+			],
+			"Toggle Developer Tools": [
+				"Przełącz narzędzia programisty"
+			],
+			"Help": [
+				"Pomoc"
+			],
+			"Bring All to Front": [
+				"Przenieś wszystko na wierzch"
+			],
+			"Minimize": [
+				"Minimalizuj"
+			],
+			"Window": [
+				"Okno"
+			],
+			"Toggle Full Screen": [
+				"Przełącz na pełny ekran"
+			],
+			"Zoom Out": [
+				"Pomniejsz"
+			],
+			"Zoom In": [
+				"Powiększ"
+			],
+			"Actual Size": [
+				"Rozmiar rzeczywisty"
+			],
+			"Force Reload": [
+				"Wymuś przeładowanie"
+			],
+			"Reload": [
+				"Przeładuj"
+			],
+			"View": [
+				"Zobacz"
+			],
+			"Select All": [
+				"Zaznacz wszystko"
+			],
+			"Delete": [
+				"Usuń"
+			],
 			"Choose folder…": [
 				"Wybierz folder…"
 			],
@@ -476,9 +676,6 @@
 			"From:": [
 				"Od:"
 			],
-			"You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Masz niezapisane zmiany dla zgłoszenia #%s. Możesz <review>przejrzeć i zapisać</review> lub <discard>odrzucić swoje zmiany</discard>."
-			],
 			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
 				"Masz %1$d zmianę dodatkowo do PR #%2$d. Możesz <review>ją przejrzeć</review> lub <discard>odrzucić swoje zmiany</discard>. Pozostaną one w lokalnej kopii tego żądania ściągnięcia, gdy przywrócisz ten PR.",
 				"Masz %1$d zmiany dodatkowo do PR #%2$d. Możesz <review>je przejrzeć</review> lub <discard>odrzucić swoje zmiany</discard>. Pozostaną one w lokalnej kopii tego żądania ściągnięcia, gdy przywrócisz ten PR.",
@@ -508,19 +705,6 @@
 			],
 			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
 				"Masz zmiany nieprzypisane do żadnego problemu. Możesz <review>utworzyć i zapisać łatkę</review> lub <discard>odrzucić swoje zmiany</discard>."
-			],
-			"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Masz %1$d niezgłoszoną zmianę dla zgłoszenia #%2$s. Możesz <review>przejrzeć i przesłać</review> lub <discard>odrzucić swoje zmiany</discard>.",
-				"Masz %1$d niezgłoszonych zmian dla zgłoszenia #%2$s. Możesz <review>przejrzeć i przesłać</review> lub <discard>odrzucić swoje zmiany</discard>.",
-				"Masz %1$d niezgłoszonych zmian dla zgłoszenia #%2$s. Możesz <review>przejrzeć i przesłać</review> lub <discard>odrzucić swoje zmiany</discard>."
-			],
-			"You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Masz %1$d niezgłoszoną zmianę dla zgłoszenia #%2$s. Możesz <review>przejrzeć i zgłosić</review> lub <discard>odrzucić swoje zmiany</discard>.",
-				"Masz %1$d niezgłoszonych zmian dla zgłoszenia #%2$s. Możesz <review>przejrzeć i zgłosić</review> lub <discard>odrzucić swoje zmiany</discard>.",
-				"Masz %1$d niezgłoszonych zmian dla zgłoszenia #%2$s. Możesz <review>przejrzeć i zgłosić</review> lub <discard>odrzucić swoje zmiany</discard>."
-			],
-			"You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Masz niezgłoszone zmiany dla zgłoszenia #%s. Możesz <review>przejrzeć i zgłosić</review> lub <discard>odrzucić swoje zmiany</discard>."
 			],
 			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
 				"To zgłoszenie nie ma zarejestrowanego punktu początkowego, więc aplikacja nie mogła przenieść swojej pracy na obecny trunk."
@@ -2126,9 +2310,7 @@
 			"Saved to %s": [
 				"Zapisano w %s"
 			],
-			"Discard all changes": [
-				"Odrzuć wszystkie zmiany"
-			],
+			"Discard your changes": [],
 			"(<discard />)": [
 				"(<discard />)"
 			],
@@ -2489,20 +2671,11 @@
 			"Save Patch for Handoff": [
 				"Zapisz łatkę do przekazania"
 			],
-			"Toggle Email": [
-				"Włącz/wyłącz e-mail"
-			],
 			"Email": [
 				"E-mail"
 			],
-			"Toggle Logs": [
-				"Przełącz logi"
-			],
 			"Logs": [
 				"Logi"
-			],
-			"Toggle Terminal": [
-				"Przełącz terminal"
 			],
 			"Terminal": [
 				"Terminal"
@@ -2512,15 +2685,6 @@
 			],
 			"Merged": [
 				"Połączono"
-			],
-			"Opened %s": [
-				"Otwarto %s"
-			],
-			"Milestone: %s": [
-				"Kamień milowy: %s"
-			],
-			"Component: %s": [
-				"Komponent: %s"
 			],
 			"No pull requests cite this ticket yet.": [
 				"Żadne żądania ściągnięcia nie odwołują się jeszcze do tego zgłoszenia."
@@ -2960,8 +3124,8 @@
 			"Linked pull requests": [
 				"Powiązane pull requesty"
 			],
-			"Keywords:": [
-				"Słowa kluczowe:"
+			"Keywords": [
+				"Słowa kluczowe"
 			],
 			"Apply…": [
 				"Zastosuj…"

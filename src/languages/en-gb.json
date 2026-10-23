@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-10-08 17:56:51+0000",
+	"translation-revision-date": "2026-10-20 15:37:10+0000",
 	"generator": "GlotPress/4.1.0",
 	"domain": "messages",
 	"locale_data": {
@@ -9,6 +9,154 @@
 				"plural-forms": "nplurals=2; plural=n != 1;",
 				"lang": "en_GB"
 			},
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
+				"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request."
+			],
+			"That file could not be read: %s": [
+				"That file could not be read: %s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"That file is not in the site. The change may have deleted it."
+			],
+			"Changed files": [
+				"Changed files"
+			],
+			"You created this file": [
+				"You created this file"
+			],
+			"You edited this file": [
+				"You edited this file"
+			],
+			"Revert %s": [
+				"Revert %s"
+			],
+			"Discard your changes?": [
+				"Discard your changes?"
+			],
+			"PR #%d stays checked out.": [
+				"PR #%d stays checked out."
+			],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"The applied patch %s is removed too, because the app can’t put it back."
+			],
+			"The patch %s stays applied.": [
+				"The patch %s stays applied."
+			],
+			"Your edits to %d file are removed.": [
+				"Your edits to %d file are removed.",
+				"Your edits to %d files are removed."
+			],
+			"There are no edits of yours to discard.": [
+				"There are no edits of yours to discard."
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [
+				"Your changes were discarded, but %s could not be put back, so it is no longer applied."
+			],
+			"Your changes were discarded.": [
+				"Your changes were discarded."
+			],
+			"Your changes to it are removed.": [
+				"Your changes to it are removed."
+			],
+			"%s deleted.": [
+				"%s deleted."
+			],
+			"Delete file": [
+				"Delete file"
+			],
+			"You created this file.": [
+				"You created this file."
+			],
+			"From PR #%d": [
+				"From PR #%d"
+			],
+			"From the patch": [
+				"From the patch"
+			],
+			"Could not revert the file: %s": [
+				"Could not revert the file: %s"
+			],
+			"%s reverted.": [
+				"%s reverted."
+			],
+			"Revert file": [
+				"Revert file"
+			],
+			"Revert %s?": [
+				"Revert %s?"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"Your edits to it are removed, and it goes back to how the patch left it."
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"Your edits to it are removed, and it goes back to how PR #%d has it."
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"Could not revert %1$s, so it was left as it was: %2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s"
+			],
+			"%s has no changes to revert.": [
+				"%s has no changes to revert."
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [
+				"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it."
+			],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [
+				"%s is as the patch left it, so there is nothing of yours to revert."
+			],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [
+				"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead."
+			],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
+				"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here."
+			],
+			"Opened": [
+				"Opened"
+			],
+			"Milestone": [
+				"Milestone"
+			],
+			"Component": [
+				"Component"
+			],
+			"Type": [
+				"Type"
+			],
+			"Read from Trac %s": [
+				"Read from Trac %s"
+			],
+			"Review and submit": [
+				"Review and submit"
+			],
+			"Review changes": [
+				"Review changes"
+			],
+			"They stay with this pull request's local copy when you revert this PR.": [
+				"They stay with this pull request's local copy when you revert this PR."
+			],
+			"%1$d unsubmitted change for ticket #%2$s": [
+				"%1$d unsubmitted change for ticket #%2$s",
+				"%1$d unsubmitted changes for ticket #%2$s"
+			],
+			"%1$d unsubmitted change for issue #%2$s": [
+				"%1$d unsubmitted change for issue #%2$s",
+				"%1$d unsubmitted changes for issue #%2$s"
+			],
+			"Unsubmitted changes for ticket #%s": [
+				"Unsubmitted changes for ticket #%s"
+			],
+			"Unsubmitted changes for issue #%s": [
+				"Unsubmitted changes for issue #%s"
+			],
+			"%1$d change on top of PR #%2$d": [
+				"%1$d change on top of PR #%2$d",
+				"%1$d changes on top of PR #%2$d"
+			],
+			"Changes on top of PR #%d": [
+				"Changes on top of PR #%d"
+			],
 			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
 				"Zoom"
 			],
@@ -539,9 +687,6 @@
 			"From:": [
 				"From:"
 			],
-			"You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>."
-			],
 			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
 				"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.",
 				"You have %1$d changes on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR."
@@ -568,17 +713,6 @@
 			],
 			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
 				"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>."
-			],
-			"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.",
-				"You have %1$d unsubmitted changes for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>."
-			],
-			"You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.",
-				"You have %1$d unsubmitted changes for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>."
-			],
-			"You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>."
 			],
 			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
 				"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk."
@@ -2141,8 +2275,8 @@
 			"Saved to %s": [
 				"Saved to %s"
 			],
-			"Discard all changes": [
-				"Discard all changes"
+			"Discard your changes": [
+				"Discard your changes"
 			],
 			"(<discard />)": [
 				"(<discard />)"
@@ -2504,20 +2638,11 @@
 			"Save Patch for Handoff": [
 				"Save Patch for Handoff"
 			],
-			"Toggle Email": [
-				"Toggle Email"
-			],
 			"Email": [
 				"Email"
 			],
-			"Toggle Logs": [
-				"Toggle Logs"
-			],
 			"Logs": [
 				"Logs"
-			],
-			"Toggle Terminal": [
-				"Toggle Terminal"
 			],
 			"Terminal": [
 				"Terminal"
@@ -2527,15 +2652,6 @@
 			],
 			"Merged": [
 				"Merged"
-			],
-			"Opened %s": [
-				"Opened %s"
-			],
-			"Milestone: %s": [
-				"Milestone: %s"
-			],
-			"Component: %s": [
-				"Component: %s"
 			],
 			"No pull requests cite this ticket yet.": [
 				"No pull requests cite this ticket yet."
@@ -2969,8 +3085,8 @@
 			"Linked pull requests": [
 				"Linked pull requests"
 			],
-			"Keywords:": [
-				"Keywords:"
+			"Keywords": [
+				"Keywords"
 			],
 			"Apply…": [
 				"Apply…"

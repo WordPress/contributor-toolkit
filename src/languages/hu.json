@@ -9,6 +9,54 @@
 				"plural-forms": "nplurals=2; plural=n != 1;",
 				"lang": "hu"
 			},
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [],
+			"That file could not be read: %s": [],
+			"That file is not in the site. The change may have deleted it.": [],
+			"Changed files": [],
+			"You created this file": [],
+			"You edited this file": [],
+			"Revert %s": [],
+			"Discard your changes?": [],
+			"PR #%d stays checked out.": [],
+			"The applied patch %s is removed too, because the app can’t put it back.": [],
+			"The patch %s stays applied.": [],
+			"Your edits to %d file are removed.": [],
+			"There are no edits of yours to discard.": [],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [],
+			"Your changes were discarded.": [],
+			"Your changes to it are removed.": [],
+			"%s deleted.": [],
+			"Delete file": [],
+			"You created this file.": [],
+			"From PR #%d": [],
+			"From the patch": [],
+			"Could not revert the file: %s": [],
+			"%s reverted.": [],
+			"Revert file": [],
+			"Revert %s?": [],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [],
+			"Could not revert %1$s, so it was left as it was: %2$s": [],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [],
+			"%s has no changes to revert.": [],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [],
+			"Opened": [],
+			"Milestone": [],
+			"Component": [],
+			"Type": [],
+			"Read from Trac %s": [],
+			"Review and submit": [],
+			"Review changes": [],
+			"They stay with this pull request's local copy when you revert this PR.": [],
+			"%1$d unsubmitted change for ticket #%2$s": [],
+			"%1$d unsubmitted change for issue #%2$s": [],
+			"Unsubmitted changes for ticket #%s": [],
+			"Unsubmitted changes for issue #%s": [],
+			"%1$d change on top of PR #%2$d": [],
+			"Changes on top of PR #%d": [],
 			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
 				"Nagyítás"
 			],
@@ -539,9 +587,6 @@
 			"From:": [
 				"Feladó:"
 			],
-			"You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"A #%s hibajegyhez beküldetlen módosítások tartoznak. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>."
-			],
 			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
 				"A #%2$d PR-hez képest %1$d további módosítás van. Ezek <review>áttekinthetők</review>, vagy <discard>elvethetők</discard>. A PR visszavonásakor megmaradnak a beolvasztási kérelem helyi példányában.",
 				"A #%2$d PR-hez képest %1$d további módosítás van. Ezek <review>áttekinthetők</review>, vagy <discard>elvethetők</discard>. A PR visszavonásakor megmaradnak a beolvasztási kérelem helyi példányában."
@@ -568,17 +613,6 @@
 			],
 			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
 				"Vannak olyan módosítások, amelyek egyetlen hibajegyhez sincsenek hozzárendelve. Ezekből <review>javítócsomag készíthető és menthető</review>, vagy <discard>elvethetők a módosítások</discard>."
-			],
-			"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"A #%2$s hibajegyhez %1$d beküldetlen módosítás tartozik. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>.",
-				"A #%2$s hibajegyhez %1$d beküldetlen módosítás tartozik. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>."
-			],
-			"You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"A #%2$s hibajegyhez %1$d beküldetlen módosítás tartozik. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>.",
-				"A #%2$s hibajegyhez %1$d beküldetlen módosítás tartozik. A módosítások <review>áttekinthetők és beküldhetők</review>, vagy <discard>elvethetők</discard>."
-			],
-			"You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"A(z) #%s hibajegyhez még be nem küldött módosítások tartoznak. <review>Áttekintheti és beküldheti</review>, vagy <discard>elvetheti a módosításokat</discard>."
 			],
 			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
 				"Ehhez a hibajegyhez nincs rögzített kiindulópont, ezért az alkalmazás nem tudja áthelyezni a hozzá tartozó módosításokat a trunk jelenlegi állapotára."
@@ -2141,9 +2175,7 @@
 			"Saved to %s": [
 				"Mentve ide: %s"
 			],
-			"Discard all changes": [
-				"Összes módosítás elvetése"
-			],
+			"Discard your changes": [],
 			"(<discard />)": [
 				"(<discard />)"
 			],
@@ -2504,20 +2536,11 @@
 			"Save Patch for Handoff": [
 				"Javítás mentése átadáshoz"
 			],
-			"Toggle Email": [
-				"E-mail megjelenítése/elrejtése"
-			],
 			"Email": [
 				"E-mail"
 			],
-			"Toggle Logs": [
-				"Naplók megjelenítése/elrejtése"
-			],
 			"Logs": [
 				"Naplók"
-			],
-			"Toggle Terminal": [
-				"Terminál megjelenítése/elrejtése"
 			],
 			"Terminal": [
 				"Terminál"
@@ -2527,15 +2550,6 @@
 			],
 			"Merged": [
 				"Egyesítve"
-			],
-			"Opened %s": [
-				"Megnyitva: %s"
-			],
-			"Milestone: %s": [
-				"Mérföldkő: %s"
-			],
-			"Component: %s": [
-				"Komponens: %s"
 			],
 			"No pull requests cite this ticket yet.": [
 				"Még egyetlen egyesítési kérelem sem hivatkozik erre a hibajegyre."
@@ -2969,9 +2983,7 @@
 			"Linked pull requests": [
 				"Kapcsolódó pull requestek"
 			],
-			"Keywords:": [
-				"Kulcsszavak:"
-			],
+			"Keywords": [],
 			"Apply…": [
 				"Alkalmazás…"
 			],

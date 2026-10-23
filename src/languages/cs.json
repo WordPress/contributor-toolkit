@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-10-13 06:50:57+0000",
+	"translation-revision-date": "2026-10-20 20:01:26+0000",
 	"generator": "GlotPress/4.1.0",
 	"domain": "messages",
 	"locale_data": {
@@ -9,6 +9,142 @@
 				"plural-forms": "nplurals=3; plural=(n == 1) ? 0 : ((n >= 2 && n <= 4) ? 1 : 2);",
 				"lang": "cs_CZ"
 			},
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
+				"Nepodařilo se stáhnout nejnovější verzi z trunk, takže tento seznam může obsahovat i změny z trunk, které nejsou součástí tohoto pull requestu."
+			],
+			"That file could not be read: %s": [
+				"Tento soubor se nepodařilo načíst: %s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"Tento soubor na webu není. Možná byl smazán při provádění změn."
+			],
+			"Changed files": [
+				"Změněné soubory"
+			],
+			"You created this file": [
+				"Tento soubor jste vytvořili vy"
+			],
+			"You edited this file": [
+				"Tento soubor jste upravili"
+			],
+			"Revert %s": [
+				"Vrátit %s"
+			],
+			"Discard your changes?": [
+				"Chcete změny zrušit?"
+			],
+			"PR #%d stays checked out.": [
+				"PR #%d zůstává vyřazen."
+			],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"Použitá oprava %s se rovněž odstraní, protože aplikace ji nedokáže obnovit."
+			],
+			"The patch %s stays applied.": [
+				"Oprava %s zůstává v platnosti."
+			],
+			"Your edits to %d file are removed.": [],
+			"There are no edits of yours to discard.": [
+				"Nemáte žádné úpravy, které by bylo třeba smazat."
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [
+				"Vaše změny byly zrušeny, ale %s se nepodařilo obnovit, takže již není použito."
+			],
+			"Your changes were discarded.": [
+				"Vaše změny byly zrušeny."
+			],
+			"Your changes to it are removed.": [
+				"Vaše změny v něm byly odstraněny."
+			],
+			"%s deleted.": [
+				"%s bylo odstraněno."
+			],
+			"Delete file": [
+				"Odstranit soubor"
+			],
+			"You created this file.": [
+				"Tento soubor jste vytvořili vy."
+			],
+			"From PR #%d": [
+				"Z tiskové zprávy č. %d"
+			],
+			"From the patch": [
+				"Z opravy"
+			],
+			"Could not revert the file: %s": [
+				"Nelze vrátit soubor do původního stavu: %s"
+			],
+			"%s reverted.": [
+				"%s bylo vráceno do původního stavu."
+			],
+			"Revert file": [
+				"Vrátit soubor do původního stavu"
+			],
+			"Revert %s?": [
+				"Vrátit %s?"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"Vaše úpravy v něm jsou odstraněny a vrátí se do stavu, v jakém jej zanechala oprava."
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"Vaše úpravy v něm byly odstraněny a stav se vrátil k verzi z PR #%d."
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"%1$s se nepodařilo vrátit do původního stavu, proto bylo ponecháno beze změny: %2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"Nepodařilo se vrátit %1$s (%2$s) do původního stavu, a proto se nepodařilo obnovit původní stav, takže vaše změny v tomto souboru mohou být ztraceny: %3$s"
+			],
+			"%s has no changes to revert.": [
+				"U %s nejsou žádné změny, které by bylo třeba vrátit zpět."
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [
+				"Aplikace si neuložila kopii opravy, a proto nemůže vrátit %s do stavu, v jakém ho oprava zanechala."
+			],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [
+				"%s zůstalo tak, jak ho opravný balíček zanechal, takže není třeba vracet žádné tvé změny."
+			],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [
+				"Tato oprava přejmenovává %s, takže ji lze vrátit zpět pouze spolu s celou opravou. Místo toho použijte příkaz „Zrušit změny“."
+			],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
+				"Zatím není k dispozici žádný výstup z vývojového serveru. To, co se zobrazí při spuštění a běhu – včetně případných chyb, které proces zastaví – se objeví zde."
+			],
+			"Opened": [
+				"Otevřeno"
+			],
+			"Milestone": [
+				"Milník"
+			],
+			"Component": [
+				"Komponenta"
+			],
+			"Type": [
+				"Typ"
+			],
+			"Read from Trac %s": [
+				"Načíst z Tracu %s"
+			],
+			"Review and submit": [
+				"Zkontrolovat a odeslat"
+			],
+			"Review changes": [
+				"Zkontrolovat změny"
+			],
+			"They stay with this pull request's local copy when you revert this PR.": [
+				"Když tento pull request vrátíte zpět, zůstanou v lokální kopii tohoto pull requestu."
+			],
+			"%1$d unsubmitted change for ticket #%2$s": [],
+			"%1$d unsubmitted change for issue #%2$s": [],
+			"Unsubmitted changes for ticket #%s": [
+				"Neodeslané změny k tiketu č. %s"
+			],
+			"Unsubmitted changes for issue #%s": [
+				"Neodeslané změny pro problém č. %s"
+			],
+			"%1$d change on top of PR #%2$d": [],
+			"Changes on top of PR #%d": [
+				"Změny nad rámec PR č. %d"
+			],
 			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
 				"Přiblížit"
 			],
@@ -524,9 +660,6 @@
 			"From:": [
 				"Od:"
 			],
-			"You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Máte neuložené změny v úkolu č. %s. Můžete <review>změny zkontrolovat a odeslat</review> nebo <discard>změny zrušit</discard>."
-			],
 			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [],
 			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
 				"Máte změny v rámci pull requestu č. %d. Můžete je <review>zkontrolovat</review> nebo <discard>zrušit své změny</discard>. Pokud tento pull request vrátíte zpět, zůstanou tyto změny v lokální kopii tohoto pull requestu."
@@ -544,11 +677,6 @@
 			],
 			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
 				"Máte změny, které nejsou přiřazeny k žádnému úkolu. Můžete <review>vytvořit a uložit opravu</review> nebo <discard>změny zrušit</discard>."
-			],
-			"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [],
-			"You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [],
-			"You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Máte neuložené změny v tiketu č. %s. Můžete <review>změny zkontrolovat a odeslat</review> nebo <discard>změny zrušit</discard>."
 			],
 			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
 				"Tento ticket nemá zaznamenaný výchozí bod, takže aplikace nemůže převést svou práci do aktuálního kmenového větve."
@@ -1990,8 +2118,8 @@
 			"Saved to %s": [
 				"Uloženo do %s"
 			],
-			"Discard all changes": [
-				"Zrušte všechny změny"
+			"Discard your changes": [
+				"Zrušit provedené změny"
 			],
 			"(<discard />)": [
 				"(<discard />)"
@@ -2353,20 +2481,11 @@
 			"Save Patch for Handoff": [
 				"Uložit opravu pro Handoff"
 			],
-			"Toggle Email": [
-				"Přepnout e-mail"
-			],
 			"Email": [
 				"Email"
 			],
-			"Toggle Logs": [
-				"Přepnout protokoly"
-			],
 			"Logs": [
 				"Záznamy protokolu"
-			],
-			"Toggle Terminal": [
-				"Přepnout terminál"
 			],
 			"Terminal": [
 				"Terminál"
@@ -2376,15 +2495,6 @@
 			],
 			"Merged": [
 				"Sloučeno"
-			],
-			"Opened %s": [
-				"Otevřeno %s"
-			],
-			"Milestone: %s": [
-				"Milník: %s"
-			],
-			"Component: %s": [
-				"Komponenta: %s"
 			],
 			"No pull requests cite this ticket yet.": [
 				"Tento ticket zatím není uveden v žádném pull requestu."
@@ -2800,8 +2910,8 @@
 			"Linked pull requests": [
 				"Propojené žádosti o začlenění"
 			],
-			"Keywords:": [
-				"Klíčová slova:"
+			"Keywords": [
+				"Klíčová slova"
 			],
 			"Apply…": [
 				"Přihlásit se…"

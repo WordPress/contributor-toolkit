@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-10-08 15:10:14+0000",
+	"translation-revision-date": "2026-10-22 14:34:11+0000",
 	"generator": "GlotPress/4.1.0",
 	"domain": "messages",
 	"locale_data": {
@@ -9,6 +9,154 @@
 				"plural-forms": "nplurals=2; plural=n != 1;",
 				"lang": "nl"
 			},
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
+				"Kon de nieuwste trunk niet downloaden, dus deze lijst kan ook wijzigingen uit trunk bevatten die geen deel uitmaken van deze pull request."
+			],
+			"That file could not be read: %s": [
+				"Dat bestand kon niet worden gelezen: %s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"Dat bestand staat niet op de locatie. De wijzig kan het hebben verwijderd."
+			],
+			"Changed files": [
+				"Gewijzigde bestanden"
+			],
+			"You created this file": [
+				"Je hebt dit bestand gemaakt"
+			],
+			"You edited this file": [
+				"Je hebt dit bestand bewerkt"
+			],
+			"Revert %s": [
+				"%s terugdraaien"
+			],
+			"Discard your changes?": [
+				"Je wijzigingen verwerpen?"
+			],
+			"PR #%d stays checked out.": [
+				"PR #%d blijft uitgecheckt."
+			],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"De toegepaste patch %s wordt ook verwijderd, omdat de app deze niet kan terugzetten."
+			],
+			"The patch %s stays applied.": [
+				"De patch %s blijft toegepast."
+			],
+			"Your edits to %d file are removed.": [
+				"Je bewerkingen in %d bestand zijn verwijderd.",
+				"Je bewerkingen in %d bestanden zijn verwijderd."
+			],
+			"There are no edits of yours to discard.": [
+				"Er zijn geen bewerkingen van je om te negeren."
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [
+				"Je wijzigingen zijn verworpen, maar %s kon niet worden teruggezet en is daarom niet langer toegepast."
+			],
+			"Your changes were discarded.": [
+				"Je wijzigingen zijn verworpen."
+			],
+			"Your changes to it are removed.": [
+				"Je wijzigingen eraan zijn verwijderd."
+			],
+			"%s deleted.": [
+				"%s verwijderd."
+			],
+			"Delete file": [
+				"Bestand verwijderen"
+			],
+			"You created this file.": [
+				"Je hebt dit bestand gemaakt."
+			],
+			"From PR #%d": [
+				"Van PR #%d"
+			],
+			"From the patch": [
+				"Van de patch"
+			],
+			"Could not revert the file: %s": [
+				"Kon het bestand niet terugdraaien: %s"
+			],
+			"%s reverted.": [
+				"%s teruggedraaid."
+			],
+			"Revert file": [
+				"Bestand terugdraaien"
+			],
+			"Revert %s?": [
+				"%s terugdraaien?"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"Je bewerkingen erin zijn verwijderd en het wordt teruggezet naar hoe de patch het heeft achtergelaten."
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"Je bewerkingen erin zijn verwijderd en het wordt teruggezet naar hoe PR #%d het heeft."
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"Kon %1$s niet terugdraaien, dus het is gebleven zoals het was: %2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"Kon %1$s (%2$s) niet terugdraaien en kon het niet terugzetten zoals het was, dus je wijzigingen eraan kunnen verloren zijn gegaan: %3$s"
+			],
+			"%s has no changes to revert.": [
+				"%s heeft geen wijzigingen om terug te draaien."
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [
+				"De app heeft geen kopie van de patch bewaard en kan %s daarom niet terugzetten zoals de patch het had achtergelaten."
+			],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [
+				"%s is zoals de patch het heeft achtergelaten, dus er zijn geen wijzigingen van je om terug te draaien."
+			],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [
+				"De patch hernoemt %s en kan daarom alleen met de hele patch worden teruggedraaid. Gebruik in plaats daarvan 'Je wijzigingen verwerpen'."
+			],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
+				"Nog geen dev server uitvoer. Wat het print terwijl het start en uitvoert — inclusief elke fout die het stopt — verschijnt hier."
+			],
+			"Opened": [
+				"Geopend"
+			],
+			"Milestone": [
+				"Mijlpaal"
+			],
+			"Component": [
+				"Component"
+			],
+			"Type": [
+				"Type"
+			],
+			"Read from Trac %s": [
+				"Lees vanuit Trac %s"
+			],
+			"Review and submit": [
+				"Beoordelen en indienen"
+			],
+			"Review changes": [
+				"Wijzigingen beoordelen"
+			],
+			"They stay with this pull request's local copy when you revert this PR.": [
+				"Ze blijven bij de lokale kopie van deze pull aanvraag wanneer je deze PR terugdraait."
+			],
+			"%1$d unsubmitted change for ticket #%2$s": [
+				"%1$d niet ingediende wijziging voor ticket #%2$s",
+				"%1$d niet ingediende wijzigingen voor ticket #%2$s"
+			],
+			"%1$d unsubmitted change for issue #%2$s": [
+				"%1$d niet ingediende wijziging voor probleem #%2$s",
+				"%1$d niet ingediende wijzigingen voor probleem #%2$s"
+			],
+			"Unsubmitted changes for ticket #%s": [
+				"Niet ingediende wijzigingen voor ticket #%s"
+			],
+			"Unsubmitted changes for issue #%s": [
+				"Niet ingediende wijzigingen voor probleem #%s"
+			],
+			"%1$d change on top of PR #%2$d": [
+				"%1$d wijziging boven op PR #%2$d",
+				"%1$d wijzigingen boven op PR #%2$d"
+			],
+			"Changes on top of PR #%d": [
+				"Wijzigingen bovenop PR #%d"
+			],
 			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
 				"Zoomen"
 			],
@@ -510,7 +658,7 @@
 				"Ticket #%s kan worden gekoppeld."
 			],
 			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
-				"Het ticketnummer kwam via een link. Door het te linken wordt de huidige staat van de site geparkeerd en wordt de branch van dit ticket’ uitgecheckt, dus vraagt de app eerst om bevestiging."
+				"Het ticketnummer kwam via een link. Door het te linken wordt de huidige staat van de site geparkeerd en wordt de branch van dit ticket uitgecheckt, dus vraagt de app eerst om bevestiging."
 			],
 			"Link ticket #%1$s to %2$s?": [
 				"Link ticket #%1$s aan %2$s?"
@@ -539,9 +687,6 @@
 			"From:": [
 				"Van:"
 			],
-			"You have unsubmitted changes for issue #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Je hebt niet-ingediende wijzigingen voor issue #%s. Je kunt <review>beoordelen en indienen</review> of <discard>je wijzigingen verwijderen</discard>."
-			],
 			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
 				"Je hebt %1$d wijziging boven op PR #%2$d. Je kunt <review>deze beoordelen</review> of <discard>je wijzigingen verwerpen</discard>. Deze blijft bij de lokale kopie van deze pull request wanneer je deze PR terugdraait.",
 				"Je hebt %1$d wijzigingen boven op PR #%2$d. Je kunt <review>ze beoordelen</review> of <discard>je wijzigingen verwerpen</discard>. Ze blijven bij de lokale kopie van deze pull request wanneer je deze PR terugdraait."
@@ -568,17 +713,6 @@
 			],
 			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
 				"Je hebt wijzigingen die aan geen enkel issue zijn toegewezen. Je kunt <review>een patch maken en opslaan</review> of <discard>je wijzigingen verwerpen</discard>."
-			],
-			"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Je hebt %1$d niet-ingediende wijziging voor ticket #%2$s. Je kunt <review>deze beoordelen en indienen</review> of <discard>je wijzigingen verwerpen</discard>.",
-				"Je hebt %1$d niet-ingediende wijzigingen voor ticket #%2$s. Je kunt <review>ze beoordelen en indienen</review> of <discard>je wijzigingen verwerpen</discard>."
-			],
-			"You have %1$d unsubmitted change for issue #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Je hebt %1$d niet-ingediende wijziging voor issue #%2$s. Je kunt <review>deze beoordelen en indienen</review> of <discard>je wijzigingen verwerpen</discard>.",
-				"Je hebt %1$d niet-ingediende wijzigingen voor issue #%2$s. Je kunt <review>ze beoordelen en indienen</review> of <discard>je wijzigingen verwerpen</discard>."
-			],
-			"You have unsubmitted changes for ticket #%s. You can <review>review and submit</review> or <discard>discard your changes</discard>.": [
-				"Je hebt niet-ingediende wijzigingen voor ticket #%s. Je kunt <review>beoordelen en indienen</review> of <discard>je wijzigingen verwijderen</discard>."
 			],
 			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
 				"Dit ticket heeft geen geregistreerd beginpunt, dus de app kan het werk niet naar de huidige trunk verplaatsen."
@@ -1036,7 +1170,7 @@
 				"Kon dat bestand niet lezen: %s"
 			],
 			"Running %s…": [
-				"Uitgevoerd %s…"
+				"%s uitvoeren..."
 			],
 			"Build watch (exited %d)": [
 				"Build watch (afgesloten %d)"
@@ -1442,7 +1576,7 @@
 				"%s aan het toepassen…"
 			],
 			"Reverting %s…": [
-				"%s… terugdraaien"
+				"%s terugdraaien..."
 			],
 			"%s is already applied. Revert it before applying another patch.": [
 				"%s is al toegepast. Draai dit terug voordat je een andere patch toepast."
@@ -1798,7 +1932,7 @@
 				"Achtergrond"
 			],
 			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
-				"Systeem volgt de lichte of donkere instelling van je besturingssysteem’. Aangepaste instelling bouwt het thema op uit twee kleuren naar keuze."
+				"Systeem volgt de lichte of donkere instelling van je besturingssysteem. Aangepaste instelling bouwt het thema op uit twee kleuren naar keuze."
 			],
 			"%s colour picker": [
 				"%s kleurenkiezer"
@@ -2114,7 +2248,7 @@
 				"Aan Trac koppelen"
 			],
 			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
-				"De app kan de wijzigingen van de auteur’s niet veilig scheiden van later aangebrachte bewerkingen, dus deze gecombineerde patch kan niet als je werk worden ingediend. Je kunt <strong>Opslaan</strong> nog steeds gebruiken om een niet-toegeschreven kopie te behouden; draai de toegepaste patch terug voordat je indient."
+				"De app kan de wijzigingen van de auteur niet veilig scheiden van later aangebrachte bewerkingen, dus deze gecombineerde patch kan niet als je werk worden ingediend. Je kunt <strong>Opslaan</strong> nog steeds gebruiken om een niet-toegeschreven kopie te behouden; draai de toegepaste patch terug voordat je indient."
 			],
 			"<strong>The patch you applied is part of this checkout.</strong>": [
 				"<strong>De patch die je hebt toegepast maakt deel uit van deze checkout.</strong>"
@@ -2141,8 +2275,8 @@
 			"Saved to %s": [
 				"Opgeslagen in %s"
 			],
-			"Discard all changes": [
-				"Alle wijzigingen negeren"
+			"Discard your changes": [
+				"Al je wijzigingen negeren"
 			],
 			"(<discard />)": [
 				"(<discard />)"
@@ -2343,7 +2477,7 @@
 				"Kies een taal."
 			],
 			"Your system’s language": [
-				"De taal van je systeem’s"
+				"De taal van je systeem"
 			],
 			"Relaunch now": [
 				"Nu opnieuw starten"
@@ -2504,20 +2638,11 @@
 			"Save Patch for Handoff": [
 				"Patch voor Handoff opslaan"
 			],
-			"Toggle Email": [
-				"Toggle e-mail"
-			],
 			"Email": [
 				"E-mail"
 			],
-			"Toggle Logs": [
-				"Toggle logs"
-			],
 			"Logs": [
 				"Logs"
-			],
-			"Toggle Terminal": [
-				"Toggle terminal"
 			],
 			"Terminal": [
 				"Terminal"
@@ -2527,15 +2652,6 @@
 			],
 			"Merged": [
 				"Samengevoegd"
-			],
-			"Opened %s": [
-				"Geopend %s"
-			],
-			"Milestone: %s": [
-				"Mijlpaal: %s"
-			],
-			"Component: %s": [
-				"Component: %s"
 			],
 			"No pull requests cite this ticket yet.": [
 				"Er verwijzen nog geen pull requests naar dit ticket."
@@ -2969,8 +3085,8 @@
 			"Linked pull requests": [
 				"Gekoppelde pull aanvragen"
 			],
-			"Keywords:": [
-				"Keywords:"
+			"Keywords": [
+				"Keywords"
 			],
 			"Apply…": [
 				"Toepassen…"
