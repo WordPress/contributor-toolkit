@@ -15,7 +15,7 @@ The skill takes the version as its argument (`2.0.0`, `2.1.0-beta.1`). If none i
 
 What this skill adds on top:
 
-**Check the starting state first.** Run the checks in section 1, item 1 of `RELEASING.md`, and stop and report if any fails. If a milestone named for the full version exists, report any issues still open in it, without stopping.
+**Check the starting state first.** Run the checks in section 1, item 1 of `RELEASING.md`, and stop and report if any fails. If a milestone named for the full version exists, report any issues and pull requests still open in it, without stopping.
 
 **Wait for the person's yes before each of these:**
 
@@ -25,7 +25,7 @@ What this skill adds on top:
 4. `gh release create`, after showing the final notes and the exact command.
 5. Dispatching the docs workflow for a stable release (a beta skips it), and closing the milestone if the release has one.
 
-The merge is the person's. Wait to be told it is merged, unless the person asks this skill to merge: then merge with the command in section 3 of `RELEASING.md`, guarded by the head commit the artifacts were checked on, and run the checks that follow it there. If the check after the merge prints anything, stop and report it; do not tag.
+The merge is the person's. Wait to be told it is merged, unless the person asks this skill to merge: then merge with the command in section 3 of `RELEASING.md`, guarded by the head commit the artifacts were checked on. However it was merged, run the checks that follow the merge in section 3 before anything else. If the check after the merge prints anything, stop and report it; do not tag until the artifacts have been checked again as that section says.
 
 **The bump pull request is an ordinary pull request.** Fill in `.github/pull_request_template.md` and run the review AGENTS.md requires before opening it.
 

@@ -94,7 +94,7 @@ The merged commit has the same content as that build, and it is the one you tag.
 gh pr view <number> --json mergeCommit --jq .mergeCommit.oid
 ```
 
-Check that it matches the build: after `git fetch origin trunk`, `git diff --stat <head commit you checked> <merged commit>` prints nothing. If it prints anything, trunk moved before the merge, and the artifacts are not the merged code. Stop there and do not tag: the release needs artifacts built from the merged commit.
+Check that it matches the build: after `git fetch origin trunk`, `git diff --stat <head commit you checked> <merged commit>` prints nothing. If it prints anything, trunk moved before the merge, and the artifacts are not the merged code. Do not tag yet: the release needs artifacts built from the merged commit. Buildkite builds every push to trunk, so open its trunk build for the merged commit, download its three files and repeat section 2 on them, comparing the build's commit with the merged commit instead of `headRefOid`. Tag only once they pass.
 
 ## 4. Publish the GitHub release
 
@@ -151,11 +151,12 @@ If the release has a milestone named `vX.Y.Z`, close it and move anything still 
 
 ```bash
 gh issue list --milestone vX.Y.Z --state open
+gh pr list --search 'milestone:vX.Y.Z' --state open
 gh api 'repos/WordPress/contributor-toolkit/milestones?state=open' --jq '.[] | "\(.number) \(.title)"'
 gh api -X PATCH repos/WordPress/contributor-toolkit/milestones/<number> -f state=closed
 ```
 
-The first lists what is still open, the second finds the milestone's number, and the third closes it.
+The first two list the issues and pull requests still open, the third finds the milestone's number, and the fourth closes it.
 
 ## 7. Check the result
 
