@@ -271,15 +271,17 @@ test( 'the details say what the checkout is, copy its path, and can be put away 
 	await expect( fresh.getByText( /days? old$/ ) ).toHaveCount( 0 );
 
 	// INVARIANT — their button copies the path and says so itself, for the
-	// moment it takes to notice.
+	// moment it takes to notice. The status meant is the one beside the
+	// button: the Tests section holds a status of its own.
+	const copyStatus = fresh.getByRole( 'button', { name: /^Cop(y|ied)$/ } ).locator( 'xpath=following-sibling::*[@role="status"]' );
 	await fresh.getByRole( 'button', { name: 'Copy', exact: true } ).click();
 	await expect( fresh.getByRole( 'button', { name: 'Copied', exact: true } ) ).toBeVisible();
-	await expect( fresh.getByRole( 'status' ) ).toHaveText( 'Copied' );
+	await expect( copyStatus ).toHaveText( 'Copied' );
 	expect( await copied( page ) ).toEqual( [ freshDir ] );
 	await expect( fresh.getByRole( 'button', { name: 'Copy', exact: true } ) ).toBeVisible();
 	// INVARIANT — and the word is taken back, not replaced by another: a
 	// screen reader is told that the path was copied, and nothing after.
-	await expect( fresh.getByRole( 'status' ) ).toHaveText( '' );
+	await expect( copyStatus ).toHaveText( '' );
 
 	// INVARIANT — another site's details are that site's, and an old trunk
 	// says how old.

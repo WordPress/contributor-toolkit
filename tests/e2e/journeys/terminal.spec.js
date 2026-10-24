@@ -47,6 +47,8 @@
  * ticket-branches.spec.js for why.
  */
 
+const fs = require( 'fs' );
+const path = require( 'path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
@@ -332,4 +334,198 @@ test( 'the terminal of a site that was not on screen at launch fits its text in 
 	await ui.sidebarEntry( page, 'open-at-launch' ).click();
 	await expect( ui.siteHeading( page, 'open-at-launch' ) ).toBeVisible();
 	expect( await helpLineOverflow( page ) ).toBeLessThanOrEqual( 0 );
+} );
+
+// Core's PHP unit tests, typed or started from the Tests section beside the
+// cards. The handler
+// that starts them is a stub, as the script handlers are above: a real run
+// installs PHPUnit with Composer first, which takes minutes and the network.
+// That run, and the tests passing on the bundled PHP, are the PR's manual
+// steps. What is pinned here is the wiring: what reaches main, and that the
+// button is the terminal's command and not a second way of running it.
+test( 'phpunit runs the arguments it is given, and the Tests section runs the suite and the tests its fields pick through the terminal', async ( { session } ) => {
+	const site = await makeSite( session );
+	// Two tagged test files for the Group field to suggest from, ignored by
+	// Git so the checkout stays clean and linking a ticket asks nothing.
+	const testsDir = path.join( site.dir, 'tests', 'phpunit', 'tests' );
+	fs.mkdirSync( path.join( testsDir, 'ajax' ), { recursive: true } );
+	fs.writeFileSync( path.join( testsDir, 'ajax', 'wpAjaxFoo.php' ), '<?php\n/**\n * @group ajax\n * @group 12345\n */\n' );
+	fs.writeFileSync( path.join( testsDir, 'formatting.php' ), '<?php\n/**\n * @group formatting\n */\n' );
+	fs.appendFileSync( path.join( site.dir, '.git', 'info', 'exclude' ), '/tests/\n' );
+	const { app, page } = await session.start( site.settings );
+	await ui.openTray( page, 'Terminal' );
+	await app.evaluate( ( { ipcMain } ) => {
+		const asked = { runs: [], kills: [] };
+		global.__e2ePhpUnit = asked;
+		ipcMain.removeHandler( 'phpunit:run' );
+		ipcMain.handle( 'phpunit:run', ( event, dir, args ) => {
+			asked.runs.push( { dir, args } );
+			return { ok: true, runId: `e2e-php-${ asked.runs.length }` };
+		} );
+		ipcMain.removeHandler( 'npm:kill' );
+		ipcMain.handle( 'npm:kill', ( event, params ) => {
+			asked.kills.push( params );
+			return { ok: true };
+		} );
+	} );
+	const asked = () => app.evaluate( () => global.__e2ePhpUnit );
+	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
+		for ( const win of BrowserWindow.getAllWindows() ) {
+			win.webContents.send( to, what );
+		}
+	}, [ channel, payload ] );
+	const terminal = ui.terminalInput( page );
+	const screen = page.locator( '.xterm-rows' );
+	const enter = async ( text ) => {
+		await terminal.pressSequentially( text, { delay: 10 } );
+		await terminal.press( 'Enter' );
+	};
+
+	// INVARIANT — the Tests section says how the last run went, and before
+	// any run says there has been none.
+	const tests = page.getByRole( 'complementary' );
+	const lastRun = tests.getByRole( 'group', { name: 'Last run' } );
+	// The outcome a finished run is shown as: Pass, Fail or Notice, its title.
+	const outcome = ( title ) => lastRun.getByText( title, { exact: true } );
+	await expect( lastRun ).toContainText( 'Not run yet. The first run on a site installs PHPUnit, which takes a few minutes, and the whole suite takes about 10.' );
+
+	// CHARACTERISATION — the help names the command on a core site.
+	await enter( 'help' );
+	await expect( screen ).toContainText( 'Run WordPress PHP unit tests, for example phpunit --group 12345' );
+
+	// INVARIANT — what follows `phpunit` reaches main as it was typed, for
+	// this site, and nothing else is asked for.
+	await enter( 'phpunit --filter Tests_Formatting_wpAutop' );
+	await expect( screen ).toContainText( 'Running phpunit --filter Tests_Formatting_wpAutop…' );
+	expect( ( await asked() ).runs ).toEqual( [ { dir: site.dir, args: [ '--filter', 'Tests_Formatting_wpAutop' ] } ] );
+	await expect( lastRun ).toContainText( 'Running…' );
+
+	// INVARIANT — its output and its end are the terminal's, as a script's are.
+	await tell( 'npm:run-script:log', { runId: 'e2e-php-1', type: 'stdout', data: 'OK (25 tests, 34 assertions)\n' } );
+	await expect( screen ).toContainText( 'OK (25 tests, 34 assertions)' );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-1', code: 0 } );
+	await expect( screen ).toContainText( 'phpunit --filter Tests_Formatting_wpAutop exited with code 0' );
+
+	// INVARIANT — a typed run counts as much as a button's: the section says
+	// it passed, with how many, and which command that was.
+	await expect( lastRun ).toContainText( '25 tests passed.' );
+	await expect( outcome( 'Pass' ) ).toBeVisible();
+	await expect( lastRun.getByText( 'phpunit --filter Tests_Formatting_wpAutop', { exact: true } ) ).toBeVisible();
+
+	// INVARIANT — the Tests section's "Run all" runs the whole suite: no
+	// arguments, so core's own configuration decides what runs.
+	await expect( tests.getByRole( 'heading', { level: 2, name: 'Tests', exact: true } ) ).toBeVisible();
+	const runAll = tests.getByRole( 'button', { name: 'Run all PHP unit tests', exact: true } );
+	await runAll.click();
+	await expect( screen ).toContainText( 'Running phpunit…' );
+	expect( ( await asked() ).runs[ 1 ] ).toEqual( { dir: site.dir, args: [] } );
+	// INVARIANT — a run with failures says how many of how many, from
+	// PHPUnit's own summary. On trunk that is all it says: there is no
+	// change to compare with.
+	await tell( 'npm:run-script:log', { runId: 'e2e-php-2', type: 'stdout', data: 'FAILURES!\nTests: 2133, Assertions: 1118406, Failures: 4.\n' } );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-2', code: 1 } );
+	await expect( screen ).toContainText( 'phpunit exited with code 1' );
+	await expect( lastRun ).toContainText( '4 of 2133 tests failed.' );
+	await expect( outcome( 'Fail' ) ).toBeVisible();
+
+	// INVARIANT — while a run started from the section runs, its buttons say
+	// why they cannot start another, and Ctrl+C in the terminal stops it.
+	await ui.linkTicket( page, '60001' );
+	await runAll.click();
+	await expect.poll( async () => ( await asked() ).runs.length ).toBe( 3 );
+	expect( ( await asked() ).runs[ 2 ] ).toEqual( { dir: site.dir, args: [] } );
+	await expect( runAll ).toHaveAttribute( 'aria-disabled', 'true' );
+	await terminal.press( 'Control+C' );
+	await expect.poll( async () => ( await asked() ).kills.length ).toBe( 1 );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-3', code: 130 } );
+	await expect( screen ).toContainText( 'phpunit exited with code 130' );
+	// INVARIANT — a run stopped part-way is not reported as a pass or a fail.
+	await expect( lastRun ).toContainText( 'Stopped before it finished.' );
+	await expect( outcome( 'Notice' ) ).toBeVisible();
+	await expect( runAll ).not.toHaveAttribute( 'aria-disabled', 'true' );
+
+	// INVARIANT — on a ticket's branch, a run with failures also says some
+	// tests fail on this setup without the change, and how to tell.
+	await runAll.click();
+	await tell( 'npm:run-script:log', { runId: 'e2e-php-4', type: 'stdout', data: 'FAILURES!\nTests: 21, Assertions: 115, Failures: 1.\n' } );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-4', code: 1 } );
+	await expect( lastRun ).toContainText( '1 of 21 tests failed. These run on SQLite and the app\'s own PHP, not MySQL, so some of core\'s tests fail here even on trunk. Run a failing test on trunk to compare.' );
+	await expect( outcome( 'Fail' ) ).toBeVisible();
+
+	// INVARIANT — with a ticket linked, Group starts as its number, so
+	// "Run matching tests" runs the tests written for it straight away.
+	const filterField = tests.getByRole( 'textbox', { name: 'Filter', exact: true } );
+	const groupField = tests.getByRole( 'combobox', { name: 'Group', exact: true } );
+	const runFiltered = tests.getByRole( 'button', { name: 'Run matching tests', exact: true } );
+	await expect( groupField ).toHaveValue( '60001' );
+	await runFiltered.click();
+	await expect( screen ).toContainText( 'Running phpunit --group 60001…' );
+	expect( ( await asked() ).runs[ 4 ] ).toEqual( { dir: site.dir, args: [ '--group', '60001' ] } );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-5', code: 0 } );
+	await expect( screen ).toContainText( 'phpunit --group 60001 exited with code 0' );
+
+	// INVARIANT — with both fields blank, Run starts nothing: that would be
+	// "Run all" under another name.
+	await groupField.fill( '' );
+	await expect( runFiltered ).toBeDisabled();
+	await groupField.press( 'Enter' );
+	expect( ( await asked() ).runs ).toHaveLength( 5 );
+
+	// INVARIANT — the Group field suggests the linked ticket first, named as
+	// such, then the named groups the checkout's tests are tagged with, each
+	// once and without the ticket numbers tagged as groups; its hint names
+	// the linked ticket's number.
+	await expect.poll( () => groupField.evaluate( ( el ) => [ ...el.list.options ].map( ( option ) => [ option.value, option.getAttribute( 'label' ) ] ) ) ).toEqual( [
+		[ '60001', 'This ticket' ],
+		[ 'ajax', null ],
+		[ 'formatting', null ]
+	] );
+	await expect( groupField ).toHaveAttribute( 'placeholder', 'ajax' );
+	await expect( groupField ).toHaveAccessibleDescription( 'A group such as ajax or restapi, or a ticket number, such as 60001 for this ticket.' );
+	await expect( filterField ).toHaveAccessibleDescription( 'Part of a test class or method name, such as wpAutop.' );
+	// CHARACTERISATION — the handbook link points at the PHPUnit page. Not
+	// clicked: that opens the contributor's browser.
+	await expect( tests.getByRole( 'link', { name: 'How core\'s PHP unit tests are organised', exact: true } ) ).toHaveAttribute( 'href', 'https://make.wordpress.org/core/handbook/testing/automated-testing/phpunit/' );
+
+	// INVARIANT — the Filter and Group fields add those flags to a run, as
+	// the terminal command, and a field left blank adds nothing.
+	await filterField.fill( 'Tests_wp_ajax_delete_link' );
+	await groupField.fill( 'ajax' );
+	await runFiltered.click();
+	await expect( screen ).toContainText( 'Running phpunit --filter Tests_wp_ajax_delete_link --group ajax…' );
+	expect( ( await asked() ).runs[ 5 ] ).toEqual( { dir: site.dir, args: [ '--filter', 'Tests_wp_ajax_delete_link', '--group', 'ajax' ] } );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-6', code: 0 } );
+	await expect( screen ).toContainText( 'phpunit --filter Tests_wp_ajax_delete_link --group ajax exited with code 0' );
+	await filterField.fill( '' );
+	await groupField.press( 'Enter' );
+	await expect( screen ).toContainText( 'Running phpunit --group ajax…' );
+	expect( ( await asked() ).runs[ 6 ] ).toEqual( { dir: site.dir, args: [ '--group', 'ajax' ] } );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-7', code: 0 } );
+	await expect( screen ).toContainText( 'phpunit --group ajax exited with code 0' );
+
+	// INVARIANT — a filter with spaces and double quotes in it, the name
+	// PHPUnit prints for a test's data set with a string key, reaches main as
+	// the one argument it was typed as, and the command shows it quoted.
+	const dataSet = 'Tests_Formatting_wpAutop::test_wpautop with data set "empty string"';
+	await groupField.fill( '' );
+	await filterField.fill( dataSet );
+	await filterField.press( 'Enter' );
+	await expect( screen ).toContainText( `Running phpunit --filter '${ dataSet }'…` );
+	expect( ( await asked() ).runs[ 7 ] ).toEqual( { dir: site.dir, args: [ '--filter', dataSet ] } );
+} );
+
+test( 'a Gutenberg site has no phpunit command and no Tests section', async ( { session } ) => {
+	const site = await makeSite( session );
+	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
+	const { page } = await session.start( site.settings );
+	await ui.openTray( page, 'Terminal' );
+	const terminal = ui.terminalInput( page );
+	const screen = page.locator( '.xterm-rows' );
+
+	// INVARIANT — its PHP tests need wp-env, so the command is refused by name.
+	await terminal.pressSequentially( 'phpunit --group 1', { delay: 10 } );
+	await terminal.press( 'Enter' );
+	await expect( screen ).toContainText( 'Unsupported command: phpunit --group 1' );
+	await expect( page.getByRole( 'complementary' ).getByRole( 'heading', { name: 'Tests', exact: true } ) ).toHaveCount( 0 );
+	await expect( page.getByRole( 'button', { name: 'Run all PHP unit tests', exact: true } ) ).toHaveCount( 0 );
 } );

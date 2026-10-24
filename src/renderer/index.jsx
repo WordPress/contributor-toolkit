@@ -31,6 +31,9 @@ import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
+import { filterArgs, phpunitCommandLine } from '../phpunit-plan.cjs';
+import { groupsFromAnswer, listsTestGroups } from './tests-section.cjs';
+import { phpunitLastRun } from './phpunit-result.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -48,7 +51,7 @@ import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardLabel, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion, discardYourChangesQuestion, ownEditCount, discardToast } from './changes-note.cjs';
-import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
+import { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, discardTrunkWorkReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
@@ -1207,13 +1210,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
   // `loadStatus` above; the terminal and the build watch below run through it.
-  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
+  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, runPhpUnit, phpunitRun, killCurrent } = useSiteScripts({ sitePath, branch: ticketBranches.current, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
 
   // The site's terminal (#554): the xterm instance, what is typed in it and
   // the commands it runs through the three runners above. The lock, the kill
   // handler and the writer are taken out by name because every chain below
   // holds the lock and writes its progress there, as it always has.
-  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, shown: isActive && tray === 'terminal' });
+  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand, runTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, phpUnit: projectBuild.phpUnit, runInstall, runScript, runPhpUnit, killCurrent, shown: isActive && tray === 'terminal' });
   // What a chain says when it is asked to start while a command holds the
   // terminal. The line is printed there and nowhere else, so the terminal is
   // brought up with it: a refusal nobody sees is a button that did nothing.
@@ -1240,6 +1243,35 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       }
     });
   }, [runInstall, writeToTerminal]);
+
+  // The Tests section's buttons: the tests its Filter and Group fields pick,
+  // or the whole suite, run in the terminal exactly as typing the command
+  // there would.
+  const runFilteredPhpTests = useCallback((fields) => {
+    revealTerminal();
+    runTerminalCommand(phpunitCommandLine(filterArgs(fields)));
+  }, [revealTerminal, runTerminalCommand]);
+  const runAllPhpTests = useCallback(() => {
+    revealTerminal();
+    runTerminalCommand('phpunit');
+  }, [revealTerminal, runTerminalCommand]);
+
+  // The named groups the checkout's tests are tagged with, for the Group
+  // field to suggest. Read when the site comes on screen and again on
+  // another branch, whose tests may differ; when is listsTestGroups's to say
+  // and what the answer means groupsFromAnswer's (tests-section.cjs).
+  const [phpunitGroups, setPhpunitGroups] = useState([]);
+  const showsTests = skipInit && projectBuild.phpUnit;
+  const checkedOutBranch = ticketBranches.current;
+  const listsGroups = listsTestGroups({ showsTests, isActive, branch: checkedOutBranch });
+  useEffect(() => {
+    if (!listsGroups) return undefined;
+    let current = true;
+    window.api.phpUnitGroups(sitePath).then((answer) => {
+      if (current) setPhpunitGroups(groupsFromAnswer(answer));
+    }, () => {});
+    return () => { current = false; };
+  }, [listsGroups, sitePath, checkedOutBranch]);
 
   const runBuildWithTerminal = useCallback(() => {
     setSetupChainEnd(null);
@@ -1493,7 +1525,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           variant="outline"
           tone="neutral"
           size="compact"
-          reason={ticketActionsReason}
+          reason={discardTrunkWorkReason({ terminalRunning, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })}
           onClick={() => askFirst(discardTrunkEditsQuestion(), () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
         >{dirtyQuestion.discard}</ReasonedUiButton>
         {/* The way out that touches nothing — three consequential actions
@@ -1579,8 +1611,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // from under it. Not re-derived here — that is how a second answer starts.
   // Why a file's revert button is held, if it is (#669): the guard and the
   // sentences the discard link has, since it writes the tree the same way.
-  const revertReason = discardDisabledReason({ patchHasChanges: true, isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
-  const layerExitBlocked = discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
+  // A command in the terminal, a PHP test run or a script, reads the
+  // checkout for minutes, so nothing that rewrites it starts while one runs:
+  // revert, every discard and the move onto trunk.
+  const revertReason = discardDisabledReason({ patchHasChanges: true, isUpdating, installing, building, terminalRunning, devServerActive: isDevProcessActive, discarding });
+  const layerExitBlocked = discardBlocked({ isUpdating, installing, building, terminalRunning, devServerActive: isDevProcessActive, discarding });
   const layerExit = layerExitFailure({ patchSaveError, discardError });
 
   // --- Initial setup, as one chain (#246) ---
@@ -1756,8 +1791,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // modal's) keeps the applied patch or checked-out PR (#669), so its question
   // says what stays. "Discard this ticket to its base" (the layer exits) is
   // for when the patch itself is the problem, and takes it too; its question
-  // is the one the dirty-update modal asks. All three links disable through
-  // discardBlocked; no re-check in here. The question's dialog is modal, so
+  // is the one the dirty-update modal asks. All three links are held by the
+  // same guards (discardDisabledReason, discardBlocked), a command in the
+  // terminal among them; no re-check in here. The question's dialog is modal, so
   // nothing the contributor can press starts what discardBlocked names while
   // it is up.
   const discardYourChanges = () => {
@@ -1830,6 +1866,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     isUpdating,
     installing,
     building,
+    terminalRunning,
     devServerActive: isDevProcessActive,
     discarding
   });
@@ -1885,6 +1922,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     isUpdating,
     installing,
     building,
+    terminalRunning,
     devServerActive: isDevProcessActive,
     discarding
   });
@@ -2364,7 +2402,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           staleNotice={staleTicketNotice ? {
             ...staleTicketNotice,
             busy: ticketSaving,
-            reason: rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding, noun: workItem.noun }),
+            reason: rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, terminalRunning, devServerActive: isDevProcessActive, discarding, noun: workItem.noun }),
             onAction: rebaseTicket
           } : null}
           feedback={ticketFeedback}
@@ -2467,6 +2505,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
+        tests={showsTests ? {
+          groups: phpunitGroups,
+          ticket: tracTicket,
+          onRunAllPhp: runAllPhpTests,
+          onRunFiltered: runFilteredPhpTests,
+          lastRun: phpunitLastRun(phpunitRun, { onTicket: Boolean(tracTicket), branch: ticketBranches.current }),
+          reason: testsDisabledReason({ terminalRunning, discarding, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })
+        } : null}
         changed={{ ...changedGroups, onOpenFile: openAffectedFile, onRevertFile: revertFile, revertReason, revertError }}
       />
       </div>
