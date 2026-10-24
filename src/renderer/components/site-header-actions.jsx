@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react';
 import { createSlotFill } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import { Icon, chevronDown, drawerRight, moreVertical } from '@wordpress/icons';
@@ -27,6 +28,78 @@ function MenuAction({ item, onAction }) {
       <Menu.ItemLabel>{item.label}</Menu.ItemLabel>
       {item.description ? <Menu.ItemDescription>{item.description}</Menu.ItemDescription> : null}
     </Menu.Item>
+  );
+}
+
+// The contents shared by the header button and the context menu in the sites
+// list. Keeping one rendering of the model means both entry points offer the
+// same actions, in the same order, and acquire detected applications alike.
+function SiteMenuItems({ menu, onAction }) {
+  return siteMenuItems(menu).flatMap((item, index) => [
+    item.separated ? <Menu.Separator key={`separator-${index}`} /> : null,
+    item.items ? (
+      <Menu.SubmenuRoot key={item.id}>
+        <Menu.SubmenuTrigger>
+          <Menu.ItemLabel>{item.label}</Menu.ItemLabel>
+        </Menu.SubmenuTrigger>
+        <Menu.Popup>
+          {/* An application is keyed by where it is, and the two rows that
+              are not applications by what they are, so a row keeps its
+              identity, and the focus on it, when the list around it changes. */}
+          {item.items.map((child) => (
+            <MenuAction key={child.path || child.id} item={child} onAction={onAction} />
+          ))}
+        </Menu.Popup>
+      </Menu.SubmenuRoot>
+    ) : (
+      <MenuAction key={item.id} item={item} onAction={onAction} />
+    )
+  ]);
+}
+
+/**
+ * The same site actions beside a site in the list. The fixed, invisible
+ * trigger gives the menu library the pointer (or keyboard-derived) position
+ * to anchor to; the popup itself supplies focus management and dismissal.
+ *
+ * @param {Object}   props
+ * @param {Object}   props.position   The viewport point to open beside.
+ * @param {Object}   props.menu       What `siteMenuItems` takes.
+ * @param {Function} props.onMenuOpen Called as the menu opens, to look for applications.
+ * @param {Function} props.onAction   Called with the chosen item.
+ * @param {Function} props.onClose    Called when the menu is dismissed.
+ */
+export function SiteContextMenu({ position, menu, onMenuOpen, onAction, onClose }) {
+  useEffect(() => { onMenuOpen(); }, [onMenuOpen]);
+  const anchor = useMemo(() => ({
+    getBoundingClientRect: () => ({
+      x: position.x,
+      y: position.y,
+      top: position.y,
+      left: position.x,
+      right: position.x,
+      bottom: position.y,
+      width: 0,
+      height: 0,
+      toJSON: () => ({})
+    })
+  }), [position]);
+
+  return (
+    <Menu.Root defaultOpen onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Menu.Trigger
+        render={
+          <button
+            type="button"
+            className="site-context-menu-trigger"
+            aria-label={__('Site actions')}
+          />
+        }
+      />
+      <Menu.Popup positioner={<Menu.Positioner anchor={anchor} />}>
+        <SiteMenuItems menu={menu} onAction={onAction} />
+      </Menu.Popup>
+    </Menu.Root>
   );
 }
 
@@ -98,7 +171,6 @@ function ProcessMenu({ process, onToggle, links = [], onOpenLink = null }) {
  * @param {Object}   [props.work]          The processes and the review, or null while the site's setup is not done: `{ server, watch, onToggleServer, onToggleWatch, serverLinks, onOpenLink, onReview, reviewDisabled, serverCue, reviewCue }`.
  */
 export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, menu, onMenuOpen, onAction, work = null }) {
-  const items = siteMenuItems(menu);
   return (
     <Fill>
       {work ? (
@@ -144,27 +216,7 @@ export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, men
           }
         />
         <Menu.Popup>
-          {items.flatMap((item, index) => [
-            item.separated ? <Menu.Separator key={`separator-${index}`} /> : null,
-            item.items ? (
-              <Menu.SubmenuRoot key={item.id}>
-                <Menu.SubmenuTrigger>
-                  <Menu.ItemLabel>{item.label}</Menu.ItemLabel>
-                </Menu.SubmenuTrigger>
-                <Menu.Popup>
-                  {/* An application is keyed by where it is, and the two rows
-                      that are not applications by what they are, so a row
-                      keeps its identity, and the focus on it, when the list
-                      around it changes. */}
-                  {item.items.map((child) => (
-                    <MenuAction key={child.path || child.id} item={child} onAction={onAction} />
-                  ))}
-                </Menu.Popup>
-              </Menu.SubmenuRoot>
-            ) : (
-              <MenuAction key={item.id} item={item} onAction={onAction} />
-            )
-          ])}
+          <SiteMenuItems menu={menu} onAction={onAction} />
         </Menu.Popup>
       </Menu.Root>
     </Fill>

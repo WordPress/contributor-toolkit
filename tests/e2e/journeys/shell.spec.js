@@ -107,6 +107,49 @@ test( 'the sites list opens a site without closing the others, and the open site
 	await expect( issue ).toHaveValue( '12345' );
 } );
 
+test( 'right-clicking a site in the list opens that site\'s actions, and only update-trunk opens the site itself', async ( { session } ) => {
+	const { dirs, settings } = listedSites( session, [ { label: 'older-site' }, { label: 'newer-site' } ] );
+	const [ olderDir ] = dirs;
+	const { page } = await session.start( settings );
+	const older = ui.sidebarEntry( page, 'older-site' );
+	const menu = page.getByRole( 'menu', { name: 'Site actions' } );
+	await expect( ui.siteHeading( page, 'newer-site' ) ).toBeVisible( { timeout: 30_000 } );
+	await page.evaluate( () => {
+		window.__e2eCopied = [];
+		navigator.clipboard.writeText = async ( text ) => window.__e2eCopied.push( text );
+	} );
+
+	// INVARIANT — a secondary press on an inactive site's entry offers the
+	// same actions as the page header, while the site already open stays open.
+	await older.click( { button: 'right' } );
+	await expect( menu.getByRole( 'menuitem' ) ).toHaveText( [ 'Rename…', 'Copy path', /^Show in /, 'Update to latest trunk', 'Open in', 'Delete site' ] );
+	await expect( ui.siteHeading( page, 'newer-site' ) ).toBeVisible();
+	await expect( older ).toHaveAttribute( 'aria-pressed', 'false' );
+
+	// INVARIANT — an action belongs to the entry that was pressed, not the
+	// open site. Dismissing the menu leaves keyboard focus on that entry.
+	await menu.getByRole( 'menuitem', { name: 'Copy path', exact: true } ).click();
+	await expect.poll( () => page.evaluate( () => window.__e2eCopied ) ).toEqual( [ olderDir ] );
+	await expect( older ).toBeFocused();
+	await expect( ui.siteHeading( page, 'newer-site' ) ).toBeVisible();
+
+	// INVARIANT — the keyboard's context-menu command reaches the same menu.
+	await older.press( 'Shift+F10' );
+	await expect( menu ).toBeVisible();
+	await page.keyboard.press( 'Escape' );
+	await expect( menu ).toHaveCount( 0 );
+	await expect( older ).toBeFocused();
+
+	// INVARIANT — update-trunk is the one action that opens the site it
+	// targets: its progress only shows on the open site, so a request made
+	// from a different row's menu would otherwise run with nothing visible
+	// for it (#666 review).
+	await older.click( { button: 'right' } );
+	await menu.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } ).click();
+	await expect( ui.siteHeading( page, 'older-site' ) ).toBeVisible();
+	await expect( older ).toHaveAttribute( 'aria-pressed', 'true' );
+} );
+
 test( 'a site in a folder with a space in its path is named in the list, and opens, like any other', async ( { session } ) => {
 	// A Windows home folder is "C:\\Users\\First Last" for anyone whose
 	// name has two words, so this is an ordinary site and not an odd one.
