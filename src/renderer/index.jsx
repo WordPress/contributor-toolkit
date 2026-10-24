@@ -1571,6 +1571,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     moved: applyPreview.moved,
     hasEdits: applyPreview.hasEdits,
     state: applyPreview.prState,
+    setAside: applyPreview.setAside,
+    returnTo: applyPreview.returnTo,
+    noun: workItem.noun,
     measuredFromSite: applyPreview.measuredFromSite
   }) : null;
   // The layer exits reach the same two operations the changes note does, so
