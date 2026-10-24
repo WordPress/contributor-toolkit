@@ -107,7 +107,7 @@ test( 'the sites list opens a site without closing the others, and the open site
 	await expect( issue ).toHaveValue( '12345' );
 } );
 
-test( 'right-clicking a site in the list opens that site\'s actions without opening the site', async ( { session } ) => {
+test( 'right-clicking a site in the list opens that site\'s actions, and only update-trunk opens the site itself', async ( { session } ) => {
 	const { dirs, settings } = listedSites( session, [ { label: 'older-site' }, { label: 'newer-site' } ] );
 	const [ olderDir ] = dirs;
 	const { page } = await session.start( settings );
@@ -139,6 +139,15 @@ test( 'right-clicking a site in the list opens that site\'s actions without open
 	await page.keyboard.press( 'Escape' );
 	await expect( menu ).toHaveCount( 0 );
 	await expect( older ).toBeFocused();
+
+	// INVARIANT — update-trunk is the one action that opens the site it
+	// targets: its progress only shows on the open site, so a request made
+	// from a different row's menu would otherwise run with nothing visible
+	// for it (#666 review).
+	await older.click( { button: 'right' } );
+	await menu.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } ).click();
+	await expect( ui.siteHeading( page, 'older-site' ) ).toBeVisible();
+	await expect( older ).toHaveAttribute( 'aria-pressed', 'true' );
 } );
 
 test( 'a site in a folder with a space in its path is named in the list, and opens, like any other', async ( { session } ) => {

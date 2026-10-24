@@ -737,6 +737,7 @@ function App({ settingsState }) {
                         deepLink={activeSite === s ? deepLink : null}
                         onDeepLinkDone={clearDeepLink}
                         isActive={activeSite === s}
+                        onActivate={() => setActiveSite(s)}
                         detailsOpen={detailsOpen}
                         onToggleDetails={toggleDetails}
                         tray={tray}
@@ -778,7 +779,7 @@ function App({ settingsState }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, onActivate = null, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1340,13 +1341,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // What the site's menu does (#556). Which items it offers is decided in
   // site-menu.cjs; this is each one's function. Copying the path says so in a
   // toast, since the menu is gone by then and the details, whose own button
-  // says it on itself, may be put away.
+  // says it on itself, may be put away. Every action here acts on this row's
+  // site without opening it, except update-trunk: its progress only renders
+  // on the active site, so a request from a different row's context menu
+  // opens that site first, otherwise the update runs with nothing to show
+  // for it (#666 review).
   const detailsId = useId();
   const runSiteMenuAction = async (item) => {
     if (item.id === 'rename') openRenameModal();
     else if (item.id === 'copy-path') { if (await writePathToClipboard()) confirm(__('Copied the path')); }
     else if (item.id === 'show-in-file-manager') await showInFileManager();
-    else if (item.id === 'update-trunk') await startTrunkUpdate();
+    else if (item.id === 'update-trunk') {
+      if (!isActive) onActivate?.();
+      await startTrunkUpdate();
+    }
     else if (item.id === 'open-in') await openIn(item.path);
     else if (item.id === 'open-in-other') await openIn(null);
     else if (item.id === 'delete') askFirst(deleteSiteQuestion(displayName), () => onDelete(sitePath));
