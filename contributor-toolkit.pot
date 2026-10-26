@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-26T13:23:27+00:00\n"
+"POT-Creation-Date: 2026-10-26T19:00:35+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -146,210 +146,210 @@ msgstr[1] ""
 msgid "Could not read the base commit"
 msgstr ""
 
-#: src/main.js:1207
+#: src/main.js:1189
 msgid "Save Patch for Handoff"
 msgstr ""
 
-#: src/main.js:1207
+#: src/main.js:1189
 msgid "Save Diff File"
 msgstr ""
 
-#: src/main.js:1327
+#: src/main.js:1309
 msgid "Sign in to GitHub first."
 msgstr ""
 
-#: src/main.js:1801
+#: src/main.js:1797
 #. %s: the name of the patch or pull request, such as 60001.diff or PR #6717.
 msgid "%s is applied. Revert it before submitting this checkout as your own work."
 msgstr ""
 
-#: src/main.js:1804
+#: src/main.js:1800
 msgid ""
 "The patch you applied is applied. Revert it before submitting this checkout "
 "as your own work."
 msgstr ""
 
-#: src/main.js:2207
+#: src/main.js:2203
 #. %s: the path of a file in the site.
 msgid ""
 "The patch renames %s, so it can only go back with the whole patch. Use "
 "Discard your changes instead."
 msgstr ""
 
-#: src/main.js:2213
+#: src/main.js:2209
 #. %s: the path of a file in the site.
 msgid "%s is as the patch left it, so there is nothing of yours to revert."
 msgstr ""
 
-#: src/main.js:2217
+#: src/main.js:2213
 #. %s: the path of a file in the site.
 msgid ""
 "The app did not keep a copy of the patch, so it cannot put %s back as the "
 "patch left it."
 msgstr ""
 
-#: src/main.js:2221
+#: src/main.js:2217
 #. %s: the path of a file in the site.
 msgid "%s has no changes to revert."
 msgstr ""
 
-#: src/main.js:2240
+#: src/main.js:2236
 #. 1: the path of a file in the site. 2: why it could not be reverted. 3: why it could not be put back as it was.
 msgid ""
 "Could not revert %1$s (%2$s), and could not put it back as it was, so your "
 "changes to it may be lost: %3$s"
 msgstr ""
 
-#: src/main.js:2244
+#: src/main.js:2240
 #. 1: the path of a file in the site. 2: why it could not be reverted.
 msgid "Could not revert %1$s, so it was left as it was: %2$s"
 msgstr ""
 
-#: src/main.js:2333
+#: src/main.js:2329
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Parking your work on %s before updating…"
 msgstr ""
 
-#: src/main.js:2419
+#: src/main.js:2415
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Returning to your work on %s…"
 msgstr ""
 
-#: src/main.js:2464
+#: src/main.js:2460
 #. %s: the error the checkout failed with.
 msgid "Update failed during checkout: %s"
 msgstr ""
 
-#: src/main.js:2467
+#: src/main.js:2463
 #. %s: the error the fetch failed with.
 msgid "Update failed during fetch: %s"
 msgstr ""
 
-#: src/main.js:2482
+#: src/main.js:2478
 #. 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
 msgid ""
 "Your work on #%1$s is safe — it is committed on %2$s. Link that ticket "
 "again to return to it."
 msgstr ""
 
-#: src/main.js:2485
+#: src/main.js:2481
 #. %s: the branch the work is committed on, such as pr/7701.
 msgid ""
 "Your work is safe — it is committed on %s. Apply that pull request again to "
 "return to it."
 msgstr ""
 
-#: src/main.js:2624
+#: src/main.js:2620
 msgid "Returning to your saved copy of the pull request…"
 msgstr ""
 
-#: src/main.js:2624
+#: src/main.js:2620
 msgid "Downloading the pull request's files and switching to its branch…"
 msgstr ""
 
-#: src/main.js:2639
+#: src/main.js:2635
 #. %s: the error Git gave.
 msgid "Could not remove the unused branch: %s"
 msgstr ""
 
-#: src/main.js:2660
+#: src/main.js:2656
 msgid "Restoring the files of your previous branch…"
 msgstr ""
 
-#: src/main.js:2836
+#: src/main.js:2832
 msgid "Could not check your work for conflicts, so the preview was not shown."
 msgstr ""
 
-#: src/main.js:2847
+#: src/main.js:2843
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2850
+#: src/main.js:2846
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2851
+#: src/main.js:2847
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:2895
+#: src/main.js:2891
 msgid "There is no stored patch to revert."
 msgstr ""
 
-#: src/main.js:2906
+#: src/main.js:2902
 #. %s: the name of the applied patch, such as a file name.
 msgid "%s is already applied. Revert it before applying another patch."
 msgstr ""
 
-#: src/main.js:2912
+#: src/main.js:2908
 #. %s: the name of the patch, such as a file name.
 msgid "Reverting %s…"
 msgstr ""
 
-#: src/main.js:2915
+#: src/main.js:2911
 #. %s: the name of the patch, such as a file name.
 msgid "Applying %s…"
 msgstr ""
 
-#: src/main.js:2945
+#: src/main.js:2941
 msgid "This patch is too large to keep for an undo, so Revert will not be offered."
 msgstr ""
 
-#: src/main.js:2971
+#: src/main.js:2967
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved, so it was "
 "undone. %s"
 msgstr ""
 
-#: src/main.js:2974
+#: src/main.js:2970
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved and it could not "
 "be undone — the checkout has the patch and the app cannot revert it. %s"
 msgstr ""
 
-#: src/main.js:2983
+#: src/main.js:2979
 #. %s: what went wrong, as the system said it.
 msgid "Applying the patch failed: %s"
 msgstr ""
 
-#: src/main.js:3574
+#: src/main.js:3570
 msgid ""
 "There is uncommitted work on trunk — decide what happens to it before "
 "starting the ticket"
 msgstr ""
 
-#: src/main.js:3668
+#: src/main.js:3664
 msgid ""
 "Link a ticket first: trunk is what tickets are measured against, not a "
 "ticket."
 msgstr ""
 
-#: src/main.js:3670
+#: src/main.js:3666
 #: src/renderer/ticket-trunk-notice.cjs:147
 msgid "Only a ticket branch can be moved onto the current trunk."
 msgstr ""
 
-#: src/main.js:3672
+#: src/main.js:3668
 msgid ""
 "This ticket has no recorded starting point, so the app cannot move its work "
 "onto the current trunk."
 msgstr ""
 
-#: src/main.js:3827
+#: src/main.js:3823
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3828
+#: src/main.js:3824
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3834
+#: src/main.js:3830
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/main.js:3996
+#: src/main.js:3992
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
@@ -357,7 +357,7 @@ msgid ""
 "finishes on its own."
 msgstr ""
 
-#: src/main.js:3999
+#: src/main.js:3995
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
@@ -365,60 +365,60 @@ msgid ""
 "its own."
 msgstr ""
 
-#: src/main.js:4003
+#: src/main.js:3999
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
 "running and holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:4006
+#: src/main.js:4002
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
 "holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:4010
+#: src/main.js:4006
 msgid "This site requires a newer Node.js than this app bundles."
 msgstr ""
 
-#: src/main.js:4010
+#: src/main.js:4006
 msgid "Retrying with engine checks relaxed…"
 msgstr ""
 
-#: src/main.js:4097
+#: src/main.js:4093
 #. %s: why npm could not be started.
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4408
+#: src/main.js:4404
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4411
+#: src/main.js:4407
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4441
+#: src/main.js:4437
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.js:4503
+#: src/main.js:4499
 #. %s: the name of the folder the web server serves, local-playground-web.
 msgid "%s directory not found."
 msgstr ""
 
-#: src/main.js:4551
+#: src/main.js:4547
 msgid "Server exited before becoming ready"
 msgstr ""
 
-#: src/main.js:4583
+#: src/main.js:4579
 msgid "Timed out starting web server"
 msgstr ""
 
@@ -5330,40 +5330,40 @@ msgid_plural "%s files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ticket-branches.js:151
+#: src/ticket-branches.js:152
 msgid "This site has no trunk branch"
 msgstr ""
 
-#: src/ticket-branches.js:313
+#: src/ticket-branches.js:314
 #. %s: a GitHub issue number.
 msgid "Already working on issue #%s in this site"
 msgstr ""
 
-#: src/ticket-branches.js:316
+#: src/ticket-branches.js:317
 #. %s: a Trac ticket number.
 msgid "Already working on ticket #%s in this site"
 msgstr ""
 
-#: src/ticket-branches.js:736
+#: src/ticket-branches.js:735
 #. %d: how many files are in conflict.
 msgid "Trunk and this ticket's work disagree in %d file"
 msgid_plural "Trunk and this ticket's work disagree in %d files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ticket-branches.js:739
+#: src/ticket-branches.js:738
 msgid "Trunk and this ticket's work disagree"
 msgstr ""
 
-#: src/ticket-branches.js:796
+#: src/ticket-branches.js:795
 msgid "Refusing to delete trunk"
 msgstr ""
 
-#: src/ticket-branches.js:796
+#: src/ticket-branches.js:795
 msgid "Refusing to delete a branch the app did not create"
 msgstr ""
 
-#: src/ticket-branches.js:803
+#: src/ticket-branches.js:802
 #. %s: a Git branch name, such as ticket/60001.
 msgid "No such branch: %s"
 msgstr ""
