@@ -1421,9 +1421,9 @@ body {
   font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
-/* The checked-out pull request, above the groups (#709): boxed in the
-   colour of its Applied badge, and off the tree, since it is not one of the
-   list's rows. */
+/* The checked-out pull request or the applied patch file, above its list's
+   groups (#709): boxed in the colour of its Applied badge, and off the
+   tree, since it is not one of the list's rows. */
 .ticket-pr-applied .ticket-pr {
   padding: var(--wpds-dimension-padding-md);
   border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-success);
@@ -1436,8 +1436,9 @@ body {
   display: none;
 }
 
-/* The heading that folds a group of pull requests away (#709): the whole
-   heading is the button, in the heading's colour rather than a link's. */
+/* The heading that folds a group of pull requests or patch files away
+   (#709): the whole heading is the button, in the heading's colour rather
+   than a link's. */
 .link-button.ticket-pr-group-toggle {
   display: inline-flex;
   align-items: center;

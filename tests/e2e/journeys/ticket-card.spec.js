@@ -167,12 +167,12 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	const group = ( label ) => ui.listGroupToggle( card, label );
 	const latest = card.getByRole( 'listitem' ).filter( { hasText: '#12990' } );
 	await expect( latest.getByText( 'Latest', { exact: true } ) ).toBeVisible();
-	await expect( group( 'Open PRs (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
-	await expect( group( 'Other closed PRs (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
+	await expect( group( 'Open PR (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
+	await expect( group( 'Other closed PR (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
 	await expect( card.getByRole( 'listitem' ).filter( { hasText: '#13245' } ) ).toHaveCount( 0 );
 	await expect( card.getByRole( 'listitem' ).filter( { hasText: '#13012' } ) ).toHaveCount( 0 );
-	await group( 'Open PRs (1)' ).click();
-	await group( 'Other closed PRs (1)' ).click();
+	await group( 'Open PR (1)' ).click();
+	await group( 'Other closed PR (1)' ).click();
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 4 );
 
 	// INVARIANT — each pull request says its number, its state in a word,
@@ -263,7 +263,9 @@ test( 'a ticket with many patch files on Trac shows them folded away, under a he
 	await expect( others ).toHaveAttribute( 'aria-expanded', 'false' );
 	await expect( file( 1 ) ).toHaveCount( 0 );
 	await others.click();
-	await expect( others.locator( 'xpath=ancestor::h4/following-sibling::ul/li' ).first() ).toContainText( `${ TICKET }.4.diff` );
+	// Newest first: the one shown above, then the group, in Trac's order reversed.
+	const names = await card.getByRole( 'listitem' ).filter( { hasText: /\.\d\.diff/ } ).allInnerTexts();
+	expect( names.map( ( text ) => /\.(\d)\.diff/.exec( text )[ 1 ] ) ).toEqual( [ '5', '4', '3', '2', '1' ] );
 	for ( const n of [ 1, 2, 3, 4, 5 ] ) {
 		await expect( file( n ) ).toBeVisible();
 	}

@@ -6,7 +6,7 @@
 // a shared one: a sentence with a hole in it cannot be translated.
 'use strict';
 
-const { __, sprintf } = require('@wordpress/i18n');
+const { __, _n, sprintf } = require('@wordpress/i18n');
 const { statusBadge } = require('../trac-ticket-info.cjs');
 const { prDateLabel } = require('./pr-date-label.cjs');
 
@@ -219,18 +219,18 @@ function pullRequestGroups(rows = [], items = [], { workApplied = false } = {}) 
 	let openLabel;
 	if (newestOpen) {
 		// translators: %d: how many open pull requests there are besides the one shown above.
-		openLabel = sprintf(__('Other open PRs (%d)'), open.length);
+		openLabel = sprintf(_n('Other open PR (%d)', 'Other open PRs (%d)', open.length), open.length);
 	} else {
 		// translators: %d: how many pull requests are open.
-		openLabel = sprintf(__('Open PRs (%d)'), open.length);
+		openLabel = sprintf(_n('Open PR (%d)', 'Open PRs (%d)', open.length), open.length);
 	}
 	let closedLabel;
 	if (newestClosed) {
 		// translators: %d: how many closed or merged pull requests there are besides the one shown above.
-		closedLabel = sprintf(__('Other closed PRs (%d)'), closed.length);
+		closedLabel = sprintf(_n('Other closed PR (%d)', 'Other closed PRs (%d)', closed.length), closed.length);
 	} else {
 		// translators: %d: how many pull requests are closed or merged.
-		closedLabel = sprintf(__('Closed PRs (%d)'), closed.length);
+		closedLabel = sprintf(_n('Closed PR (%d)', 'Closed PRs (%d)', closed.length), closed.length);
 	}
 	const groups = [
 		{ key: 'open', label: openLabel, entries: open },
@@ -322,10 +322,10 @@ function attachmentGroups(rows = [], items = [], { workApplied = false } = {}) {
 	let label;
 	if (applied || newest) {
 		// translators: %d: how many patch files there are on the ticket besides the one shown above.
-		label = sprintf(__('Other attachments (%d)'), rest.length);
+		label = sprintf(_n('Other attachment (%d)', 'Other attachments (%d)', rest.length), rest.length);
 	} else {
 		// translators: %d: how many patch files there are on the ticket.
-		label = sprintf(__('Attachments (%d)'), rest.length);
+		label = sprintf(_n('Attachment (%d)', 'Attachments (%d)', rest.length), rest.length);
 	}
 	return { applied, newest, groups: [{ key: 'other', label, entries: rest }] };
 }

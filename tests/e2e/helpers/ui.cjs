@@ -286,8 +286,8 @@ const workItemCard = ( page, title ) => page.getByRole( 'region', { name: title,
 
 /**
  * The heading of a group in the work-item card's lists (#709), which is the
- * button that folds it: "Open (2)", "Closed (3)", "Other attachments (5)",
- * as the card counts them.
+ * button that folds it: "Other open PRs (2)", "Closed PRs (3)", "Other
+ * attachments (5)", as the card counts them.
  *
  * @param {Object} workItem The work-item card.
  * @param {string} label    The group's heading, count included.

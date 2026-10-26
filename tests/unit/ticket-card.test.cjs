@@ -130,7 +130,7 @@ test('the newest pull request is shown, and the rest are grouped open and closed
 	const { applied, newest, groups } = pullRequestGroups(pullRequestRows({ items }), items);
 	assert.equal(applied, null);
 	assert.equal(keysOf(newest), 4);
-	assert.deepEqual(groups.map((group) => [group.key, group.label]), [['open', 'Other open PRs (1)'], ['closed', 'Closed PRs (2)']]);
+	assert.deepEqual(groups.map((group) => [group.key, group.label]), [['open', 'Other open PR (1)'], ['closed', 'Closed PRs (2)']]);
 	// Each row keeps its pull request, newest first.
 	assert.deepEqual(groups[1].entries.map((entry) => [entry.row.key, entry.item.number]), [[3, 3], [1, 1]]);
 });
@@ -139,9 +139,9 @@ test('a closed newest makes the closed group the "other" one', () => {
 	const items = [{ number: 2, url: 'u2', state: 'merged' }, { number: 1, url: 'u1', state: 'open' }];
 	const { newest, groups } = pullRequestGroups(pullRequestRows({ items }), items);
 	assert.equal(keysOf(newest), 2);
-	assert.deepEqual(groups.map((group) => group.label), ['Open PRs (1)']);
+	assert.deepEqual(groups.map((group) => group.label), ['Open PR (1)']);
 	const three = [...items, { number: 0, url: 'u0', state: 'closed' }];
-	assert.deepEqual(pullRequestGroups(pullRequestRows({ items: three }), three).groups.map((group) => group.label), ['Open PRs (1)', 'Other closed PRs (1)']);
+	assert.deepEqual(pullRequestGroups(pullRequestRows({ items: three }), three).groups.map((group) => group.label), ['Open PR (1)', 'Other closed PR (1)']);
 });
 
 test('the ticket\'s latest patch, when it is a pull request, is the one shown, wherever it is in the list', () => {
@@ -155,14 +155,14 @@ test('with a pull request checked out it is the only one shown, and every other 
 	const items = [{ number: 3, url: 'u3', state: 'open' }, { number: 2, url: 'u2', state: 'closed' }, { number: 1, url: 'u1', state: 'open' }];
 	const { applied, newest, groups } = pullRequestGroups(pullRequestRows({ items, appliedNumber: 1, latest: { kind: 'pr', key: 3 } }), items, { workApplied: true });
 	assert.deepEqual([keysOf(applied), applied.item.number, newest], [1, 1, null]);
-	assert.deepEqual(groups.map((group) => group.label), ['Other open PRs (1)', 'Closed PRs (1)']);
+	assert.deepEqual(groups.map((group) => group.label), ['Other open PR (1)', 'Closed PR (1)']);
 });
 
 test('with something applied from elsewhere, no pull request is shown above the groups', () => {
 	const items = [{ number: 2, url: 'u2', state: 'open' }, { number: 1, url: 'u1', state: 'closed' }];
 	const { applied, newest, groups } = pullRequestGroups(pullRequestRows({ items, latest: { kind: 'pr', key: 2 } }), items, { workApplied: true });
 	assert.deepEqual([applied, newest], [null, null]);
-	assert.deepEqual(groups.map((group) => group.label), ['Open PRs (1)', 'Closed PRs (1)']);
+	assert.deepEqual(groups.map((group) => group.label), ['Open PR (1)', 'Closed PR (1)']);
 });
 
 test('a pull request\'s group always agrees with its badge', () => {

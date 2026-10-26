@@ -86,8 +86,10 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	// was the newest shown is now folded away under one that counts it.
 	const ticketCard = ui.workItemCard( page, 'Trac ticket' );
 	await expect( ticketCard.getByRole( 'listitem' ).filter( { hasText: `#${ PR }` } ).getByText( 'Applied', { exact: true } ) ).toBeVisible();
-	await expect( ui.listGroupToggle( ticketCard, 'Open PRs (1)' ) ).toHaveCount( 0 );
-	await expect( ui.listGroupToggle( ticketCard, 'Attachments (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
+	const groupHeadings = ticketCard.getByRole( 'heading', { level: 4 } );
+	await expect( groupHeadings ).toHaveCount( 1 );
+	await expect( groupHeadings ).toHaveText( 'Attachment (1)' );
+	await expect( ui.listGroupToggle( ticketCard, 'Attachment (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
 	await expect( ticketCard.getByRole( 'listitem' ) ).toHaveCount( 1 );
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );

@@ -414,6 +414,10 @@ const shots = [
 		prepare: async (page) => {
 			await openReadySite(page);
 			await readTicketFromTrac(page);
+			// Every group opened (#709), so the picture shows each kind of
+			// row and not only headings.
+			const folded = ui.card(page, 'Trac ticket').locator('.ticket-pr-group-toggle[aria-expanded="false"]');
+			while (await folded.count()) await folded.first().click();
 			// The page is put where the lists are whole, above the tray's
 			// buttons, before the picture is cut out of it.
 			await ui.card(page, 'Trac ticket').evaluate((card) => card.scrollIntoView({ block: 'end' }));

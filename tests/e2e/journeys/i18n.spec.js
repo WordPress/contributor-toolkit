@@ -367,7 +367,7 @@ test( 'the work-item card is fully translatable, with nothing linked and with a 
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 2, { timeout: 30_000 } );
 	await expect( card.getByText( pseudoLocalize( 'Merged' ), { exact: true } ) ).toBeVisible();
 	await expect( card.getByText( pseudoLocalize( 'Latest' ), { exact: true } ) ).toBeVisible();
-	await ui.listGroupToggle( card, pseudoLocalize( 'Other closed PRs (%d)' ).replace( '%d', '1' ) ).click();
+	await ui.listGroupToggle( card, pseudoLocalize( 'Other closed PR (%d)' ).replace( '%d', '1' ) ).click();
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
 	await expect( card.getByText( pseudoLocalize( 'Closed' ), { exact: true } ) ).toBeVisible();
 	await expect( card.getByRole( 'button', { name: `${ pseudoLocalize( 'Refresh' ) } ${ pseudoLocalize( 'Trac attachments' ) }`, exact: true } ) ).toBeVisible();
