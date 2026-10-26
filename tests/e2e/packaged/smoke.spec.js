@@ -77,6 +77,7 @@ const EXPECTED_API_KEYS = [
 	'openExternal',
 	'openInEditor',
 	'openPullRequest',
+	'phpUnitGroups',
 	'platform',
 	'playgroundWebAvailable',
 	'previewPatch',
