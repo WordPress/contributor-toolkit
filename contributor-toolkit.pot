@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-26T19:09:48+00:00\n"
+"POT-Creation-Date: 2026-10-26T19:11:19+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -3165,20 +3165,20 @@ msgstr ""
 msgid "Failed to start PHP server: %s"
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:178
+#: src/renderer/hooks/use-dev-server.jsx:179
 msgid ""
 "Please complete the full build before starting the dev server. You can also "
 "skip the wizard."
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:195
+#: src/renderer/hooks/use-dev-server.jsx:196
 #. %s: the folder the site is served from, build/.
 msgid ""
 "%s is complete: starting the server without the build watch. Start build "
 "watch to compile edits on save."
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:211
+#: src/renderer/hooks/use-dev-server.jsx:212
 #. %s: the folder the site is served from, build/.
 msgid ""
 "Dev server start cancelled: the build watch stopped before %s was complete. "
