@@ -278,7 +278,9 @@ test('an exclude that cannot be written costs the old behaviour, never the switc
 	assert.equal(result.switched, true);
 	assert.deepEqual(result.excluded, []);
 	// Returned, so the caller can log why trunk reads dirty again (#523).
-	assert.deepEqual(result.cleanupErrors.map((e) => [e.step, e.error.code]), [['exclude', 'EACCES']]);
+	// Windows answers a read-only file with EPERM, macOS and Linux with EACCES.
+	assert.deepEqual(result.cleanupErrors.map((e) => e.step), ['exclude']);
+	assert.match(result.cleanupErrors[0].error.code, /^(EACCES|EPERM)$/);
 	assert.equal(await currentBranchName(dir), TRUNK);
 	assert.equal(await hasChangesAgainst(dir), true, 'the leftovers show, as they did before the fix');
 });
