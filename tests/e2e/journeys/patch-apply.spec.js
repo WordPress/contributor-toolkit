@@ -496,7 +496,7 @@ test( 'a ticket with no patch lists only the contributor\'s own changes (#669)',
 	// INVARIANT — the section is there for work with nothing applied, with the
 	// one group, and the new file marked new and the edited one not.
 	await expect( group( page, 'Your changes' ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( details( page ).getByRole( 'heading', { level: 3 } ) ).toHaveCount( 1 );
+	await expect( details( page ).getByRole( 'treegrid' ) ).toHaveCount( 1 );
 	await expect( affectedFile( page, 'src/new-helper.php' ).locator( '..' ).getByRole( 'img', { name: 'You created this file', exact: true } ) ).toBeVisible();
 	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByRole( 'img', { name: 'You created this file', exact: true } ) ).toHaveCount( 0 );
 } );

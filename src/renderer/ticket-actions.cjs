@@ -1,6 +1,7 @@
 'use strict';
 
 const { __, _n, sprintf } = require('@wordpress/i18n');
+const { applyHeldReason } = require('./apply-card.cjs');
 
 /**
  * Why a ticket action is unavailable, and what the dirty-trunk question says
@@ -43,8 +44,8 @@ function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState 
  * in flight), the same ones the discard action checks.
  *
  * @param {{ticketSaving?: boolean, deletingBranch?: string|null, updateState?: string,
- *          installing?: boolean, building?: boolean, devServerActive?: boolean,
- *          discarding?: boolean, noun?: string}} state
+ *          installing?: boolean, building?: boolean, terminalRunning?: boolean,
+ *          devServerActive?: boolean, discarding?: boolean, noun?: string}} state
  * @return {string|null}
  */
 function rebaseDisabledReason(state = {}) {
@@ -57,6 +58,10 @@ function rebaseDisabledReason(state = {}) {
 	if (state.discarding) return issue ? __('Wait for the discard to finish before updating the issue.') : __('Wait for the discard to finish before updating the ticket.');
 	const shared = ticketActionDisabledReason(state);
 	if (shared) return shared;
+	// A command in the terminal, a PHP test run or a script, reads the checkout
+	// for minutes; moving the branch under it would turn its results into the
+	// move's.
+	if (state.terminalRunning) return issue ? __('Wait for the command in the terminal to finish before updating the issue.') : __('Wait for the command in the terminal to finish before updating the ticket.');
 	if (state.devServerActive) return issue ? __('Stop the dev server before updating the issue.') : __('Stop the dev server before updating the ticket.');
 	return null;
 }
@@ -180,4 +185,37 @@ function discardTrunkEditsQuestion() {
 	};
 }
 
-module.exports = { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion };
+/**
+ * Why the Tests section's buttons are unavailable: the shared gate, because
+ * the tests read the checked-out tree and every action it waits for rewrites it,
+ * then a discard in flight, which does too, then the terminal, which the run
+ * is printed in and which holds one command at a time. Some actions above
+ * release the terminal while they still rewrite the tree, so the terminal is
+ * not enough on its own.
+ *
+ * @param {{terminalRunning?: boolean, discarding?: boolean, ticketSaving?: boolean,
+ *          deletingBranch?: string|null, updateState?: string, installing?: boolean,
+ *          building?: boolean, applyState?: string, noun?: string}} state
+ * @return {string} The reason, or '' when the tests can run.
+ */
+function testsDisabledReason({ terminalRunning = false, discarding = false, ...state } = {}) {
+	return ticketActionDisabledReason(state)
+		|| (discarding ? __('Wait for the discard to finish.') : '')
+		|| applyHeldReason({ terminalRunning });
+}
+
+/**
+ * Why the dirty-trunk question's "discard them" answer is unavailable: the
+ * shared gate, then a command in the terminal. The answer discards trunk's
+ * edits before it switches, and only the switch checks the terminal, so a
+ * discard under a running PHP test run or script would go through.
+ *
+ * @param {Object}  state                   As ticketActionDisabledReason takes it, and:
+ * @param {boolean} [state.terminalRunning] Whether a command holds the site's terminal.
+ * @return {string|null} Null when nothing blocks the answer.
+ */
+function discardTrunkWorkReason({ terminalRunning = false, ...state } = {}) {
+	return ticketActionDisabledReason(state) || applyHeldReason({ terminalRunning }) || null;
+}
+
+module.exports = { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, discardTrunkWorkReason, dirtyTrunkQuestion, discardTrunkEditsQuestion };
