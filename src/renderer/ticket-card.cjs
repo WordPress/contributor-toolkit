@@ -114,6 +114,13 @@ function ticketHeading({ ticketId, facts = null }) {
 	};
 }
 
+// A pull request's state as one of the three this card knows, which its
+// badge and its group are both read from (#709). Anything else is open.
+function pullRequestStateKey(state) {
+	const key = typeof state === 'string' ? state.toLowerCase() : '';
+	return key === 'merged' || key === 'closed' ? key : 'open';
+}
+
 /**
  * A pull request's state, as a badge.
  *
@@ -128,7 +135,7 @@ function ticketHeading({ ticketId, facts = null }) {
  * @return {{label: string, intent: string}} The badge.
  */
 function pullRequestState(state) {
-	const key = typeof state === 'string' ? state.toLowerCase() : '';
+	const key = pullRequestStateKey(state);
 	if (key === 'merged') return { label: __('Merged'), intent: 'informational' };
 	if (key === 'closed') return { label: __('Closed'), intent: 'none' };
 	return { label: __('Open'), intent: 'stable' };
@@ -168,6 +175,43 @@ function pullRequestRows({ items = [], latest = null, appliedNumber = null, form
 			date
 		};
 	});
+}
+
+/**
+ * The pull request rows in two groups, open and closed (#709): a ticket with
+ * many pull requests would otherwise push everything under them down. Merged
+ * is closed here, as GitHub counts it, and a state it does not know is open,
+ * as its badge says. Each group is named with its count, so a closed group
+ * says how many it holds while it is folded away, which it is to begin with.
+ * A group with nothing in it is left out.
+ *
+ * Two rows are in neither group, and are shown above them whatever is
+ * folded: the pull request the site has checked out, which is the one being
+ * worked on, and the ticket's latest patch, which may well be closed or
+ * merged. One that is both is the checked-out one.
+ *
+ * @param {Array} rows  The rows, as pullRequestRows made them.
+ * @param {Array} items The pull requests they were made from, in the same order.
+ * @return {{applied: ?{row: Object, item: Object}, latest: ?{row: Object, item: Object}, groups: Array<{key: string, label: string, defaultOpen: boolean, entries: Array<{row: Object, item: Object}>}>}} The checked-out one and the latest, each or null, and the groups, open first.
+ */
+function pullRequestGroups(rows = [], items = []) {
+	let applied = null;
+	let latest = null;
+	const open = [];
+	const closed = [];
+	rows.forEach((row, index) => {
+		const entry = { row, item: items[index] };
+		if (row.applied) applied = entry;
+		else if (row.latest) latest = entry;
+		else (pullRequestStateKey(entry.item && entry.item.state) === 'open' ? open : closed).push(entry);
+	});
+	const groups = [
+		// translators: %d: how many pull requests are open.
+		{ key: 'open', label: sprintf(__('Open (%d)'), open.length), defaultOpen: true, entries: open },
+		// translators: %d: how many pull requests are closed or merged.
+		{ key: 'closed', label: sprintf(__('Closed (%d)'), closed.length), defaultOpen: false, entries: closed }
+	].filter((group) => group.entries.length);
+	return { applied, latest, groups };
 }
 
 const localDateTime = (when) => new Date(when).toLocaleString();
@@ -304,4 +348,4 @@ function attachmentsStatus({ result = null, loading = false, count = 0 } = {}) {
 	};
 }
 
-module.exports = { ticketCardWords, ticketFacts, ticketHeading, pullRequestState, pullRequestRows, pullRequestsStatus, attachmentRows, attachmentsStatus, tracReadAt, tracReadToShow };
+module.exports = { ticketCardWords, ticketFacts, ticketHeading, pullRequestState, pullRequestRows, pullRequestGroups, pullRequestsStatus, attachmentRows, attachmentsStatus, tracReadAt, tracReadToShow };

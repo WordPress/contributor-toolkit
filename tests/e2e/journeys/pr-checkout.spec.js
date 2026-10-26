@@ -80,6 +80,12 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 		ui.workItemNumber( page, TICKET ),
 		page.getByText( 'Linked pull requests', { exact: true } ),
 	] ) ).toBe( true );
+	// INVARIANT — the checked-out pull request is drawn above the open and
+	// closed groups, in neither, so folding them never hides it (#709). It
+	// was the only one, so no group is left.
+	const ticketCard = ui.workItemCard( page, 'Trac ticket' );
+	await expect( ticketCard.getByRole( 'listitem' ).filter( { hasText: `#${ PR }` } ).getByText( 'Applied', { exact: true } ) ).toBeVisible();
+	await expect( ui.pullRequestGroupToggle( ticketCard, 'Open (1)' ) ).toHaveCount( 0 );
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
 	expect( read( site.dir, SUBSTRATE ) ).toBe( SUBSTRATE_CONTENT );

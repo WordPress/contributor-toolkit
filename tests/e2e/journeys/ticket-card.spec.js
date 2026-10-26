@@ -36,7 +36,7 @@ const pullRequest = ( number, rest ) => ( { number, url: `https://github.com/Wor
 const PULL_REQUESTS = [
 	pullRequest( 13245, { title: 'Docs: correct the default', state: 'open', commitDate: '2026-08-24T12:00:00Z' } ),
 	pullRequest( 13012, { title: 'Docs: list the values', state: 'closed', updatedAt: '2026-06-11T12:00:00Z' } ),
-	pullRequest( 12990, { title: 'An earlier attempt', state: 'merged' } ),
+	pullRequest( 12990, { title: 'An earlier attempt', state: 'merged', commitDate: '2026-09-20T12:00:00Z' } ),
 ];
 const ATTACHMENT_URL = `https://core.trac.wordpress.org/attachment/ticket/${ TICKET }/${ TICKET }.diff`;
 const FROM_TRAC = {
@@ -129,7 +129,7 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	await ui.linkTicket( page, TICKET );
 	await expect( said( 'Linked pull requests' ) ).toBeVisible();
 	await expect( said( 'Trac attachments' ) ).toBeVisible();
-	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 4 );
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
 	await outside.heard();
 	expect( await outside.asked() ).toMatchObject( { prs: 1, trac: 1 } );
 
@@ -160,6 +160,23 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	await expect( ui.readTicketDetailsButton( card ) ).toHaveCount( 0 );
 	await expect( button( 'Show Trac attachments' ) ).toHaveCount( 0 );
 
+	// INVARIANT — the pull requests are grouped open and closed, each
+	// heading saying how many it holds. The open group is unfolded and the
+	// closed one folded away until asked, and either folds. The latest is in
+	// neither and stays in view, merged as it is (#709).
+	const group = ( label ) => ui.pullRequestGroupToggle( card, label );
+	const latest = card.getByRole( 'listitem' ).filter( { hasText: '#12990' } );
+	await expect( group( 'Open (1)' ) ).toHaveAttribute( 'aria-expanded', 'true' );
+	await expect( group( 'Closed (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
+	await expect( latest.getByText( 'Latest', { exact: true } ) ).toBeVisible();
+	await expect( card.getByRole( 'listitem' ).filter( { hasText: '#13012' } ) ).toHaveCount( 0 );
+	await group( 'Open (1)' ).click();
+	await expect( card.getByRole( 'listitem' ).filter( { hasText: '#13245' } ) ).toHaveCount( 0 );
+	await expect( latest ).toBeVisible();
+	await group( 'Open (1)' ).click();
+	await group( 'Closed (1)' ).click();
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 4 );
+
 	// INVARIANT — each pull request says its number, its state in a word,
 	// and when it last moved, and its title is the way to it.
 	const row = ( text ) => card.getByRole( 'listitem' ).filter( { hasText: text } );
@@ -189,7 +206,7 @@ test( 'a list that could not be read says why and keeps what it had, and an empt
 	const card = ui.workItemCard( page, 'Trac ticket' );
 	const button = ( name ) => card.getByRole( 'button', { name, exact: true } );
 	await ui.linkTicket( page, TICKET );
-	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 4 );
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
 
 	// INVARIANT — GitHub out of reach is said, with when the list on screen
 	// was read, and that list stays: it is what there is to go on.
@@ -236,7 +253,7 @@ test( 'a site opened with a ticket already linked waits to be asked before it go
 	const first = await session.start( site.settings );
 	await standIn( first.app, first.page );
 	await ui.linkTicket( first.page, TICKET );
-	await expect( ui.workItemCard( first.page, 'Trac ticket' ).getByRole( 'listitem' ) ).toHaveCount( 4 );
+	await expect( ui.workItemCard( first.page, 'Trac ticket' ).getByRole( 'listitem' ) ).toHaveCount( 3 );
 
 	// This site reads its ticket's pull requests as it opens, so the
 	// stand-ins go in before its window is waited for.
@@ -247,9 +264,10 @@ test( 'a site opened with a ticket already linked waits to be asked before it go
 
 	// INVARIANT — the ticket is still linked, and its pull requests are read
 	// again with nothing pressed. That read was answered here and not by
-	// GitHub: were the stand-ins late, the count would be none.
+	// GitHub: were the stand-ins late, the count would be none. The latest
+	// and the open pull request are the rows until the closed one is unfolded.
 	await expect( button( `#${ TICKET }` ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 2 );
 	expect( ( await outside.asked() ).prs ).toBe( 1 );
 
 	// INVARIANT — and Trac has not been asked: reading it opens a window and

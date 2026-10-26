@@ -1,8 +1,8 @@
 import { Fragment, useId } from 'react';
 import { __ } from '@wordpress/i18n';
-import { update } from '@wordpress/icons';
-import { Badge, Button, Card, IconButton, InputControl, Link, Notice, Spinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
-import { attachmentRows, attachmentsStatus, pullRequestRows, pullRequestsStatus, ticketCardWords, ticketFacts, ticketHeading, tracReadAt } from '../ticket-card.cjs';
+import { Icon, chevronDown, chevronRight, update } from '@wordpress/icons';
+import { Badge, Button, Card, Collapsible, IconButton, InputControl, Link, Notice, Spinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
+import { attachmentRows, attachmentsStatus, pullRequestGroups, pullRequestRows, pullRequestsStatus, ticketCardWords, ticketFacts, ticketHeading, tracReadAt } from '../ticket-card.cjs';
 import { ReasonedUiButton } from './reasoned-button.jsx';
 
 // The way to a page outside the app, drawn as a link. It is a button: the
@@ -83,6 +83,7 @@ function PullRequests({ words, pullRequests, sectionRef, onOpen }) {
   const status = pullRequestsStatus({ list: pullRequests.list, loading: pullRequests.loading });
   const items = pullRequests.list && Array.isArray(pullRequests.list.items) ? pullRequests.list.items : [];
   const rows = pullRequestRows({ items, latest: pullRequests.latest, appliedNumber: pullRequests.appliedNumber });
+  const { applied, latest, groups } = pullRequestGroups(rows, items);
   return (
     <Stack ref={sectionRef} direction="column" gap="sm">
       <SectionHead
@@ -98,28 +99,66 @@ function PullRequests({ words, pullRequests, sectionRef, onOpen }) {
           <Notice.Description>{status.failure.fallback}</Notice.Description>
         </Notice.Root>
       ) : null}
-      {rows.length ? (
-        <ul className="ticket-pr-list">
-          {rows.map((row, index) => (
-            <li key={row.key} className="ticket-pr">
-              <Stack direction="column" gap="sm">
-                <Stack direction="row" align="center" gap="sm" wrap="wrap">
-                  <Text variant="body-md" className="ticket-pr-id">{row.id}</Text>
-                  <Badge intent={row.state.intent}>{row.state.label}</Badge>
-                  {row.latest ? <Badge intent="informational">{__('Latest')}</Badge> : null}
-                  {row.applied ? <Badge intent="stable">{__('Applied')}</Badge> : null}
-                </Stack>
-                <Text variant="body-md">
-                  <OutLink url={row.url} onOpen={onOpen}>{row.title || row.id}</OutLink>
-                </Text>
-                {row.date ? <Text variant="body-md" className="muted-label">{row.date}</Text> : null}
-                <ApplyButton apply={pullRequests.apply} row={row} item={items[index]} />
-              </Stack>
-            </li>
-          ))}
+      {applied ? (
+        <ul className="ticket-pr-list ticket-pr-applied">
+          <PullRequestRow row={applied.row} item={applied.item} apply={pullRequests.apply} onOpen={onOpen} />
         </ul>
       ) : null}
+      {latest ? (
+        <ul className="ticket-pr-list">
+          <PullRequestRow row={latest.row} item={latest.item} apply={pullRequests.apply} onOpen={onOpen} />
+        </ul>
+      ) : null}
+      {groups.map((group) => (
+        <PullRequestGroup key={group.key} group={group} apply={pullRequests.apply} onOpen={onOpen} />
+      ))}
     </Stack>
+  );
+}
+
+function PullRequestRow({ row, item, apply, onOpen }) {
+  return (
+    <li className="ticket-pr">
+      <Stack direction="column" gap="sm">
+        <Stack direction="row" align="center" gap="sm" wrap="wrap">
+          <Text variant="body-md" className="ticket-pr-id">{row.id}</Text>
+          <Badge intent={row.state.intent}>{row.state.label}</Badge>
+          {row.latest ? <Badge intent="informational">{__('Latest')}</Badge> : null}
+          {row.applied ? <Badge intent="stable">{__('Applied')}</Badge> : null}
+        </Stack>
+        <Text variant="body-md">
+          <OutLink url={row.url} onOpen={onOpen}>{row.title || row.id}</OutLink>
+        </Text>
+        {row.date ? <Text variant="body-md" className="muted-label">{row.date}</Text> : null}
+        <ApplyButton apply={apply} row={row} item={item} />
+      </Stack>
+    </li>
+  );
+}
+
+// One group of pull requests, open or closed, under a heading that folds it
+// away (#709). The heading is the button, and says how many it holds. The
+// one checked out and the latest are in neither, and are drawn above them.
+function PullRequestGroup({ group, apply, onOpen }) {
+  return (
+    <Collapsible.Root defaultOpen={group.defaultOpen} render={<Stack direction="column" gap="sm" />}>
+      <Text variant="heading-sm" render={<h4 />}>
+        <Collapsible.Trigger
+          className="link-button ticket-pr-group-toggle"
+          render={(props, state) => (
+            <button {...props} type="button">
+              <Icon icon={state.open ? chevronDown : chevronRight} size={16} />
+              {group.label}
+            </button>
+          )}
+        />
+      </Text>
+      <Collapsible.Panel render={<ul className="ticket-pr-list" />}>
+        {group.entries.map(({ row, item }) => (
+          <PullRequestRow key={row.key} row={row} item={item} apply={apply} onOpen={onOpen} />
+        ))}
+      </Collapsible.Panel>
+    </Collapsible.Root>
   );
 }
 

@@ -285,6 +285,16 @@ const workItemHeading = ( page, title ) => page.getByRole( 'heading', { name: ti
 const workItemCard = ( page, title ) => page.getByRole( 'region', { name: title, exact: true } );
 
 /**
+ * The heading of a group of linked pull requests (#709), which is the button
+ * that folds it: "Open (2)", "Closed (3)", as the card counts them.
+ *
+ * @param {Object} workItem The work-item card.
+ * @param {string} label    The group's heading, count included.
+ * @return {Object} Locator.
+ */
+const pullRequestGroupToggle = ( workItem, label ) => workItem.getByRole( 'heading', { name: label, exact: true } ).getByRole( 'button' );
+
+/**
  * The way from the card to the linked ticket or issue where it lives. It is
  * named by the number, and says where it goes as its tooltip.
  *
@@ -563,6 +573,7 @@ module.exports = {
 	workItemCard,
 	readTicketDetailsButton,
 	readPatchButton,
+	pullRequestGroupToggle,
 	openWorkItemButton,
 	workItemNumber,
 	ticketListCard,

@@ -61,6 +61,8 @@ The count is the ticket's whole work, including everything parked when you last 
 
 The panel searches GitHub for pull requests on `WordPress/wordpress-develop` that cite the ticket number, and lists them newest first. Each row shows the PR number (click it to open the PR in your browser), its title, its state, and a date labelled with what it is: **last commit** when the newest commit's date could be resolved, **updated** only as a fallback when it could not. Click **Refresh** to search again.
 
+The pull requests are grouped under **Open** and **Closed**, each heading with its count; merged ones count as closed. Click a heading to fold its group away or open it again. **Open** starts open and **Closed** starts folded, so a ticket with a long history does not push the rest of the panel down. Two rows sit above both groups and stay in view whatever is folded: the pull request you have applied, in a green box, and the one marked **Latest**, even when it is closed or merged.
+
 ![The ticket card's two lists: an open and a closed linked pull request, and a patch attached on Trac, each with an Apply… button](/screenshots/linked-pull-requests.png)
 
 The state is a coloured pill, in GitHub's own three colours: green **OPEN**, purple **MERGED**, red **CLOSED**. Red here is a label and not a warning — a closed pull request is an outcome, not a failure. Merged is rare on `wordpress-develop`, where a pull request is opened for review and the change usually lands as a commit instead.
