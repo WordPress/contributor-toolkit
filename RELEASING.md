@@ -4,8 +4,6 @@ How to cut a release of the WordPress Contributor Toolkit. Run every command fro
 
 Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags add a `v`: `v1.2.0`, `v1.2.0-beta.2`. Any other suffix, such as `-rc.1`, is not covered here: stop and decide how to release it before using these steps. In the commands below, `X.Y.Z` stands for the full version, `-beta.N` included.
 
-Versions follow [Semantic Versioning](https://semver.org/). The app has no public API, so the three numbers are about what a person who already uses it notices. A **major** release changes something they have to deal with: a site or setting from an earlier version that no longer works the way it did, a flow they have to learn again, or a platform that is no longer supported. A **minor** release adds something without any of that, such as a new feature or a new kind of site. A **patch** release only fixes what an earlier release shipped.
-
 ## 1. Open the version-bump pull request
 
 `electron-builder` names the artifacts after the version in `package.json`, so the version moves before anything is built.
