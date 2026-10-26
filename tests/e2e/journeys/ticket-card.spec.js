@@ -129,7 +129,7 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	await ui.linkTicket( page, TICKET );
 	await expect( said( 'Linked pull requests' ) ).toBeVisible();
 	await expect( said( 'Trac attachments' ) ).toBeVisible();
-	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 2 );
 	await outside.heard();
 	expect( await outside.asked() ).toMatchObject( { prs: 1, trac: 1 } );
 
@@ -160,21 +160,19 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	await expect( ui.readTicketDetailsButton( card ) ).toHaveCount( 0 );
 	await expect( button( 'Show Trac attachments' ) ).toHaveCount( 0 );
 
-	// INVARIANT — the pull requests are grouped open and closed, each
-	// heading saying how many it holds. The open group is unfolded and the
-	// closed one folded away until asked, and either folds. The latest is in
-	// neither and stays in view, merged as it is (#709).
-	const group = ( label ) => ui.pullRequestGroupToggle( card, label );
+	// INVARIANT — the newest pull request is shown, here the ticket's latest
+	// patch, merged as it is, and the rest are grouped open and closed, each
+	// folded under a heading that counts it. The group the newest would have
+	// been in says "other". The one attachment is shown, with no group (#709).
+	const group = ( label ) => ui.listGroupToggle( card, label );
 	const latest = card.getByRole( 'listitem' ).filter( { hasText: '#12990' } );
-	await expect( group( 'Open (1)' ) ).toHaveAttribute( 'aria-expanded', 'true' );
-	await expect( group( 'Closed (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
 	await expect( latest.getByText( 'Latest', { exact: true } ) ).toBeVisible();
-	await expect( card.getByRole( 'listitem' ).filter( { hasText: '#13012' } ) ).toHaveCount( 0 );
-	await group( 'Open (1)' ).click();
+	await expect( group( 'Open PRs (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
+	await expect( group( 'Other closed PRs (1)' ) ).toHaveAttribute( 'aria-expanded', 'false' );
 	await expect( card.getByRole( 'listitem' ).filter( { hasText: '#13245' } ) ).toHaveCount( 0 );
-	await expect( latest ).toBeVisible();
-	await group( 'Open (1)' ).click();
-	await group( 'Closed (1)' ).click();
+	await expect( card.getByRole( 'listitem' ).filter( { hasText: '#13012' } ) ).toHaveCount( 0 );
+	await group( 'Open PRs (1)' ).click();
+	await group( 'Other closed PRs (1)' ).click();
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 4 );
 
 	// INVARIANT — each pull request says its number, its state in a word,
@@ -206,7 +204,7 @@ test( 'a list that could not be read says why and keeps what it had, and an empt
 	const card = ui.workItemCard( page, 'Trac ticket' );
 	const button = ( name ) => card.getByRole( 'button', { name, exact: true } );
 	await ui.linkTicket( page, TICKET );
-	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 2 );
 
 	// INVARIANT — GitHub out of reach is said, with when the list on screen
 	// was read, and that list stays: it is what there is to go on.
@@ -248,12 +246,35 @@ test( 'a list that could not be read says why and keeps what it had, and an empt
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 0 );
 } );
 
+test( 'a ticket with many patch files on Trac shows them folded away, under a heading that counts them', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	const outside = await standIn( app, page );
+	const files = [ 1, 2, 3, 4, 5 ].map( ( n ) => ( { filename: `${ TICKET }.${ n }.diff`, url: `${ ATTACHMENT_URL }.${ n }`, applyable: true } ) );
+	await outside.tracAnswers( { ...FROM_TRAC, items: files } );
+	const card = ui.workItemCard( page, 'Trac ticket' );
+	const file = ( n ) => card.getByRole( 'listitem' ).filter( { hasText: `${ TICKET }.${ n }.diff` } );
+	await ui.linkTicket( page, TICKET );
+
+	// INVARIANT — the newest file is shown, and the rest are folded under a
+	// heading that counts them, newest first, unfolding when asked (#709).
+	const others = ui.listGroupToggle( card, 'Other attachments (4)' );
+	await expect( file( 5 ) ).toBeVisible();
+	await expect( others ).toHaveAttribute( 'aria-expanded', 'false' );
+	await expect( file( 1 ) ).toHaveCount( 0 );
+	await others.click();
+	await expect( others.locator( 'xpath=ancestor::h4/following-sibling::ul/li' ).first() ).toContainText( `${ TICKET }.4.diff` );
+	for ( const n of [ 1, 2, 3, 4, 5 ] ) {
+		await expect( file( n ) ).toBeVisible();
+	}
+} );
+
 test( 'a site opened with a ticket already linked waits to be asked before it goes to Trac', async ( { session } ) => {
 	const site = await makeSite( session );
 	const first = await session.start( site.settings );
 	await standIn( first.app, first.page );
 	await ui.linkTicket( first.page, TICKET );
-	await expect( ui.workItemCard( first.page, 'Trac ticket' ).getByRole( 'listitem' ) ).toHaveCount( 3 );
+	await expect( ui.workItemCard( first.page, 'Trac ticket' ).getByRole( 'listitem' ) ).toHaveCount( 2 );
 
 	// This site reads its ticket's pull requests as it opens, so the
 	// stand-ins go in before its window is waited for.
@@ -264,10 +285,10 @@ test( 'a site opened with a ticket already linked waits to be asked before it go
 
 	// INVARIANT — the ticket is still linked, and its pull requests are read
 	// again with nothing pressed. That read was answered here and not by
-	// GitHub: were the stand-ins late, the count would be none. The latest
-	// and the open pull request are the rows until the closed one is unfolded.
+	// GitHub: were the stand-ins late, the count would be none. The newest
+	// is the one row until the groups are unfolded.
 	await expect( button( `#${ TICKET }` ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 2 );
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 1 );
 	expect( ( await outside.asked() ).prs ).toBe( 1 );
 
 	// INVARIANT — and Trac has not been asked: reading it opens a window and

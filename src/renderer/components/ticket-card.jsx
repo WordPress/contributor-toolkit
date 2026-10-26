@@ -2,7 +2,7 @@ import { Fragment, useId } from 'react';
 import { __ } from '@wordpress/i18n';
 import { Icon, chevronDown, chevronRight, update } from '@wordpress/icons';
 import { Badge, Button, Card, Collapsible, IconButton, InputControl, Link, Notice, Spinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
-import { attachmentRows, attachmentsStatus, pullRequestGroups, pullRequestRows, pullRequestsStatus, ticketCardWords, ticketFacts, ticketHeading, tracReadAt } from '../ticket-card.cjs';
+import { attachmentGroups, attachmentRows, attachmentsStatus, pullRequestGroups, pullRequestRows, pullRequestsStatus, ticketCardWords, ticketFacts, ticketHeading, tracReadAt } from '../ticket-card.cjs';
 import { ReasonedUiButton } from './reasoned-button.jsx';
 
 // The way to a page outside the app, drawn as a link. It is a button: the
@@ -79,11 +79,11 @@ function Facts({ facts, onOpen }) {
   );
 }
 
-function PullRequests({ words, pullRequests, sectionRef, onOpen }) {
+function PullRequests({ words, pullRequests, workApplied, sectionRef, onOpen }) {
   const status = pullRequestsStatus({ list: pullRequests.list, loading: pullRequests.loading });
   const items = pullRequests.list && Array.isArray(pullRequests.list.items) ? pullRequests.list.items : [];
   const rows = pullRequestRows({ items, latest: pullRequests.latest, appliedNumber: pullRequests.appliedNumber });
-  const { applied, latest, groups } = pullRequestGroups(rows, items);
+  const grouped = pullRequestGroups(rows, items, { workApplied });
   return (
     <Stack ref={sectionRef} direction="column" gap="sm">
       <SectionHead
@@ -99,19 +99,7 @@ function PullRequests({ words, pullRequests, sectionRef, onOpen }) {
           <Notice.Description>{status.failure.fallback}</Notice.Description>
         </Notice.Root>
       ) : null}
-      {applied ? (
-        <ul className="ticket-pr-list ticket-pr-applied">
-          <PullRequestRow row={applied.row} item={applied.item} apply={pullRequests.apply} onOpen={onOpen} />
-        </ul>
-      ) : null}
-      {latest ? (
-        <ul className="ticket-pr-list">
-          <PullRequestRow row={latest.row} item={latest.item} apply={pullRequests.apply} onOpen={onOpen} />
-        </ul>
-      ) : null}
-      {groups.map((group) => (
-        <PullRequestGroup key={group.key} group={group} apply={pullRequests.apply} onOpen={onOpen} />
-      ))}
+      <GroupedRows grouped={grouped} renderRow={({ row, item }) => <PullRequestRow key={row.key} row={row} item={item} apply={pullRequests.apply} onOpen={onOpen} />} />
     </Stack>
   );
 }
@@ -136,37 +124,44 @@ function PullRequestRow({ row, item, apply, onOpen }) {
   );
 }
 
-// One group of pull requests, open or closed, under a heading that folds it
-// away (#709). The heading is the button, and says how many it holds. The
-// one checked out and the latest are in neither, and are drawn above them.
-function PullRequestGroup({ group, apply, onOpen }) {
+// A list drawn the way #709 asks: the row applied on the site in a box of
+// its own, the newest under it, and the rest in groups, folded, under
+// headings that open them. Each heading is the button, and says how many it
+// holds.
+// What is in which is pullRequestGroups' or attachmentGroups'.
+function GroupedRows({ grouped, renderRow }) {
   return (
-    <Collapsible.Root defaultOpen={group.defaultOpen} render={<Stack direction="column" gap="sm" />}>
-      <Text variant="heading-sm" render={<h4 />}>
-        <Collapsible.Trigger
-          className="link-button ticket-pr-group-toggle"
-          render={(props, state) => (
-            <button {...props} type="button">
-              <Icon icon={state.open ? chevronDown : chevronRight} size={16} />
-              {group.label}
-            </button>
-          )}
-        />
-      </Text>
-      <Collapsible.Panel render={<ul className="ticket-pr-list" />}>
-        {group.entries.map(({ row, item }) => (
-          <PullRequestRow key={row.key} row={row} item={item} apply={apply} onOpen={onOpen} />
-        ))}
-      </Collapsible.Panel>
-    </Collapsible.Root>
+    <>
+      {grouped.applied ? <ul className="ticket-pr-list ticket-pr-applied">{renderRow(grouped.applied)}</ul> : null}
+      {grouped.newest ? <ul className="ticket-pr-list">{renderRow(grouped.newest)}</ul> : null}
+      {grouped.groups.map((group) => (
+        <Collapsible.Root key={group.key} render={<Stack direction="column" gap="sm" />}>
+          <Text variant="heading-sm" render={<h4 />}>
+            <Collapsible.Trigger
+              className="link-button ticket-pr-group-toggle"
+              render={(props, state) => (
+                <button {...props} type="button">
+                  <Icon icon={state.open ? chevronDown : chevronRight} size={16} />
+                  {group.label}
+                </button>
+              )}
+            />
+          </Text>
+          <Collapsible.Panel render={<ul className="ticket-pr-list" />}>
+            {group.entries.map(renderRow)}
+          </Collapsible.Panel>
+        </Collapsible.Root>
+      ))}
+    </>
   );
 }
 
 // Trac's alone: a GitHub issue carries no attachments, its work arrives as
 // the pull requests above.
-function Attachments({ attachments, onOpen }) {
+function Attachments({ attachments, workApplied, onOpen }) {
   const status = attachmentsStatus({ result: attachments.result, loading: attachments.loading, count: attachments.items.length });
-  const rows = attachmentRows({ items: attachments.items, latest: attachments.latest });
+  const rows = attachmentRows({ items: attachments.items, latest: attachments.latest, appliedLabel: attachments.appliedLabel });
+  const grouped = attachmentGroups(rows, attachments.items, { workApplied });
   return (
     <Stack direction="column" gap="sm">
       <SectionHead
@@ -192,25 +187,26 @@ function Attachments({ attachments, onOpen }) {
           <Notice.Description>{status.failure}</Notice.Description>
         </Notice.Root>
       ) : null}
-      {rows.length ? (
-        <ul className="ticket-pr-list">
-          {rows.map((row, index) => (
-            <li key={row.key} className="ticket-pr">
-              <Stack direction="column" gap="sm">
-                <Stack direction="row" align="center" gap="sm" wrap="wrap">
-                  <Text variant="body-md" className="ticket-pr-id">
-                    <OutLink url={row.url} onOpen={onOpen}>{row.name}</OutLink>
-                  </Text>
-                  {row.latest ? <Badge intent="informational">{__('Latest')}</Badge> : null}
-                </Stack>
-                {row.meta ? <Text variant="body-md" className="muted-label">{row.meta}</Text> : null}
-                <ApplyButton apply={attachments.apply} row={row} item={attachments.items[index]} />
-              </Stack>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <GroupedRows grouped={grouped} renderRow={({ row, item }) => <AttachmentRow key={row.key} row={row} item={item} apply={attachments.apply} onOpen={onOpen} />} />
     </Stack>
+  );
+}
+
+function AttachmentRow({ row, item, apply, onOpen }) {
+  return (
+    <li className="ticket-pr">
+      <Stack direction="column" gap="sm">
+        <Stack direction="row" align="center" gap="sm" wrap="wrap">
+          <Text variant="body-md" className="ticket-pr-id">
+            <OutLink url={row.url} onOpen={onOpen}>{row.name}</OutLink>
+          </Text>
+          {row.latest ? <Badge intent="informational">{__('Latest')}</Badge> : null}
+          {row.applied ? <Badge intent="stable">{__('Applied')}</Badge> : null}
+        </Stack>
+        {row.meta ? <Text variant="body-md" className="muted-label">{row.meta}</Text> : null}
+        <ApplyButton apply={apply} row={row} item={item} />
+      </Stack>
+    </li>
   );
 }
 
@@ -241,10 +237,11 @@ function Attachments({ attachments, onOpen }) {
  * @param {*}        props.banner
  * @param {Object}   props.pullRequests       `{ list, loading, onRefresh, latest, appliedNumber, apply }`.
  * @param {Object}   props.pullRequestsRef    Put on the pull requests' section, which "try another patch" scrolls to.
- * @param {?Object}  props.attachments        On Trac: `{ result, loading, items, latest, onLoad, loadDisabled, apply }`. Null elsewhere.
+ * @param {?Object}  props.attachments        On Trac: `{ result, loading, items, latest, appliedLabel, onLoad, loadDisabled, apply }`. Null elsewhere.
  * @param {boolean}  props.latestIsAttachment The ticket's most recent patch is a file on Trac.
+ * @param {boolean}  props.workApplied        A pull request or a patch is applied on the site: then the applied one is the only row outside the groups.
  */
-export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, unlink, details, staleNotice, feedback, changesNote, banner, pullRequests, pullRequestsRef, attachments, latestIsAttachment }) {
+export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, unlink, details, staleNotice, feedback, changesNote, banner, pullRequests, pullRequestsRef, attachments, latestIsAttachment, workApplied = false }) {
   const words = ticketCardWords(provider);
   const titleId = useId();
   const readAtId = useId();
@@ -372,7 +369,7 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
         </Stack>
 
         <hr className="card-divider" />
-        <PullRequests words={words} pullRequests={pullRequests} sectionRef={pullRequestsRef} onOpen={onOpen} />
+        <PullRequests words={words} pullRequests={pullRequests} workApplied={workApplied} sectionRef={pullRequestsRef} onOpen={onOpen} />
 
         {latestIsAttachment ? (
           <Notice.Root intent="info">
@@ -385,7 +382,7 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
         {attachments ? (
           <>
             <hr className="card-divider" />
-            <Attachments attachments={attachments} onOpen={onOpen} />
+            <Attachments attachments={attachments} workApplied={workApplied} onOpen={onOpen} />
           </>
         ) : null}
       </Card.Content>

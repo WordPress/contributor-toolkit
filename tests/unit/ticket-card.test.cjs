@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { ticketCardWords, ticketFacts, pullRequestState, pullRequestRows, pullRequestGroups, pullRequestsStatus, attachmentRows, attachmentsStatus, tracReadAt, tracReadToShow, ticketHeading } = require('../../src/renderer/ticket-card.cjs');
+const { ticketCardWords, ticketFacts, pullRequestState, pullRequestRows, pullRequestGroups, pullRequestsStatus, attachmentRows, attachmentGroups, attachmentsStatus, tracReadAt, tracReadToShow, ticketHeading } = require('../../src/renderer/ticket-card.cjs');
 
 test('a Core site\'s card is about a Trac ticket, and a Gutenberg site\'s about a GitHub issue', () => {
 	const trac = ticketCardWords('trac');
@@ -118,66 +118,67 @@ test('the latest patch being an attachment marks no pull request, and no checkou
 	assert.deepEqual(pullRequestRows({ items: null }), []);
 });
 
-test('the pull requests are grouped open and closed, each named with its count, and only the open group starts unfolded (#709)', () => {
+const keysOf = (entry) => (entry ? entry.row.key : null);
+
+test('the newest pull request is shown, and the rest are grouped open and closed, the group it would have been in saying "other" (#709)', () => {
 	const items = [
 		{ number: 4, url: 'u4', state: 'open' },
 		{ number: 3, url: 'u3', state: 'merged' },
 		{ number: 2, url: 'u2', state: 'draft' },
 		{ number: 1, url: 'u1', state: 'CLOSED' }
 	];
-	const { applied, groups } = pullRequestGroups(pullRequestRows({ items }), items);
+	const { applied, newest, groups } = pullRequestGroups(pullRequestRows({ items }), items);
 	assert.equal(applied, null);
-	assert.deepEqual(groups.map((group) => [group.key, group.label, group.defaultOpen]), [['open', 'Open (2)', true], ['closed', 'Closed (2)', false]]);
-	// Each row keeps its pull request, and the order it was listed in.
-	assert.deepEqual(groups[0].entries.map((entry) => [entry.row.key, entry.item.number]), [[4, 4], [2, 2]]);
+	assert.equal(keysOf(newest), 4);
+	assert.deepEqual(groups.map((group) => [group.key, group.label]), [['open', 'Other open PRs (1)'], ['closed', 'Closed PRs (2)']]);
+	// Each row keeps its pull request, newest first.
 	assert.deepEqual(groups[1].entries.map((entry) => [entry.row.key, entry.item.number]), [[3, 3], [1, 1]]);
 });
 
-test('the checked-out pull request is above the groups and counted in neither, whatever its state', () => {
-	const items = [
-		{ number: 3, url: 'u3', state: 'open' },
-		{ number: 2, url: 'u2', state: 'closed' },
-		{ number: 1, url: 'u1', state: 'closed' }
-	];
-	const { applied, groups } = pullRequestGroups(pullRequestRows({ items, appliedNumber: 2 }), items);
-	assert.deepEqual([applied.row.key, applied.item.number], [2, 2]);
-	assert.deepEqual(groups.map((group) => group.label), ['Open (1)', 'Closed (1)']);
-	// The only one, checked out, leaves no group behind.
-	const only = [items[0]];
-	assert.deepEqual(pullRequestGroups(pullRequestRows({ items: only, appliedNumber: 3 }), only).groups, []);
+test('a closed newest makes the closed group the "other" one', () => {
+	const items = [{ number: 2, url: 'u2', state: 'merged' }, { number: 1, url: 'u1', state: 'open' }];
+	const { newest, groups } = pullRequestGroups(pullRequestRows({ items }), items);
+	assert.equal(keysOf(newest), 2);
+	assert.deepEqual(groups.map((group) => group.label), ['Open PRs (1)']);
+	const three = [...items, { number: 0, url: 'u0', state: 'closed' }];
+	assert.deepEqual(pullRequestGroups(pullRequestRows({ items: three }), three).groups.map((group) => group.label), ['Open PRs (1)', 'Other closed PRs (1)']);
 });
 
-test('the latest pull request is above the groups and counted in neither, closed or not, unless it is the one checked out', () => {
-	const items = [
-		{ number: 3, url: 'u3', state: 'open' },
-		{ number: 2, url: 'u2', state: 'merged' },
-		{ number: 1, url: 'u1', state: 'closed' }
-	];
-	const { applied, latest, groups } = pullRequestGroups(pullRequestRows({ items, latest: { kind: 'pr', key: 2 } }), items);
-	assert.equal(applied, null);
-	assert.deepEqual([latest.row.key, latest.item.number], [2, 2]);
-	assert.deepEqual(groups.map((group) => group.label), ['Open (1)', 'Closed (1)']);
-	// Both at once: it is the checked-out one, and is not drawn twice.
-	const both = pullRequestGroups(pullRequestRows({ items, latest: { kind: 'pr', key: 2 }, appliedNumber: 2 }), items);
-	assert.equal(both.applied.row.key, 2);
-	assert.equal(both.latest, null);
+test('the ticket\'s latest patch, when it is a pull request, is the one shown, wherever it is in the list', () => {
+	const items = [{ number: 3, url: 'u3', state: 'open' }, { number: 2, url: 'u2', state: 'closed' }, { number: 1, url: 'u1', state: 'open' }];
+	const { newest, groups } = pullRequestGroups(pullRequestRows({ items, latest: { kind: 'pr', key: 2 } }), items);
+	assert.equal(keysOf(newest), 2);
+	assert.deepEqual(groups.map((group) => group.label), ['Open PRs (2)']);
+});
+
+test('with a pull request checked out it is the only one shown, and every other is in the groups', () => {
+	const items = [{ number: 3, url: 'u3', state: 'open' }, { number: 2, url: 'u2', state: 'closed' }, { number: 1, url: 'u1', state: 'open' }];
+	const { applied, newest, groups } = pullRequestGroups(pullRequestRows({ items, appliedNumber: 1, latest: { kind: 'pr', key: 3 } }), items, { workApplied: true });
+	assert.deepEqual([keysOf(applied), applied.item.number, newest], [1, 1, null]);
+	assert.deepEqual(groups.map((group) => group.label), ['Other open PRs (1)', 'Closed PRs (1)']);
+});
+
+test('with something applied from elsewhere, no pull request is shown above the groups', () => {
+	const items = [{ number: 2, url: 'u2', state: 'open' }, { number: 1, url: 'u1', state: 'closed' }];
+	const { applied, newest, groups } = pullRequestGroups(pullRequestRows({ items, latest: { kind: 'pr', key: 2 } }), items, { workApplied: true });
+	assert.deepEqual([applied, newest], [null, null]);
+	assert.deepEqual(groups.map((group) => group.label), ['Open PRs (1)', 'Closed PRs (1)']);
 });
 
 test('a pull request\'s group always agrees with its badge', () => {
 	const states = ['open', 'merged', 'closed', 'MERGED', 'draft', '', undefined];
-	const items = states.map((state, index) => ({ number: index + 1, url: `u${index}`, state }));
+	const items = [{ number: 99, url: 'u', state: 'open' }, ...states.map((state, index) => ({ number: index + 1, url: `u${index}`, state }))];
 	const rows = pullRequestRows({ items });
 	const { groups } = pullRequestGroups(rows, items);
 	const closed = new Set(groups.filter((group) => group.key === 'closed').flatMap((group) => group.entries.map((entry) => entry.row.key)));
-	for (const row of rows) assert.equal(closed.has(row.key), row.state.label !== 'Open', `#${row.key}`);
+	for (const row of rows.slice(1)) assert.equal(closed.has(row.key), row.state.label !== 'Open', `#${row.key}`);
 });
 
-test('a group with no pull request in it is left out', () => {
-	const open = [{ number: 1, url: 'u', state: 'open' }];
-	assert.deepEqual(pullRequestGroups(pullRequestRows({ items: open }), open).groups.map((group) => group.key), ['open']);
-	const closed = [{ number: 1, url: 'u', state: 'closed' }];
-	assert.deepEqual(pullRequestGroups(pullRequestRows({ items: closed }), closed).groups.map((group) => group.key), ['closed']);
-	assert.deepEqual(pullRequestGroups(), { applied: null, latest: null, groups: [] });
+test('a lone pull request is shown with no group, and none leaves nothing', () => {
+	const items = [{ number: 1, url: 'u', state: 'closed' }];
+	const { newest, groups } = pullRequestGroups(pullRequestRows({ items }), items);
+	assert.deepEqual([keysOf(newest), groups], [1, []]);
+	assert.deepEqual(pullRequestGroups(), { applied: null, newest: null, groups: [] });
 });
 
 test('a first read of the pull requests says it is asking, and a later one does not', () => {
@@ -220,11 +221,46 @@ test('an attachment\'s row says who uploaded it, when and how large, as far as T
 		{ url: 'https://core.trac.wordpress.org/attachment/ticket/65933/65933.2.diff', filename: '65933.2.diff', sizeText: '2.8 KB' }
 	];
 	assert.deepEqual(attachmentRows({ items, latest: { kind: 'attachment', key: items[1].url } }), [
-		{ key: items[0].url, name: '65933.diff', url: items[0].url, latest: false, meta: 'by someone · 6 weeks ago · 3.2 KB' },
-		{ key: items[1].url, name: '65933.2.diff', url: items[1].url, latest: true, meta: '2.8 KB' }
+		{ key: items[0].url, name: '65933.diff', url: items[0].url, latest: false, applied: false, meta: 'by someone · 6 weeks ago · 3.2 KB' },
+		{ key: items[1].url, name: '65933.2.diff', url: items[1].url, latest: true, applied: false, meta: '2.8 KB' }
 	]);
 	assert.equal(attachmentRows({ items, latest: { kind: 'pr', key: items[1].url } })[1].latest, false);
 	assert.deepEqual(attachmentRows(), []);
+});
+
+test('an attachment is marked applied when the site\'s applied patch is that file', () => {
+	const items = [{ filename: '1.diff', url: 'u1' }, { filename: '2.diff', url: 'u2' }];
+	assert.deepEqual(attachmentRows({ items, appliedLabel: '2.diff' }).map((row) => row.applied), [false, true]);
+	assert.deepEqual(attachmentRows({ items, appliedLabel: 'PR #7' }).map((row) => row.applied), [false, false]);
+	assert.deepEqual(attachmentRows({ items }).map((row) => row.applied), [false, false]);
+});
+
+test('the newest attachment is shown, and the rest are one group, newest first, counted (#709)', () => {
+	const items = [1, 2, 3, 4].map((n) => ({ filename: `${n}.diff`, url: `u${n}` }));
+	const { applied, newest, groups } = attachmentGroups(attachmentRows({ items }), items);
+	assert.equal(applied, null);
+	assert.equal(newest.item.filename, '4.diff');
+	assert.deepEqual(groups.map((group) => [group.key, group.label]), [['other', 'Other attachments (3)']]);
+	// Newest first, as the pull requests are, where Trac lists oldest first.
+	assert.deepEqual(groups[0].entries.map((entry) => [entry.row.name, entry.item.filename]), [['3.diff', '3.diff'], ['2.diff', '2.diff'], ['1.diff', '1.diff']]);
+});
+
+test('with an attachment applied it is the only one shown, and with something applied elsewhere none is', () => {
+	const items = [1, 2, 3, 4].map((n) => ({ filename: `${n}.diff`, url: `u${n}` }));
+	const here = attachmentGroups(attachmentRows({ items, latest: { kind: 'attachment', key: 'u4' }, appliedLabel: '2.diff' }), items, { workApplied: true });
+	assert.deepEqual([here.applied.item.filename, here.newest], ['2.diff', null]);
+	assert.deepEqual(here.groups.map((group) => [group.label, group.entries.map((entry) => entry.item.filename)]), [['Other attachments (3)', ['4.diff', '3.diff', '1.diff']]]);
+	const elsewhere = attachmentGroups(attachmentRows({ items }), items, { workApplied: true });
+	assert.deepEqual([elsewhere.applied, elsewhere.newest], [null, null]);
+	assert.deepEqual(elsewhere.groups.map((group) => group.label), ['Attachments (4)']);
+});
+
+test('with nothing left over there is no group', () => {
+	const items = [{ filename: '1.diff', url: 'u1' }];
+	assert.deepEqual(attachmentGroups(attachmentRows({ items }), items).groups, []);
+	const applied = attachmentGroups(attachmentRows({ items, appliedLabel: '1.diff' }), items, { workApplied: true });
+	assert.deepEqual([applied.applied.item.filename, applied.newest, applied.groups], ['1.diff', null, []]);
+	assert.deepEqual(attachmentGroups(), { applied: null, newest: null, groups: [] });
 });
 
 test('the attachments are unread until Trac has been asked, and reading while it is', () => {

@@ -362,12 +362,12 @@ test( 'the work-item card is fully translatable, with nothing linked and with a 
 	// A ticket, with what Trac said of it, a pull request and an attachment.
 	await card.getByLabel( pseudoLocalize( 'Ticket number or URL' ), { exact: true } ).fill( '60001' );
 	await card.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } ).click();
-	// The merged pull request is the latest, above the groups; the closed one
+	// The merged pull request is the newest, above the groups; the closed one
 	// is in the closed group, folded away until asked.
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 2, { timeout: 30_000 } );
 	await expect( card.getByText( pseudoLocalize( 'Merged' ), { exact: true } ) ).toBeVisible();
 	await expect( card.getByText( pseudoLocalize( 'Latest' ), { exact: true } ) ).toBeVisible();
-	await ui.pullRequestGroupToggle( card, pseudoLocalize( 'Closed (%d)' ).replace( '%d', '1' ) ).click();
+	await ui.listGroupToggle( card, pseudoLocalize( 'Other closed PRs (%d)' ).replace( '%d', '1' ) ).click();
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
 	await expect( card.getByText( pseudoLocalize( 'Closed' ), { exact: true } ) ).toBeVisible();
 	await expect( card.getByRole( 'button', { name: `${ pseudoLocalize( 'Refresh' ) } ${ pseudoLocalize( 'Trac attachments' ) }`, exact: true } ) ).toBeVisible();
