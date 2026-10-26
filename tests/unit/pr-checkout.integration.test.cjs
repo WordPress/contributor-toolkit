@@ -232,7 +232,7 @@ test('checkoutPullRequest from a ticket: the ticket\'s work is parked on its own
 
 	const result = await checkoutPullRequest(dir, 7, { headOid, fromBaseOid: baseOid, onProgress: (p) => progress.push(p) });
 
-	assert.deepEqual(result, { ref: 'pr/7', from: 'ticket/60001', to: 'pr/7', parked: true, created: true, moved: false });
+	assert.deepEqual(result, { ref: 'pr/7', from: 'ticket/60001', to: 'pr/7', parked: true, created: true, moved: false, excluded: [], removed: [], cleanupErrors: [] });
 	assert.equal(currentBranch(dir), 'pr/7');
 	assert.equal(resolveRef(dir, 'HEAD'), prOid, 'the branch is at the pull request\'s head, its author\'s commit');
 	assert.equal(read(dir, LOGIN), '<?php // pr 7\n');
@@ -268,7 +268,7 @@ test('checkoutPullRequest from trunk: nothing to park when trunk is clean, and a
 
 	writeFiles(dir, { [README]: 'trunk\n' });
 	const result = await checkoutPullRequest(dir, 7, { headOid });
-	assert.deepEqual(result, { ref: 'pr/7', from: TRUNK, to: 'pr/7', parked: false, created: true, moved: false });
+	assert.deepEqual(result, { ref: 'pr/7', from: TRUNK, to: 'pr/7', parked: false, created: true, moved: false, excluded: [], removed: [], cleanupErrors: [] });
 	assert.equal(resolveRef(dir, 'HEAD'), prOid);
 	assert.equal(resolveRef(dir, TRUNK), baseOid);
 });
@@ -356,7 +356,7 @@ test('leavePullRequest: edits made on the pull request are parked as one commit 
 
 	const result = await leavePullRequest(dir, { returnTo: 'ticket/60001', headOid, onProgress: (p) => progress.push(p) });
 
-	assert.deepEqual(result, { from: 'pr/7', to: 'ticket/60001', parked: true, fellBack: false });
+	assert.deepEqual(result, { from: 'pr/7', to: 'ticket/60001', parked: true, fellBack: false, excluded: [], removed: [], cleanupErrors: [] });
 	assert.equal(currentBranch(dir), 'ticket/60001');
 	assert.equal(read(dir, README), 'my ticket\n');
 	assert.equal(read(dir, LOGIN), '<?php // trunk\n', 'the pull request is gone from the worktree with the branch');
@@ -399,7 +399,7 @@ test('leavePullRequest: a return branch that is gone falls back to trunk, and a 
 	assert.equal(read(dir, README), 'tweak\n');
 	writeFiles(dir, { [README]: 'trunk\n' });
 	const result = await leavePullRequest(dir, { returnTo: 'ticket/60001', headOid });
-	assert.deepEqual(result, { from: 'pr/7', to: TRUNK, parked: false, fellBack: true });
+	assert.deepEqual(result, { from: 'pr/7', to: TRUNK, parked: false, fellBack: true, excluded: [], removed: [], cleanupErrors: [] });
 	assert.equal(currentBranch(dir), TRUNK);
 });
 
@@ -419,7 +419,7 @@ test('checkoutPullRequest again after the pull request moved: the branch follows
 	assert.deepEqual(await pullRequestBranchState(dir, 7, { headOid, recordedHeadOid: first }), { ref: 'pr/7', exists: true, tip: first, hasEdits: false, moved: true });
 
 	const result = await checkoutPullRequest(dir, 7, { headOid, recordedHeadOid: first });
-	assert.deepEqual(result, { ref: 'pr/7', from: TRUNK, to: 'pr/7', parked: false, created: false, moved: true });
+	assert.deepEqual(result, { ref: 'pr/7', from: TRUNK, to: 'pr/7', parked: false, created: false, moved: true, excluded: [], removed: [], cleanupErrors: [] });
 	assert.equal(resolveRef(dir, 'HEAD'), second);
 	assert.equal(read(dir, LOGIN), '<?php // pr 7, v2\n');
 

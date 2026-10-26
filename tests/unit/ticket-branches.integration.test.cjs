@@ -217,6 +217,7 @@ test('files ignored only by the branch being left do not count as changes on the
 
 	// A whole ignored directory is one entry, not one line per file in it.
 	assert.deepEqual(result.excluded.sort(), ['pkg/[a]b.gen.js', 'pkg/cache/']);
+	assert.deepEqual(result.cleanupErrors, []);
 	assert.equal(read(dir, 'pkg/cache/data/bg.json'), '{}\n', 'nothing is deleted');
 	assert.equal(await hasChangesAgainst(dir), false, 'trunk must not read dirty with another branch\'s generated files');
 
@@ -276,6 +277,8 @@ test('an exclude that cannot be written costs the old behaviour, never the switc
 
 	assert.equal(result.switched, true);
 	assert.deepEqual(result.excluded, []);
+	// Returned, so the caller can log why trunk reads dirty again (#523).
+	assert.deepEqual(result.cleanupErrors.map((e) => [e.step, e.error.code]), [['exclude', 'EACCES']]);
 	assert.equal(await currentBranchName(dir), TRUNK);
 	assert.equal(await hasChangesAgainst(dir), true, 'the leftovers show, as they did before the fix');
 });
@@ -328,6 +331,7 @@ test('a directory the destination tree lacks, holding only an install, does not 
 	const result = await switchToBranch(dir, ref);
 
 	assert.deepEqual(result.removed, ['routes/dashboard']);
+	assert.deepEqual(result.cleanupErrors, []);
 	assert.equal(exists(dir, 'routes/dashboard'), false, 'wp-build reads every directory under routes/ as a route');
 	assert.equal(read(dir, 'routes/home/package.json'), '{}\n');
 	assert.equal(read(dir, 'node_modules/react/index.js'), 'expensive\n', 'the root install is in both trees, never touched');
@@ -495,6 +499,8 @@ test('a directory that cannot be removed costs the old behaviour, never the swit
 
 	assert.equal(result.switched, true);
 	assert.deepEqual(result.removed, []);
+	// Returned with the directory, so the caller can log what was left half deleted (#523).
+	assert.deepEqual(result.cleanupErrors.map((e) => [e.step, e.path, e.error.code]), [['remove', 'routes/dashboard', 'EACCES']]);
 	assert.equal(await currentBranchName(dir), ref);
 });
 

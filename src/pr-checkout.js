@@ -310,7 +310,8 @@ async function checkoutPullRequest(dir, number, { headOid, recordedHeadOid = nul
 		}
 		throw e;
 	}
-	return { ref, from, to: ref, parked: result.parked, created, moved };
+	const { excluded, removed, cleanupErrors } = result;
+	return { ref, from, to: ref, parked: result.parked, created, moved, excluded, removed, cleanupErrors };
 }
 
 /**
@@ -358,7 +359,8 @@ async function leavePullRequest(dir, { returnTo, headOid, onProgress = null, onC
 		...(onProgress ? { onProgress } : {}),
 		...(onChild ? { onChild } : {})
 	});
-	return { from, to, parked: result.parked, fellBack };
+	const { excluded, removed, cleanupErrors } = result;
+	return { from, to, parked: result.parked, fellBack, excluded, removed, cleanupErrors };
 }
 
 module.exports = {
