@@ -3199,9 +3199,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, projectType: project.id, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
+		return { hasNodeModules, hasBuilt, projectType: project.id, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), buildFailed: Boolean(m.buildFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, projectType: getProjectType().id, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, pullRequest: null, legacy: false, mergeInProgress: null };
+		return { hasNodeModules: false, hasBuilt: false, projectType: getProjectType().id, skipInitWizard: false, initialized: false, installFailed: false, buildFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, pullRequest: null, legacy: false, mergeInProgress: null };
 	}
 });
 
@@ -4244,7 +4244,16 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 		onLog: (type, data) => {
 			event.sender.send('npm:run-script:log', { runId, type, data });
 		},
-		onDone: (code) => {
+		onDone: async (code) => {
+			// The build's counterpart to installFailed, recorded before the done
+			// event for the same reason (#503): build/'s marker file is written
+			// part-way through, so a build that failed late reads as complete
+			// unless its outcome outlives the session.
+			if (scriptName === 'build') {
+				try { await mergeSiteMeta(directoryPath, { buildFailed: code !== 0 }); } catch (e) {
+					logError('npm', `could not record how the build in ${directoryPath} ended (code ${code}): ${String(e && e.message ? e.message : e)}`);
+				}
+			}
 			event.sender.send('npm:run-script:done', { runId, code });
 			untrackDirectoryChild(directoryPath, runningScripts[runId]);
 			delete runningScripts[runId];

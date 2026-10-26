@@ -21,7 +21,9 @@ const { formatElapsed } = require('./dev-server-command.cjs');
  * While the server starts there is nothing to press: a second start would be
  * a second server (#488), and there is no stop to offer before there is a
  * server. The button says it is starting, and `pending` asks for it to be
- * drawn as busy. An update of trunk holds everything (`disabled`).
+ * drawn as busy. An update of trunk holds everything (`disabled`), and a
+ * build running on its own holds the start: the server would serve the
+ * build/ it is still writing (#503).
  *
  * A server that went by itself, or could not start, is `failed` until it is
  * started again, and `detail` is the sentence the details say of it: what
@@ -35,17 +37,18 @@ const { formatElapsed } = require('./dev-server-command.cjs');
  * @param {boolean} [root0.active]     The server is running or starting.
  * @param {boolean} [root0.starting]   It is starting and has no address yet.
  * @param {boolean} [root0.isUpdating] An update of trunk is under way.
+ * @param {boolean} [root0.building]   A build holds the starts (buildHoldsStarts).
  * @param {string}  [root0.failure]    'stopped' for a server that went by itself, 'start' for one that could not start, '' otherwise.
  * @return {{status: string, label: string, action: string, short: string, pending: boolean, disabled: boolean, detail: string}}
  */
-function serverProcess({ active = false, starting = false, isUpdating = false, failure = '' } = {}) {
+function serverProcess({ active = false, starting = false, isUpdating = false, building = false, failure = '' } = {}) {
 	if (starting) {
 		return { status: 'busy', label: __('Server starting…'), action: __('Starting development server…'), short: __('Starting…'), pending: true, disabled: true, detail: '' };
 	}
 	if (active) {
 		return { status: 'online', label: __('Server running'), action: __('Stop development server'), short: __('Stop'), pending: false, disabled: isUpdating, detail: '' };
 	}
-	const stopped = { label: __('Server stopped'), action: __('Start development server'), short: __('Start'), pending: false, disabled: isUpdating };
+	const stopped = { label: __('Server stopped'), action: __('Start development server'), short: __('Start'), pending: false, disabled: isUpdating || building };
 	if (failure === 'stopped') {
 		return { status: 'failed', ...stopped, detail: __('The development server stopped by itself. Its last lines are in the Logs.') };
 	}
@@ -69,7 +72,8 @@ function serverProcess({ active = false, starting = false, isUpdating = false, f
  * of the time; paused, the button offers to start it, as it always has. An
  * update of trunk holds the button, except when the update is itself waiting
  * for the watch to be ready (#507): stopping the watch is then the one way
- * out of a watch that never gets there.
+ * out of a watch that never gets there. A build running on its own holds the
+ * start, since npm run dev would run over the build/ it writes (#503).
  *
  * `detail` is a sentence for the details, or '' when there is nothing to add
  * to the label.
@@ -81,15 +85,16 @@ function serverProcess({ active = false, starting = false, isUpdating = false, f
  * @param {string}  [root0.exitOf]               'watch', or 'build' when it was the build before the watch that ended.
  * @param {boolean} [root0.isUpdating]           An update of trunk is under way.
  * @param {boolean} [root0.updateWaitingOnWatch] And it is waiting for this watch.
+ * @param {boolean} [root0.building]             A build holds the starts (buildHoldsStarts).
  * @param {string}  [root0.sourceDir]            What the watch compiles, such as `src/`.
  * @return {{status: string, label: string, action: string, short: string, disabled: boolean, detail: string}}
  */
-function watchProcess({ state = 'idle', compiling = false, exitCode = null, exitOf = 'watch', isUpdating = false, updateWaitingOnWatch = false, sourceDir = '' } = {}) {
+function watchProcess({ state = 'idle', compiling = false, exitCode = null, exitOf = 'watch', isUpdating = false, updateWaitingOnWatch = false, building = false, sourceDir = '' } = {}) {
 	const running = state === 'watching' || state === 'building';
 	const press = running
 		? { action: __('Stop build watch'), short: __('Stop') }
 		: { action: __('Start build watch'), short: __('Start') };
-	const disabled = isUpdating && !updateWaitingOnWatch;
+	const disabled = (isUpdating && !updateWaitingOnWatch) || (building && !running);
 	// translators: %s: a folder of the checkout, such as src/.
 	const watching = sourceDir ? sprintf(__('Edits in %s are compiled as they are saved.'), sourceDir) : '';
 	if (state === 'watching') {
@@ -121,6 +126,21 @@ function watchProcess({ state = 'idle', compiling = false, exitCode = null, exit
 		return { status: 'failed', label: __('Build stopped'), ...press, disabled, detail };
 	}
 	return { status: 'offline', label: __('Build stopped'), ...press, disabled, detail: '' };
+}
+
+/**
+ * Whether a build running now holds the server's start and the watch's
+ * (#503): it is writing build/, so a server would serve it half written and a
+ * watch would run over it. The watch's own first build is the exception. A
+ * server started then waits for the watch, which is what it is there for.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.building]   npm run build is running.
+ * @param {string}  [root0.watchState] 'idle', 'building', 'watching', 'paused' or 'exited'.
+ * @return {boolean}
+ */
+function buildHoldsStarts({ building = false, watchState = 'idle' } = {}) {
+	return building && watchState !== 'building';
 }
 
 /**
@@ -175,4 +195,4 @@ function serverSection({ url = '', running = false, starting = false, elapsed = 
 	return { state: 'offline', links: [], menuLinks: [], credentials: null, text: '' };
 }
 
-module.exports = { serverProcess, watchProcess, serverLinks, serverSection, ADMIN_CREDENTIALS };
+module.exports = { serverProcess, watchProcess, buildHoldsStarts, serverLinks, serverSection, ADMIN_CREDENTIALS };

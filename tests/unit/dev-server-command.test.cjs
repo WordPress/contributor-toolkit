@@ -74,7 +74,8 @@ test('a built Gutenberg site with no watch starts the server without it (#499)',
 	const build = getProjectType('gutenberg').build;
 
 	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'idle' }, build), true);
-	// A paused watch is an apply building on its own; serving meanwhile is fine.
+	// A paused watch is an apply installing on its own; serving meanwhile is
+	// fine. While it builds, the start is held before this (#503).
 	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'paused' }, build), true);
 });
 

@@ -28,7 +28,7 @@ import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { serverReport, sitesListRows, siteToOpen, withServerReport } from './sites-list.cjs';
 import { deleteSiteQuestion } from './site-dialogs.cjs';
-import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
+import { serverProcess, watchProcess, buildHoldsStarts, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
@@ -832,7 +832,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // ticket, what is applied, the trunk's age, and the two states the app only
   // reads. `loadStatus` reads it all again, and is what every chain below
   // calls when it has changed what the answer would be.
-  const { hasNodeModules, installFailed, hasBuilt, setHasBuilt, skipInit, setSkipInit, statusLoading, tracTicket, setTracTicket, ticketBehindTrunk, setTicketBehindTrunk, legacy, mergeInProgress, trunkDate, updateIncomplete, appliedPatch, setAppliedPatch, pullRequest, loadStatus } = useSiteStatus({ sitePath, metaPatchRef });
+  const { hasNodeModules, installFailed, buildFailed, hasBuilt, setHasBuilt, skipInit, setSkipInit, statusLoading, tracTicket, setTracTicket, ticketBehindTrunk, setTicketBehindTrunk, legacy, mergeInProgress, trunkDate, updateIncomplete, appliedPatch, setAppliedPatch, pullRequest, loadStatus } = useSiteStatus({ sitePath, metaPatchRef });
   // Which target this site is a checkout of (#251): the site record's field,
   // carried by the placeholder from the moment the dialog closes, and Core
   // for any site made before the field existed. `build` is what the watcher
@@ -1222,7 +1222,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
   // `loadStatus` above; the terminal and the build watch below run through it.
-  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
+  const { installing, building, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
 
   // The site's terminal (#554): the xterm instance, what is typed in it and
   // the commands it runs through the three runners above. The lock, the kill
@@ -1332,16 +1332,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // here is the gates and the calls. What an edge asks for waits until the
   // site is ready for it, its status read and its setup done, and is
   // dropped by a deactivation first. Nothing starts under an update, a
-  // setup or a deletion, and nothing that is already running or starting is
-  // started again: the watch is started after the server's start has
-  // answered, and only where that start did not bring it up.
+  // setup, a deletion or a build that holds the starts (#503: the buttons
+  // are held, and this is the one caller that does not go through them), and
+  // nothing that is already running or starting is started again: the watch
+  // is started after the server's start has answered, and only where that
+  // start did not bring it up.
+  const buildHolds = buildHoldsStarts({ building, watchState });
   const autoStart = useRef({ open: false, resumed: false });
   useEffect(() => { autoStart.current.open = isActive; }, [isActive]);
   const starters = useRef({ toggleDevServer, startBuildWatch });
   useEffect(() => { starters.current = { toggleDevServer, startBuildWatch }; });
   useEffect(() => {
     if (statusLoading || !skipInit || !settings) return;
-    if (isPending || isDeleting || isUpdating || setupChainState !== 'idle') return;
+    if (isPending || isDeleting || isUpdating || buildHolds || setupChainState !== 'idle') return;
     const plan = autoStartPlan({ open: autoStart.current.open, isActive, resumed: autoStart.current.resumed, resume, settings });
     if (plan.consumeOpen) autoStart.current.open = false;
     if (plan.consumeResume) autoStart.current.resumed = true;
@@ -1357,13 +1360,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
       console.error('Could not start what opening the site asks for:', err);
     });
-  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, setupChainState, isDevProcessActive, watchStateRef, terminalStateRef]);
+  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, buildHolds, setupChainState, isDevProcessActive, watchStateRef, terminalStateRef]);
 
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out
-  // here because an update of trunk holds both.
-  const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, failure: serverFailure });
-  const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
+  // here because an update of trunk holds both, and so does a build (#503).
+  const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, building: buildHolds, failure: serverFailure });
+  const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, building: buildHolds, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
   // The sites list draws this server's dot before the site's name whether or
   // not the site is open, and this is how it learns what to draw: what the
