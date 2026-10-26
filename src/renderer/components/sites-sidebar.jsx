@@ -4,6 +4,7 @@ import { DataViews } from '@wordpress/dataviews';
 import { __, sprintf } from '@wordpress/i18n';
 import { Icon, wordpress } from '@wordpress/icons';
 import { Button, VisuallyHidden } from '@wordpress/ui';
+import { resolveContextMenuPosition } from '../context-menu-position.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
 
 // The list's two fields: the name, which is the row's title and so its
@@ -23,7 +24,7 @@ const buildFields = () => [
     label: __('Name'),
     enableHiding: false,
     render: ({ item }) => (
-      <span className="sites-sidebar-name">
+      <span className="sites-sidebar-name" data-site-path={item.path}>
         <ProcessStatus status={item.server.status} title={item.server.text || undefined} />
         {item.attention ? <span className={`sites-sidebar-dot is-${item.attention.kind}`} title={item.attention.text} aria-hidden="true" /> : null}
         <span className="sites-sidebar-name-text">{item.name}</span>
@@ -79,13 +80,27 @@ const getItemId = (item) => item.id;
  * @param {Array}    props.rows              From `sitesListRows`.
  * @param {string}   props.selectedId        The open site's row id.
  * @param {Function} props.onChangeSelection Called with the ids the list reports.
+ * @param {Function} props.onContextMenu     Called with the site and screen
+ *                                           position requested.
  * @param {Function} props.onCreateSite
  * @param {boolean}  props.creating          A site is being created, so another cannot be started.
  */
-export function SitesSidebar({ rows, selectedId, onChangeSelection, onCreateSite, creating = false }) {
+export function SitesSidebar({ rows, selectedId, onChangeSelection, onContextMenu, onCreateSite, creating = false }) {
   const fields = useMemo(buildFields, []);
   const paginationInfo = useMemo(() => ({ totalItems: rows.length, totalPages: 1 }), [rows.length]);
   const selection = useMemo(() => (selectedId ? [selectedId] : []), [selectedId]);
+  const openContextMenu = (event) => {
+    const row = event.target.closest('.dataviews-view-list__item-wrapper');
+    const site = row?.querySelector('[data-site-path]');
+    if (!site) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onContextMenu(
+      site.dataset.sitePath,
+      resolveContextMenuPosition(event, row.getBoundingClientRect()),
+      row.querySelector('[role="button"]')
+    );
+  };
 
   return (
     <Page
@@ -108,7 +123,18 @@ export function SitesSidebar({ rows, selectedId, onChangeSelection, onCreateSite
       hasPadding={false}
       ariaLabel={__('My sites')}
     >
-      <div className="sites-sidebar-list">
+      {/* The list's rows are already focusable with their own role (DataViews
+          gives each one `role="button"`), so this div is not itself a widget:
+          it only catches the context-menu gesture as it bubbles up from
+          whichever row raised it. */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        className="sites-sidebar-list"
+        onContextMenu={openContextMenu}
+        onKeyDown={(event) => {
+          if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) openContextMenu(event);
+        }}
+      >
         <DataViews
           data={rows}
           fields={fields}
