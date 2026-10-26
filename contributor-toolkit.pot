@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-26T19:00:35+00:00\n"
+"POT-Creation-Date: 2026-10-26T19:09:48+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -2730,67 +2730,67 @@ msgstr ""
 msgid "(Deleting)"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:110
-msgid "Applied"
-msgstr ""
-
-#: src/renderer/components/ticket-card.jsx:134
+#: src/renderer/components/ticket-card.jsx:168
 msgid "Trac attachments"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:138
+#: src/renderer/components/ticket-card.jsx:172
 msgid ""
 "Patch files are sometimes attached on Trac instead of a PR. Reading them "
 "opens the ticket so you can pass its human-check once."
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:143
+#: src/renderer/components/ticket-card.jsx:177
 msgid "Show Trac attachments"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:147
+#: src/renderer/components/ticket-card.jsx:181
 msgid "Opening the ticket on Trac…"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:148
+#: src/renderer/components/ticket-card.jsx:182
 msgid "No patch files attached to this ticket."
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:165
+#: src/renderer/components/ticket-card.jsx:203
 msgid "Latest"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:242
+#: src/renderer/components/ticket-card.jsx:204
+msgid "Applied"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:278
 msgid ""
 "If you have edited anything already, you will be asked what should happen "
 "to those edits."
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:252
+#: src/renderer/components/ticket-card.jsx:288
 msgid "Not sure yet?"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:272
+#: src/renderer/components/ticket-card.jsx:308
 msgid "Unlink"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:303
+#: src/renderer/components/ticket-card.jsx:339
 msgid "Refresh"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:303
+#: src/renderer/components/ticket-card.jsx:339
 msgid "Opening the ticket on Trac"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:308
+#: src/renderer/components/ticket-card.jsx:344
 msgid "Reading the ticket on Trac"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:309
+#: src/renderer/components/ticket-card.jsx:345
 msgid "Read details from Trac"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:341
+#: src/renderer/components/ticket-card.jsx:377
 msgid ""
 "The most recent patch on this ticket is a file attachment, not a pull "
 "request — see Trac attachments below."
@@ -2800,20 +2800,20 @@ msgstr ""
 msgid "Apply…"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:89
+#: src/renderer/components/ticket-card.jsx:90
 msgid "Linked pull requests"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:90
+#: src/renderer/components/ticket-card.jsx:91
 msgid "Checking GitHub"
 msgstr ""
 
-#: src/renderer/components/ticket-card.jsx:93
+#: src/renderer/components/ticket-card.jsx:94
 msgid "Checking GitHub…"
 msgstr ""
 
 #: src/renderer/components/toast-stack.jsx:47
-#: src/renderer/index.jsx:2613
+#: src/renderer/index.jsx:2615
 msgid "Notifications"
 msgstr ""
 
@@ -3534,7 +3534,7 @@ msgstr ""
 msgid "Finish setting this site up first."
 msgstr ""
 
-#: src/renderer/index.jsx:2608
+#: src/renderer/index.jsx:2610
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
@@ -4559,61 +4559,58 @@ msgstr[1] ""
 msgid "Edited on %s"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:132
+#: src/renderer/ticket-card.cjs:139
 msgid "Merged"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:133
+#: src/renderer/ticket-card.cjs:140
 msgid "Closed"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:134
+#: src/renderer/ticket-card.cjs:141
 msgid "Open"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:155
+#: src/renderer/ticket-card.cjs:162
 #. %s: a date.
 msgid "Last commit %s"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:158
+#: src/renderer/ticket-card.cjs:165
 #. %s: a date.
 msgid "Updated %s"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:196
-msgid "Could not read the pull requests from GitHub."
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:197
-msgid "GitHub is rate-limiting this connection."
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:198
-msgid "Could not reach GitHub."
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:199
-msgid "No cached list to fall back on."
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:202
-#. %s: a date and a time.
-msgid "Showing what was last seen %s."
-msgstr ""
+#: src/renderer/ticket-card.cjs:222
+#. %d: how many open pull requests there are besides the one shown above.
+msgid "Other open PR (%d)"
+msgid_plural "Other open PRs (%d)"
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/renderer/ticket-card.cjs:225
-#. %s: the WordPress.org username of whoever uploaded a file.
-msgid "by %s"
-msgstr ""
+#. %d: how many pull requests are open.
+msgid "Open PR (%d)"
+msgid_plural "Open PRs (%d)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/ticket-card.cjs:230
+#. %d: how many closed or merged pull requests there are besides the one shown above.
+msgid "Other closed PR (%d)"
+msgid_plural "Other closed PRs (%d)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/ticket-card.cjs:233
+#. %d: how many pull requests are closed or merged.
+msgid "Closed PR (%d)"
+msgid_plural "Closed PRs (%d)"
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/renderer/ticket-card.cjs:24
 msgid "GitHub issue"
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:248
-#. %s: a date and time.
-msgid "Read from Trac %s"
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:25
@@ -4624,36 +4621,39 @@ msgstr ""
 msgid "Issue number or URL"
 msgstr ""
 
+#: src/renderer/ticket-card.cjs:265
+msgid "Could not read the pull requests from GitHub."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:266
+msgid "GitHub is rate-limiting this connection."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:267
+msgid "Could not reach GitHub."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:268
+msgid "No cached list to fall back on."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:271
+#. %s: a date and a time.
+msgid "Showing what was last seen %s."
+msgstr ""
+
 #: src/renderer/ticket-card.cjs:28
 #. an example of what to type; the number stays as it is.
 msgid "e.g. 71234"
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:286
-#. “I am human” is what Trac's own page calls its button, in English whatever the reader's language; leave it as it is.
-msgid ""
-"Trac’s human-check did not complete in time. Try again, and click “I am "
-"human” if it appears."
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:29
 msgid "Link issue"
 msgstr ""
 
-#: src/renderer/ticket-card.cjs:291
-#. “Refresh” is the button beside the section's heading; use the word that button has in this language.
-msgid ""
-"The Trac window was closed before the attachments finished loading. Click "
-"“Refresh” to try again."
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:293
-msgid "Could not read the attachments from Trac."
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:296
-#. %s: an error message, as the system gave it.
-msgid "Could not read the attachments from Trac. (%s)"
+#: src/renderer/ticket-card.cjs:295
+#. %s: the WordPress.org username of whoever uploaded a file.
+msgid "by %s"
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:30
@@ -4668,6 +4668,20 @@ msgstr ""
 msgid "Open on GitHub"
 msgstr ""
 
+#: src/renderer/ticket-card.cjs:325
+#. %d: how many patch files there are on the ticket besides the one shown above.
+msgid "Other attachment (%d)"
+msgid_plural "Other attachments (%d)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/ticket-card.cjs:328
+#. %d: how many patch files there are on the ticket.
+msgid "Attachment (%d)"
+msgid_plural "Attachments (%d)"
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/renderer/ticket-card.cjs:33
 msgid "See the work that already exists on this issue before adding your own."
 msgstr ""
@@ -4676,12 +4690,40 @@ msgstr ""
 msgid "No pull requests cite this issue yet."
 msgstr ""
 
+#: src/renderer/ticket-card.cjs:345
+#. %s: a date and time.
+msgid "Read from Trac %s"
+msgstr ""
+
 #: src/renderer/ticket-card.cjs:38
 msgid "Trac ticket"
 msgstr ""
 
+#: src/renderer/ticket-card.cjs:383
+#. “I am human” is what Trac's own page calls its button, in English whatever the reader's language; leave it as it is.
+msgid ""
+"Trac’s human-check did not complete in time. Try again, and click “I am "
+"human” if it appears."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:388
+#. “Refresh” is the button beside the section's heading; use the word that button has in this language.
+msgid ""
+"The Trac window was closed before the attachments finished loading. Click "
+"“Refresh” to try again."
+msgstr ""
+
 #: src/renderer/ticket-card.cjs:39
 msgid "Link the ticket you’re working on."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:390
+msgid "Could not read the attachments from Trac."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:393
+#. %s: an error message, as the system gave it.
+msgid "Could not read the attachments from Trac. (%s)"
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:40
