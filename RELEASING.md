@@ -65,13 +65,13 @@ hdiutil detach "$mnt" && rmdir "$mnt"
 
 Read the npm version with `extractFile` as above, in memory. `npx asar extract-file` writes the file into the current directory, which from the repository root replaces its own `package.json`.
 
-The Windows signature can be checked on Windows, with `Get-AuthenticodeSignature <dir>\wordpress-contributor-toolkit-X.Y.Z-win-x64.exe` in PowerShell (`Status` is `Valid` and the signer names Automattic Inc.), or on a Mac with `openssl`, which reads the certificates out of the installer's signature:
+Verify the Windows signature on Windows, in PowerShell: `Get-AuthenticodeSignature "<dir>\wordpress-contributor-toolkit-X.Y.Z-win-x64.exe"` prints `Status` `Valid` and a signer naming Automattic Inc. This is the check that counts, because it confirms the signature matches the file. On a Mac, `openssl` can show who signed the installer before that check, but it does not verify the signature:
 
 ```bash
 node -e 'const fs=require("fs");const b=fs.readFileSync(process.argv[1]);const o=b.readUInt32LE(0x3c)+24;const d=o+(b.readUInt16LE(o)===0x20b?112:96)+32;const at=b.readUInt32LE(d),n=b.readUInt32LE(d+4);if(!n)throw new Error("not signed");process.stdout.write(b.subarray(at+8,at+n))' "<dir>/wordpress-contributor-toolkit-X.Y.Z-win-x64.exe" | openssl pkcs7 -inform DER -print_certs -noout | grep subject
 ```
 
-It prints a `subject` line naming `O=Automattic Inc.`, and fails with `not signed` when the installer has no signature.
+It prints a `subject` line naming `O=Automattic Inc.`, and fails with `not signed` when the installer has no signature. A tampered installer that kept the certificate prints the same, so this does not replace the Windows check.
 
 ## 3. Merge
 
@@ -110,16 +110,17 @@ git describe --tags --abbrev=0 --exclude '*-*' <bump commit SHA>^   # stable; dr
 git rev-list --count <base tag>..<bump commit SHA>
 ```
 
-Then create the tag and the release together, on the bump commit. Every file is named by its path, so the command can run from anywhere:
+Then create the tag and the release together, on the bump commit. Every file is named by its path and `--repo` names the repository, so the command can run from anywhere:
 
 ```bash
 gh release create vX.Y.Z \
+  --repo WordPress/contributor-toolkit \
   --target <bump commit SHA on trunk> \
   --title vX.Y.Z \
-  --notes-file <path>/notes.md \
-  <dir>/wordpress-contributor-toolkit-X.Y.Z-win-x64.exe \
-  <dir>/wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg \
-  <dir>/wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.AppImage
+  --notes-file "<path>/notes.md" \
+  "<dir>/wordpress-contributor-toolkit-X.Y.Z-win-x64.exe" \
+  "<dir>/wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg" \
+  "<dir>/wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.AppImage"
 ```
 
 - **A beta** adds `--prerelease`, so `releases/latest` stays on the last stable release.
