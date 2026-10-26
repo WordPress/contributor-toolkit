@@ -403,6 +403,34 @@ test('leavePullRequest: a return branch that is gone falls back to trunk, and a 
 	assert.equal(currentBranch(dir), TRUNK);
 });
 
+// main.js logs a switch's cleanup from what these two hand back, so a field
+// they drop is a pull request switch that leaves no trace (#523).
+test('checkoutPullRequest and leavePullRequest hand back what the switch removed and excluded (#523)', async (t) => {
+	const { origin, dir } = await makeSiteAndOrigin(t);
+	// Trunk's `src/` is not in the pull request; its `extra/` and the nested
+	// `.gitignore` are not on trunk (the #529 and #521 shapes).
+	addPullRequest(origin, 7, {
+		'extra/package.json': '{}\n',
+		'pkg/.gitignore': 'cache/\n',
+		'pkg/index.js': '// pr 7\n'
+	}, { remove: [LOGIN] });
+	const { oid: headOid } = await fetchPullRequestHead(dir, 7);
+	writeFiles(dir, { 'src/node_modules/dep/index.js': '// installed on trunk\n' });
+
+	const checkout = await checkoutPullRequest(dir, 7, { headOid });
+
+	assert.deepEqual(checkout.removed, ['src']);
+	assert.deepEqual(checkout.cleanupErrors, []);
+
+	writeFiles(dir, { 'extra/node_modules/dep/index.js': '// installed on the pull request\n', 'pkg/cache/data.json': '{}\n' });
+	const leave = await leavePullRequest(dir, { returnTo: TRUNK, headOid });
+
+	assert.deepEqual(leave.removed, ['extra']);
+	assert.deepEqual(leave.excluded, ['pkg/cache/']);
+	assert.deepEqual(leave.cleanupErrors, []);
+	assert.equal(currentBranch(dir), TRUNK);
+});
+
 // --- a pull request that moved on GitHub -----------------------------------
 
 test('checkoutPullRequest again after the pull request moved: the branch follows the new head, unless edits sit on it (#458)', async (t) => {
