@@ -5505,6 +5505,43 @@ test('branches:switch delegates to ticket-branches and records the new active br
 	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, 61002);
 });
 
+// The switch never fails for its cleanup, so the log is the only trace of what
+// it deleted, what it excluded, and why either could not be done (#523).
+test('a switch logs what its cleanup removed and excluded, and why a step failed (issue #523)', async () => {
+	const denied = Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
+	const switchToBranch = spy(async () => ({
+		switched: true, from: 'ticket/59234', to: 'ticket/61002', parked: true,
+		removed: ['routes/dashboard'],
+		excluded: ['packages/react-native-editor/i18n-cache/'],
+		cleanupErrors: [{ step: 'exclude', error: denied }, { step: 'remove', path: 'routes/guidelines', error: denied }]
+	}));
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/59234': { baseOid: 'abc' } }, currentBranch: 'ticket/59234' } }
+	});
+	const logEvent = spy();
+	const logError = spy();
+	const main = loadMain({
+		stubs: {
+			...settings.stubs,
+			'./logging': { ...silentLogging()['./logging'], logEvent, logError },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const result = await main.invoke('branches:switch', '/sites/wp', 'ticket/61002');
+
+	assert.equal(result.ok, true, 'the cleanup never fails the switch');
+	const events = logEvent.calls.filter(([scope]) => scope === 'branches').map(([, message]) => message);
+	assert.ok(events.some((m) => m.includes('routes/dashboard')), 'a deleted directory leaves a trace');
+	assert.ok(events.some((m) => m.includes('packages/react-native-editor/i18n-cache/')));
+	const errors = logError.calls.filter(([scope]) => scope === 'branches').map(([, message]) => message);
+	assert.equal(errors.length, 2);
+	assert.match(errors[0], /exclude.*EACCES/);
+	assert.match(errors[1], /remove routes\/guidelines.*EACCES/);
+});
+
 test('branches:delete goes through ticket-branches and forgets the branch context', async () => {
 	const deleteTicketBranch = spy(async () => ({ deleted: true, ref: 'ticket/61002' }));
 	const settings = fakeSettingsStore({

@@ -101,6 +101,7 @@ const { fingerprint, editedSinceChange } = require('./change-fingerprint.cjs');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, existingSiteFile, REFUSAL_REASONS } = require('./editor-launch');
 const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
 const { mainWindowSize } = require('./window-size.cjs');
+const { appendExcludeBlock } = require('./exclude-file.cjs');
 
 const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
 const LOCAL_EXCLUDES = [
@@ -135,29 +136,10 @@ async function ensureLocalExcludes(dir) {
 		return false;
 	}
 
-	const infoDir = path.join(gitDir, 'info');
-	const excludePath = path.join(infoDir, 'exclude');
-	let existing = '';
-	try {
-		existing = await fs.promises.readFile(excludePath, 'utf8');
-	} catch (error) {
-		if (!error || error.code !== 'ENOENT') throw error;
-	}
 	// Older PRs predate WordPress's /gutenberg ignore. Keep this generated
 	// download out of WIP commits even when their .gitignore is checked out.
-	const generatedMarker = '# WordPress Contributor Toolkit generated Gutenberg';
-	if (!existing.split(/\r?\n/).includes(generatedMarker)) {
-		await fs.promises.mkdir(infoDir, { recursive: true });
-		const block = `${existing && !existing.endsWith('\n') ? '\n' : ''}${generatedMarker}\n/gutenberg/\n`;
-		await fs.promises.appendFile(excludePath, block);
-		existing += block;
-	}
-	if (existing.split(/\r?\n/).includes(LOCAL_EXCLUDES_MARKER)) return false;
-
-	await fs.promises.mkdir(infoDir, { recursive: true });
-	const separator = existing && !existing.endsWith('\n') ? '\n' : '';
-	await fs.promises.appendFile(excludePath, `${separator}${LOCAL_EXCLUDES_MARKER}\n${LOCAL_EXCLUDES.join('\n')}\n`);
-	return true;
+	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit generated Gutenberg', ['/gutenberg/'], { once: true });
+	return appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
 }
 
 // Screenshot harness only (scripts/screenshots/): point userData at a throwaway
@@ -1666,6 +1648,19 @@ async function mergeInProgressBlock(sitePath) {
     return { ok: false, code: 'merge-in-progress', kind: state.kind, paths: state.paths, error: mergeInProgressError(state) };
 }
 
+// What a switch's best-effort cleanup did and why any of it failed (#523):
+// the switch never fails for these, so the log is the only trace. Every
+// switch goes through withSwitchMarker; results without the fields log nothing.
+function logSwitchCleanup(sitePath, result) {
+    if (!result) return;
+    const site = describeRefused(sitePath);
+    if (result.removed && result.removed.length) logEvent('branches', `removed leftover installs in ${site}: ${result.removed.join(', ')}`);
+    if (result.excluded && result.excluded.length) logEvent('branches', `excluded leftovers in ${site}: ${result.excluded.join(', ')}`);
+    for (const { step, path: entry, error } of result.cleanupErrors || []) {
+        logError('branches', `switch cleanup (${step}${entry ? ` ${entry}` : ''}) failed in ${site}: ${String(error && error.stack ? error.stack : error)}`);
+    }
+}
+
 /**
  * Runs a branch switch with the mid-switch marker around it. The marker is set
  * only when the checkout itself fails: a failure while parking moved nothing, so
@@ -1677,6 +1672,7 @@ async function mergeInProgressBlock(sitePath) {
 async function withSwitchMarker(sitePath, run) {
     try {
         const result = await run();
+        logSwitchCleanup(sitePath, result);
         await mergeSiteMeta(sitePath, { switchInProgress: null });
         return result;
     } catch (e) {

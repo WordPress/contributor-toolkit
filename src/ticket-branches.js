@@ -32,6 +32,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { __, _n, sprintf } = require('@wordpress/i18n');
 const { mapCheckoutPhase } = require('./switch-progress.cjs');
+const { appendExcludeBlock } = require('./exclude-file.cjs');
 const { currentBranch, listBranches, resolveRef, statusRows, changesAgainst, changedPathsBetween, otherPaths, treeDirectories, mergeTree } = require('./git-read.cjs');
 const { stagePaths, writeTree, commitTree, updateBranch, createBranchAt, pointHeadAt, deleteBranch, checkoutBranch } = require('./git-write.cjs');
 
@@ -415,22 +416,7 @@ function leftoverEntries(ignored, untracked) {
 async function excludeLeftovers(dir, before) {
 	const leftovers = leftoverEntries(before.ignored, await otherPaths(dir, before.dirs));
 	if (!leftovers.length) return [];
-
-	const infoDir = path.join(dir, '.git', 'info');
-	const excludePath = path.join(infoDir, 'exclude');
-	let existing = '';
-	try {
-		existing = await fs.promises.readFile(excludePath, 'utf8');
-	} catch (error) {
-		if (!error || error.code !== 'ENOENT') throw error;
-	}
-	const present = new Set(existing.split(/\r?\n/));
-	const lines = leftovers.map(literalExcludeLine).filter((line) => !present.has(line));
-	if (!lines.length) return leftovers;
-	if (!present.has(LEFTOVERS_MARKER)) lines.unshift(LEFTOVERS_MARKER);
-	await fs.promises.mkdir(infoDir, { recursive: true });
-	const separator = existing && !existing.endsWith('\n') ? '\n' : '';
-	await fs.promises.appendFile(excludePath, `${separator}${lines.join('\n')}\n`);
+	await appendExcludeBlock(dir, LEFTOVERS_MARKER, leftovers.map(literalExcludeLine));
 	return leftovers;
 }
 
@@ -490,14 +476,15 @@ async function holdsOnlyInstalls(abs) {
  * compare names: a directory renamed only by case is the same directory on
  * disk, never a leftover. Switching back reinstalls when the directory is a
  * workspace of the root lockfile, as Gutenberg's `routes/*` are. Each
- * directory is best effort on its own.
+ * directory is best effort on its own, and one that fails is returned with
+ * its error for the caller to log (#523).
  *
  * @param {string}      dir
  * @param {Set<string>} candidates from parentsOfDeleted
- * @return {Promise<string[]>} the directories removed
+ * @return {Promise<{removed: string[], errors: Array<{step: string, path: string, error: Error}>}>}
  */
 async function removeLeftoverInstalls(dir, candidates) {
-	if (!candidates.size) return [];
+	if (!candidates.size) return { removed: [], errors: [] };
 	const inTree = new Set((await treeDirectories(dir, 'HEAD')).map((d) => d.toLowerCase()));
 	const has = (d) => inTree.has(d.toLowerCase());
 	const gone = [...candidates].filter((d) => {
@@ -506,6 +493,7 @@ async function removeLeftoverInstalls(dir, candidates) {
 		return parent === '.' || has(parent);
 	}).sort();
 	const removed = [];
+	const errors = [];
 	for (const d of gone) {
 		const abs = path.join(dir, ...d.split('/'));
 		try {
@@ -515,14 +503,15 @@ async function removeLeftoverInstalls(dir, candidates) {
 			if ((await otherPaths(dir, [d])).length) continue;
 			await fs.promises.rm(abs, { recursive: true, force: true, maxRetries: 3 });
 			removed.push(d);
-		} catch {
+		} catch (error) {
 			// Gone already, or a file held open on Windows past the retries,
 			// which can leave part of the install deleted and the directory
 			// still there: wp-build fails as before, and the next install on
 			// the branch that owns it fills it back in.
+			if (!error || error.code !== 'ENOENT') errors.push({ step: 'remove', path: d, error });
 		}
 	}
-	return removed;
+	return { removed, errors };
 }
 
 /**
@@ -589,14 +578,18 @@ async function switchToBranch(dir, ref, { baseOid, author = WIP_AUTHOR, onProgre
 	// changes, never the switch itself.
 	// The same tree diff also names the directories the switch may leave
 	// behind holding only an install (#529).
+	// Every failure is returned in `cleanupErrors` for the caller to log
+	// (#523): this module cannot require the Electron-bound logger.
+	const cleanupErrors = [];
 	let before = null;
 	let candidates = new Set();
 	try {
 		const rows = await changedPathsBetween(dir, 'HEAD', ref);
 		candidates = parentsOfDeleted(rows);
 		before = await ignoredBeforeSwitch(dir, rows);
-	} catch {
+	} catch (error) {
 		before = null;
+		cleanupErrors.push({ step: 'scan', error });
 	}
 
 	// Tagged with the stage it died in, the same contract updateToLatestTrunk
@@ -625,13 +618,19 @@ async function switchToBranch(dir, ref, { baseOid, author = WIP_AUTHOR, onProgre
 	// Before the exclude: a directory holding what #521 excludes is not only
 	// an install, and must be kept, not deleted.
 	let removed = [];
-	try { removed = await removeLeftoverInstalls(dir, candidates); } catch { removed = []; }
+	try {
+		const removal = await removeLeftoverInstalls(dir, candidates);
+		removed = removal.removed;
+		cleanupErrors.push(...removal.errors);
+	} catch (error) {
+		cleanupErrors.push({ step: 'remove', error });
+	}
 	let excluded = [];
 	if (before) {
-		try { excluded = await excludeLeftovers(dir, before); } catch { excluded = []; }
+		try { excluded = await excludeLeftovers(dir, before); } catch (error) { cleanupErrors.push({ step: 'exclude', error }); }
 	}
 	if (report) report({ stage: 'done', from });
-	return { switched: true, from, to: ref, parked, excluded, removed };
+	return { switched: true, from, to: ref, parked, excluded, removed, cleanupErrors };
 }
 
 /**
