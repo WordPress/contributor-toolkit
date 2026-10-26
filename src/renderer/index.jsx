@@ -2417,11 +2417,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             loading: tracAttachmentsLoading,
             items: patchAttachments,
             latest: latestPatch,
+            appliedLabel: appliedPatchLabel,
             onLoad: loadTracAttachments,
             loadDisabled: isApplying || isUpdating || installing || building,
             apply: { hidden: Boolean(pullRequest), disabled: patchReadBlocked, fetching: fetchingAttachment, onApply: previewAttachment }
           } : null}
           latestIsAttachment={latestIsAttachment}
+          workApplied={Boolean(pullRequest || appliedPatch)}
         />
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (

@@ -6,7 +6,7 @@
 // a shared one: a sentence with a hole in it cannot be translated.
 'use strict';
 
-const { __, sprintf } = require('@wordpress/i18n');
+const { __, _n, sprintf } = require('@wordpress/i18n');
 const { statusBadge } = require('../trac-ticket-info.cjs');
 const { prDateLabel } = require('./pr-date-label.cjs');
 
@@ -114,6 +114,13 @@ function ticketHeading({ ticketId, facts = null }) {
 	};
 }
 
+// A pull request's state as one of the three this card knows, which its
+// badge and its group are both read from (#709). Anything else is open.
+function pullRequestStateKey(state) {
+	const key = typeof state === 'string' ? state.toLowerCase() : '';
+	return key === 'merged' || key === 'closed' ? key : 'open';
+}
+
 /**
  * A pull request's state, as a badge.
  *
@@ -128,7 +135,7 @@ function ticketHeading({ ticketId, facts = null }) {
  * @return {{label: string, intent: string}} The badge.
  */
 function pullRequestState(state) {
-	const key = typeof state === 'string' ? state.toLowerCase() : '';
+	const key = pullRequestStateKey(state);
 	if (key === 'merged') return { label: __('Merged'), intent: 'informational' };
 	if (key === 'closed') return { label: __('Closed'), intent: 'none' };
 	return { label: __('Open'), intent: 'stable' };
@@ -168,6 +175,68 @@ function pullRequestRows({ items = [], latest = null, appliedNumber = null, form
 			date
 		};
 	});
+}
+
+// What both lists show above their groups (#709), so a pull request and a
+// patch file are shown the same way. With something applied on the site, in
+// either list or from a file, that is all: the applied one, in the list it
+// came from. With nothing applied, each list shows its newest, which is the
+// ticket's latest patch whenever that is in this list. The rest go into
+// groups, every one folded to begin with. `entries` are newest first; each
+// row is kept with the item it was made from.
+function pinNewest(entries, workApplied) {
+	const applied = entries.find((entry) => entry.row.applied) || null;
+	const others = entries.filter((entry) => entry !== applied);
+	const newest = workApplied ? null : others.find((entry) => entry.row.latest) || others[0] || null;
+	return { applied, newest, rest: others.filter((entry) => entry !== newest) };
+}
+
+const withItems = (rows, items) => rows.map((row, index) => ({ row, item: items[index] }));
+
+/**
+ * The linked pull requests as the card shows them (#709): a ticket with many
+ * would otherwise push everything under them down. The one checked out, or
+ * with nothing applied the newest, is shown, and the rest are in two groups,
+ * open and closed, each folded and named with its count. Merged is closed
+ * here, as GitHub counts it, and a state it does not know is open, as its
+ * badge says. The group the one shown would have been in says "other". A
+ * group with nothing in it is left out.
+ *
+ * @param {Array}   rows                  The rows, as pullRequestRows made them.
+ * @param {Array}   items                 The pull requests they were made from, in the same order, newest first.
+ * @param {Object}  [options]
+ * @param {boolean} [options.workApplied] A pull request or a patch is applied on the site.
+ * @return {{applied: ?{row: Object, item: Object}, newest: ?{row: Object, item: Object}, groups: Array<{key: string, label: string, entries: Array<{row: Object, item: Object}>}>}} The checked-out one and the newest, each or null, and the groups, open first.
+ */
+function pullRequestGroups(rows = [], items = [], { workApplied = false } = {}) {
+	const { applied, newest, rest } = pinNewest(withItems(rows, items), workApplied);
+	const isOpen = (entry) => pullRequestStateKey(entry.item && entry.item.state) === 'open';
+	const shown = applied || newest;
+	const newestOpen = Boolean(shown) && isOpen(shown);
+	const newestClosed = Boolean(shown) && !newestOpen;
+	const open = rest.filter(isOpen);
+	const closed = rest.filter((entry) => !isOpen(entry));
+	let openLabel;
+	if (newestOpen) {
+		// translators: %d: how many open pull requests there are besides the one shown above.
+		openLabel = sprintf(_n('Other open PR (%d)', 'Other open PRs (%d)', open.length), open.length);
+	} else {
+		// translators: %d: how many pull requests are open.
+		openLabel = sprintf(_n('Open PR (%d)', 'Open PRs (%d)', open.length), open.length);
+	}
+	let closedLabel;
+	if (newestClosed) {
+		// translators: %d: how many closed or merged pull requests there are besides the one shown above.
+		closedLabel = sprintf(_n('Other closed PR (%d)', 'Other closed PRs (%d)', closed.length), closed.length);
+	} else {
+		// translators: %d: how many pull requests are closed or merged.
+		closedLabel = sprintf(_n('Closed PR (%d)', 'Closed PRs (%d)', closed.length), closed.length);
+	}
+	const groups = [
+		{ key: 'open', label: openLabel, entries: open },
+		{ key: 'closed', label: closedLabel, entries: closed }
+	].filter((group) => group.entries.length);
+	return { applied, newest, groups };
 }
 
 const localDateTime = (when) => new Date(when).toLocaleString();
@@ -215,11 +284,12 @@ function pullRequestsStatus({ list = null, loading = false, formatDateTime = loc
  * Trac's own words.
  *
  * @param {Object} root0
- * @param {Array}  [root0.items]  The attachments that are patches.
- * @param {Object} [root0.latest] The ticket's most recent patch, `{ kind, key }`, or null.
- * @return {Array<{key: string, name: string, url: string, latest: boolean, meta: string}>} One per file.
+ * @param {Array}  [root0.items]        The attachments that are patches.
+ * @param {Object} [root0.latest]       The ticket's most recent patch, `{ kind, key }`, or null.
+ * @param {string} [root0.appliedLabel] What the site's applied patch is called, which for one of these is its file name.
+ * @return {Array<{key: string, name: string, url: string, latest: boolean, applied: boolean, meta: string}>} One per file.
  */
-function attachmentRows({ items = [], latest = null } = {}) {
+function attachmentRows({ items = [], latest = null, appliedLabel = '' } = {}) {
 	return (Array.isArray(items) ? items : []).map((att) => {
 		// translators: %s: the WordPress.org username of whoever uploaded a file.
 		const by = att.author ? sprintf(__('by %s'), att.author) : '';
@@ -228,9 +298,36 @@ function attachmentRows({ items = [], latest = null } = {}) {
 			name: att.filename,
 			url: att.url,
 			latest: Boolean(latest && latest.kind === 'attachment' && latest.key === att.url),
+			applied: Boolean(appliedLabel) && appliedLabel === att.filename,
 			meta: [by, att.dateText, att.sizeText].filter(Boolean).join(' · ')
 		};
 	});
+}
+
+/**
+ * The attachments as the card shows them, the way the pull requests are
+ * (#709): the one applied, or with nothing applied the newest, and the rest
+ * in one folded group named with its count, newest first. Trac lists them oldest first. They are
+ * neither open nor closed, so there is the one group.
+ *
+ * @param {Array}   rows                  The rows, as attachmentRows made them.
+ * @param {Array}   items                 The attachments they were made from, in the same order, oldest first.
+ * @param {Object}  [options]
+ * @param {boolean} [options.workApplied] A pull request or a patch is applied on the site.
+ * @return {{applied: ?{row: Object, item: Object}, newest: ?{row: Object, item: Object}, groups: Array<{key: string, label: string, entries: Array<{row: Object, item: Object}>}>}} The applied one and the newest, each or null, and the group.
+ */
+function attachmentGroups(rows = [], items = [], { workApplied = false } = {}) {
+	const { applied, newest, rest } = pinNewest(withItems(rows, items).reverse(), workApplied);
+	if (!rest.length) return { applied, newest, groups: [] };
+	let label;
+	if (applied || newest) {
+		// translators: %d: how many patch files there are on the ticket besides the one shown above.
+		label = sprintf(_n('Other attachment (%d)', 'Other attachments (%d)', rest.length), rest.length);
+	} else {
+		// translators: %d: how many patch files there are on the ticket.
+		label = sprintf(_n('Attachment (%d)', 'Attachments (%d)', rest.length), rest.length);
+	}
+	return { applied, newest, groups: [{ key: 'other', label, entries: rest }] };
 }
 
 /**
@@ -304,4 +401,4 @@ function attachmentsStatus({ result = null, loading = false, count = 0 } = {}) {
 	};
 }
 
-module.exports = { ticketCardWords, ticketFacts, ticketHeading, pullRequestState, pullRequestRows, pullRequestsStatus, attachmentRows, attachmentsStatus, tracReadAt, tracReadToShow };
+module.exports = { ticketCardWords, ticketFacts, ticketHeading, pullRequestState, pullRequestRows, pullRequestGroups, pullRequestsStatus, attachmentRows, attachmentGroups, attachmentsStatus, tracReadAt, tracReadToShow };
