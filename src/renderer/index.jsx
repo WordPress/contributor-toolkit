@@ -1337,7 +1337,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // nothing that is already running or starting is started again: the watch
   // is started after the server's start has answered, and only where that
   // start did not bring it up.
-  const buildHolds = buildHoldsStarts({ building, watchOwnsBuild });
+  const buildHolds = buildHoldsStarts({ building, watchOwnsBuild, watchState });
   const autoStart = useRef({ open: false, resumed: false });
   useEffect(() => { autoStart.current.open = isActive; }, [isActive]);
   const starters = useRef({ toggleDevServer, startBuildWatch });

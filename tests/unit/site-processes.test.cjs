@@ -132,7 +132,10 @@ test('what holds the starts is a build the watch did not start (#503)', () => {
 	// npm run build from the terminal, an apply or an update.
 	assert.equal(buildHoldsStarts({ building: true }), true);
 	// The watch's own first build: a server started now waits for the watch.
-	assert.equal(buildHoldsStarts({ building: true, watchOwnsBuild: true }), false);
+	assert.equal(buildHoldsStarts({ building: true, watchOwnsBuild: true, watchState: 'building' }), false);
+	// A watch stopped mid-build is idle at once, while the build it killed
+	// can take seconds to end and still writes build/.
+	assert.equal(buildHoldsStarts({ building: true, watchOwnsBuild: true, watchState: 'idle' }), true);
 	assert.equal(buildHoldsStarts({ building: false }), false);
 	assert.equal(buildHoldsStarts(), false);
 	// Gutenberg's npm run dev reads 'building' while it rebuilds on start; a
