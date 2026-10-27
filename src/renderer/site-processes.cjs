@@ -133,14 +133,17 @@ function watchProcess({ state = 'idle', compiling = false, exitCode = null, exit
  * (#503): it is writing build/, so a server would serve it half written and a
  * watch would run over it. The watch's own first build is the exception. A
  * server started then waits for the watch, which is what it is there for.
+ * That build is known by the watch having started it, not by the watch's
+ * state: Gutenberg's npm run dev is 'building' while it rebuilds on start,
+ * and a terminal build can run beside it.
  *
  * @param {Object}  root0
- * @param {boolean} [root0.building]   npm run build is running.
- * @param {string}  [root0.watchState] 'idle', 'building', 'watching', 'paused' or 'exited'.
+ * @param {boolean} [root0.building]       npm run build is running.
+ * @param {boolean} [root0.watchOwnsBuild] that build is the watch's own first one.
  * @return {boolean}
  */
-function buildHoldsStarts({ building = false, watchState = 'idle' } = {}) {
-	return building && watchState !== 'building';
+function buildHoldsStarts({ building = false, watchOwnsBuild = false } = {}) {
+	return building && !watchOwnsBuild;
 }
 
 /**

@@ -1285,7 +1285,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The build watch (#554): its state, its run and what can be done to it. It
   // is called here because it needs the script runner and the terminal's lock
   // above. What the chains below use of it is taken out by name.
-  const { watchState, watchExitCode, watchExitOf, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, refuseInTerminal, terminalStateRef, terminalKillRef, markTerminalRunning });
+  const { watchState, watchExitCode, watchExitOf, watchOwnsBuild, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, refuseInTerminal, terminalStateRef, terminalKillRef, markTerminalRunning });
   // A watch that ended by itself, or was never started because the build
   // ahead of it failed, is said on the page with "Its last lines are in the
   // Logs." So the logs come up, on the watch's tab, when that happens. A
@@ -1337,7 +1337,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // nothing that is already running or starting is started again: the watch
   // is started after the server's start has answered, and only where that
   // start did not bring it up.
-  const buildHolds = buildHoldsStarts({ building, watchState });
+  const buildHolds = buildHoldsStarts({ building, watchOwnsBuild });
   const autoStart = useRef({ open: false, resumed: false });
   useEffect(() => { autoStart.current.open = isActive; }, [isActive]);
   const starters = useRef({ toggleDevServer, startBuildWatch });

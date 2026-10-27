@@ -129,15 +129,15 @@ test('a build running on its own holds both starts, and neither stop (#503)', ()
 });
 
 test('what holds the starts is a build the watch did not start (#503)', () => {
-	// npm run build from the terminal, an apply or an update, with the watch
-	// idle, paused, stopped or watching.
-	for (const watchState of ['idle', 'paused', 'exited', 'watching']) {
-		assert.equal(buildHoldsStarts({ building: true, watchState }), true, watchState);
-	}
+	// npm run build from the terminal, an apply or an update.
+	assert.equal(buildHoldsStarts({ building: true }), true);
 	// The watch's own first build: a server started now waits for the watch.
-	assert.equal(buildHoldsStarts({ building: true, watchState: 'building' }), false);
-	assert.equal(buildHoldsStarts({ building: false, watchState: 'idle' }), false);
+	assert.equal(buildHoldsStarts({ building: true, watchOwnsBuild: true }), false);
+	assert.equal(buildHoldsStarts({ building: false }), false);
 	assert.equal(buildHoldsStarts(), false);
+	// Gutenberg's npm run dev reads 'building' while it rebuilds on start; a
+	// terminal build beside it is not the watch's, and holds.
+	assert.equal(buildHoldsStarts({ building: true, watchState: 'building' }), true);
 });
 
 test('no arguments at all is a stopped watch', () => {
