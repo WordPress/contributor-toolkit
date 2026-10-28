@@ -108,6 +108,17 @@ test('a Gutenberg build cut short sends the watch first again', () => {
 	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'idle', buildInterrupted: true }, build), false);
 });
 
+// A one-shot `npm run build` that failed or was stopped outside the watch
+// (a terminal run, a failed apply or trunk-update build) leaves the same
+// doubt over build/ as a cut-short watch rebuild, and the marker file is no
+// more proof of it finishing well (#721).
+test('a Gutenberg build that failed outside the watch sends the watch first', () => {
+	const build = getProjectType('gutenberg').build;
+
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'idle', buildFailed: true }, build), false);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'paused', buildFailed: true }, build), false);
+});
+
 // Core's watch is free (no pattern, touches nothing on start), so it keeps
 // starting with the server: src/ edits compile on save from the first click.
 test('a built Core site keeps starting the watch with the server', () => {

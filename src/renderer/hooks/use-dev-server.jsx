@@ -190,8 +190,17 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       // the state copy is as old as the last status poll, and build/ may
       // have gone since (a watch rebuild, a clean by hand).
       let builtNow = hasBuilt;
-      try { const fresh = await window.api.getSiteStatus(sitePath); builtNow = Boolean(fresh?.hasBuilt); setHasBuilt(builtNow); } catch {}
-      if (serveWithoutWatch({ hasBuilt: builtNow, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild)) {
+      // `buildFailed` comes from the same fresh read, for the same reason:
+      // a build that failed outside the app (a terminal run, an apply) is
+      // only known on disk, not in this session's state (#721).
+      let buildFailedNow = false;
+      try {
+        const fresh = await window.api.getSiteStatus(sitePath);
+        builtNow = Boolean(fresh?.hasBuilt);
+        buildFailedNow = Boolean(fresh?.buildFailed);
+        setHasBuilt(builtNow);
+      } catch {}
+      if (serveWithoutWatch({ hasBuilt: builtNow, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current, buildFailed: buildFailedNow }, projectBuild)) {
         // translators: %s: the folder the site is served from, build/.
         appendRuntime(`${sprintf(__('%s is complete: starting the server without the build watch. Start build watch to compile edits on save.'), 'build/')}\n`);
         startPhpServer().catch(() => {});

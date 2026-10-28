@@ -65,23 +65,26 @@ function watchReadyPattern(build) {
  * the watch is left for Start build watch or for an apply, which builds on
  * its own when no watch is running.
  *
- * build/ is only "there" when nothing has been tearing it down: a watch that
- * is watching or building is used as it is (the server hangs off its
- * readiness); one that exited on its own, or was stopped while it was still
- * rebuilding (`buildInterrupted`), may have left build/ empty or half
- * written, and the marker file the status reads is not proof otherwise. In
- * those cases the watch goes first and completes build/, as before #499. A
- * paused watch means an apply is installing or building on its own. While it
- * installs, serving is what the guide already promises; while it builds, the
- * start is held before it gets here (#503, buildHoldsStarts).
+ * build/ is only "there" when nothing has been tearing it down or leaving it
+ * half written: a watch that is watching or building is used as it is (the
+ * server hangs off its readiness); one that exited on its own, or was
+ * stopped while it was still rebuilding (`buildInterrupted`), may have left
+ * build/ empty or half written, and the marker file the status reads is not
+ * proof otherwise. The same goes for a one-shot `npm run build` that failed
+ * or was stopped outside the watch (`buildFailed`, #721): its marker can be
+ * written before the build ends. In those cases the watch goes first and
+ * completes build/, as before #499. A paused watch means an apply is
+ * installing or building on its own. While it installs, serving is what the
+ * guide already promises; while it builds, the start is held before it gets
+ * here (#503, buildHoldsStarts).
  *
- * @param {{hasBuilt?: boolean, watchState?: string, buildInterrupted?: boolean}} [flags]
- * @param {{watch: {readyPattern?: string}}}                                      [build]
+ * @param {{hasBuilt?: boolean, watchState?: string, buildInterrupted?: boolean, buildFailed?: boolean}} [flags]
+ * @param {{watch: {readyPattern?: string}}}                                                             [build]
  * @return {boolean}
  */
 function serveWithoutWatch(flags = {}, build = getProjectType().build) {
 	if (watchReadyPattern(build) === null) return false;
-	if (!flags.hasBuilt || flags.buildInterrupted) return false;
+	if (!flags.hasBuilt || flags.buildInterrupted || flags.buildFailed) return false;
 	const state = flags.watchState || 'idle';
 	return state === 'idle' || state === 'paused';
 }
