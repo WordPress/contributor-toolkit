@@ -63,6 +63,24 @@ test( 'a site still being set up shows the checklist: its steps in order, how ea
 	expect( session.readSettings().siteMeta[ site.dir ].skipInitWizard ).toBe( true );
 } );
 
+test( 'a build that failed in an earlier session still reads as failed, though build/ has its marker (#503)', async ( { session } ) => {
+	// build/'s marker is written part-way through a build, so a build that
+	// failed late leaves one behind. What the store kept is the outcome.
+	const site = await makeSite( session );
+	Object.assign( site.settings.siteMeta[ site.dir ], { skipInitWizard: false, buildFailed: true } );
+	const { page } = await session.start( site.settings );
+
+	const checklist = page.getByRole( 'region', { name: 'Initial setup checklist', exact: true } );
+	await expect( checklist ).toBeVisible( { timeout: 30_000 } );
+	const steps = checklist.getByRole( 'listitem' );
+
+	// INVARIANT — the build is offered again, and the server is not offered
+	// on what it left.
+	await expect( steps.nth( 2 ).getByText( 'Failed', { exact: true } ) ).toBeVisible();
+	await expect( steps.nth( 2 ).getByRole( 'button', { name: 'Retry the build', exact: true } ) ).toBeEnabled();
+	await expect( steps.nth( 3 ).getByRole( 'button', { name: 'Start dev server and finish the wizard', exact: true } ) ).toBeDisabled();
+} );
+
 test( 'a site whose code is old says so, why it matters, and has the way to update it beside what it says', async ( { session } ) => {
 	// A site the app only knows from its list: with no repository to read
 	// the date from, it keeps the one it was told, which is forty days old.

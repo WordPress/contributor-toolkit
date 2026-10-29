@@ -46,8 +46,9 @@ function computeSetupStepState(flags = {}) {
 	// build/ (#502). A build still running overrides the marker, and so does
 	// one that failed or was stopped: it may have cleaned build/ and rewritten
 	// only part of it, and every build path clears the flag on a later success
-	// (runScript's done handler), so a flag still set means the last attempt
-	// lost, whatever the marker says.
+	// (main.js records it as each npm run build ends, #503), so a flag still
+	// set means the last attempt lost, whatever the marker says, across
+	// restarts too.
 	const builtOk = hasBuilt && !building && !buildFailed;
 
 	return {

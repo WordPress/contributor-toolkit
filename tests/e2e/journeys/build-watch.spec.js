@@ -319,3 +319,32 @@ test( 'a build stopped before the watch could start is not a failure, stopped by
 	await expect( failure ).toHaveCount( 0 );
 	await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
 } );
+
+test( 'a build typed in the terminal holds the server\'s start and the watch\'s until it ends (#503)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	await ui.openTray( page, 'Terminal' );
+	const scripts = await standInForScripts( app, page );
+	const terminal = ui.terminalInput( page );
+
+	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	// Known to be built, so neither start would wait for a build of its own.
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible();
+	await expect( ui.startDevServerButton( page ) ).toBeEnabled();
+	await expect( ui.startBuildWatchButton( page ) ).toBeEnabled();
+
+	await terminal.pressSequentially( 'npm run build', { delay: 10 } );
+	await terminal.press( 'Enter' );
+	await expect.poll( async () => ( await scripts.asked() ).scripts ).toEqual( [ { dir: site.dir, name: 'build', args: [] } ] );
+
+	// INVARIANT — while it writes build/, a server would serve it half
+	// written and a watch would run over it: neither can be started.
+	await expect( ui.startDevServerButton( page ) ).toBeDisabled();
+	await expect( ui.startBuildWatchButton( page ) ).toBeDisabled();
+
+	// INVARIANT — once it has ended, both can again, and nothing else was run.
+	await scripts.ends( 1, 0 );
+	await expect( ui.startDevServerButton( page ) ).toBeEnabled();
+	await expect( ui.startBuildWatchButton( page ) ).toBeEnabled();
+	expect( ( await scripts.asked() ).scripts ).toHaveLength( 1 );
+} );

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { serverProcess, watchProcess, serverLinks, serverSection, ADMIN_CREDENTIALS } = require('../../src/renderer/site-processes.cjs');
+const { serverProcess, watchProcess, buildHoldsStarts, serverLinks, serverSection, ADMIN_CREDENTIALS } = require('../../src/renderer/site-processes.cjs');
 
 test('a stopped server offers to start', () => {
 	assert.deepEqual(serverProcess(), { status: 'offline', label: 'Server stopped', action: 'Start development server', short: 'Start', pending: false, disabled: false, detail: '' });
@@ -112,6 +112,35 @@ test('an update of trunk holds the watch\'s button, unless the update is waiting
 	// #507: the one way out of a watch that never gets ready.
 	assert.equal(watchProcess({ state: 'building', isUpdating: true, updateWaitingOnWatch: true }).disabled, false);
 	assert.equal(watchProcess({ state: 'building', isUpdating: false, updateWaitingOnWatch: true }).disabled, false);
+});
+
+test('a build running on its own holds both starts, and neither stop (#503)', () => {
+	// npm run build from the terminal, an apply or an update writes build/:
+	// a server started now serves it half written, and a watch started now
+	// runs npm run dev over it.
+	assert.equal(serverProcess({ building: true }).disabled, true);
+	assert.equal(serverProcess({ building: true, failure: 'stopped' }).disabled, true);
+	assert.equal(serverProcess({ active: true, building: true }).disabled, false);
+	for (const state of ['idle', 'paused', 'exited']) {
+		assert.equal(watchProcess({ state, building: true }).disabled, true, state);
+	}
+	assert.equal(watchProcess({ state: 'watching', building: true }).disabled, false);
+	assert.equal(watchProcess({ state: 'building', building: true }).disabled, false);
+});
+
+test('what holds the starts is a build the watch did not start (#503)', () => {
+	// npm run build from the terminal, an apply or an update.
+	assert.equal(buildHoldsStarts({ building: true }), true);
+	// The watch's own first build: a server started now waits for the watch.
+	assert.equal(buildHoldsStarts({ building: true, watchOwnsBuild: true, watchState: 'building' }), false);
+	// A watch stopped mid-build is idle at once, while the build it killed
+	// can take seconds to end and still writes build/.
+	assert.equal(buildHoldsStarts({ building: true, watchOwnsBuild: true, watchState: 'idle' }), true);
+	assert.equal(buildHoldsStarts({ building: false }), false);
+	assert.equal(buildHoldsStarts(), false);
+	// Gutenberg's npm run dev reads 'building' while it rebuilds on start; a
+	// terminal build beside it is not the watch's, and holds.
+	assert.equal(buildHoldsStarts({ building: true, watchState: 'building' }), true);
 });
 
 test('no arguments at all is a stopped watch', () => {

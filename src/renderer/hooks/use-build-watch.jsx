@@ -39,6 +39,9 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
   // build that has to end well before a watcher is started. The page says
   // different things of the two, and only one of them was ever a watch.
   const [watchExitOf, setWatchExitOf] = useState('watch');
+  // Set while the one-off build below runs, so a build the watch started is
+  // told from one started beside it (#503).
+  const [watchOwnsBuild, setWatchOwnsBuild] = useState(false);
   // Ref mirror for the inline reads (guards, callbacks) that must not wait for a
   // re-render, the same split as the terminal's terminalRunning and
   // terminalStateRef.
@@ -230,6 +233,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
       terminalKillRef.current = () => { markWatchState('idle'); killCurrent().catch(() => {}); };
       // translators: %s: the command that builds the site, npm run build.
       appendWatch(`${sprintf(__('No completed build found — running %s first…'), 'npm run build')}\n`);
+      setWatchOwnsBuild(true);
       runScript('build', {
         mirrorToNpm: false,
         // It prints in the watch's log, and that is where its failure says
@@ -237,6 +241,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
         outputInTerminal: false,
         onLog: (chunk) => { appendWatch(chunk); },
         onDone: ({ code }) => {
+          setWatchOwnsBuild(false);
           markTerminalRunning(false);
           terminalKillRef.current = null;
           // A stop that was asked for, by the watch's button or by Ctrl+C,
@@ -326,6 +331,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
     watchState,
     watchExitCode,
     watchExitOf,
+    watchOwnsBuild,
     watchCompiling,
     watchStateRef,
     watchWaitersRef,

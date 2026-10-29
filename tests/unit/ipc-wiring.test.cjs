@@ -861,13 +861,15 @@ test('sites:delete reports a folder it could not remove instead of pretending (#
 
 test('site:status reports the trunk snapshot trunk-update read, not its own guess', async () => {
 	const readTrunkInfo = spy(async () => ({ trunkOid: 'abc123', trunkDate: '2026-01-01T00:00:00Z' }));
-	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { initialized: true } } });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { initialized: true, buildFailed: true } } });
 	const main = loadMain({
 		stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { readTrunkInfo } }
 	});
 
 	const status = await main.invoke('site:status', '/sites/wp');
 
+	// The last build's outcome, which outlives the session (#503).
+	assert.equal(status.buildFailed, true);
 	assert.deepEqual(readTrunkInfo.calls, [['/sites/wp']]);
 	assert.equal(status.trunkOid, 'abc123');
 	assert.equal(status.trunkDate, '2026-01-01T00:00:00Z');
@@ -3175,6 +3177,8 @@ test('a runner that exited but never closed is let go after a grace, with npm\'s
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
+			// A build's done writes buildFailed to the store first (#503).
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killTreeByPid }
 		}
@@ -3208,6 +3212,8 @@ test('a runner that exited but never closed is let go after a grace, with npm\'s
 	assert.ok(!event.sent.some((m) => m.channel === 'npm:run-script:done'), 'done is the close handler\'s to send');
 	// Node emits close with the stored exit code once the destroyed pipes shut.
 	child.emit('close', 1, null);
+	// The build's done follows a store write.
+	await new Promise((resolve) => setImmediate(resolve));
 	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 1 }]);
 });
 
@@ -3217,6 +3223,8 @@ test('a runner whose close follows its exit inside the grace is left alone', asy
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
+			// A build's done writes buildFailed to the store first (#503).
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killTreeByPid }
 		}
@@ -3232,6 +3240,8 @@ test('a runner whose close follows its exit inside the grace is left alone', asy
 
 	assert.deepEqual(killTreeByPid.calls, [], 'a tree that closed has nothing left to force, and its pid may be reissued');
 	assert.deepEqual(child.stdout.destroy.calls, []);
+	// The build's done follows a store write.
+	await new Promise((resolve) => setImmediate(resolve));
 	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 0 }]);
 });
 
@@ -3262,6 +3272,61 @@ test('an install that exited but never closed is let go the same way', async (t)
 	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:install:done').map((m) => m.payload), [{ installId, code: 1 }]);
 });
 
+// The build's counterpart to installFailed (#503). build/'s marker file is
+// written part-way through a build, so after a restart a build that failed
+// late read as complete: its outcome has to outlive the session.
+test('a build\'s outcome is recorded before its done event', async () => {
+	const cp = stubbedSpawn();
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { initialized: true } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, 'child_process': { spawn: cp.spawn } }
+	});
+	const ends = async (name, code) => {
+		const event = createIpcEvent();
+		const { runId } = await main.invokeWith('npm:run-script', event, '/sites/wp', name);
+		const child = cp.children[cp.children.length - 1];
+		let recorded;
+		event.sender.send = ((send) => (channel, payload) => {
+			if (channel === 'npm:run-script:done') recorded = settings.values.siteMeta['/sites/wp'].buildFailed;
+			send(channel, payload);
+		})(event.sender.send);
+		child.emit('exit', code, null);
+		child.emit('close', code, null);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code }]);
+		return recorded;
+	};
+
+	assert.equal(await ends('build', 1), true, 'recorded before the renderer is told, so its status reload sees it');
+	// Any other script says nothing about build/.
+	await ends('lint', 0);
+	assert.equal(settings.values.siteMeta['/sites/wp'].buildFailed, true);
+	assert.equal(await ends('build', 0), false);
+});
+
+test('a build whose outcome cannot be recorded says so in the log, and still reports its end', async () => {
+	const cp = stubbedSpawn();
+	const logError = spy();
+	const store = { get: () => ({}), set: () => { throw new Error('disk full'); } };
+	const main = loadMain({
+		stubs: {
+			'./logging': { ...silentLogging()['./logging'], logError },
+			'./settings-store': { getStore: async () => store, peekStore: () => store },
+			'child_process': { spawn: cp.spawn }
+		}
+	});
+	const event = createIpcEvent();
+	const { runId } = await main.invokeWith('npm:run-script', event, '/sites/wp', 'build');
+	cp.children[0].emit('exit', 0, null);
+	cp.children[0].emit('close', 0, null);
+	await new Promise((resolve) => setImmediate(resolve));
+
+	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 0 }]);
+	assert.equal(logError.calls.length, 1);
+	assert.equal(logError.calls[0][0], 'npm');
+	assert.match(logError.calls[0][1], /disk full/);
+});
+
 test('npm:kill arms no escalation for a child that had already closed', async (t) => {
 	const cp = stubbedSpawn();
 	const killTreeByPid = spy();
@@ -3290,6 +3355,9 @@ test('npm:kill stands the escalation down once the tree has closed', async (t) =
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
+			// The close below ends a build, whose done records buildFailed
+			// (#503); without this it would load the real electron-store.
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killChildTree: spy(() => true), killTreeByPid }
 		}

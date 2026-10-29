@@ -3,15 +3,15 @@ import { runFailedInTerminal } from '../terminal-hints.cjs';
 
 // The npm runs a site's view starts (#554): npm install and the site's npm
 // scripts, with what the rest of the view needs to know about them. Whether an
-// install or a build is running, whether the last build failed, whether the
-// last thing to write build/ was cut short, and which run Ctrl+C or a stop
-// should reach.
+// install or a build is running, whether the last thing to write build/ was
+// cut short, and which run Ctrl+C or a stop should reach.
 //
 // Everything that runs one goes through here: the terminal, the setup, a trunk
 // update, an applied patch, a ticket switch and the build watch. They pass
 // `onLog` and `onDone` for what they do with a run's output and its end; what
 // is common to every run is here. An install that ends well marks the site
-// initialised, an install or a build that ends reloads the site's status,
+// initialised, an install or a build that ends reloads the site's status
+// (which is where whether the last build failed is read from, #503),
 // and a run's output is copied into the install log's buffer unless its
 // caller says not to, as the build watch does; `appendNpm` and `ensureStick`
 // are for that buffer.
@@ -33,11 +33,6 @@ import { runFailedInTerminal } from '../terminal-hints.cjs';
 export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed }) {
   const [installing, setInstalling] = useState(false);
   const [building, setBuilding] = useState(false);
-  // The build's counterpart to installFailed — session-local, because only the
-  // install outcome is persisted (main.js records it on the site's meta). After
-  // a restart a failed build reads "Ready" again, which is the honest fallback:
-  // the app knows there is no build on disk, just not that the last attempt lost.
-  const [buildFailed, setBuildFailed] = useState(false);
   // True while the last thing to touch build/ was a watch rebuild that did not
   // finish: stopped or crashed while 'building'. build/ may then be empty or
   // half written whatever the status's marker file says, so the server does
@@ -94,9 +89,9 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
   const runScript = useCallback((name, options = {}) => {
     const { onLog, onDone, args = [], track = true, mirrorToNpm = true, outputInTerminal = true, onStart } = options;
     ensureStick('npm');
-    // Clearing the failure here rather than on the next exit is what stops the
-    // step reading "Failed" while its own retry is streaming to the terminal.
-    if (name === 'build') { setBuilding(true); setBuildFailed(false); }
+    // The step does not read "Failed" while its own retry streams to the
+    // terminal: setup-steps holds the failure back while `building` is set.
+    if (name === 'build') setBuilding(true);
     if (track) { currentRunIdRef.current = null; stopRequestedRef.current = false; }
     return window.api.runNpmScript(sitePath, name, args, ({ data }) => {
       if (mirrorToNpm) appendNpm(data);
@@ -104,10 +99,12 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
     }, async ({ code }) => {
       if (mirrorToNpm) appendNpm(`\n${name} exited with code ${code}\n`);
       if (name === 'build') {
-        setBuilding(false);
-        setBuildFailed(code !== 0);
         if (code === 0) markBuildInterrupted(false);
+        // The status first: main.js has recorded the outcome before this
+        // event, and `building` going false with the last build's outcome
+        // still on screen would show it for a moment.
         try { await loadStatus(); } catch {}
+        setBuilding(false);
         if (runFailedInTerminal({ code, outputInTerminal, stopRequested: stopRequestedRef.current })) onRunFailed();
       }
       if (track) currentRunIdRef.current = null;
@@ -139,7 +136,6 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
   return {
     installing,
     building,
-    buildFailed,
     buildInterrupted,
     buildInterruptedRef,
     markBuildInterrupted,
