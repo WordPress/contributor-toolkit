@@ -53,7 +53,8 @@ If two sites run with Xdebug at once, VS Code may stop on one site's breakpoints
 
 - Check that the site's details show **Set up Xdebug for your editor** under **Debugging**. If they do not, restart the server.
 - Check that **Listen for Xdebug** is running in VS Code, or that PhpStorm is listening for debug connections, and that no other program uses port 9003.
-- Check that the breakpoint is in `src/`, not `build/`, and not in one of the three files above.
+- On a Core site, check that the breakpoint is in `src/`, not `build/`, and not in one of the three files above.
+- On a Gutenberg site, check that the breakpoint is in one of the checkout's own PHP files.
 - Check that no other site's server is running with Xdebug.
 
 With Xdebug on and VS Code not listening, the site works as usual, only a little slower.
