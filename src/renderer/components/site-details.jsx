@@ -377,7 +377,7 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
                     <Stack key={row.id} direction="column" align="start" gap="xs">
                       {fact}
                       <Button variant="outline" tone="neutral" size="compact" onClick={() => onOpenXdebugSetup()}>
-                        {__('Set up VS Code')}
+                        {__('Set up your editor')}
                       </Button>
                     </Stack>
                   );

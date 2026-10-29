@@ -68,7 +68,7 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	const followSetting = await stubServer( app, session );
-	const setup = page.getByRole( 'button', { name: 'Set up VS Code', exact: true } );
+	const setup = page.getByRole( 'button', { name: 'Set up your editor', exact: true } );
 	const debugging = ( value ) => page.getByText( value, { exact: true } );
 
 	// INVARIANT — off by default: nothing says Xdebug, whether or not the
