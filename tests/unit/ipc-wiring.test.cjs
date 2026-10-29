@@ -8861,31 +8861,47 @@ test('old PRs do not count generated Gutenberg files, including a previously par
 	assert.doesNotMatch(result.patch, /gutenberg/);
 });
 
-// With Xdebug on, the Playground CLI links its VFS root into the folder the
-// server runs from (#723), which on a Gutenberg site is the checkout itself.
-// The link outlives the server, so it has to be kept out of the work and the
-// patch, on a site whose local excludes were written before it existed too.
-test('the link Playground’s Xdebug leaves in a checkout is not counted as work or put in the patch', async (t) => {
-	const dir = adoptedRepo(t, 'ipc-xdebug-root-');
-	fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
-	commitFiles(dir, ['README.md'], 'base');
-	gitOk(['update-ref', 'refs/remotes/origin/trunk', revParse(dir, 'HEAD')], dir);
-	fs.mkdirSync(path.join(dir, '.git', 'info'), { recursive: true });
-	fs.writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '# WordPress Contributor Toolkit local excludes\n/.claude/\n');
-	const target = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-xdebug-vfs-'));
-	t.after(() => fs.rmSync(target, { recursive: true, force: true }));
-	fs.symlinkSync(target, path.join(dir, '.playground-xdebug-root'), 'junction');
-	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
-	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+// What step debugging leaves in a checkout (#723) is kept out of the work and
+// the patch, on a site whose local excludes were written before it existed
+// too: the link the Playground CLI makes to its VFS root in the folder the
+// server runs from, which on a Gutenberg site is the checkout, and the
+// .vscode/launch.json the editor setup asks for, which neither Core nor
+// Gutenberg ignores. Gutenberg tracks other files in .vscode/, and a change
+// to one of them is still work.
+for (const shape of ['core', 'gutenberg']) {
+	test(`what Xdebug leaves in a ${shape} checkout is not counted as work or put in the patch`, async (t) => {
+		const dir = adoptedRepo(t, `ipc-xdebug-${shape}-`);
+		const tracked = ['README.md'];
+		fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
+		if (shape === 'gutenberg') {
+			fs.mkdirSync(path.join(dir, '.vscode'));
+			fs.writeFileSync(path.join(dir, '.vscode', 'launch-example.json'), '{}\n');
+			tracked.push('.vscode/launch-example.json');
+		}
+		commitFiles(dir, tracked, 'base');
+		gitOk(['update-ref', 'refs/remotes/origin/trunk', revParse(dir, 'HEAD')], dir);
+		fs.mkdirSync(path.join(dir, '.git', 'info'), { recursive: true });
+		fs.writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '# WordPress Contributor Toolkit local excludes\n/.claude/\n');
+		const target = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-xdebug-vfs-'));
+		t.after(() => fs.rmSync(target, { recursive: true, force: true }));
+		fs.symlinkSync(target, path.join(dir, '.playground-xdebug-root'), 'junction');
+		fs.mkdirSync(path.join(dir, '.vscode'), { recursive: true });
+		fs.writeFileSync(path.join(dir, '.vscode', 'launch.json'), '{ "version": "0.2.0" }\n');
+		const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
+		const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	await main.invoke('site:status', dir);
-	assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 0);
-	fs.appendFileSync(path.join(dir, 'README.md'), 'my edit\n');
-	const result = await main.invoke('git:get-patch', dir);
-	assert.equal(result.ok, true, result.error);
-	assert.match(result.patch, /my edit/);
-	assert.doesNotMatch(result.patch, /playground-xdebug-root/);
-});
+		await main.invoke('site:status', dir);
+		assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 0);
+		fs.appendFileSync(path.join(dir, 'README.md'), 'my edit\n');
+		if (shape === 'gutenberg') fs.writeFileSync(path.join(dir, '.vscode', 'launch-example.json'), '{ "edited": true }\n');
+		const result = await main.invoke('git:get-patch', dir);
+		assert.equal(result.ok, true, result.error);
+		assert.match(result.patch, /my edit/);
+		assert.doesNotMatch(result.patch, /playground-xdebug-root/);
+		assert.doesNotMatch(result.patch, /launch\.json/);
+		if (shape === 'gutenberg') assert.match(result.patch, /launch-example\.json/);
+	});
+}
 
 test('the patch panel can render a large added text file without overflowing the stack', async (t) => {
 	const dir = adoptedRepo(t, 'ipc-large-patch-');

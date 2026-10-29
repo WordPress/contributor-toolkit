@@ -139,10 +139,13 @@ async function ensureLocalExcludes(dir) {
 	// Older PRs predate WordPress's /gutenberg ignore. Keep this generated
 	// download out of WIP commits even when their .gitignore is checked out.
 	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit generated Gutenberg', ['/gutenberg/'], { once: true });
-	// With Xdebug on, the Playground CLI links its VFS root into the folder the
-	// server runs from (#723), which for a plugin-mount site is the checkout,
-	// and leaves the link behind when the server stops.
-	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit Playground Xdebug', ['/.playground-xdebug-root'], { once: true });
+	// What step debugging leaves in a checkout (#723). With Xdebug on, the
+	// Playground CLI links its VFS root into the folder the server runs from,
+	// which for a plugin-mount site is the checkout, and leaves the link behind
+	// when the server stops. And the editor setup asks for a
+	// .vscode/launch.json, which neither Core nor Gutenberg ignores; only that
+	// file, since Gutenberg tracks others in .vscode/.
+	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit Xdebug', ['/.playground-xdebug-root', '/.vscode/launch.json'], { once: true });
 	return appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
 }
 
