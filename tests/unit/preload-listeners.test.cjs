@@ -514,6 +514,18 @@ test('startServer leaves no listener behind when the start throws, and the next 
 	assert.deepEqual(next.seen, { logs: ['booting\n'], urls: ['http://127.0.0.1:9400/'], stopped: 0 });
 });
 
+// The window shows what the running server has, so the URL comes with
+// whether it started with Xdebug (#723).
+test('startServer hands the URL on with whether the server has Xdebug', async () => {
+	const { api, ipcRenderer } = loadPreload({ invokeResults: { 'playground:start': () => ({ ok: true }) } });
+	const heard = [];
+
+	await api.startServer('/sites/wp', null, (url, xdebug) => heard.push([url, xdebug]), null);
+	ipcRenderer.emit('playground:url', { sitePath: '/sites/wp', url: 'http://127.0.0.1:9400/', xdebug: true });
+
+	assert.deepEqual(heard, [['http://127.0.0.1:9400/', true]]);
+});
+
 // The guard for the paragraph above isElectronPackage: if the stub ever stops
 // covering a path, this fails here rather than as a mystery download in another
 // file's test on a cold checkout.

@@ -1712,6 +1712,55 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* The launch.json in the VS Code setup (#723), read as code: the weak
+   surface and the monospace of the logs, kept as it will be pasted and
+   scrolled sideways rather than wrapped. */
+.xdebug-launch-config {
+  margin: 0;
+  padding: var(--wpds-dimension-padding-md);
+  overflow-x: auto;
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-background-surface-neutral-weak);
+  color: var(--wpds-color-foreground-content-neutral);
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-sm);
+  white-space: pre;
+}
+
+/* The values PhpStorm's settings need, each by its field's name, as code,
+   with its copy button at the end of its line. */
+.xdebug-values {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  column-gap: var(--wpds-dimension-gap-lg);
+  row-gap: var(--wpds-dimension-gap-sm);
+  align-items: center;
+  margin: 0;
+}
+
+.xdebug-value {
+  display: contents;
+}
+
+.xdebug-value dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.xdebug-value code {
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-sm);
+}
+
+/* Its steps, numbered across the code between them. */
+.xdebug-setup-steps {
+  margin: 0;
+  padding-inline-start: var(--wpds-dimension-padding-xl);
+}
+
 /* What a patch would change: its files, in the preview. Long lists scroll
    inside the dialog and leave its button in reach. */
 .change-list {

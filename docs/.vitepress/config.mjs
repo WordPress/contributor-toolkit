@@ -81,6 +81,7 @@ export default defineConfig( {
 				items: [
 					{ text: 'The terminal', link: '/guide/terminal' },
 					{ text: 'Logs and debugging', link: '/guide/logs-and-debugging' },
+					{ text: 'Step debugging with Xdebug', link: '/guide/step-debugging' },
 					{ text: 'Catching outgoing email', link: '/guide/mail' },
 					{ text: 'Browsing the database', link: '/guide/database' },
 				],

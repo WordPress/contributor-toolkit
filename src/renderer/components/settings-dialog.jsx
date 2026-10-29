@@ -344,6 +344,13 @@ function SitesTab({ settings, php, onChange }) {
         disabled={!settings}
         onCheckedChange={(checked) => keep('scriptDebug', checked)}
       />
+      <SwitchControl
+        label={__('Step debugging (Xdebug)')}
+        description={__('Stop on breakpoints in VS Code. Slows every request, so leave it off unless you are debugging. The site’s details show how to connect.')}
+        checked={settings ? settings.xdebug : false}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('xdebug', checked)}
+      />
       {error ? (
         <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
           <Notice.Description>{error}</Notice.Description>

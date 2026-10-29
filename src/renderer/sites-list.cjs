@@ -81,9 +81,9 @@ function serverReport(process) {
  * The same object comes back when nothing changed, so a report that says
  * what the last one said does not re-render the list.
  *
- * @param {Object}                              current  Reports by path.
- * @param {string}                              sitePath
- * @param {{status: string, text: string}|null} report
+ * @param {Object}                                                current  Reports by path.
+ * @param {string}                                                sitePath
+ * @param {{status: string, text: string, xdebug?: boolean}|null} report
  * @return {Object}
  */
 function withServerReport(current, sitePath, report) {
@@ -94,7 +94,7 @@ function withServerReport(current, sitePath, report) {
 		delete rest[sitePath];
 		return rest;
 	}
-	if (last && last.status === report.status && last.text === report.text) return current;
+	if (last && last.status === report.status && last.text === report.text && Boolean(last.xdebug) === Boolean(report.xdebug)) return current;
 	return { ...current, [sitePath]: report };
 }
 

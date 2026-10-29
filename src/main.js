@@ -139,6 +139,13 @@ async function ensureLocalExcludes(dir) {
 	// Older PRs predate WordPress's /gutenberg ignore. Keep this generated
 	// download out of WIP commits even when their .gitignore is checked out.
 	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit generated Gutenberg', ['/gutenberg/'], { once: true });
+	// What step debugging leaves in a checkout (#723). With Xdebug on, the
+	// Playground CLI links its VFS root into the folder the server runs from,
+	// which for a plugin-mount site is the checkout, and leaves the link behind
+	// when the server stops. And the editor setup asks for a
+	// .vscode/launch.json, which neither Core nor Gutenberg ignores; only that
+	// file, since Gutenberg tracks others in .vscode/.
+	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit Xdebug', ['/.playground-xdebug-root', '/.vscode/launch.json'], { once: true });
 	return appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
 }
 
@@ -4321,7 +4328,7 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	// Ensure a per-site SMTP server is running alongside the dev server and get its port
 	const smtp = await ensureSmtpServerForSite(sitePath).catch(() => null);
 	if (playgroundServers[sitePath]?.child) {
-		return { ok: true, url: playgroundServers[sitePath].url };
+		return { ok: true, url: playgroundServers[sitePath].url, xdebug: playgroundServers[sitePath].xdebug };
 	}
 	// How the site is served is the target's (#251). Core's build/ is a whole
 	// WordPress, mounted as the docroot; a Gutenberg checkout is a plugin,
@@ -4346,11 +4353,12 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 			? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
 			: { strategy: 'docroot', docroot: buildDir }),
 		phpVersion,
-		debug: { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug }
+		debug: { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug },
+		xdebug: settings.xdebug
 	};
 	const serveCwd = isPluginMount ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
-	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
+	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'}, Xdebug ${settings.xdebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
 	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
 		cwd: serveCwd,
 		extraEnv: {
@@ -4363,7 +4371,9 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 			WP_MAIL_SMTP_PASS: ''
 		}
 	});
-	playgroundServers[sitePath] = { child };
+	// What the server started with, which the window shows rather than the
+	// setting: a change to the setting applies at the next start (#723).
+	playgroundServers[sitePath] = { child, xdebug: serveConfig.xdebug };
 	let resolved = false;
 	let pendingResolve = null;
 	let timeoutId = null;
@@ -4378,10 +4388,10 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 			resolved = true;
 			playgroundServers[sitePath].url = match[1].trim();
 			logEvent(logScope, `server ready at ${playgroundServers[sitePath].url}`);
-			event.sender.send('playground:url', { sitePath, url: playgroundServers[sitePath].url });
+			event.sender.send('playground:url', { sitePath, url: playgroundServers[sitePath].url, xdebug: serveConfig.xdebug });
 			if (typeof pendingResolve === 'function') {
 				clearTimeout(timeoutId);
-				pendingResolve({ ok: true, url: playgroundServers[sitePath].url });
+				pendingResolve({ ok: true, url: playgroundServers[sitePath].url, xdebug: serveConfig.xdebug });
 				pendingResolve = null;
 			}
 		}

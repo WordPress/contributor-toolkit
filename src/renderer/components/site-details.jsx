@@ -335,17 +335,18 @@ function useStickyWhileItFits(active) {
  * out of the tab order and the accessibility tree as well as out of sight.
  *
  * @param {Object}   props
- * @param {string}   props.id         The element's id, which the button that shows and hides it names.
+ * @param {string}   props.id                  The element's id, which the button that shows and hides it names.
  * @param {boolean}  props.open
- * @param {string}   props.siteName   For the region's name.
- * @param {Object}   props.facts      What `siteDetailsRows` takes.
- * @param {boolean}  props.pathCopied The path has just been copied with the button here.
+ * @param {string}   props.siteName            For the region's name.
+ * @param {Object}   props.facts               What `siteDetailsRows` takes.
+ * @param {boolean}  props.pathCopied          The path has just been copied with the button here.
  * @param {Function} props.onCopyPath
- * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
- * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
- * @param {Object}   [props.changed]  The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertReason, revertError }`. No files, no section.
+ * @param {Function} [props.onOpenXdebugSetup] Opens the VS Code setup, for the Debugging row while the server has Xdebug.
+ * @param {Object}   [props.server]            The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
+ * @param {Object}   [props.watch]             The build watch's section, or null likewise: `{ process, onToggle }`.
+ * @param {Object}   [props.changed]           The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertReason, revertError }`. No files, no section.
  */
-export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, changed = null }) {
+export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, onOpenXdebugSetup = null, server = null, watch = null, changed = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);
   return (
     <div id={id} className="dashboard-sidebar-slot" inert={open ? undefined : ''}>
@@ -368,6 +369,19 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
                     {row.note ? <Text variant="body-sm" className="warning-text">{row.note}</Text> : null}
                   </Stack>
                 );
+                // The Debugging row, while the server has Xdebug, has the
+                // button that opens the VS Code setup under it (#723): the
+                // row's value is too long to share its line.
+                if (row.setup) {
+                  return (
+                    <Stack key={row.id} direction="column" align="start" gap="sm">
+                      {fact}
+                      <Button variant="outline" tone="neutral" size="compact" onClick={() => onOpenXdebugSetup()}>
+                        {__('Set up Xdebug for your editor')}
+                      </Button>
+                    </Stack>
+                  );
+                }
                 if (!row.copyable) return fact;
                 // The button says the copy worked on itself, for the eye. For
                 // a screen reader it is said by the region beside it, which
