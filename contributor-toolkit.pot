@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-26T19:12:23+00:00\n"
+"POT-Creation-Date: 2026-10-29T20:13:55+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -392,33 +392,33 @@ msgstr ""
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4413
+#: src/main.js:4422
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4416
+#: src/main.js:4425
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4446
+#: src/main.js:4455
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.js:4508
+#: src/main.js:4517
 #. %s: the name of the folder the web server serves, local-playground-web.
 msgid "%s directory not found."
 msgstr ""
 
-#: src/main.js:4556
+#: src/main.js:4565
 msgid "Server exited before becoming ready"
 msgstr ""
 
-#: src/main.js:4588
+#: src/main.js:4597
 msgid "Timed out starting web server"
 msgstr ""
 
@@ -1013,7 +1013,7 @@ msgstr ""
 #: src/renderer/affected-files.cjs:131
 #: src/renderer/changes-note.cjs:295
 #: src/renderer/hooks/use-trunk-update.jsx:291
-#: src/renderer/index.jsx:1937
+#: src/renderer/index.jsx:1940
 msgid "Unknown error"
 msgstr ""
 
@@ -1891,7 +1891,7 @@ msgid "Resize tray"
 msgstr ""
 
 #: src/renderer/components/create-site-dialog.jsx:136
-#: src/renderer/index.jsx:2261
+#: src/renderer/index.jsx:2264
 msgid "Create site"
 msgstr ""
 
@@ -2287,7 +2287,7 @@ msgid "Sign in with GitHub"
 msgstr ""
 
 #: src/renderer/components/pull-request-destination.jsx:305
-#: src/renderer/index.jsx:2379
+#: src/renderer/index.jsx:2382
 msgid "Not now"
 msgstr ""
 
@@ -2625,7 +2625,7 @@ msgid "Development server offline"
 msgstr ""
 
 #: src/renderer/components/site-details.jsx:117
-#: src/renderer/dev-server-command.cjs:170
+#: src/renderer/dev-server-command.cjs:171
 msgid "Build watch"
 msgstr ""
 
@@ -2813,7 +2813,7 @@ msgid "Checking GitHub…"
 msgstr ""
 
 #: src/renderer/components/toast-stack.jsx:47
-#: src/renderer/index.jsx:2618
+#: src/renderer/index.jsx:2621
 msgid "Notifications"
 msgstr ""
 
@@ -3010,27 +3010,27 @@ msgid ""
 "app will offer this ticket when it is ready."
 msgstr ""
 
-#: src/renderer/dev-server-command.cjs:160
+#: src/renderer/dev-server-command.cjs:161
 msgid "Build watch (compiling)"
 msgstr ""
 
-#: src/renderer/dev-server-command.cjs:160
+#: src/renderer/dev-server-command.cjs:161
 msgid "Build watch (watching)"
 msgstr ""
 
-#: src/renderer/dev-server-command.cjs:161
+#: src/renderer/dev-server-command.cjs:162
 msgid "Build watch (building)"
 msgstr ""
 
-#: src/renderer/dev-server-command.cjs:162
+#: src/renderer/dev-server-command.cjs:163
 msgid "Build watch (paused)"
 msgstr ""
 
-#: src/renderer/dev-server-command.cjs:165
+#: src/renderer/dev-server-command.cjs:166
 msgid "Build watch (stopped)"
 msgstr ""
 
-#: src/renderer/dev-server-command.cjs:167
+#: src/renderer/dev-server-command.cjs:168
 #. %d: the code the build watch exited with.
 msgid "Build watch (exited %d)"
 msgstr ""
@@ -3059,10 +3059,10 @@ msgid "Only %s issues are supported."
 msgstr ""
 
 #: src/renderer/hooks/use-apply-patch.jsx:142
-#: src/renderer/hooks/use-build-watch.jsx:141
+#: src/renderer/hooks/use-build-watch.jsx:144
 #: src/renderer/hooks/use-site-terminal.jsx:256
 #: src/renderer/hooks/use-trunk-update.jsx:99
-#: src/renderer/index.jsx:1680
+#: src/renderer/index.jsx:1683
 #. %s: the command being run, such as npm run build.
 msgid "Running %s…"
 msgstr ""
@@ -3101,46 +3101,46 @@ msgstr ""
 msgid "The patch could not be applied."
 msgstr ""
 
-#: src/renderer/hooks/use-build-watch.jsx:144
+#: src/renderer/hooks/use-build-watch.jsx:147
 #. 1: the watch command, such as npm run dev. 2: a folder, build/. 3: the line the watch prints once it is watching, which is in English.
 msgid ""
 "%1$s rebuilds %2$s before it watches. The dev server, if you started it, "
 "waits for \"%3$s\"."
 msgstr ""
 
-#: src/renderer/hooks/use-build-watch.jsx:176
+#: src/renderer/hooks/use-build-watch.jsx:179
 #: src/renderer/hooks/use-site-terminal.jsx:261
 #: src/renderer/index.jsx:1267
 #. 1: the command that ended, such as npm run build. 2: the code it exited with, a number.
 msgid "%1$s exited with code %2$s"
 msgstr ""
 
-#: src/renderer/hooks/use-build-watch.jsx:219
+#: src/renderer/hooks/use-build-watch.jsx:222
 msgid ""
 "A command is already running in the terminal — stop it before starting the "
 "build watch."
 msgstr ""
 
-#: src/renderer/hooks/use-build-watch.jsx:232
+#: src/renderer/hooks/use-build-watch.jsx:235
 #. %s: the command that builds the site, npm run build.
 msgid "No completed build found — running %s first…"
 msgstr ""
 
-#: src/renderer/hooks/use-build-watch.jsx:248
+#: src/renderer/hooks/use-build-watch.jsx:253
 #. %s: the command that builds the site, npm run build.
 msgid "%s was stopped — build watch not started."
 msgstr ""
 
-#: src/renderer/hooks/use-build-watch.jsx:256
+#: src/renderer/hooks/use-build-watch.jsx:261
 #. 1: the command that builds the site, npm run build. 2: the code it exited with, a number.
 msgid "%1$s failed with code %2$s — build watch not started."
 msgstr ""
 
-#: src/renderer/hooks/use-build-watch.jsx:303
+#: src/renderer/hooks/use-build-watch.jsx:308
 msgid "Paused while another operation uses the build."
 msgstr ""
 
-#: src/renderer/hooks/use-build-watch.jsx:312
+#: src/renderer/hooks/use-build-watch.jsx:317
 msgid "Resumed."
 msgstr ""
 
@@ -3337,7 +3337,7 @@ msgid "Saved your changes to %s and reset the working tree."
 msgstr ""
 
 #: src/renderer/hooks/use-trunk-update.jsx:298
-#: src/renderer/index.jsx:1841
+#: src/renderer/index.jsx:1844
 msgid "Discarded local changes."
 msgstr ""
 
@@ -3359,11 +3359,11 @@ msgstr ""
 msgid "Debug.log"
 msgstr ""
 
-#: src/renderer/index.jsx:1394
+#: src/renderer/index.jsx:1397
 msgid "Copied the path"
 msgstr ""
 
-#: src/renderer/index.jsx:1437
+#: src/renderer/index.jsx:1440
 #. 1: how many files had uncommitted changes. 2: the number of the ticket or issue they went into.
 msgid ""
 "Your %1$d uncommitted change came along into #%2$s, and will go into its "
@@ -3374,167 +3374,167 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:1458
+#: src/renderer/index.jsx:1461
 #. %s: the path of the patch file the edits were saved to.
 msgid "Your edits were saved to %s and are no longer in the working tree."
 msgstr ""
 
-#: src/renderer/index.jsx:1496
+#: src/renderer/index.jsx:1499
 #. %s: the path of the patch file the edits were saved to.
 msgid "Saved to %s. The edits are still in the working tree."
 msgstr ""
 
-#: src/renderer/index.jsx:1641
+#: src/renderer/index.jsx:1644
 msgid "This site is ready to work on"
 msgstr ""
 
-#: src/renderer/index.jsx:1646
+#: src/renderer/index.jsx:1649
 msgid "Stopping setup…"
 msgstr ""
 
-#: src/renderer/index.jsx:1659
+#: src/renderer/index.jsx:1662
 #. %s: the command that installs dependencies, npm install.
 msgid "Setting this site up — running %s…"
 msgstr ""
 
-#: src/renderer/index.jsx:1984
+#: src/renderer/index.jsx:1987
 msgid ""
 "Cloning the repository… install and build start on their own when it "
 "finishes."
 msgstr ""
 
-#: src/renderer/index.jsx:1991
-#: src/renderer/setup-steps.cjs:204
+#: src/renderer/index.jsx:1994
+#: src/renderer/setup-steps.cjs:205
 msgid "Install npm dependencies"
 msgstr ""
 
-#: src/renderer/index.jsx:2007
-#: src/renderer/setup-steps.cjs:227
+#: src/renderer/index.jsx:2010
+#: src/renderer/setup-steps.cjs:228
 #: src/renderer/update-plan.cjs:187
 msgid "Run full build"
 msgstr ""
 
-#: src/renderer/index.jsx:2023
+#: src/renderer/index.jsx:2026
 msgid "Start dev server & finish wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:2038
+#: src/renderer/index.jsx:2041
 msgid "Stop dev server"
 msgstr ""
 
-#: src/renderer/index.jsx:2038
+#: src/renderer/index.jsx:2041
 msgid "Start dev server and finish the wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:2043
+#: src/renderer/index.jsx:2046
 #. %s: how long the server has been starting, such as 12s.
 msgid "Starting… (%s)"
 msgstr ""
 
-#: src/renderer/index.jsx:2149
+#: src/renderer/index.jsx:2152
 #. %s: what to do next, a sentence.
 msgid "Next step: %s"
 msgstr ""
 
-#: src/renderer/index.jsx:2169
+#: src/renderer/index.jsx:2172
 #. <folder /> is the folder the project's source is in, such as src/. <command /> is the command that builds it, npm run build, which types it into the terminal when clicked.
 msgid ""
 "Edited files in <code><folder /></code>? Run <command /> so the site picks "
 "them up."
 msgstr ""
 
-#: src/renderer/index.jsx:2174
+#: src/renderer/index.jsx:2177
 #. <file /> is the file dependencies are listed in, package.json. <command /> is the command that installs them, npm install, which types it into the terminal when clicked.
 msgid "Added a dependency to <code><file /></code>? Run <command />."
 msgstr ""
 
-#: src/renderer/index.jsx:2182
+#: src/renderer/index.jsx:2185
 #. <command /> is the command that lists the others, help. <keys /> is the keys that stop a command, Ctrl+C.
 msgid ""
 "Type <code><command /></code> to list supported commands. Press <code><keys "
 "/></code> to stop the current command."
 msgstr ""
 
-#: src/renderer/index.jsx:2251
+#: src/renderer/index.jsx:2254
 msgid "Choose application…"
 msgstr ""
 
-#: src/renderer/index.jsx:2273
+#: src/renderer/index.jsx:2276
 msgid "Update incomplete"
 msgstr ""
 
-#: src/renderer/index.jsx:2274
+#: src/renderer/index.jsx:2277
 msgid ""
 "The code is new but the built assets are old. The site may not run "
 "correctly until install and build succeed."
 msgstr ""
 
-#: src/renderer/index.jsx:2276
+#: src/renderer/index.jsx:2279
 msgid "Retry install & build"
 msgstr ""
 
-#: src/renderer/index.jsx:2284
+#: src/renderer/index.jsx:2287
 #. %d: how many days old the site's copy of WordPress is.
 msgid "This site's WordPress code is %d day old"
 msgid_plural "This site's WordPress code is %d days old"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:2287
+#: src/renderer/index.jsx:2290
 msgid "Patches you create now may not apply on Trac. Updating takes a few minutes."
 msgstr ""
 
-#: src/renderer/index.jsx:2289
+#: src/renderer/index.jsx:2292
 #: src/renderer/site-menu.cjs:118
 msgid "Update to latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:2298
+#: src/renderer/index.jsx:2301
 #. 1: the step the update is on. 2: how many steps it has.
 msgid "step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2299
+#: src/renderer/index.jsx:2302
 msgid ""
 "Most packages are already cached, so this is a download of the difference — "
 "not the whole tree."
 msgstr ""
 
-#: src/renderer/index.jsx:2304
+#: src/renderer/index.jsx:2307
 msgid "Up to date with trunk as of today."
 msgstr ""
 
-#: src/renderer/index.jsx:2316
+#: src/renderer/index.jsx:2319
 #. %s: the path of the patch file the changes were saved to.
 msgid "Your changes were saved to %s before the reset."
 msgstr ""
 
-#: src/renderer/index.jsx:2333
+#: src/renderer/index.jsx:2336
 #. 1: the step setup is on. 2: how many steps it has.
 msgid "Setting this site up for you — step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2338
+#: src/renderer/index.jsx:2341
 msgid ""
 "Installing dependencies. You can leave this running — the build follows on "
 "its own."
 msgstr ""
 
-#: src/renderer/index.jsx:2339
+#: src/renderer/index.jsx:2342
 msgid ""
 "Running the full build. This can take up to half an hour on Windows; the "
 "Terminal shows what it is doing."
 msgstr ""
 
-#: src/renderer/index.jsx:2361
+#: src/renderer/index.jsx:2364
 msgid "Hide"
 msgstr ""
 
-#: src/renderer/index.jsx:2377
+#: src/renderer/index.jsx:2380
 msgid "Finish setting this site up first."
 msgstr ""
 
-#: src/renderer/index.jsx:2613
+#: src/renderer/index.jsx:2616
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
@@ -3581,7 +3581,7 @@ msgid "Playground web server"
 msgstr ""
 
 #: src/renderer/index.jsx:592
-#: src/renderer/site-processes.cjs:43
+#: src/renderer/site-processes.cjs:46
 msgid "Starting…"
 msgstr ""
 
@@ -4025,65 +4025,65 @@ msgstr ""
 msgid "Your system’s language"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:149
+#: src/renderer/setup-steps.cjs:150
 msgid "Completed"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:151
+#: src/renderer/setup-steps.cjs:152
 msgid "Failed"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:153
+#: src/renderer/setup-steps.cjs:154
 msgid "Pending"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:155
+#: src/renderer/setup-steps.cjs:156
 msgid "Locked"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:157
+#: src/renderer/setup-steps.cjs:158
 msgid "In progress"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:157
+#: src/renderer/setup-steps.cjs:158
 #: src/switch-progress.cjs:219
 msgid "Ready"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:205
+#: src/renderer/setup-steps.cjs:206
 #: src/renderer/update-plan.cjs:106
 msgid "Dependencies installed"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:208
+#: src/renderer/setup-steps.cjs:209
 #. %s: the command that installs dependencies, npm install.
 msgid "Retry %s"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:211
+#: src/renderer/setup-steps.cjs:212
 msgid "Install npm packages so commands can run."
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:217
+#: src/renderer/setup-steps.cjs:218
 #. 1: a file name, package.json. 2: the command that installs dependencies, npm install.
 msgid "Installed. Added a dependency to %1$s since? Run %2$s in the Terminal."
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:224
+#: src/renderer/setup-steps.cjs:225
 msgid ""
 "The install did not finish. Its output is in the Terminal — retry when you "
 "have read it."
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:228
+#: src/renderer/setup-steps.cjs:229
 msgid "Build complete"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:229
+#: src/renderer/setup-steps.cjs:230
 msgid "Retry the build"
 msgstr ""
 
-#: src/renderer/setup-steps.cjs:235
+#: src/renderer/setup-steps.cjs:236
 msgid ""
 "The build did not finish. Its output is in the Terminal — retry when you "
 "have read it."
@@ -4224,126 +4224,126 @@ msgstr ""
 msgid "Wait for the build to finish."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:101
+#: src/renderer/site-processes.cjs:102
+msgid "Build compiling"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:103
+msgid "Build watching"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:106
 msgid "Build building"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:101
+#: src/renderer/site-processes.cjs:106
 msgid "Building the site before watching it."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:104
+#: src/renderer/site-processes.cjs:109
 msgid "Build paused"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:104
+#: src/renderer/site-processes.cjs:109
 msgid "Paused while another operation builds the site. It comes back by itself."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:111
+#: src/renderer/site-processes.cjs:116
 msgid "The build watch ended by itself. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:114
+#: src/renderer/site-processes.cjs:119
 #. %d: the exit code of a process, a number.
 msgid ""
 "The build that has to finish before the watch can start failed, with exit "
 "code %d, so the watch was not started. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:116
+#: src/renderer/site-processes.cjs:121
 msgid ""
 "The build that has to finish before the watch can start failed, so the "
 "watch was not started. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:119
+#: src/renderer/site-processes.cjs:124
 #. %d: the exit code of a process, a number.
 msgid ""
 "The build watch ended by itself, with exit code %d. Its last lines are in "
 "the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:123
+#: src/renderer/site-processes.cjs:128
 msgid "Build stopped"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:139
+#: src/renderer/site-processes.cjs:165
 msgid "View site"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:140
+#: src/renderer/site-processes.cjs:166
 msgid "wp-admin"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:142
+#: src/renderer/site-processes.cjs:168
 msgid "Database"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:173
+#: src/renderer/site-processes.cjs:199
 #. %s: how long, such as "12s" or "1m 05s".
 msgid "Dev server is starting… (%s)"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:43
+#: src/renderer/site-processes.cjs:46
 msgid "Server starting…"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:43
+#: src/renderer/site-processes.cjs:46
 msgid "Starting development server…"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:46
+#: src/renderer/site-processes.cjs:49
 msgid "Server running"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:46
+#: src/renderer/site-processes.cjs:49
 msgid "Stop development server"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:48
+#: src/renderer/site-processes.cjs:51
 msgid "Server stopped"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:48
+#: src/renderer/site-processes.cjs:51
 msgid "Start development server"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:50
+#: src/renderer/site-processes.cjs:53
 msgid "The development server stopped by itself. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:53
+#: src/renderer/site-processes.cjs:56
 msgid "The development server could not start. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:90
+#: src/renderer/site-processes.cjs:95
 msgid "Stop"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:90
+#: src/renderer/site-processes.cjs:95
 msgid "Stop build watch"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:91
+#: src/renderer/site-processes.cjs:96
 msgid "Start"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:91
+#: src/renderer/site-processes.cjs:96
 msgid "Start build watch"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:94
+#: src/renderer/site-processes.cjs:99
 #. %s: a folder of the checkout, such as src/.
 msgid "Edits in %s are compiled as they are saved."
-msgstr ""
-
-#: src/renderer/site-processes.cjs:97
-msgid "Build compiling"
-msgstr ""
-
-#: src/renderer/site-processes.cjs:98
-msgid "Build watching"
 msgstr ""
 
 #: src/renderer/sites-list.cjs:139
