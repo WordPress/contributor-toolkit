@@ -30,12 +30,16 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // and `projectBuild` is the project's build plan. `confirm` says, in the
 // window's notices, that a start was refused for want of a build.
 //
-// `toggleDevServer` is what each of them does. `isServerStarting`,
+// `toggleDevServer` is what each of them does. `serverXdebug` is whether the
+// running server started with Xdebug. `isServerStarting`,
 // `isDevProcessActive` and `serverFailure` are what the page's words about
 // the server are decided from, in site-processes.cjs, and `startElapsed` is
 // how long a start has been going.
 export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
   const [serverUrl, setServerUrl] = useState('');
+  // Whether the running server started with Xdebug (#723), which is what the
+  // page shows: the setting applies only at the next start.
+  const [serverXdebug, setServerXdebug] = useState(false);
   const [starting, setStarting] = useState(false);
   const [running, setRunning] = useState(false);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
@@ -76,6 +80,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
     setRunning(false);
     runningRef.current = false;
     setServerUrl('');
+    setServerXdebug(false);
     stoppingRef.current = false;
     waitingForWatchRef.current = false;
     terminalKillRef.current = null;
@@ -109,13 +114,14 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       const res = await window.api.startServer(
         sitePath,
         (p)=>appendRuntime(p.data || ''),
-        (url)=>{
+        (url, xdebug)=>{
           if (stoppingRef.current) {
             serverStartRequestedRef.current = false;
             return;
           }
           const u = url.replace(/\/$/,'/');
           setServerUrl(u);
+          setServerXdebug(xdebug);
           window.api.openExternal(u);
           setRunning(true);
           runningRef.current = true;
@@ -125,7 +131,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
         ()=>{
           const requested = serverStopRequestedRef.current;
           serverStopRequestedRef.current = false;
-          setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
+          setRunning(false); runningRef.current = false; setServerUrl(''); setServerXdebug(false); serverStartRequestedRef.current = false;
           // A stop the user did not ask for is a crash: say so, and tear the
           // server session down instead of leaving its controls at
           // "Starting development server…" forever (issue #73). The watcher
@@ -237,6 +243,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
 
   return {
     serverUrl,
+    serverXdebug,
     starting,
     running,
     isServerStarting,

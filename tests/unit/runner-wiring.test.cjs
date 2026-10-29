@@ -187,6 +187,16 @@ test('server-runner turns the debug flags in the config off in the blueprint, an
 	assert.strictEqual(cliOptions.blueprint.constants.AUTOMATIC_UPDATER_DISABLED, true);
 });
 
+// Xdebug is the CLI's own option (#723): on when the config asks, and absent,
+// not false, when it does not, so a site without it starts as it always did.
+test('server-runner turns Xdebug on in the CLI when the config asks for it, and leaves it out otherwise', () => {
+	const on = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'docroot', docroot: CORE_DOCROOT, xdebug: true })]);
+	assert.strictEqual(on.cliOptions.xdebug, true);
+	const off = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'docroot', docroot: CORE_DOCROOT, xdebug: false })]);
+	assert.equal('xdebug' in off.cliOptions, false);
+	assert.equal('xdebug' in loadRunner(SERVER_RUNNER, [CORE_SERVE]).cliOptions, false);
+});
+
 test('a config that names no PHP version leaves the CLI to its own default', () => {
 	const { cliOptions } = loadRunner(SERVER_RUNNER, [CORE_SERVE]);
 	assert.equal('php' in cliOptions, false);

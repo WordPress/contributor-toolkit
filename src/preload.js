@@ -342,7 +342,7 @@ contextBridge.exposeInMainWorld('api', {
 			if (payload.sitePath === sitePath && onLog) onLog(payload);
 		};
 		const urlHandler = (_e, payload) => {
-			if (payload.sitePath === sitePath && onUrl) onUrl(payload.url);
+			if (payload.sitePath === sitePath && onUrl) onUrl(payload.url, Boolean(payload.xdebug));
 		};
 		const cleanup = () => {
 			ipcRenderer.removeListener('playground:log', logHandler);

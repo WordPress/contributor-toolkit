@@ -1712,6 +1712,16 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* The launch.json for VS Code under a server with Xdebug (#723), as it is
+   pasted: monospace, and wrapped rather than scrolled in the narrow details. */
+.xdebug-launch-config {
+  margin: 0;
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* What a patch would change: its files, in the preview. Long lists scroll
    inside the dialog and leave its button in reach. */
 .change-list {

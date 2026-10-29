@@ -72,6 +72,10 @@ const SETTINGS = {
 	// anyone's to change.
 	wpDebug: { fallback: true, accept: acceptSwitch },
 	scriptDebug: { fallback: true, accept: acceptSwitch },
+	// Xdebug in the server's PHP, for step debugging (#723). Off unless
+	// turned on: it slows every request, and most contributors never attach
+	// a debugger.
+	xdebug: { fallback: false, accept: acceptSwitch },
 	// What starts when a site is opened: its development server, its build
 	// watch, both or neither. Off unless turned on: a server is minutes of
 	// CPU on a laptop at a Contributor Day.
@@ -145,6 +149,7 @@ function readSettings(preferences = {}) {
 		phpVersion: text('phpVersion'),
 		wpDebug: flag('wpDebug'),
 		scriptDebug: flag('scriptDebug'),
+		xdebug: flag('xdebug'),
 		autoStartServer: flag('autoStartServer'),
 		autoStartWatch: flag('autoStartWatch'),
 		quitBehavior: QUIT_BEHAVIOURS.includes(stored.quitBehavior) ? stored.quitBehavior : SETTINGS.quitBehavior.fallback,

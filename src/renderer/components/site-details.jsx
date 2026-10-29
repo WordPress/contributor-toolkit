@@ -1,5 +1,5 @@
 import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 // The tree the design system draws List View with: the rows a screen reader
 // reads as a tree, and the arrow keys between them. Stable in use and not
 // given its final export yet, like the segmented control.
@@ -9,6 +9,7 @@ import { chevronDown, chevronRight, globe, offline, page, pencil, plus, seen, ta
 import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, Tooltip, VisuallyHidden } from '@wordpress/ui';
 import { affectedFileTree, visibleAffectedRows } from '../affected-files.cjs';
 import { siteDetailsRows } from '../site-details.cjs';
+import { XDEBUG_PORT } from '../xdebug.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
 
 // A section's heading, with its process's dot and the button that starts and
@@ -102,9 +103,64 @@ function ServerSection({ server }) {
           </Stack>
         </Stack>
       ) : null}
+      {server.xdebug ? <XdebugSection xdebug={server.xdebug} onCopy={server.onCopyXdebug} /> : null}
       {section.state === 'starting' ? <Text variant="body-md" className="muted-label">{section.text}</Text> : null}
       {server.process.detail ? <Text variant="body-md" className="problem-text">{server.process.detail}</Text> : null}
       {section.state === 'offline' ? <OfflinePlaceholder title={__('Development server offline')} /> : null}
+    </Stack>
+  );
+}
+
+// Step debugging with Xdebug (#723), under a running server: whether it has
+// Xdebug, which is what it started with and not what the setting says now;
+// while it has, the launch.json VS Code needs, and that every site's server
+// sends to the one port, naming any other site doing so now.
+function XdebugSection({ xdebug, onCopy }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(async () => {
+    if (!(await onCopy(xdebug.config))) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [onCopy, xdebug.config]);
+  return (
+    <Stack direction="column" gap="md">
+      <Text variant="heading-sm" render={<h3 />}>{__('Xdebug')}</Text>
+      {xdebug.on ? (
+        <Text variant="body-md">
+          {sprintf(
+            // translators: %d: the port Xdebug connects to.
+            __('On, connecting to VS Code on port %d'),
+            XDEBUG_PORT
+          )}
+        </Text>
+      ) : null}
+      {xdebug.note ? <Text variant="body-sm" className="warning-text">{xdebug.note}</Text> : null}
+      {xdebug.on ? (
+        <>
+          <Text variant="body-sm">{__('In VS Code, install the PHP Debug extension, put this in .vscode/launch.json, and start “Listen for Xdebug” from Run and Debug.')}</Text>
+          <pre className="xdebug-launch-config">{xdebug.config}</pre>
+          <Stack direction="row" justify="end">
+            <Button variant="minimal" tone="neutral" size="compact" onClick={() => copy()}>
+              {copied ? __('Copied') : __('Copy launch.json')}
+            </Button>
+            <VisuallyHidden role="status" aria-live="polite">{copied ? __('Copied') : ''}</VisuallyHidden>
+          </Stack>
+          <Text variant="body-sm" className="muted-label">{__('Every site’s server sends to this port, so VS Code can follow only one running site at a time.')}</Text>
+          {xdebug.others.length ? (
+            <Text variant="body-sm" className="warning-text">
+              {sprintf(
+                // translators: %s: the names of other sites whose servers are running with Xdebug, separated by commas.
+                _n(
+                  '%s is also running with Xdebug. VS Code can’t tell the two apart, so it may stop on this site’s breakpoints for that site’s pages, or not stop at all. Stop it while you debug this one.',
+                  '%s are also running with Xdebug. VS Code can’t tell the sites apart, so it may stop on this site’s breakpoints for their pages, or not stop at all. Stop them while you debug this one.',
+                  xdebug.others.length
+                ),
+                xdebug.others.join(', ')
+              )}
+            </Text>
+          ) : null}
+        </>
+      ) : null}
     </Stack>
   );
 }
@@ -341,7 +397,7 @@ function useStickyWhileItFits(active) {
  * @param {Object}   props.facts      What `siteDetailsRows` takes.
  * @param {boolean}  props.pathCopied The path has just been copied with the button here.
  * @param {Function} props.onCopyPath
- * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
+ * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen, xdebug, onCopyXdebug }`, the first two from site-processes.cjs, `xdebug` what to say of Xdebug (xdebug.cjs) or null for nothing, and `onCopyXdebug` the copy of its launch.json, resolving to whether it worked.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
  * @param {Object}   [props.changed]  The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertReason, revertError }`. No files, no section.
  */

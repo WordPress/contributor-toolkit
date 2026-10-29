@@ -189,3 +189,13 @@ test('a report replaces the site\'s entry, a report of null takes it out, and a 
 	assert.equal(withServerReport(two, '/gone', null), two);
 	assert.equal(withServerReport(one, '/a', up), one);
 });
+
+// Other sites warn of a server running with Xdebug (#723), so a report that
+// says only that has changed is a change.
+test('a report that changes only whether the server has Xdebug replaces the entry', () => {
+	const one = withServerReport({}, '/a', { status: 'online', text: 'Server running', xdebug: false });
+	const two = withServerReport(one, '/a', { status: 'online', text: 'Server running', xdebug: true });
+	assert.notEqual(two, one);
+	assert.equal(two['/a'].xdebug, true);
+	assert.equal(withServerReport(two, '/a', { status: 'online', text: 'Server running', xdebug: true }), two);
+});
