@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { xdebugLaunchConfig, xdebugStatus, xdebugSection, otherXdebugSites } = require('../../src/renderer/xdebug.cjs');
+const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, otherXdebugSites } = require('../../src/renderer/xdebug.cjs');
 
 const mappings = (text) => JSON.parse(text).configurations[0].pathMappings;
 
@@ -95,12 +95,33 @@ test('a server that started before Xdebug was turned on gets the note and no lau
 	assert.equal(section.on, false);
 	assert.match(section.note, /restart the server/i);
 	assert.equal(section.config, '');
+	assert.deepEqual(section.phpStorm, []);
 });
 
-test('a server with Xdebug gets its launch.json and the other sites running with it', () => {
-	const section = xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, others: ['Two'], setting: true, running: true, startedWith: true });
+test('a server with Xdebug gets its launch.json, its PhpStorm values and the other sites running with it', () => {
+	const section = xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/', others: ['Two'], setting: true, running: true, startedWith: true });
 	assert.equal(section.on, true);
 	assert.equal(section.note, '');
 	assert.equal(section.config, xdebugLaunchConfig({ sitePath: '/sites/wp', serve: { strategy: 'docroot' } }));
+	assert.deepEqual(section.phpStorm, phpStormSettings({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/' }));
 	assert.deepEqual(section.others, ['Two']);
+});
+
+// PhpStorm keeps its debug setup in its own settings, so the toolkit gives
+// the values to enter there: the server the site runs on, and the same
+// mapping the launch.json has.
+test('the PhpStorm values for a Core site name the server and the src/ mapping', () => {
+	assert.deepEqual(phpStormSettings({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/' }), [
+		{ id: 'host', label: 'Host', value: '127.0.0.1' },
+		{ id: 'port', label: 'Port', value: '9400' },
+		{ id: 'local', label: 'File/Directory', value: '/sites/wp/src' },
+		{ id: 'server', label: 'Absolute path on the server', value: '/wordpress' }
+	]);
+});
+
+test('the PhpStorm values for a plugin-mount site map the checkout to the plugin’s mount', () => {
+	const values = phpStormSettings({ sitePath: 'C:\\sites\\gb', serve: { strategy: 'plugin-mount', pluginSlug: 'gutenberg' }, url: 'http://127.0.0.1:9401/' });
+	assert.equal(values.find((v) => v.id === 'port').value, '9401');
+	assert.equal(values.find((v) => v.id === 'local').value, 'C:\\sites\\gb');
+	assert.equal(values.find((v) => v.id === 'server').value, '/wordpress/wp-content/plugins/gutenberg');
 });

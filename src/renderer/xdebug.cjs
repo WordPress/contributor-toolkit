@@ -32,17 +32,53 @@ const XDEBUG_PORT = 9003;
  * @return {string} The file's text.
  */
 function xdebugLaunchConfig({ sitePath, serve }) {
-	const sep = sitePath.includes('\\') ? '\\' : '/';
-	const root = sitePath.endsWith(sep) ? sitePath.slice(0, -1) : sitePath;
-	const pathMappings = serve && serve.strategy === 'plugin-mount'
-		? { [`/wordpress/wp-content/plugins/${serve.pluginSlug}`]: root }
-		: { '/wordpress': `${root}${sep}src` };
+	const { server, local } = xdebugMapping({ sitePath, serve });
+	const pathMappings = { [server]: local };
 	return JSON.stringify({
 		version: '0.2.0',
 		configurations: [
 			{ name: 'Listen for Xdebug', type: 'php', request: 'launch', port: XDEBUG_PORT, pathMappings }
 		]
 	}, null, 2);
+}
+
+/**
+ * The one mapping between the path PHP sees and the folder on this machine,
+ * which every editor needs; see `xdebugLaunchConfig` for why it is this one.
+ *
+ * @param {Object} root0
+ * @param {string} root0.sitePath The checkout's folder, in this platform's form.
+ * @param {Object} root0.serve    The project's serve model: `{strategy, pluginSlug}`.
+ * @return {{server: string, local: string}}
+ */
+function xdebugMapping({ sitePath, serve }) {
+	const sep = sitePath.includes('\\') ? '\\' : '/';
+	const root = sitePath.endsWith(sep) ? sitePath.slice(0, -1) : sitePath;
+	return serve && serve.strategy === 'plugin-mount'
+		? { server: `/wordpress/wp-content/plugins/${serve.pluginSlug}`, local: root }
+		: { server: '/wordpress', local: `${root}${sep}src` };
+}
+
+/**
+ * What to enter under PHP → Servers in PhpStorm, which keeps its debug setup
+ * in its own settings rather than a file in the project: the server the site
+ * runs on and its path mapping, each labelled with the field's name there.
+ *
+ * @param {Object} root0
+ * @param {string} root0.sitePath The checkout's folder.
+ * @param {Object} root0.serve    The project's serve model.
+ * @param {string} root0.url      The running server's address.
+ * @return {Array<{id: string, label: string, value: string}>}
+ */
+function phpStormSettings({ sitePath, serve, url }) {
+	const { hostname, port } = new URL(url);
+	const { server, local } = xdebugMapping({ sitePath, serve });
+	return [
+		{ id: 'host', label: __('Host'), value: hostname },
+		{ id: 'port', label: __('Port'), value: port },
+		{ id: 'local', label: __('File/Directory'), value: local },
+		{ id: 'server', label: __('Absolute path on the server'), value: server }
+	];
 }
 
 /**
@@ -66,8 +102,9 @@ function xdebugStatus({ setting, running, startedWith }) {
 /**
  * What the server's details say of Xdebug: null when there is nothing to
  * say; otherwise whether the server has it, the note from `xdebugStatus`,
- * the launch.json while it has it (and '' when it would not connect), and
- * the other sites whose server is running with it.
+ * the launch.json for VS Code and the values for PhpStorm while it has it
+ * (and nothing when it would not connect), and the other sites whose server
+ * is running with it.
  *
  * @param {Object}   root0
  * @param {boolean}  root0.setting     What the settings hold.
@@ -75,13 +112,19 @@ function xdebugStatus({ setting, running, startedWith }) {
  * @param {boolean}  root0.startedWith It started with Xdebug.
  * @param {string}   root0.sitePath    The checkout's folder.
  * @param {Object}   root0.serve       The project's serve model.
+ * @param {string}   root0.url         The running server's address.
  * @param {string[]} root0.others      From `otherXdebugSites`.
- * @return {?{on: boolean, note: string, config: string, others: string[]}}
+ * @return {?{on: boolean, note: string, config: string, phpStorm: Array, others: string[]}}
  */
-function xdebugSection({ setting, running, startedWith, sitePath, serve, others }) {
+function xdebugSection({ setting, running, startedWith, sitePath, serve, url, others }) {
 	const status = xdebugStatus({ setting, running, startedWith });
 	if (!status.on && !status.note) return null;
-	return { ...status, config: status.on ? xdebugLaunchConfig({ sitePath, serve }) : '', others };
+	return {
+		...status,
+		config: status.on ? xdebugLaunchConfig({ sitePath, serve }) : '',
+		phpStorm: status.on ? phpStormSettings({ sitePath, serve, url }) : [],
+		others
+	};
 }
 
 /**
@@ -104,4 +147,4 @@ function otherXdebugSites({ servers, siteMeta, sitePath }) {
 		});
 }
 
-module.exports = { XDEBUG_PORT, xdebugLaunchConfig, xdebugStatus, xdebugSection, otherXdebugSites };
+module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, otherXdebugSites };

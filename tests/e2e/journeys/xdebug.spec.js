@@ -5,8 +5,8 @@
  * Xdebug is a setting, applied at the next start of a server. The Debugging
  * row of the details names it with the constants, as the next start is
  * given them, and says what the running server started with when that is
- * not the same; a server started with it offers the VS Code setup, with the
- * launch.json VS Code needs.
+ * not the same; a server started with it offers the editor setup, with the
+ * launch.json VS Code needs and the values PhpStorm's settings need.
  *
  * A journey does not run the Playground server, so the start is answered by
  * a stub that reports an address the way the real one does and says whether
@@ -64,7 +64,7 @@ async function setXdebug( page, on ) {
 	await expect( dialog ).toHaveCount( 0 );
 }
 
-test( 'the Debugging row says when Xdebug is on, and a server started with it offers the VS Code setup', async ( { session } ) => {
+test( 'the Debugging row says when Xdebug is on, and a server started with it offers the editor setup', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	const followSetting = await stubServer( app, session );
@@ -98,12 +98,18 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	await expect( setup ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByText( /Restart the server/ ) ).toHaveCount( 0 );
 	await setup.click();
-	const dialog = page.getByRole( 'dialog', { name: 'Debug in VS Code', exact: true } );
+	const dialog = page.getByRole( 'dialog', { name: 'Set up your editor', exact: true } );
 	await expect( dialog ).toBeVisible();
 	const launch = JSON.parse( await dialog.locator( '.xdebug-launch-config' ).textContent() );
 	expect( launch.configurations[ 0 ] ).toMatchObject( { type: 'php', request: 'launch', port: 9003 } );
 	expect( launch.configurations[ 0 ].pathMappings ).toEqual( { '/wordpress': path.join( site.dir, 'src' ) } );
 	await expect( dialog.getByRole( 'button', { name: 'Copy launch.json', exact: true } ) ).toBeVisible();
+	// INVARIANT — PhpStorm gets the same mapping, and the server the site
+	// runs on, as values for its own settings.
+	await dialog.getByRole( 'tab', { name: 'PhpStorm', exact: true } ).click();
+	await expect( dialog.getByText( '39403', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByText( path.join( site.dir, 'src' ), { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByText( '/wordpress', { exact: true } ) ).toBeVisible();
 	await page.keyboard.press( 'Escape' );
 	await expect( dialog ).toHaveCount( 0 );
 

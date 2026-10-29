@@ -1730,6 +1730,31 @@ body {
   white-space: pre;
 }
 
+/* The values PhpStorm's settings need, each by its field's name, as code,
+   with its copy button at the end of its line. */
+.xdebug-values {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  column-gap: var(--wpds-dimension-gap-lg);
+  row-gap: var(--wpds-dimension-gap-sm);
+  align-items: center;
+  margin: 0;
+}
+
+.xdebug-value {
+  display: contents;
+}
+
+.xdebug-value dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.xdebug-value code {
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-sm);
+}
+
 /* Its steps, numbered across the code between them. */
 .xdebug-setup-steps {
   margin: 0;
