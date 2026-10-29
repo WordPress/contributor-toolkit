@@ -14,7 +14,9 @@ const { __, _n, sprintf } = require('@wordpress/i18n');
  * do about it, and this is where the date is.
  *
  * The path's row is marked `copyable`; the component puts the button that
- * copies it beside it.
+ * copies it beside it. The Debugging row is marked `setup` while the running
+ * server has Xdebug (#723); the component puts the button that opens the
+ * VS Code setup beside it.
  *
  * @param {Object}  root0
  * @param {boolean} [root0.initialized] The first-run setup has finished.
@@ -23,10 +25,11 @@ const { __, _n, sprintf } = require('@wordpress/i18n');
  * @param {string}  root0.path          Where the checkout is.
  * @param {string}  root0.checkout      The project's name.
  * @param {?string} [root0.phpVersion]  The PHP a server starts on, from the settings (#559), or null while they are not read.
- * @param {?Object} [root0.debug]       `{ wpDebug, scriptDebug }` from the settings, or null likewise.
- * @return {Array<{id: string, label: string, value: string, note?: string, copyable?: boolean}>}
+ * @param {?Object} [root0.debug]       `{ wpDebug, scriptDebug, xdebug }` from the settings, or null likewise.
+ * @param {?Object} [root0.xdebug]      What the running server says of Xdebug, from `xdebugSection`, or null for nothing.
+ * @return {Array<{id: string, label: string, value: string, note?: string, copyable?: boolean, setup?: boolean}>}
  */
-function siteDetailsRows({ initialized = false, created = '', trunk = null, path, checkout, phpVersion = null, debug = null }) {
+function siteDetailsRows({ initialized = false, created = '', trunk = null, path, checkout, phpVersion = null, debug = null, xdebug = null }) {
 	const rows = [
 		{ id: 'setup', label: __('Setup'), value: initialized ? __('Initialized') : __('Uninitialized') }
 	];
@@ -51,10 +54,36 @@ function siteDetailsRows({ initialized = false, created = '', trunk = null, path
 		value: phpVersion ? sprintf(__('%1$s · PHP %2$s'), checkout, phpVersion) : checkout
 	});
 	if (debug) {
-		const on = [debug.wpDebug ? 'WP_DEBUG' : null, debug.scriptDebug ? 'SCRIPT_DEBUG' : null].filter(Boolean);
-		rows.push({ id: 'debugging', label: __('Debugging'), value: on.length ? on.join(' · ') : __('Off') });
+		const on = [debug.wpDebug ? 'WP_DEBUG' : null, debug.scriptDebug ? 'SCRIPT_DEBUG' : null, debug.xdebug ? 'Xdebug' : null].filter(Boolean);
+		const row = { id: 'debugging', label: __('Debugging'), value: on.length ? on.join(' · ') : __('Off') };
+		// The running server keeps what it started with, so it can disagree
+		// with the setting, and every server sends Xdebug to the same port.
+		const notes = xdebug ? [xdebug.note, xdebug.on ? othersNote(xdebug.others) : ''].filter(Boolean) : [];
+		if (notes.length) row.note = notes.join(' ');
+		if (xdebug && xdebug.on) row.setup = true;
+		rows.push(row);
 	}
 	return rows;
+}
+
+/**
+ * What the Debugging row says of other sites whose server is running with
+ * Xdebug: VS Code listens on one port and cannot tell them apart.
+ *
+ * @param {string[]} others Their names.
+ * @return {string} The sentence, or '' for none.
+ */
+function othersNote(others) {
+	if (!others || !others.length) return '';
+	return sprintf(
+		// translators: %s: the names of other sites whose servers are running with Xdebug, separated by commas.
+		_n(
+			'%s is also running with Xdebug, so VS Code may stop on the wrong site. Stop it while you debug this one.',
+			'%s are also running with Xdebug, so VS Code may stop on the wrong site. Stop them while you debug this one.',
+			others.length
+		),
+		others.join(', ')
+	);
 }
 
 module.exports = { siteDetailsRows };

@@ -77,6 +77,7 @@ import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
 import { SiteContextMenu, SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
+import { XdebugSetupDialog } from './components/xdebug-setup-dialog.jsx';
 import { changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, unsubmittedFromReply } from './affected-files.cjs';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
@@ -1385,6 +1386,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Step debugging (#723): what the running server has, the launch.json for
   // VS Code, and the other sites sending to the same port.
   const xdebug = xdebugSection({ setting: Boolean(settings && settings.xdebug), running, startedWith: serverXdebug, sitePath, serve: project.serve, others: xdebugOthers });
+  const [xdebugSetupOpen, setXdebugSetupOpen] = useState(false);
   // A copy that failed says why, as the path's does.
   const copyXdebugConfig = useCallback(async (text) => {
     try {
@@ -2524,11 +2526,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           // What every site's server starts with (#559), from the settings:
           // the PHP it will start on, which is not always the one set.
           phpVersion: startingPhp,
-          debug: settings ? { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug } : null
+          debug: settings ? { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug, xdebug: settings.xdebug } : null,
+          // What the running server says of Xdebug (#723), which keeps what
+          // it started with.
+          xdebug
         }}
         pathCopied={pathCopied}
         onCopyPath={copyPath}
-        server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink, xdebug, onCopyXdebug: copyXdebugConfig } : null}
+        onOpenXdebugSetup={() => setXdebugSetupOpen(true)}
+        server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
         changed={{ ...changedGroups, onOpenFile: openAffectedFile, onRevertFile: revertFile, revertReason, revertError }}
       />
@@ -2543,6 +2549,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onClose={() => setDirtyModalOpen(false)}
         />
       ) : null}
+      <XdebugSetupDialog open={Boolean(xdebug && xdebug.on) && xdebugSetupOpen} config={xdebug ? xdebug.config : ''} onCopy={copyXdebugConfig} onClose={() => setXdebugSetupOpen(false)} />
       <RenameSiteDialog open={renameModalOpen} sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
       <ConfirmDialog question={asking ? asking.question : null} onConfirm={() => asking.action()} onClose={() => setAsking(null)} />
       {isPatchOpen && (

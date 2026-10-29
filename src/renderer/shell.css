@@ -1712,14 +1712,28 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* The launch.json for VS Code under a server with Xdebug (#723), as it is
-   pasted: monospace, and wrapped rather than scrolled in the narrow details. */
+/* The launch.json in the VS Code setup (#723), read as code: the weak
+   surface and the monospace of the logs, kept as it will be pasted and
+   scrolled sideways rather than wrapped. */
 .xdebug-launch-config {
   margin: 0;
+  padding: var(--wpds-dimension-padding-md);
+  overflow-x: auto;
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-background-surface-neutral-weak);
+  color: var(--wpds-color-foreground-content-neutral);
   font-family: var(--wpds-typography-font-family-mono);
-  font-size: var(--wpds-typography-font-size-xs);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-sm);
+  white-space: pre;
+}
+
+/* Its steps, numbered across the code between them. */
+.xdebug-setup-steps {
+  margin: 0;
+  padding-inline-start: var(--wpds-dimension-padding-xl);
 }
 
 /* What a patch would change: its files, in the preview. Long lists scroll

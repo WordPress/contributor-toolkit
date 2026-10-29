@@ -42,7 +42,7 @@ function xdebugLaunchConfig({ sitePath, serve }) {
 		configurations: [
 			{ name: 'Listen for Xdebug', type: 'php', request: 'launch', port: XDEBUG_PORT, pathMappings }
 		]
-	}, null, '\t');
+	}, null, 2);
 }
 
 /**

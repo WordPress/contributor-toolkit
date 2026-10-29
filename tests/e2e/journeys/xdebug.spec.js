@@ -2,10 +2,11 @@
  * Turning on step debugging for a site's server, and what the site's details
  * then say (#723).
  *
- * Xdebug is a setting, applied at the next start of a server, so the details
- * show what the running server started with and not what the setting says
- * now: a server started with it shows the launch.json VS Code needs, and a
- * change to the setting while it runs is said, not shown as done.
+ * Xdebug is a setting, applied at the next start of a server. The Debugging
+ * row of the details names it with the constants, as the next start is
+ * given them, and says what the running server started with when that is
+ * not the same; a server started with it offers the VS Code setup, with the
+ * launch.json VS Code needs.
  *
  * A journey does not run the Playground server, so the start is answered by
  * a stub that reports an address the way the real one does and says whether
@@ -63,50 +64,58 @@ async function setXdebug( page, on ) {
 	await expect( dialog ).toHaveCount( 0 );
 }
 
-test( 'a server started with Xdebug shows the launch.json for VS Code, and a change to the setting while it runs says to restart', async ( { session } ) => {
+test( 'the Debugging row says when Xdebug is on, and a server started with it offers the VS Code setup', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	const followSetting = await stubServer( app, session );
-	const marker = page.getByText( 'On, connecting to VS Code on port 9003', { exact: true } );
-	const config = page.locator( '.xdebug-launch-config' );
+	const setup = page.getByRole( 'button', { name: 'Set up VS Code', exact: true } );
+	const debugging = ( value ) => page.getByText( value, { exact: true } );
 
-	// INVARIANT — off by default: a server started without it says nothing of
-	// Xdebug.
+	// INVARIANT — off by default: nothing says Xdebug, whether or not the
+	// server runs.
+	await expect( debugging( 'WP_DEBUG · SCRIPT_DEBUG' ) ).toBeVisible();
 	await followSetting();
 	await ui.startDevServerButton( page ).click();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( page.getByRole( 'heading', { name: 'Xdebug', exact: true } ) ).toHaveCount( 0 );
+	await expect( page.getByText( /Xdebug/ ) ).toHaveCount( 0 );
 
-	// INVARIANT — turned on while the server runs, the details say the server
-	// does not have it yet, and show no launch.json for a server that would
-	// not connect.
+	// INVARIANT — turned on while the server runs, the row names it, and says
+	// the server does not have it yet; there is no setup for a server that
+	// would not connect.
 	await setXdebug( page, true );
 	await expect.poll( () => session.readSettings().preferences?.xdebug ).toBe( true );
+	await expect( debugging( 'WP_DEBUG · SCRIPT_DEBUG · Xdebug' ) ).toBeVisible();
 	await expect( page.getByText( 'Xdebug is turned on, but this site started before that. Restart the server to use it.', { exact: true } ) ).toBeVisible();
-	await expect( marker ).toHaveCount( 0 );
-	await expect( config ).toHaveCount( 0 );
+	await expect( setup ).toHaveCount( 0 );
 
-	// INVARIANT — restarted, the server has it: the marker, and a launch.json
-	// that maps the served WordPress to this checkout's src/.
+	// INVARIANT — restarted, the server has it: the note goes, and the setup
+	// shows a launch.json that maps the served WordPress to this checkout's
+	// src/.
 	await ui.stopDevServerButton( page ).click();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await followSetting();
 	await ui.startDevServerButton( page ).click();
-	await expect( marker ).toBeVisible( { timeout: 30_000 } );
-	const launch = JSON.parse( await config.textContent() );
+	await expect( setup ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByText( /Restart the server/ ) ).toHaveCount( 0 );
+	await setup.click();
+	const dialog = page.getByRole( 'dialog', { name: 'Debug in VS Code', exact: true } );
+	await expect( dialog ).toBeVisible();
+	const launch = JSON.parse( await dialog.locator( '.xdebug-launch-config' ).textContent() );
 	expect( launch.configurations[ 0 ] ).toMatchObject( { type: 'php', request: 'launch', port: 9003 } );
 	expect( launch.configurations[ 0 ].pathMappings ).toEqual( { '/wordpress': path.join( site.dir, 'src' ) } );
-	await expect( page.getByText( 'Every site’s server sends to this port, so VS Code can follow only one running site at a time.', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByRole( 'button', { name: 'Copy launch.json', exact: true } ) ).toBeVisible();
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
 
-	// INVARIANT — turned off while it runs, the server still has it until a
-	// restart, and the details say so and keep the launch.json.
+	// INVARIANT — turned off while it runs, the row no longer names it, says
+	// the server still has it until a restart, and keeps the setup.
 	await setXdebug( page, false );
+	await expect( debugging( 'WP_DEBUG · SCRIPT_DEBUG' ) ).toBeVisible();
 	await expect( page.getByText( 'Xdebug is still on for this site until you restart the server.', { exact: true } ) ).toBeVisible();
-	await expect( marker ).toBeVisible();
-	await expect( config ).toBeVisible();
+	await expect( setup ).toBeVisible();
 
-	// INVARIANT — stopped, nothing is said of Xdebug.
+	// INVARIANT — stopped, nothing says Xdebug.
 	await ui.stopDevServerButton( page ).click();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
-	await expect( page.getByRole( 'heading', { name: 'Xdebug', exact: true } ) ).toHaveCount( 0 );
+	await expect( page.getByText( /Xdebug/ ) ).toHaveCount( 0 );
 } );

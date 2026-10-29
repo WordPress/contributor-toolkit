@@ -10,13 +10,13 @@ This is a proof of concept. It is set up for VS Code, and it follows one running
 2. Turn on **Step debugging (Xdebug)**.
 3. Start the site's development server. If it is already running, stop it and start it again: a server keeps what it started with.
 
-The **Server** section of the site's details then has an **Xdebug** heading that says *On, connecting to VS Code on port 9003*. If it says *Restart the server to use it* instead, the server started before you turned the setting on.
+The **Debugging** row of the site's details then names *Xdebug*, and while the server runs with it, a **Set up VS Code** button sits under the row. If the row says *Restart the server to use it* instead, the server started before you turned the setting on.
 
 ## Connect VS Code
 
 1. In VS Code, install the **PHP Debug** extension by Xdebug.
 2. Open the site's folder.
-3. In the site's details, select **Copy launch.json**, and paste it into `.vscode/launch.json` in that folder.
+3. In the site's details, select **Set up VS Code**, then **Copy launch.json**, and paste it into `.vscode/launch.json` in that folder.
 4. Open **Run and Debug**, choose **Listen for Xdebug**, and start it.
 5. Set a breakpoint, and load a page of the site in the browser.
 
@@ -37,11 +37,11 @@ On a Gutenberg site, the checkout is the plugin, so set breakpoints in the check
 
 Every site's server sends Xdebug to port 9003, and only one VS Code window can listen on it. VS Code also cannot tell two sites apart, because both serve their files from the same paths.
 
-If two sites run with Xdebug at once, VS Code may stop on one site's breakpoints for the other site's pages, or not stop at all. The site's details warn you when another site's server is running with Xdebug. Stop the other server while you debug.
+If two sites run with Xdebug at once, VS Code may stop on one site's breakpoints for the other site's pages, or not stop at all. The **Debugging** row warns you when another site's server is running with Xdebug. Stop the other server while you debug.
 
 ## If VS Code does not stop
 
-- Check that the site's details say *On, connecting to VS Code on port 9003*. If they do not, restart the server.
+- Check that the site's details show **Set up VS Code** under **Debugging**. If they do not, restart the server.
 - Check that **Listen for Xdebug** is running in VS Code, and that no other program uses port 9003.
 - Check that the breakpoint is in `src/`, not `build/`, and not in one of the three files above.
 - Check that no other site's server is running with Xdebug.
