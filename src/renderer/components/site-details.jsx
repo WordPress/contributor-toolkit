@@ -374,10 +374,10 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
                 // row's value is too long to share its line.
                 if (row.setup) {
                   return (
-                    <Stack key={row.id} direction="column" align="start" gap="xs">
+                    <Stack key={row.id} direction="column" align="start" gap="sm">
                       {fact}
                       <Button variant="outline" tone="neutral" size="compact" onClick={() => onOpenXdebugSetup()}>
-                        {__('Set up your editor')}
+                        {__('Set up Xdebug for your editor')}
                       </Button>
                     </Stack>
                   );
