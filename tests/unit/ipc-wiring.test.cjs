@@ -6424,6 +6424,32 @@ test('the carry takes the applied-patch record onto the ticket with the files (i
 	assert.ok(!meta.appliedPatch, 'and trunk stops claiming a patch whose files it no longer holds');
 });
 
+// Every `set` is a write of the whole settings file, so every one is a state a
+// quit or a crash can leave behind. Moving the record in a write of its own,
+// after the one that checks the branch out, persisted #236's state for exactly
+// that long: the site on the ticket, the claim about its files still on trunk.
+test('no state the carry stores has the ticket checked out and the record on trunk (issue #474)', async (t) => {
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-patch-one-write-');
+	const applied = { label: '62281.diff', appliedAt: '2026-09-15T08:22:44.741Z', files: ['wp-login.php'], text: 'diff\n' };
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { appliedPatch: applied } } });
+	const stored = [];
+	const store = await settings.stubs['./settings-store'].getStore();
+	const set = store.set;
+	store.set = (key, value) => {
+		if (key === 'siteMeta') stored.push(structuredClone(value[dir]));
+		set(key, value);
+	};
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	assert.equal((await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true })).ok, true);
+	assert.ok(await carriedWork(event), 'the carry finished and said so — see the note in the test above');
+
+	const split = stored.filter((m) => m.currentBranch === 'ticket/62281' && m.appliedPatch);
+	assert.deepEqual(split, [], 'the ticket is checked out in the same write that takes the record off trunk');
+	assert.deepEqual(stored.at(-1).branches['ticket/62281'].appliedPatch, applied, 'and the record did arrive');
+});
+
 // The window between creating the branch and moving the record: a patch
 // applied in it is recorded against the branch and is the newer of the two.
 // Overwriting it would drop the text Revert reverses with, leaving a patch on
