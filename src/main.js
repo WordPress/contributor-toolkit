@@ -1866,12 +1866,12 @@ function carryAppliedPatch(m, ref) {
     const carried = m.appliedPatch;
     if (!carried) return m;
     const branches = { ...(m.branches || {}) };
-    // A patch applied while this link was still running belongs to the
-    // branch and is newer. Overwriting it with trunk's would drop the text
-    // Revert reverses with, leaving a patch on disk the app cannot undo —
-    // the same loss this function exists to prevent, in the other
-    // direction. Trunk's record is left where it is, visibly wrong, rather
-    // than taking a newer one down with it.
+    // An entry that already holds a record — left by a branch of this name
+    // that Git no longer has — is not trunk's to replace. Overwriting it would
+    // drop the text Revert reverses with, leaving a patch on disk the app
+    // cannot undo — the same loss this function exists to prevent, in the
+    // other direction. Trunk's record is left where it is, visibly wrong,
+    // rather than taking the other one down with it.
     if (branches[ref].appliedPatch) return m;
     branches[ref] = { ...branches[ref], appliedPatch: carried };
     return { ...m, appliedPatch: null, branches };
