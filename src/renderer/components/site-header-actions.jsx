@@ -3,7 +3,7 @@ import { createSlotFill } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import { Icon, chevronDown, drawerRight, moreVertical } from '@wordpress/icons';
 import { Button, IconButton, Menu } from '@wordpress/ui';
-import { siteMenuItems } from '../site-menu.cjs';
+import { openInItems, siteMenuItems } from '../site-menu.cjs';
 
 // The page's header belongs to the window, and what goes in it belongs to the
 // site that is open (#556). The window leaves a slot in the header, and the
@@ -55,6 +55,38 @@ function SiteMenuItems({ menu, onAction }) {
       <MenuAction key={item.id} item={item} onAction={onAction} />
     )
   ]);
+}
+
+/**
+ * Which application a file under "Changed files" opens in, asked beside the
+ * file when no editor is chosen in Settings and detection found more than
+ * one (#738). The items are the site menu's "Open in", so the two offer the
+ * same applications in the same order. Focus goes back to the file when the
+ * menu closes, chosen or dismissed.
+ *
+ * @param {Object}      props
+ * @param {HTMLElement} props.anchor   The file's button, which the menu opens beside.
+ * @param {Array}       props.editors  Detected applications, `{ name, path }`.
+ * @param {Function}    props.onAction Called with the chosen item: `open-in` with a `path`, or `open-in-other`.
+ * @param {Function}    props.onClose  Called when the menu closes.
+ */
+export function OpenFileInMenu({ anchor, editors, onAction, onClose }) {
+  return (
+    <Menu.Root defaultOpen onOpenChange={(open) => { if (!open) { onClose(); anchor.focus(); } }}>
+      <Menu.Trigger
+        render={
+          <button
+            type="button"
+            className="site-context-menu-trigger"
+            aria-label={__('Open in')}
+          />
+        }
+      />
+      <Menu.Popup positioner={<Menu.Positioner anchor={anchor} align="start" />}>
+        {openInItems({ editors }).map((item) => <MenuAction key={`${item.id}:${item.path || ''}`} item={item} onAction={onAction} />)}
+      </Menu.Popup>
+    </Menu.Root>
+  );
 }
 
 /**

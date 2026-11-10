@@ -56,6 +56,21 @@ function openInItems({ editors = [], detecting = false } = {}) {
 }
 
 /**
+ * What an item of `openInItems` asks `editor:open` for: the application's
+ * path, null for "Other application…" (main's file dialog), or undefined for
+ * an item that opens nothing. The site's menu and the menu beside a changed
+ * file (#738) both answer an item through this, so the two cannot drift.
+ *
+ * @param {{id: string, path?: string}} item
+ * @return {?string|undefined}
+ */
+function openInEditorPath(item) {
+	if (item?.id === 'open-in') return item.path;
+	if (item?.id === 'open-in-other') return null;
+	return undefined;
+}
+
+/**
  * Why an update to the latest trunk cannot start, or '' when it can.
  *
  * An update rewrites the whole checkout, then installs and builds, so it does
@@ -132,4 +147,4 @@ function siteMenuItems({ platform, editors = [], detecting = false, isPending = 
 	return items;
 }
 
-module.exports = { siteMenuItems, openInItems, fileManagerLabel, updateHeldReason };
+module.exports = { siteMenuItems, openInItems, openInEditorPath, fileManagerLabel, updateHeldReason };

@@ -7,7 +7,7 @@ import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalT
 import { __, sprintf } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, InputLayout, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
 import { useThemeWarnings } from './app-theme.jsx';
-import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
+import { editorItems, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // A notice here is read by its role, and is not also spoken: the dialog it
@@ -242,6 +242,63 @@ function OpeningAndQuitting({ settings, onChange }) {
   );
 }
 
+// The editor a file under "Changed files" opens in (#738), from the ones
+// detection finds on this machine, which is asked when the dialog opens: an
+// editor installed while the app runs is one the next opening offers. The
+// site menu's "Open in" still names an editor per open; this is for the
+// click that does not, which asks when nothing is set.
+function EditorControl({ settings, onChange }) {
+  const [editors, setEditors] = useState(null);
+  const [names, setNames] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    window.api.listEditors()
+      .then((res) => {
+        if (cancelled) return;
+        setEditors(res?.detected || []);
+        setNames(res?.names || null);
+      })
+      .catch(() => { if (!cancelled) setEditors([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Drawn here with each id as its value, as the language control's are,
+  // for the reason given there.
+  const editor = settings ? settings.editor : null;
+  const items = useMemo(() => editorItems(editors, editor, names), [editors, editor, names]);
+
+  const choose = async (value) => {
+    const result = await onChange('editor', editorValue(value));
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that editor.')));
+  };
+
+  return (
+    <Stack direction="column" gap="md">
+      <SelectControl
+        label={__('Open changed files in')}
+        description={__('The editor a file under “Changed files” opens in. If it is not installed any more, the app asks which to use.')}
+        items={items}
+        value={editor || ASK_FOR_EDITOR}
+        disabled={!settings || !editors}
+        onValueChange={choose}
+      >
+        {items.map((item) => (
+          <SelectControl.Item key={item.value} value={item.value} label={item.label}>
+            <SelectControl.ItemLabel>{item.label}</SelectControl.ItemLabel>
+          </SelectControl.Item>
+        ))}
+      </SelectControl>
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+    </Stack>
+  );
+}
+
 // The folder new sites go in. The system's dialog chooses it, main checks
 // it, and what main then holds is what is shown: a folder it refused is
 // said under the field and nothing changes.
@@ -271,6 +328,10 @@ function GeneralTab({ settings, loaded, onChange }) {
         <LanguageControl settings={settings} loaded={loaded} onChange={onChange} />
       </Stack>
       <OpeningAndQuitting settings={settings} onChange={onChange} />
+      <Stack direction="column" gap="xl">
+        <Text variant="heading-lg" render={<h3 />}>{__('Editor')}</Text>
+        <EditorControl settings={settings} onChange={onChange} />
+      </Stack>
       <Stack direction="column" gap="xl">
         <Text variant="heading-lg" render={<h3 />}>{__('New sites')}</Text>
         <FolderField

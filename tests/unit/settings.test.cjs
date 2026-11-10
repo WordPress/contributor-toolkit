@@ -12,19 +12,19 @@ const languages = (tags) => ({ isLanguage: (tag) => tags.includes(tag) });
 const php = (versions) => ({ isPhpVersion: (version) => versions.includes(version) });
 
 test('readSettings falls back for a store with nothing in it, and for values of the wrong kind', () => {
-	const fallbacks = { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null };
+	const fallbacks = { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null };
 	assert.deepEqual(readSettings(), fallbacks);
 	assert.deepEqual(readSettings(undefined), fallbacks);
 	assert.deepEqual(readSettings({}), fallbacks);
-	assert.deepEqual(readSettings({ newSiteLocation: 42, locale: ['de'], phpVersion: 8.4, wpDebug: 'false', scriptDebug: 0, autoStartServer: 'yes', autoStartWatch: 1, quitBehavior: 'leave', theme: 'blue', customBackground: '#ABC', customPrimary: 'red' }), fallbacks);
+	assert.deepEqual(readSettings({ newSiteLocation: 42, locale: ['de'], phpVersion: 8.4, wpDebug: 'false', scriptDebug: 0, autoStartServer: 'yes', autoStartWatch: 1, quitBehavior: 'leave', theme: 'blue', customBackground: '#ABC', customPrimary: 'red', editor: 7 }), fallbacks);
 	assert.deepEqual(readSettings({ newSiteLocation: '', locale: '', phpVersion: '', wpDebug: null, scriptDebug: null }), fallbacks);
 	assert.deepEqual(readSettings('not an object'), fallbacks);
 });
 
 test('readSettings gives back a stored folder without asking the disk about it', () => {
 	assert.deepEqual(
-		readSettings({ newSiteLocation: '/Users/jane/sites', locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'custom', customBackground: '#102030', customPrimary: '#ff8800' }),
-		{ locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'custom', customBackground: '#102030', customPrimary: '#ff8800', newSiteLocation: '/Users/jane/sites' }
+		readSettings({ newSiteLocation: '/Users/jane/sites', locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'custom', customBackground: '#102030', customPrimary: '#ff8800', editor: 'cursor' }),
+		{ locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'custom', customBackground: '#102030', customPrimary: '#ff8800', newSiteLocation: '/Users/jane/sites', editor: 'cursor' }
 	);
 });
 
@@ -54,7 +54,7 @@ test('a folder is refused when it is not a string, not a full path, or not on th
 
 test('a key that is not a setting is refused, and nothing is asked of the disk', () => {
 	let asked = 0;
-	const result = acceptSetting('editor', 'vim', { isAbsolute: () => { asked++; return true; }, isDirectory: () => { asked++; return true; } });
+	const result = acceptSetting('terminal', 'iterm', { isAbsolute: () => { asked++; return true; }, isDirectory: () => { asked++; return true; } });
 	assert.equal(result.ok, false);
 	assert.equal(asked, 0);
 });
@@ -119,4 +119,17 @@ test('what happens on quit is stop or restart, nothing means the fallback, and a
 	// is not one the app gives: the quit sweep ends every child it started.
 	assert.equal(acceptSetting('quitBehavior', 'leave', {}).ok, false);
 	assert.equal(acceptSetting('quitBehavior', true, {}).ok, false);
+});
+
+// The editor a file of "Changed files" opens in (#738): an application the
+// detection table knows, kept by its id, or nothing to ask.
+test('the editor is kept as one the table knows, and nothing to ask', () => {
+	const editors = { isEditor: (id) => ['vscode', 'cursor'].includes(id) };
+	assert.deepEqual(acceptSetting('editor', 'cursor', editors), { ok: true, value: 'cursor' });
+	for (const value of [null, undefined, '']) {
+		assert.deepEqual(acceptSetting('editor', value, editors), { ok: true, value: null }, String(value));
+	}
+	assert.deepEqual(acceptSetting('editor', 'notepad', editors), { ok: false, error: 'Choose one of the editors the app found.' });
+	assert.equal(acceptSetting('editor', 42, editors).ok, false);
+	assert.equal(acceptSetting('editor', '/Applications/Cursor.app', editors).ok, false);
 });

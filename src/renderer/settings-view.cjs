@@ -187,4 +187,37 @@ function resumeFor(resume, sitePath) {
 	return server || watch ? { server, watch } : null;
 }
 
-module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE };
+// What the editor control's entry for no choice is called.
+const ASK_FOR_EDITOR = 'ask';
+
+/**
+ * The entries of the editor control (#738): asking each time, then the
+ * editors detection found on this machine, and the one set where it is
+ * none of them (uninstalled since), by the table's name for it, or its id
+ * where the table has none, so that the control shows what is set rather
+ * than nothing.
+ *
+ * @param {?Array<{id: string, name: string}>} editors What detection found, or null while it has not answered.
+ * @param {?string}                            editor  The id set, or null to ask.
+ * @param {?Object<string, string>}            [names] Every editor the table knows, name by id.
+ * @return {Array<{value: string, label: string}>}
+ */
+function editorItems(editors, editor, names = null) {
+	const items = [{ value: ASK_FOR_EDITOR, label: __('Ask each time') }];
+	for (const found of editors || []) items.push({ value: found.id, label: found.name });
+	if (editor && !items.some((item) => item.value === editor)) items.push({ value: editor, label: names?.[editor] || editor });
+	return items;
+}
+
+/**
+ * What a choice in the editor control is kept as: asking each time is kept
+ * as no choice.
+ *
+ * @param {string} choice The value of the entry chosen.
+ * @return {?string}
+ */
+function editorValue(choice) {
+	return choice === ASK_FOR_EDITOR ? null : choice;
+}
+
+module.exports = { editorItems, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE };

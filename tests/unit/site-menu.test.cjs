@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { siteMenuItems, openInItems, fileManagerLabel, updateHeldReason } = require('../../src/renderer/site-menu.cjs');
+const { siteMenuItems, openInItems, openInEditorPath, fileManagerLabel, updateHeldReason } = require('../../src/renderer/site-menu.cjs');
 
 const ids = (items) => items.map((item) => item.id);
 const TOP = ['rename', 'copy-path', 'show-in-file-manager', 'update-trunk', 'open-in-menu', 'delete'];
@@ -132,4 +132,14 @@ test('an update that is not held carries no reason', () => {
 
 test('no arguments at all is the menu of an ordinary site', () => {
 	assert.deepEqual(ids(siteMenuItems()), TOP);
+});
+
+// Both menus that offer "Open in" answer an item through this (#738).
+test('an Open in item asks for its application, Other application… for the dialog, and anything else for nothing', () => {
+	const [other, editor] = openInItems({ editors: [{ name: 'Cursor', path: '/Applications/Cursor.app' }] });
+	assert.equal(openInEditorPath(editor), '/Applications/Cursor.app');
+	assert.equal(openInEditorPath(other), null);
+	assert.equal(openInEditorPath({ id: 'delete' }), undefined);
+	assert.equal(openInEditorPath({ id: 'detecting', disabled: true }), undefined);
+	assert.equal(openInEditorPath(null), undefined);
 });
