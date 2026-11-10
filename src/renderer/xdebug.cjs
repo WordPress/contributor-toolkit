@@ -1,10 +1,9 @@
 // What the page says about step debugging a site with Xdebug (#723): the
-// launch.json VS Code needs to listen for it, whether the running server has
-// it, and which other sites' servers are sending to the same port.
+// launch.json VS Code needs to listen for it, the values PhpStorm needs, and
+// whether the running server has it.
 'use strict';
 
-const { __ } = require('@wordpress/i18n');
-const { pathBasename } = require('./path-basename.cjs');
+const { __, sprintf } = require('@wordpress/i18n');
 
 // Playground's Xdebug connects to the client on this port and has no option
 // to move it, so every site's server sends to the same one.
@@ -84,17 +83,30 @@ function phpStormSettings({ sitePath, serve, url }) {
 /**
  * Whether the site's running server has Xdebug, and what to say when that is
  * not what the setting says. The setting applies at a server's next start,
- * so a change made while one runs is said, and not shown as done.
+ * so a change made while one runs is said, and not shown as done. One
+ * running server has Xdebug at a time, so a server started while another
+ * site's had it started without it, and says whose.
  *
  * @param {Object}  root0
  * @param {boolean} root0.setting     What the settings hold.
  * @param {boolean} root0.running     The site's server is up.
  * @param {boolean} root0.startedWith It started with Xdebug.
+ * @param {string}  [root0.heldBy]    The name of the site whose server had Xdebug when this one started, or ''.
  * @return {{on: boolean, note: string}}
  */
-function xdebugStatus({ setting, running, startedWith }) {
+function xdebugStatus({ setting, running, startedWith, heldBy = '' }) {
 	if (!running) return { on: false, note: '' };
 	if (startedWith && !setting) return { on: true, note: __('Xdebug is still on for this site until you restart the server.') };
+	if (!startedWith && setting && heldBy) {
+		return {
+			on: false,
+			note: sprintf(
+				// translators: %s: the name of the site whose server has Xdebug.
+				__('Xdebug is on for %s, so this site started without it. Stop that site’s server, then restart this one to use it here.'),
+				heldBy
+			)
+		};
+	}
 	if (!startedWith && setting) return { on: false, note: __('Xdebug is turned on, but this site started before that. Restart the server to use it.') };
 	return { on: startedWith, note: '' };
 }
@@ -102,49 +114,27 @@ function xdebugStatus({ setting, running, startedWith }) {
 /**
  * What the server's details say of Xdebug: null when there is nothing to
  * say; otherwise whether the server has it, the note from `xdebugStatus`,
- * the launch.json for VS Code and the values for PhpStorm while it has it
- * (and nothing when it would not connect), and the other sites whose server
- * is running with it.
+ * and the launch.json for VS Code and the values for PhpStorm while it has
+ * it (and nothing when it would not connect).
  *
- * @param {Object}   root0
- * @param {boolean}  root0.setting     What the settings hold.
- * @param {boolean}  root0.running     The site's server is up.
- * @param {boolean}  root0.startedWith It started with Xdebug.
- * @param {string}   root0.sitePath    The checkout's folder.
- * @param {Object}   root0.serve       The project's serve model.
- * @param {string}   root0.url         The running server's address.
- * @param {string[]} root0.others      From `otherXdebugSites`.
- * @return {?{on: boolean, note: string, config: string, phpStorm: Array, others: string[]}}
+ * @param {Object}  root0
+ * @param {boolean} root0.setting     What the settings hold.
+ * @param {boolean} root0.running     The site's server is up.
+ * @param {boolean} root0.startedWith It started with Xdebug.
+ * @param {string}  [root0.heldBy]    The name of the site whose server had Xdebug when this one started, or ''.
+ * @param {string}  root0.sitePath    The checkout's folder.
+ * @param {Object}  root0.serve       The project's serve model.
+ * @param {string}  root0.url         The running server's address.
+ * @return {?{on: boolean, note: string, config: string, phpStorm: Array}}
  */
-function xdebugSection({ setting, running, startedWith, sitePath, serve, url, others }) {
-	const status = xdebugStatus({ setting, running, startedWith });
+function xdebugSection({ setting, running, startedWith, heldBy = '', sitePath, serve, url }) {
+	const status = xdebugStatus({ setting, running, startedWith, heldBy });
 	if (!status.on && !status.note) return null;
 	return {
 		...status,
 		config: status.on ? xdebugLaunchConfig({ sitePath, serve }) : '',
-		phpStorm: status.on ? phpStormSettings({ sitePath, serve, url }) : [],
-		others
+		phpStorm: status.on ? phpStormSettings({ sitePath, serve, url }) : []
 	};
 }
 
-/**
- * The other sites whose server is running with Xdebug, by the name the sites
- * list shows. Their requests reach VS Code on the same port as this site's,
- * and VS Code cannot tell them apart.
- *
- * @param {Object} root0
- * @param {Object} root0.servers  What each site's view last said of its server, by path: `{status, text, xdebug}`.
- * @param {Object} root0.siteMeta The sites' metadata, by path.
- * @param {string} root0.sitePath This site.
- * @return {string[]}
- */
-function otherXdebugSites({ servers, siteMeta, sitePath }) {
-	return Object.entries(servers || {})
-		.filter(([other, report]) => other !== sitePath && report && report.status === 'online' && report.xdebug)
-		.map(([other]) => {
-			const label = siteMeta && siteMeta[other] && siteMeta[other].label;
-			return (label && label.trim()) || pathBasename(other);
-		});
-}
-
-module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, otherXdebugSites };
+module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection };

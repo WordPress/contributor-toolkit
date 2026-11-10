@@ -62,8 +62,8 @@ test('the checkout names the PHP a server starts on, and a Debugging row says wh
 
 // Xdebug is named with the constants when the settings turn it on (#723),
 // and the running server, which keeps what it started with, adds to the row:
-// a notice when the two disagree or another site also has Xdebug, and the
-// editor setup while the server has it.
+// a notice when the two disagree, and the editor setup while the server has
+// it.
 test('the Debugging row names Xdebug when the setting is on, and not when it is off', () => {
 	assert.equal(siteDetailsRows({ ...BASE, debug: { wpDebug: true, scriptDebug: true, xdebug: true } }).at(-1).value, 'WP_DEBUG · SCRIPT_DEBUG · Xdebug');
 	assert.equal(siteDetailsRows({ ...BASE, debug: { wpDebug: false, scriptDebug: false, xdebug: true } }).at(-1).value, 'Xdebug');
@@ -71,30 +71,21 @@ test('the Debugging row names Xdebug when the setting is on, and not when it is 
 });
 
 test('a server with Xdebug offers the editor setup on the Debugging row', () => {
-	const row = siteDetailsRows({ ...BASE, debug: { wpDebug: true, scriptDebug: true, xdebug: true }, xdebug: { on: true, note: '', config: '{}', others: [] } }).at(-1);
+	const row = siteDetailsRows({ ...BASE, debug: { wpDebug: true, scriptDebug: true, xdebug: true }, xdebug: { on: true, note: '', config: '{}' } }).at(-1);
 	assert.equal(row.setup, true);
 	assert.equal(row.notices, undefined);
 });
 
-// Restarting is needed before Xdebug connects, so that one is a warning; a
-// server that keeps Xdebug a while longer is only news.
+// A server without Xdebug has to restart before it connects, so that is a
+// warning; a server that keeps Xdebug a while longer is only news.
 test('the Debugging row says when the running server and the setting disagree', () => {
-	const pending = siteDetailsRows({ ...BASE, debug: { wpDebug: true, scriptDebug: true, xdebug: true }, xdebug: { on: false, note: 'Restart the server to use it.', config: '', others: [] } }).at(-1);
+	const pending = siteDetailsRows({ ...BASE, debug: { wpDebug: true, scriptDebug: true, xdebug: true }, xdebug: { on: false, note: 'Restart the server to use it.', config: '' } }).at(-1);
 	assert.deepEqual(pending.notices, [{ id: 'status', intent: 'warning', text: 'Restart the server to use it.' }]);
 	assert.equal(pending.setup, undefined);
-	const lingering = siteDetailsRows({ ...BASE, debug: { wpDebug: true, scriptDebug: true, xdebug: false }, xdebug: { on: true, note: 'Still on until a restart.', config: '{}', others: [] } }).at(-1);
+	const lingering = siteDetailsRows({ ...BASE, debug: { wpDebug: true, scriptDebug: true, xdebug: false }, xdebug: { on: true, note: 'Still on until a restart.', config: '{}' } }).at(-1);
 	assert.equal(lingering.value, 'WP_DEBUG · SCRIPT_DEBUG');
 	assert.deepEqual(lingering.notices, [{ id: 'status', intent: 'info', text: 'Still on until a restart.' }]);
 	assert.equal(lingering.setup, true);
-});
-
-test('the Debugging row warns of another site whose server is also running with Xdebug', () => {
-	const row = siteDetailsRows({ ...BASE, debug: { wpDebug: true, scriptDebug: true, xdebug: true }, xdebug: { on: true, note: '', config: '{}', others: ['Second site'] } }).at(-1);
-	assert.equal(row.notices.length, 1);
-	assert.equal(row.notices[0].id, 'others');
-	assert.equal(row.notices[0].intent, 'warning');
-	assert.match(row.notices[0].text, /^Second site is also running with Xdebug/);
-	assert.equal(row.note, undefined);
 });
 
 test('until the settings are read, the checkout is named alone and there is no Debugging row', () => {

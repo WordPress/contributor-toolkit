@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, otherXdebugSites } = require('../../src/renderer/xdebug.cjs');
+const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection } = require('../../src/renderer/xdebug.cjs');
 
 const mappings = (text) => JSON.parse(text).configurations[0].pathMappings;
 
@@ -55,6 +55,14 @@ test('a server started without Xdebug after it was turned on says to restart it'
 	assert.match(status.note, /restart the server/i);
 });
 
+// One running server has Xdebug at a time (#723): a site started while
+// another's server had it says whose, and how to have it here.
+test('a server started without Xdebug because another site’s server has it names that site', () => {
+	const status = xdebugStatus({ setting: true, running: true, startedWith: false, heldBy: 'Second site' });
+	assert.equal(status.on, false);
+	assert.equal(status.note, 'Xdebug is on for Second site, so this site started without it. Stop that site’s server, then restart this one to use it here.');
+});
+
 test('a server started with Xdebug after it was turned off says it is still on until a restart', () => {
 	const status = xdebugStatus({ setting: false, running: true, startedWith: true });
 	assert.equal(status.on, true);
@@ -65,46 +73,29 @@ test('a server running without Xdebug, and the setting off, says nothing', () =>
 	assert.deepEqual(xdebugStatus({ setting: false, running: true, startedWith: false }), { on: false, note: '' });
 });
 
-// Every server sends Xdebug to the same port, so VS Code cannot tell two
-// running sites apart: the other ones are named, by the name the list shows.
-test('the other sites named are those whose server is running with Xdebug', () => {
-	const servers = {
-		'/sites/wp': { status: 'online', text: '', xdebug: true },
-		'/sites/two': { status: 'online', text: '', xdebug: true },
-		'/sites/gb': { status: 'online', text: '', xdebug: false },
-		'/sites/three': { status: 'busy', text: '', xdebug: true },
-		'/sites/four': { status: 'offline', text: '', xdebug: true }
-	};
-	const siteMeta = { '/sites/two': { label: 'Second site' } };
-	assert.deepEqual(otherXdebugSites({ servers, siteMeta, sitePath: '/sites/wp' }), ['Second site']);
-	assert.deepEqual(otherXdebugSites({ servers, siteMeta: {}, sitePath: '/sites/two' }), ['wp']);
-	assert.deepEqual(otherXdebugSites({ servers: {}, siteMeta, sitePath: '/sites/wp' }), []);
-});
-
 // The section the server's details draw: nothing when there is nothing to
 // say, a note without a launch.json for a server that would not connect, and
-// the launch.json with the other sites while the server has Xdebug.
+// the launch.json and the PhpStorm values while the server has Xdebug.
 test('the details show no Xdebug section when there is nothing to say', () => {
-	const base = { sitePath: '/sites/wp', serve: { strategy: 'docroot' }, others: [] };
+	const base = { sitePath: '/sites/wp', serve: { strategy: 'docroot' } };
 	assert.equal(xdebugSection({ ...base, setting: false, running: true, startedWith: false }), null);
 	assert.equal(xdebugSection({ ...base, setting: true, running: false, startedWith: false }), null);
 });
 
 test('a server that started before Xdebug was turned on gets the note and no launch.json', () => {
-	const section = xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, others: ['Two'], setting: true, running: true, startedWith: false });
+	const section = xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, setting: true, running: true, startedWith: false });
 	assert.equal(section.on, false);
 	assert.match(section.note, /restart the server/i);
 	assert.equal(section.config, '');
 	assert.deepEqual(section.phpStorm, []);
 });
 
-test('a server with Xdebug gets its launch.json, its PhpStorm values and the other sites running with it', () => {
-	const section = xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/', others: ['Two'], setting: true, running: true, startedWith: true });
+test('a server with Xdebug gets its launch.json and its PhpStorm values', () => {
+	const section = xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/', setting: true, running: true, startedWith: true });
 	assert.equal(section.on, true);
 	assert.equal(section.note, '');
 	assert.equal(section.config, xdebugLaunchConfig({ sitePath: '/sites/wp', serve: { strategy: 'docroot' } }));
 	assert.deepEqual(section.phpStorm, phpStormSettings({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/' }));
-	assert.deepEqual(section.others, ['Two']);
 });
 
 // PhpStorm keeps its debug setup in its own settings, so the toolkit gives

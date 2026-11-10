@@ -2,7 +2,7 @@
 
 A site's PHP can run with Xdebug, so you can stop on a breakpoint in VS Code and step through Core one line at a time. It is off unless you turn it on, because it slows every request.
 
-This is a proof of concept. It has setup for VS Code and PhpStorm, and it follows one running site at a time.
+This is a proof of concept. It has setup for VS Code and PhpStorm, and one running site has Xdebug at a time.
 
 ## Turn it on
 
@@ -45,9 +45,9 @@ On a Gutenberg site, the checkout is the plugin, so set breakpoints in the check
 
 ## One site at a time
 
-Every site's server sends Xdebug to port 9003, and only one VS Code window can listen on it. VS Code also cannot tell two sites apart, because both serve their files from the same paths.
+Every site's server sends Xdebug to port 9003, and your editor cannot tell two sites apart, because both serve their files from the same paths. So only one running server has Xdebug at a time: the first one started while the setting is on.
 
-If two sites run with Xdebug at once, VS Code may stop on one site's breakpoints for the other site's pages, or not stop at all. The **Debugging** row warns you when another site's server is running with Xdebug. Stop the other server while you debug.
+A site you start while another site's server has Xdebug starts without it. Its **Debugging** row says which site has it. To debug the second site, stop the first site's server, then restart the second one.
 
 ## If VS Code does not stop
 

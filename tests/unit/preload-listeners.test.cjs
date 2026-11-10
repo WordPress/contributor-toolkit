@@ -515,15 +515,17 @@ test('startServer leaves no listener behind when the start throws, and the next 
 });
 
 // The window shows what the running server has, so the URL comes with
-// whether it started with Xdebug (#723).
-test('startServer hands the URL on with whether the server has Xdebug', async () => {
+// whether it started with Xdebug (#723), and whose server has it when this
+// one started without it.
+test('startServer hands the URL on with whether the server has Xdebug, and whose server has it otherwise', async () => {
 	const { api, ipcRenderer } = loadPreload({ invokeResults: { 'playground:start': () => ({ ok: true }) } });
 	const heard = [];
 
-	await api.startServer('/sites/wp', null, (url, xdebug) => heard.push([url, xdebug]), null);
+	await api.startServer('/sites/wp', null, (url, xdebug, xdebugHeldBy) => heard.push([url, xdebug, xdebugHeldBy]), null);
 	ipcRenderer.emit('playground:url', { sitePath: '/sites/wp', url: 'http://127.0.0.1:9400/', xdebug: true });
+	ipcRenderer.emit('playground:url', { sitePath: '/sites/wp', url: 'http://127.0.0.1:9400/', xdebug: false, xdebugHeldBy: '/sites/gb' });
 
-	assert.deepEqual(heard, [['http://127.0.0.1:9400/', true]]);
+	assert.deepEqual(heard, [['http://127.0.0.1:9400/', true, null], ['http://127.0.0.1:9400/', false, '/sites/gb']]);
 });
 
 // The guard for the paragraph above isElectronPackage: if the stub ever stops

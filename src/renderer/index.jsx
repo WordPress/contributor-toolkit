@@ -31,7 +31,7 @@ import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
-import { xdebugSection, otherXdebugSites } from './xdebug.cjs';
+import { xdebugSection } from './xdebug.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -494,6 +494,12 @@ function App({ settingsState }) {
   const onServerStatus = useCallback((sitePath, report) => {
     setServerReports((current) => withServerReport(current, sitePath, report));
   }, []);
+  // Another site by the name the list shows, for a site to say whose server
+  // has Xdebug (#723).
+  const siteNameFor = useCallback((sitePath) => {
+    const label = siteMeta?.[sitePath]?.label;
+    return (label && label.trim()) || pathBasename(sitePath);
+  }, [siteMeta]);
 
   const onDelete = useCallback(async (sitePath) => {
     if (deletingSitesRef.current.has(sitePath)) return;
@@ -722,7 +728,7 @@ function App({ settingsState }) {
                         projectType={siteMeta?.[s]?.projectType}
                         settings={settings}
                         startingPhp={startingPhp}
-                        xdebugOthers={otherXdebugSites({ servers: serverReports, siteMeta, sitePath: s })}
+                        siteNameFor={siteNameFor}
                         resume={resumeFor(resume, s)}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
@@ -783,7 +789,7 @@ function App({ settingsState }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, xdebugOthers = [], resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, onActivate = null, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, siteNameFor = pathBasename, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, onActivate = null, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1311,7 +1317,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The dev server (#554): its state, its guards and its one button. It is
   // called here because starting it needs everything above: the build watch,
   // the logs, the mail, the terminal's lock and the script runner.
-  const { serverUrl, serverXdebug, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
+  const { serverUrl, serverXdebug, serverXdebugHeldBy, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -1374,18 +1380,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // taken back when the view goes: the report before a change is taken back
   // in the same commit as the new one is made, so the list sees one change,
   // not a grey dot in between.
-  // The report also says whether the server has Xdebug (#723), for the other
-  // sites' warning that VS Code cannot tell their requests from this one's.
   const { status: serverDotStatus, text: serverDotText } = serverReport(serverState);
-  const reportsXdebug = running && serverXdebug;
   useEffect(() => {
     if (!onServerStatus) return undefined;
-    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText, xdebug: reportsXdebug });
+    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText });
     return () => onServerStatus(sitePath, null);
-  }, [onServerStatus, sitePath, serverDotStatus, serverDotText, reportsXdebug]);
-  // Step debugging (#723): what the running server has, the launch.json for
-  // VS Code, and the other sites sending to the same port.
-  const xdebug = xdebugSection({ setting: Boolean(settings && settings.xdebug), running, startedWith: serverXdebug, sitePath, serve: project.serve, url: serverUrl, others: xdebugOthers });
+  }, [onServerStatus, sitePath, serverDotStatus, serverDotText]);
+  // Step debugging (#723): what the running server has, whose server had it
+  // when this one started without it, and what each editor needs.
+  const xdebug = xdebugSection({ setting: Boolean(settings && settings.xdebug), running, startedWith: serverXdebug, heldBy: serverXdebugHeldBy ? siteNameFor(serverXdebugHeldBy) : '', sitePath, serve: project.serve, url: serverUrl });
   // Which editor's setup is open, 'vscode' or 'phpstorm', or null.
   const [xdebugEditor, setXdebugEditor] = useState(null);
   // A copy that failed says so on its button, and why in the log.

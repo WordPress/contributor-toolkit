@@ -4328,7 +4328,8 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	// Ensure a per-site SMTP server is running alongside the dev server and get its port
 	const smtp = await ensureSmtpServerForSite(sitePath).catch(() => null);
 	if (playgroundServers[sitePath]?.child) {
-		return { ok: true, url: playgroundServers[sitePath].url, xdebug: playgroundServers[sitePath].xdebug };
+		const { url, xdebug, xdebugHeldBy } = playgroundServers[sitePath];
+		return { ok: true, url, xdebug, ...(xdebugHeldBy ? { xdebugHeldBy } : {}) };
 	}
 	// How the site is served is the target's (#251). Core's build/ is a whole
 	// WordPress, mounted as the docroot; a Gutenberg checkout is a plugin,
@@ -4348,17 +4349,29 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	if (phpVersion !== settings.phpVersion) {
 		logEvent(logScope, `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
 	}
+	// Every server sends Xdebug to the same port, and an editor cannot tell
+	// two apart, so one running server has it at a time (#723): a site started
+	// while another's server has it, even one still starting, starts without
+	// it, and the window is told whose it is. Read after the last await here,
+	// so two starts at once cannot both take it.
+	const xdebugHeldBy = settings.xdebug
+		? Object.keys(playgroundServers).find((other) => other !== sitePath && playgroundServers[other]?.child && playgroundServers[other].xdebug) || null
+		: null;
 	const serveConfig = {
 		...(isPluginMount
 			? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
 			: { strategy: 'docroot', docroot: buildDir }),
 		phpVersion,
 		debug: { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug },
-		xdebug: settings.xdebug
+		xdebug: settings.xdebug && !xdebugHeldBy
 	};
+	if (xdebugHeldBy) logEvent(logScope, `Xdebug is set, but the server for ${xdebugHeldBy} has it; starting without it`);
+	// What the window is told of Xdebug: whether this server has it, and whose
+	// server has it when the setting is on and this one does not.
+	const xdebugReport = { xdebug: serveConfig.xdebug, ...(xdebugHeldBy ? { xdebugHeldBy } : {}) };
 	const serveCwd = isPluginMount ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
-	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'}, Xdebug ${settings.xdebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
+	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'}, Xdebug ${serveConfig.xdebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
 	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
 		cwd: serveCwd,
 		extraEnv: {
@@ -4373,7 +4386,7 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	});
 	// What the server started with, which the window shows rather than the
 	// setting: a change to the setting applies at the next start (#723).
-	playgroundServers[sitePath] = { child, xdebug: serveConfig.xdebug };
+	playgroundServers[sitePath] = { child, ...xdebugReport };
 	let resolved = false;
 	let pendingResolve = null;
 	let timeoutId = null;
@@ -4388,10 +4401,10 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 			resolved = true;
 			playgroundServers[sitePath].url = match[1].trim();
 			logEvent(logScope, `server ready at ${playgroundServers[sitePath].url}`);
-			event.sender.send('playground:url', { sitePath, url: playgroundServers[sitePath].url, xdebug: serveConfig.xdebug });
+			event.sender.send('playground:url', { sitePath, url: playgroundServers[sitePath].url, ...xdebugReport });
 			if (typeof pendingResolve === 'function') {
 				clearTimeout(timeoutId);
-				pendingResolve({ ok: true, url: playgroundServers[sitePath].url, xdebug: serveConfig.xdebug });
+				pendingResolve({ ok: true, url: playgroundServers[sitePath].url, ...xdebugReport });
 				pendingResolve = null;
 			}
 		}

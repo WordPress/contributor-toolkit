@@ -3658,6 +3658,55 @@ test('playground:start hands the runner the Xdebug setting, and the URL it repor
 	assert.deepEqual(event.sent.find((m) => m.channel === 'playground:url').payload, { sitePath: '/sites/wp', url: 'http://127.0.0.1:9400/', xdebug: true });
 });
 
+// Every server sends Xdebug to the same port, and an editor cannot tell two
+// apart, so only one running server has it (#723): a site started while
+// another's server has it starts without it, and is told whose it is. The
+// server that had it stopping frees it for the next start.
+test('playground:start gives Xdebug to one running server at a time, and says whose it is to the others', async (t) => {
+	const settings = fakeSettingsStore({ preferences: { xdebug: true } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+	const spawnedCount = async (count) => {
+		for (let turn = 0; turn < 100 && cp.spawned.length < count; turn++) await new Promise(setImmediate);
+		assert.equal(cp.spawned.length, count, 'the handler never reached its spawn');
+	};
+	const pendings = [];
+	t.after(async () => {
+		for (const child of cp.children) child.emit('close', 0, null);
+		await Promise.all(pendings);
+	});
+	const start = (sitePath) => {
+		const event = createIpcEvent();
+		const pending = main.invokeWith('playground:start', event, sitePath);
+		pendings.push(pending);
+		return { event, pending };
+	};
+
+	const first = start('/sites/wp');
+	await spawnedCount(1);
+	assert.equal(JSON.parse(cp.spawned[0].args[1]).xdebug, true);
+
+	// Started while the first is still starting: it will connect as soon as it
+	// is up, so it holds Xdebug already.
+	const second = start('/sites/gb');
+	await spawnedCount(2);
+	assert.equal(JSON.parse(cp.spawned[1].args[1]).xdebug, false);
+	cp.children[1].stdout.emit('data', 'SERVER_URL:http://127.0.0.1:9401/\n');
+	assert.deepEqual(await second.pending, { ok: true, url: 'http://127.0.0.1:9401/', xdebug: false, xdebugHeldBy: '/sites/wp' });
+	assert.deepEqual(second.event.sent.find((m) => m.channel === 'playground:url').payload, { sitePath: '/sites/gb', url: 'http://127.0.0.1:9401/', xdebug: false, xdebugHeldBy: '/sites/wp' });
+
+	cp.children[0].stdout.emit('data', 'SERVER_URL:http://127.0.0.1:9400/\n');
+	assert.deepEqual(await first.pending, { ok: true, url: 'http://127.0.0.1:9400/', xdebug: true });
+
+	// The first stops: the next site to start has it.
+	cp.children[0].emit('close', 0, null);
+	start('/sites/other');
+	await spawnedCount(3);
+	assert.equal(JSON.parse(cp.spawned[2].args[1]).xdebug, true);
+});
+
 test('playground:start passes over a stored PHP version the bundled Playground no longer has', async (t) => {
 	const settings = fakeSettingsStore({ preferences: { phpVersion: '5.6' } });
 	const cp = stubbedSpawn();

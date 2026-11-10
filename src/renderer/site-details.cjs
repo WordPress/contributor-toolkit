@@ -58,38 +58,13 @@ function siteDetailsRows({ initialized = false, created = '', trunk = null, path
 		const on = [debug.wpDebug ? 'WP_DEBUG' : null, debug.scriptDebug ? 'SCRIPT_DEBUG' : null, debug.xdebug ? 'Xdebug' : null].filter(Boolean);
 		const row = { id: 'debugging', label: __('Debugging'), value: on.length ? on.join(' · ') : __('Off') };
 		// The running server keeps what it started with, so it can disagree
-		// with the setting, and every server sends Xdebug to the same port.
-		// A server without it has to restart before it connects, a warning;
-		// one that keeps it until a restart is only news.
-		const notices = [];
-		if (xdebug && xdebug.note) notices.push({ id: 'status', intent: xdebug.on ? 'info' : 'warning', text: xdebug.note });
-		const others = xdebug && xdebug.on ? othersNote(xdebug.others) : '';
-		if (others) notices.push({ id: 'others', intent: 'warning', text: others });
-		if (notices.length) row.notices = notices;
+		// with the setting. A server without Xdebug has to restart before it
+		// connects, a warning; one that keeps it until a restart is only news.
+		if (xdebug && xdebug.note) row.notices = [{ id: 'status', intent: xdebug.on ? 'info' : 'warning', text: xdebug.note }];
 		if (xdebug && xdebug.on) row.setup = true;
 		rows.push(row);
 	}
 	return rows;
-}
-
-/**
- * What the Debugging row says of other sites whose server is running with
- * Xdebug: VS Code listens on one port and cannot tell them apart.
- *
- * @param {string[]} others Their names.
- * @return {string} The sentence, or '' for none.
- */
-function othersNote(others) {
-	if (!others || !others.length) return '';
-	return sprintf(
-		// translators: %s: the names of other sites whose servers are running with Xdebug, separated by commas.
-		_n(
-			'%s is also running with Xdebug, so VS Code may stop on the wrong site. Stop it while you debug this one.',
-			'%s are also running with Xdebug, so VS Code may stop on the wrong site. Stop them while you debug this one.',
-			others.length
-		),
-		others.join(', ')
-	);
 }
 
 module.exports = { siteDetailsRows };

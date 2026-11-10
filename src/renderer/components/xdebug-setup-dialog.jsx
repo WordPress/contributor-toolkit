@@ -57,7 +57,7 @@ function OneSiteNote() {
       <Notice.Description>
         {sprintf(
           // translators: %d: the port Xdebug connects to.
-          __('Every site’s server sends Xdebug to port %d, so your editor can follow only one running site at a time.'),
+          __('Every site’s server sends Xdebug to port %d, so only one running site has Xdebug at a time: the first one started with it.'),
           XDEBUG_PORT
         )}
       </Notice.Description>

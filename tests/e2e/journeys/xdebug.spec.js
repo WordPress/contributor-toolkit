@@ -29,7 +29,8 @@ const { makeSite } = require( '../helpers/git-site.cjs' );
 const SERVER_URL = 'http://127.0.0.1:39403/';
 
 // Answers the server's start as main does, with whether it started with
-// Xdebug taken from the setting at that moment.
+// Xdebug taken from the setting at that moment, and, when the test says
+// another site's server has it, whose it is instead.
 async function stubServer( app, session ) {
 	await app.evaluate( ( { ipcMain, shell }, url ) => {
 		shell.openExternal = async () => {};
@@ -37,9 +38,10 @@ async function stubServer( app, session ) {
 		ipcMain.handle( 'npm:run-script', async () => ( { runId: 'e2e-xdebug' } ) );
 		ipcMain.removeHandler( 'playground:start' );
 		ipcMain.handle( 'playground:start', async ( event, sitePath ) => {
-			const xdebug = Boolean( global.e2eXdebug );
-			event.sender.send( 'playground:url', { sitePath, url, xdebug } );
-			return { ok: true, url, xdebug };
+			const xdebug = Boolean( global.e2eXdebug ) && ! global.e2eXdebugHeldBy;
+			const report = { xdebug, ...( global.e2eXdebugHeldBy ? { xdebugHeldBy: global.e2eXdebugHeldBy } : {} ) };
+			event.sender.send( 'playground:url', { sitePath, url, ...report } );
+			return { ok: true, url, ...report };
 		} );
 		ipcMain.removeHandler( 'playground:stop' );
 		ipcMain.handle( 'playground:stop', async ( event, sitePath ) => {
@@ -154,4 +156,25 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	await ui.stopDevServerButton( page ).click();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( page.getByText( /Xdebug/ ) ).toHaveCount( 0 );
+} );
+
+// One running server has Xdebug at a time (#723). Main decides that at the
+// start (`ipc-wiring.test.cjs`); a site started while another's server has
+// it is told whose, and its details say so.
+test( 'a site started while another site’s server has Xdebug says which site has it, and offers no setup', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	const followSetting = await stubServer( app, session );
+	await app.evaluate( () => { global.e2eXdebugHeldBy = '/elsewhere/other-site'; } );
+
+	await setXdebug( page, true );
+	await followSetting();
+	await ui.startDevServerButton( page ).click();
+	await expect( ui.stopDevServerButton( page ) ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — the row names the site that has it, by the name the list
+	// would show, and says how to have it here; there is no setup for a
+	// server that would not connect.
+	await expect( page.getByText( 'Xdebug is on for other-site, so this site started without it. Stop that site’s server, then restart this one to use it here.', { exact: true } ) ).toBeVisible();
+	await expect( page.getByRole( 'button', { name: 'Set up Xdebug for your editor', exact: true } ) ).toHaveCount( 0 );
 } );
