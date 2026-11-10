@@ -56,6 +56,12 @@ test( 'a Gutenberg site opens its pull request against WordPress/gutenberg, word
 	const site = await makeSite( session );
 	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
 	const { app, page } = await session.start( site.settings );
+	// 71234 is a pull request on the real repository, so GitHub would turn it
+	// away from the issue field (#736).
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'github:is-pull-request' );
+		ipcMain.handle( 'github:is-pull-request', () => ( { ok: true, pullRequest: false } ) );
+	} );
 	await expect( page.getByText( 'Gutenberg', { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
 
 	await ui.issueField( page ).fill( ISSUE );

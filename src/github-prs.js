@@ -301,4 +301,40 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
 	return { status: 'ok', items: orderByCommitDate(items), rankComplete };
 }
 
-module.exports = { MAX_COMMIT_LOOKUPS, fetchLinkedPrs, httpGet };
+/**
+ * Whether a number on a repository is a pull request rather than an issue
+ * (#736).
+ *
+ * GitHub numbers issues and pull requests from one sequence, so a bare `71234`
+ * typed into the issue field cannot be told apart without asking. Linked
+ * anyway, the site sits on a branch named for a pull request, the linked-PR
+ * list is empty, and nothing says why. `issues/{n}` answers for both kinds and
+ * carries `pull_request` only on a pull request, so one request settles it.
+ *
+ * Anything short of a clear answer comes back as unknown, with the reason, so
+ * the caller can link anyway and log why it could not tell: offline, a spent
+ * quota or a missing number must not stop someone linking the issue they
+ * meant, and a check that quietly stopped working must still leave a trace.
+ *
+ * @param {number}   number         Already parsed by the site's work-item provider.
+ * @param {Object}   [deps]
+ * @param {Function} [deps.httpGet]
+ * @param {string}   [deps.repo]    `owner/repo`
+ * @return {Promise<{known: true, pullRequest: boolean}|{known: false, reason: string}>}
+ */
+async function isPullRequest(number, deps = {}) {
+	const get = deps.httpGet || httpGet;
+	const repo = deps.repo || REPO;
+	let res;
+	try {
+		res = await get(`https://api.github.com/repos/${repo}/issues/${number}`, { Accept: 'application/vnd.github+json' });
+	} catch (e) {
+		return { known: false, reason: `offline: ${String(e && e.message ? e.message : e)}` };
+	}
+	if (res.status !== 200) return { known: false, reason: `${classifyHttpFailure(res.status, res.headers)} (GitHub returned ${res.status})` };
+	let json;
+	try { json = JSON.parse(res.body); } catch { return { known: false, reason: 'unreadable response from GitHub' }; }
+	return { known: true, pullRequest: Boolean(json && json.pull_request) };
+}
+
+module.exports = { MAX_COMMIT_LOOKUPS, fetchLinkedPrs, isPullRequest, httpGet };

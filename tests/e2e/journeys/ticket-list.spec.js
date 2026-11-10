@@ -28,6 +28,9 @@ async function standIns( app ) {
 		const answers = {
 			'git:list-ticket-patches': () => ( { ok: true, prs: { status: 'ok', items: [] } } ),
 			'trac:list-attachments': () => ( { ok: true, status: 'ok', ticket: null, items: [] } ),
+			// 71234 and 71235 are pull requests on the real repository, so
+			// GitHub would turn them away from the issue field (#736).
+			'github:is-pull-request': () => ( { ok: true, pullRequest: false } ),
 		};
 		for ( const [ channel, answer ] of Object.entries( answers ) ) {
 			ipcMain.removeHandler( channel );

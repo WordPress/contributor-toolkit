@@ -30,7 +30,7 @@ const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs'
 const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, discardFile, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir, snapshotFiles, rollback } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
-const { fetchLinkedPrs } = require('./github-prs');
+const { fetchLinkedPrs, isPullRequest } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
 const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = require('./github-pr.cjs');
 const { buildPullRequestEntries } = require('./pr-files.cjs');
@@ -3473,6 +3473,27 @@ async function ticketCheckoutRef(sitePath, ticketRef) {
     if (!ref) return ticketRef;
     return await resolveRef(sitePath, ref) ? ref : ticketRef;
 }
+
+// Whether the number typed into the issue field is a pull request (#736). Its
+// own channel rather than a step of sites:set-ticket, so the renderer asks it
+// only of what the field was given, and a journey can answer it without
+// GitHub. A Core site has no GitHub issues to confuse it with.
+ipcMain.handle('github:is-pull-request', async (_e, sitePath, id) => withRegisteredSite(sitePath, async () => {
+	const meta = await readSiteMeta(sitePath);
+	const workItem = workItemFor(meta);
+	if (workItem.kind !== 'github-issue') return { ok: true, pullRequest: false };
+	// The id crosses IPC untrusted, so it is read by the same parser, with the
+	// same bound, as the link it is asked for.
+	const parsed = workItem.parseRef(String(id));
+	if (!parsed.ok) return { ok: false, error: parsed.error };
+	const { owner, repo } = projectTypeForSite(meta).upstream;
+	const answer = await isPullRequest(parsed.id, { repo: `${owner}/${repo}` });
+	if (!answer.known) {
+		logEvent('github', `could not tell whether #${parsed.id} on ${owner}/${repo} is a pull request, so linking it: ${answer.reason}`);
+		return { ok: true, pullRequest: false };
+	}
+	return { ok: true, pullRequest: answer.pullRequest };
+}));
 
 ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => withRegisteredSite(sitePath, async () => {
 	// Empty means unlink — the panel's Unlink button and a cleared field both

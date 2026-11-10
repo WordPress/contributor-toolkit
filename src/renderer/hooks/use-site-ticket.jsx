@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { __ } from '@wordpress/i18n';
 import { discardOutcome } from '../changes-note.cjs';
 import { rebaseRefusal } from '../ticket-trunk-notice.cjs';
+import { issueToCheck, pullRequestRefusal } from '../github-issue.cjs';
 
 // The ticket or issue a site is working on (#109, #108, #554): linking one,
 // leaving it, switching between the ones that already have work here, moving
@@ -140,7 +141,32 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
       setTicketSaving(false);
     }
   }, [sitePath, workItem, loadBranches, loadStatus, metaPatchRef, onClearSwitchNotices, reprobeAfterBranchChange, setTicketBehindTrunk, setTracTicket]);
-  const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
+  // A bare number on a GitHub site may be a pull request: both share one
+  // sequence, and linking one leaves the site on a branch no pull request
+  // cites, with nothing to say why (#736). The decision and its sentence live
+  // in github-issue.cjs; this holds the state and the call.
+  const linkTicket = useCallback(async () => {
+    const id = issueToCheck(workItem, ticketInput);
+    if (id !== null) {
+      setTicketSaving(true);
+      setTicketError('');
+      let answer = null;
+      try {
+        answer = await window.api.isPullRequest(sitePath, id);
+      } catch {
+        // Only a broken channel throws here; main answers every GitHub failure
+        // itself and logs it. Either way, no answer means the link goes ahead.
+      } finally {
+        setTicketSaving(false);
+      }
+      const refusal = pullRequestRefusal(id, answer);
+      if (refusal) {
+        setTicketError(refusal);
+        return;
+      }
+    }
+    return saveTicket(ticketInput);
+  }, [saveTicket, ticketInput, workItem, sitePath]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
 
   // The notice's own button (#385): the ticket's work replayed onto the
