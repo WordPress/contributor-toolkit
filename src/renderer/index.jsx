@@ -1391,6 +1391,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const xdebug = xdebugSection({ setting: Boolean(settings && settings.xdebug), running, startedWith: serverXdebug, heldAtStart: Boolean(serverXdebugHeldBy), sitePath, servers: serverReports, nameFor: siteNameFor, serve: project.serve, url: serverUrl });
   // Which editor's setup is open, 'vscode' or 'phpstorm', or null.
   const [xdebugEditor, setXdebugEditor] = useState(null);
+  // The dialog shows only while the server has Xdebug. A server that goes
+  // closes it, and the choice goes with it, or the next start would open
+  // the dialog unasked.
+  const xdebugOn = Boolean(xdebug && xdebug.on);
+  useEffect(() => { if (!xdebugOn) setXdebugEditor(null); }, [xdebugOn]);
   // A copy that failed says so on its button, and why in the log.
   const copyXdebugConfig = useCallback(async (text) => {
     try {

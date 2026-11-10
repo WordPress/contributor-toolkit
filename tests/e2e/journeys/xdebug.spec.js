@@ -277,3 +277,36 @@ test( 'a site whose server started without Xdebug names the site that has it now
 	await start( 'second-site' );
 	await expect( setup ).toBeVisible();
 } );
+
+// The setup dialog shows only while the server has Xdebug. A server that goes
+// while the dialog is open closes it, and the next start with Xdebug must not
+// open it again: the contributor did not ask for it.
+test( 'a setup dialog closed by the server going does not open again by itself at the next start', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	const followSetting = await stubServer( app, session );
+	const setup = page.getByRole( 'button', { name: 'Set up Xdebug for your editor', exact: true } );
+	const vscode = page.getByRole( 'dialog', { name: 'Set up VS Code', exact: true } );
+
+	await setXdebug( page, true );
+	await expect.poll( () => session.readSettings().preferences?.xdebug ).toBe( true );
+	await followSetting();
+	await ui.startDevServerButton( page ).click();
+	await setup.click();
+	await page.getByRole( 'menuitem', { name: 'VS Code', exact: true } ).click();
+	await expect( vscode ).toBeVisible();
+
+	// The server goes by itself while the dialog is open.
+	await app.evaluate( ( { BrowserWindow }, sitePath ) => {
+		global.e2eXdebugServers.delete( sitePath );
+		for ( const win of BrowserWindow.getAllWindows() ) win.webContents.send( 'playground:stopped', { sitePath, code: 1 } );
+	}, site.dir );
+	await expect( vscode ).toHaveCount( 0 );
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+
+	// INVARIANT — started again with Xdebug, the setup is offered and the
+	// dialog stays closed.
+	await ui.startDevServerButton( page ).click();
+	await expect( setup ).toBeVisible( { timeout: 30_000 } );
+	await expect( vscode ).toHaveCount( 0 );
+} );

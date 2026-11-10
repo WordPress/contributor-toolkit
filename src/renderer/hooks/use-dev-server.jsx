@@ -123,6 +123,9 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
     // after the server was up, the tail took whatever WordPress had logged
     // while it booted for an earlier run's as well.
     await startDebugTail();
+    // Cancelled while the tail came up: main had no start to cancel then, so
+    // asking now would spawn a server nothing in the window can stop.
+    if (over()) return;
     try {
       const res = await window.api.startServer(
         sitePath,

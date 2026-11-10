@@ -306,6 +306,38 @@ test( 'a start can be cancelled while it starts: the server is stopped, it is no
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 } );
 
+// The window brings the debug.log tail up before it asks for the server, and
+// a cancel that comes while it does has no start in main to cancel yet: the
+// start has to see it was cancelled when the tail is up, and not ask.
+test( 'a start cancelled while the debug.log tail comes up does not ask for a server afterwards', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	await ui.openTray( page, 'Terminal' );
+	const server = await standIn( app, page, site.dir );
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'wp-debug:start' );
+		ipcMain.handle( 'wp-debug:start', () => new Promise( ( resolve ) => {
+			global.__e2eTailUp = () => resolve( { ok: true } );
+		} ) );
+	} );
+	const starting = page.getByRole( 'button', { name: 'Cancel the development server start', exact: true } );
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+
+	await ui.startDevServerButton( page ).click();
+	await expect( starting ).toBeVisible();
+	await expect.poll( () => app.evaluate( () => typeof global.__e2eTailUp ) ).toBe( 'function' );
+	await starting.click();
+	await expect.poll( async () => ( await server.asked() ).stops ).toEqual( [ site.dir ] );
+
+	// INVARIANT — the tail comes up after the cancel, and no server is asked
+	// for: one would run with nothing in the window to stop it.
+	await app.evaluate( () => global.__e2eTailUp() );
+	await server.heard();
+	await page.waitForTimeout( 200 );
+	expect( ( await server.asked() ).starts ).toEqual( [] );
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+} );
+
 test( 'on a project whose watcher rebuilds everything, the server waits for a first build and for the watcher to be ready, gives up if the build fails, and starts at once on a build that is already there', async ( { session } ) => {
 	// A Gutenberg checkout, which the fixture is not a built one of.
 	const site = await makeSite( session );
