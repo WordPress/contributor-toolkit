@@ -10,13 +10,13 @@ This is a proof of concept. It has setup for VS Code and PhpStorm, and it follow
 2. Turn on **Step debugging (Xdebug)**.
 3. Start the site's development server. If it is already running, stop it and start it again: a server keeps what it started with.
 
-The **Debugging** row of the site's details then names *Xdebug*, and while the server runs with it, a **Set up Xdebug for your editor** button sits under the row. If the row says *Restart the server to use it* instead, the server started before you turned the setting on.
+The **Debugging** row of the site's details then names *Xdebug*, and while the server runs with it, a **Set up Xdebug for your editor** menu sits under the row. If the row says *Restart the server to use it* instead, the server started before you turned the setting on.
 
 ## Connect VS Code
 
 1. In VS Code, install the **PHP Debug** extension by Xdebug.
 2. Open the site's folder.
-3. In the site's details, select **Set up Xdebug for your editor**, then **Copy launch.json**, and paste it into `.vscode/launch.json` in that folder.
+3. In the site's details, select **Set up Xdebug for your editor**, choose **VS Code**, then select **Copy launch.json**, and paste it into `.vscode/launch.json` in that folder.
 4. Open **Run and Debug**, choose **Listen for Xdebug**, and start it.
 5. Set a breakpoint, and load a page of the site in the browser.
 
@@ -24,7 +24,7 @@ The app does not write `.vscode/launch.json` for you, but it does keep the file 
 
 ## Connect PhpStorm
 
-PhpStorm keeps its debug setup in its own settings, so the app gives you the values to enter there. In the site's details, select **Set up Xdebug for your editor**, and choose the **PhpStorm** tab.
+PhpStorm keeps its debug setup in its own settings, so the app gives you the values to enter there. In the site's details, select **Set up Xdebug for your editor**, and choose **PhpStorm**.
 
 1. In **Settings → PHP → Debug**, make sure **Debug port** includes 9003. Turn off both **Force break at first line** options: every request first runs a file of Playground's own, which has no mapping, and PhpStorm would stop there.
 2. In **Settings → PHP → Servers**, add a server with **Xdebug** as its debugger. Copy the **Host** and **Port** from the dialog, turn on **Use path mappings**, and map the dialog's **File/Directory** to its **Absolute path on the server**.

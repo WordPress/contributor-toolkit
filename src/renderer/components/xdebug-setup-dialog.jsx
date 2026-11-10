@@ -1,128 +1,160 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { speak } from '@wordpress/a11y';
+import { createInterpolateElement } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
-import { Button, Dialog, Stack, Tabs, Text, VisuallyHidden } from '@wordpress/ui';
+import { check as checkIcon, copy as copyIcon, error as errorIcon } from '@wordpress/icons';
+import { Button, Dialog, Notice, Stack, Text } from '@wordpress/ui';
 import { XDEBUG_PORT } from '../xdebug.cjs';
 
-// A button that copies a text and says so on itself for a moment, and to a
-// screen reader through the region beside it. `onCopy` says why when the
-// copy did not work.
-function CopyButton({ text, label, onCopy }) {
-  const [copied, setCopied] = useState(false);
+// The notes are there from the dialog's first moment, and read with it.
+const SILENT = '';
+
+// The words of a step, with the names of menus and settings in bold and file
+// names as code.
+const STEP_MARKUP = { b: <strong />, code: <code /> };
+
+// A button that copies a text, following the design system's pattern for
+// copying: the button keeps its name, shows how it went with its icon for two
+// seconds after each copy, and says so to a screen reader. `onCopy` resolves
+// to whether the copy worked. `describedBy` names what it copies, where
+// several share the one name.
+function CopyButton({ text, label = __('Copy'), describedBy, onCopy }) {
+  const [result, setResult] = useState(null);
   const timeout = useRef(null);
   useEffect(() => () => clearTimeout(timeout.current), []);
   const copy = useCallback(async () => {
-    if (!(await onCopy(text))) return;
-    setCopied(true);
+    const copied = await onCopy(text);
+    setResult(copied ? 'copied' : 'failed');
+    speak(copied ? __('Copied to clipboard') : __('Couldn’t copy to clipboard.'), 'polite');
     clearTimeout(timeout.current);
-    timeout.current = setTimeout(() => setCopied(false), 1500);
+    timeout.current = setTimeout(() => setResult(null), 2000);
   }, [onCopy, text]);
+  const icons = { copied: checkIcon, failed: errorIcon };
+  const icon = icons[result] || copyIcon;
   return (
-    <>
-      <Button variant="outline" tone="neutral" size="compact" onClick={() => copy()}>
-        {copied ? __('Copied') : label}
-      </Button>
-      <VisuallyHidden role="status" aria-live="polite">{copied ? __('Copied') : ''}</VisuallyHidden>
-    </>
+    <Button variant="minimal" tone="neutral" size="compact" aria-describedby={describedBy} onClick={() => copy()}>
+      <Button.Icon icon={icon} />
+      {label}
+    </Button>
+  );
+}
+
+// One numbered step: its words, and what goes with them, under the words.
+function Step({ children, words }) {
+  return (
+    <li className="xdebug-setup-step">
+      <Stack direction="column" gap="md">
+        <Text variant="body-md">{createInterpolateElement(words, STEP_MARKUP)}</Text>
+        {children}
+      </Stack>
+    </li>
+  );
+}
+
+function OneSiteNote() {
+  return (
+    <Notice.Root intent="info" spokenMessage={SILENT}>
+      <Notice.Description>
+        {sprintf(
+          // translators: %d: the port Xdebug connects to.
+          __('Every site’s server sends Xdebug to port %d, so your editor can follow only one running site at a time.'),
+          XDEBUG_PORT
+        )}
+      </Notice.Description>
+    </Notice.Root>
   );
 }
 
 // VS Code reads its debug setup from a file in the project, so it gets the
 // whole file to paste.
-function VsCodePanel({ config, onCopy }) {
+function VsCodeSteps({ config, onCopy }) {
   return (
-    <Stack direction="column" gap="lg">
-      <ol className="xdebug-setup-steps">
-        <li><Text variant="body-md">{__('Install the PHP Debug extension by Xdebug.')}</Text></li>
-        <li><Text variant="body-md">{__('Open the site’s folder, and put this in .vscode/launch.json:')}</Text></li>
-      </ol>
-      <pre className="xdebug-launch-config">{config}</pre>
-      <Stack direction="row" justify="end">
-        <CopyButton text={config} label={__('Copy launch.json')} onCopy={onCopy} />
-      </Stack>
-      <ol className="xdebug-setup-steps" start={3}>
-        <li><Text variant="body-md">{__('In Run and Debug, start “Listen for Xdebug”, set a breakpoint, and load the site.')}</Text></li>
-      </ol>
-    </Stack>
+    <ol className="xdebug-setup-steps">
+      <Step words={__('Install the <b>PHP Debug</b> extension by Xdebug.')} />
+      <Step words={__('Open the site’s folder, and put this in <code>.vscode/launch.json</code>:')}>
+        <div className="xdebug-launch-config-box">
+          <pre className="xdebug-launch-config">{config}</pre>
+          <Stack direction="row" justify="end">
+            <CopyButton text={config} label={__('Copy launch.json')} onCopy={onCopy} />
+          </Stack>
+        </div>
+      </Step>
+      <Step words={__('In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.')} />
+    </ol>
+  );
+}
+
+// A value for PhpStorm's settings: its field's name over it, and its copy
+// button at the end, described by that name.
+function PhpStormValue({ value, onCopy }) {
+  const labelId = useId();
+  return (
+    <div className="xdebug-value">
+      <dt id={labelId} className="xdebug-value-label"><Text variant="body-sm" className="muted-label">{value.label}</Text></dt>
+      <dd className="xdebug-value-text"><code>{value.value}</code></dd>
+      <dd className="xdebug-value-copy"><CopyButton text={value.value} describedBy={labelId} onCopy={onCopy} /></dd>
+    </div>
   );
 }
 
 // PhpStorm keeps its debug setup in its own settings, so it gets the values
 // to enter there, each by the name of its field.
-function PhpStormPanel({ values, onCopy }) {
+function PhpStormSteps({ values, onCopy }) {
   return (
-    <Stack direction="column" gap="lg">
-      <ol className="xdebug-setup-steps">
-        <li>
-          <Text variant="body-md">
-            {sprintf(
-              // translators: %d: the port Xdebug connects to.
-              __('In Settings → PHP → Debug, make sure Debug port includes %d, and turn off both “Force break at first line” options.'),
-              XDEBUG_PORT
-            )}
-          </Text>
-        </li>
-        <li><Text variant="body-md">{__('In Settings → PHP → Servers, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:')}</Text></li>
-      </ol>
-      <dl className="xdebug-values">
-        {values.map((value) => (
-          <div key={value.id} className="xdebug-value">
-            <dt><Text variant="body-md" className="muted-label">{value.label}</Text></dt>
-            <dd><code>{value.value}</code></dd>
-            <dd><CopyButton text={value.value} label={__('Copy')} onCopy={onCopy} /></dd>
-          </div>
-        ))}
-      </dl>
-      <ol className="xdebug-setup-steps" start={3}>
-        <li><Text variant="body-md">{__('Turn on Run → Start Listening for PHP Debug Connections, set a breakpoint, and load the site.')}</Text></li>
-      </ol>
-      <Text variant="body-sm" className="muted-label">{__('If the site starts on another port, PhpStorm asks which server it is; update the Port above.')}</Text>
-    </Stack>
+    <ol className="xdebug-setup-steps">
+      <Step
+        words={sprintf(
+          // translators: %d: the port Xdebug connects to. <b> marks the name of a settings page.
+          __('In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options.'),
+          XDEBUG_PORT
+        )}
+      />
+      <Step words={__('In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:')}>
+        <dl className="xdebug-values">
+          {values.map((value) => <PhpStormValue key={value.id} value={value} onCopy={onCopy} />)}
+        </dl>
+      </Step>
+      <Step words={__('Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a breakpoint, and load the site.')} />
+    </ol>
   );
 }
 
 /**
  * How to stop on breakpoints while the site's server has Xdebug (#723), for
- * each editor the app knows: VS Code, with the launch.json it needs, and
- * PhpStorm, with the values its settings need. The app shows and copies
- * them, and never writes them into the checkout, where they would end up in
- * a patch.
+ * one editor, picked from the Debugging row's menu: VS Code, with the
+ * launch.json it needs, or PhpStorm, with the values its settings need. The
+ * app shows and copies them, and never writes them into the checkout, where
+ * they would end up in a patch.
  *
  * @param {Object}   props
- * @param {boolean}  props.open
+ * @param {?string}  props.editor   'vscode' or 'phpstorm' while open, or null.
  * @param {string}   props.config   The launch.json, from `xdebugLaunchConfig`.
  * @param {Array}    props.phpStorm The PhpStorm values, from `phpStormSettings`.
- * @param {Function} props.onCopy   Copies a text, resolving to whether it worked; says why when it did not.
+ * @param {Function} props.onCopy   Copies a text, resolving to whether it worked.
  * @param {Function} props.onClose
  */
-export function XdebugSetupDialog({ open, config, phpStorm, onCopy, onClose }) {
+export function XdebugSetupDialog({ editor, config, phpStorm, onCopy, onClose }) {
+  // The editor stays drawn while the dialog closes, when `editor` is already
+  // null.
+  const [shown, setShown] = useState(editor);
+  if (editor && editor !== shown) setShown(editor);
+  const phpStormShown = (editor || shown) === 'phpstorm';
   return (
-    <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+    <Dialog.Root open={Boolean(editor)} onOpenChange={(next) => { if (!next) onClose(); }}>
       <Dialog.Popup size="medium" className="xdebug-setup-dialog">
         <Dialog.Header>
-          <Dialog.Title>{__('Set up your editor')}</Dialog.Title>
+          <Dialog.Title>{phpStormShown ? __('Set up PhpStorm') : __('Set up VS Code')}</Dialog.Title>
           <Dialog.CloseIcon />
         </Dialog.Header>
         <Dialog.Content>
           <Stack direction="column" gap="lg">
-            <Tabs.Root defaultValue="vscode" render={<Stack direction="column" gap="lg" />}>
-              <Tabs.List variant="minimal">
-                <Tabs.Tab value="vscode">{__('VS Code')}</Tabs.Tab>
-                <Tabs.Tab value="phpstorm">{__('PhpStorm')}</Tabs.Tab>
-              </Tabs.List>
-              <Tabs.Panel value="vscode" tabIndex={-1}>
-                <VsCodePanel config={config} onCopy={onCopy} />
-              </Tabs.Panel>
-              <Tabs.Panel value="phpstorm" tabIndex={-1}>
-                <PhpStormPanel values={phpStorm} onCopy={onCopy} />
-              </Tabs.Panel>
-            </Tabs.Root>
-            <Text variant="body-sm" className="muted-label">
-              {sprintf(
-                // translators: %d: the port Xdebug connects to.
-                __('Every site’s server sends Xdebug to port %d, so your editor can follow only one running site at a time.'),
-                XDEBUG_PORT
-              )}
-            </Text>
+            {phpStormShown ? <PhpStormSteps values={phpStorm} onCopy={onCopy} /> : <VsCodeSteps config={config} onCopy={onCopy} />}
+            {phpStormShown ? (
+              <Notice.Root intent="info" spokenMessage={SILENT}>
+                <Notice.Description>{__('If the site starts on another port, PhpStorm asks which server it is; update the Port above.')}</Notice.Description>
+              </Notice.Root>
+            ) : null}
+            <OneSiteNote />
           </Stack>
         </Dialog.Content>
       </Dialog.Popup>

@@ -5,8 +5,9 @@
  * Xdebug is a setting, applied at the next start of a server. The Debugging
  * row of the details names it with the constants, as the next start is
  * given them, and says what the running server started with when that is
- * not the same; a server started with it offers the editor setup, with the
- * launch.json VS Code needs and the values PhpStorm's settings need.
+ * not the same; a server started with it offers a menu of editors to set up,
+ * with the launch.json VS Code needs and the values PhpStorm's settings
+ * need.
  *
  * A journey does not run the Playground server, so the start is answered by
  * a stub that reports an address the way the real one does and says whether
@@ -86,6 +87,11 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	await expect.poll( () => session.readSettings().preferences?.xdebug ).toBe( true );
 	await expect( debugging( 'WP_DEBUG · SCRIPT_DEBUG · Xdebug' ) ).toBeVisible();
 	await expect( page.getByText( 'Xdebug is turned on, but this site started before that. Restart the server to use it.', { exact: true } ) ).toBeVisible();
+	// CHARACTERISATION — it is a notice as wide as the details, not one
+	// squeezed to the width of its longest word.
+	const notice = page.locator( '.details-notice' );
+	const widths = await notice.evaluate( ( el ) => ( { notice: el.getBoundingClientRect().width, details: el.closest( '.dashboard-sidebar' ).clientWidth } ) );
+	expect( widths.notice ).toBeGreaterThan( widths.details * 0.9 );
 	await expect( setup ).toHaveCount( 0 );
 
 	// INVARIANT — restarted, the server has it: the note goes, and the setup
@@ -97,21 +103,45 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	await ui.startDevServerButton( page ).click();
 	await expect( setup ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByText( /Restart the server/ ) ).toHaveCount( 0 );
+	// INVARIANT — the button is a menu of the editors, and each opens its
+	// own setup.
 	await setup.click();
-	const dialog = page.getByRole( 'dialog', { name: 'Set up your editor', exact: true } );
-	await expect( dialog ).toBeVisible();
-	const launch = JSON.parse( await dialog.locator( '.xdebug-launch-config' ).textContent() );
+	await page.getByRole( 'menuitem', { name: 'VS Code', exact: true } ).click();
+	const vscode = page.getByRole( 'dialog', { name: 'Set up VS Code', exact: true } );
+	await expect( vscode ).toBeVisible();
+	const launch = JSON.parse( await vscode.locator( '.xdebug-launch-config' ).textContent() );
 	expect( launch.configurations[ 0 ] ).toMatchObject( { type: 'php', request: 'launch', port: 9003 } );
 	expect( launch.configurations[ 0 ].pathMappings ).toEqual( { '/wordpress': path.join( site.dir, 'src' ) } );
-	await expect( dialog.getByRole( 'button', { name: 'Copy launch.json', exact: true } ) ).toBeVisible();
-	// INVARIANT — PhpStorm gets the same mapping, and the server the site
-	// runs on, as values for its own settings.
-	await dialog.getByRole( 'tab', { name: 'PhpStorm', exact: true } ).click();
-	await expect( dialog.getByText( '39403', { exact: true } ) ).toBeVisible();
-	await expect( dialog.getByText( path.join( site.dir, 'src' ), { exact: true } ) ).toBeVisible();
-	await expect( dialog.getByText( '/wordpress', { exact: true } ) ).toBeVisible();
+	await expect( vscode.getByRole( 'button', { name: 'Copy launch.json', exact: true } ) ).toBeVisible();
 	await page.keyboard.press( 'Escape' );
-	await expect( dialog ).toHaveCount( 0 );
+	await expect( vscode ).toHaveCount( 0 );
+	// INVARIANT — closed, the dialog gives the focus back to the button,
+	// and its focus ring is drawn whole: the details clip at their edges, and
+	// a ring at the left one came back cut off.
+	await expect( setup ).toBeFocused();
+	const ring = await setup.evaluate( ( button ) => {
+		const style = window.getComputedStyle( button );
+		const slot = button.closest( '.dashboard-sidebar-slot' ).getBoundingClientRect();
+		const box = button.getBoundingClientRect();
+		const extent = parseFloat( style.outlineWidth ) + Math.max( 0, parseFloat( style.outlineOffset ) || 0 );
+		return { shown: style.outlineStyle !== 'none' && extent > 0, extent, left: box.left - slot.left, right: slot.right - box.right };
+	} );
+	expect( ring.shown ).toBe( true );
+	expect( ring.left ).toBeGreaterThanOrEqual( ring.extent );
+	expect( ring.right ).toBeGreaterThanOrEqual( ring.extent );
+
+	// INVARIANT — PhpStorm gets the same mapping, and the server the site
+	// runs on, as values for its own settings, each with its copy button.
+	await setup.click();
+	await page.getByRole( 'menuitem', { name: 'PhpStorm', exact: true } ).click();
+	const phpStorm = page.getByRole( 'dialog', { name: 'Set up PhpStorm', exact: true } );
+	await expect( phpStorm ).toBeVisible();
+	await expect( phpStorm.getByText( '39403', { exact: true } ) ).toBeVisible();
+	await expect( phpStorm.getByText( path.join( site.dir, 'src' ), { exact: true } ) ).toBeVisible();
+	await expect( phpStorm.getByText( '/wordpress', { exact: true } ) ).toBeVisible();
+	await expect( phpStorm.getByRole( 'button', { name: 'Copy', exact: true } ) ).toHaveCount( 4 );
+	await page.keyboard.press( 'Escape' );
+	await expect( phpStorm ).toHaveCount( 0 );
 
 	// INVARIANT — turned off while it runs, the row no longer names it, says
 	// the server still has it until a restart, and keeps the setup.

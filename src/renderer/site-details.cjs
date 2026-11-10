@@ -15,8 +15,9 @@ const { __, _n, sprintf } = require('@wordpress/i18n');
  *
  * The path's row is marked `copyable`; the component puts the button that
  * copies it beside it. The Debugging row is marked `setup` while the running
- * server has Xdebug (#723); the component puts the button that opens the
- * VS Code setup beside it.
+ * server has Xdebug (#723); the component puts the menu that opens an
+ * editor's setup under it. What that row says of the running server is in
+ * `notices`, each drawn as a notice under the value.
  *
  * @param {Object}  root0
  * @param {boolean} [root0.initialized] The first-run setup has finished.
@@ -27,7 +28,7 @@ const { __, _n, sprintf } = require('@wordpress/i18n');
  * @param {?string} [root0.phpVersion]  The PHP a server starts on, from the settings (#559), or null while they are not read.
  * @param {?Object} [root0.debug]       `{ wpDebug, scriptDebug, xdebug }` from the settings, or null likewise.
  * @param {?Object} [root0.xdebug]      What the running server says of Xdebug, from `xdebugSection`, or null for nothing.
- * @return {Array<{id: string, label: string, value: string, note?: string, copyable?: boolean, setup?: boolean}>}
+ * @return {Array<{id: string, label: string, value: string, note?: string, notices?: Array<{id: string, intent: string, text: string}>, copyable?: boolean, setup?: boolean}>}
  */
 function siteDetailsRows({ initialized = false, created = '', trunk = null, path, checkout, phpVersion = null, debug = null, xdebug = null }) {
 	const rows = [
@@ -58,8 +59,13 @@ function siteDetailsRows({ initialized = false, created = '', trunk = null, path
 		const row = { id: 'debugging', label: __('Debugging'), value: on.length ? on.join(' · ') : __('Off') };
 		// The running server keeps what it started with, so it can disagree
 		// with the setting, and every server sends Xdebug to the same port.
-		const notes = xdebug ? [xdebug.note, xdebug.on ? othersNote(xdebug.others) : ''].filter(Boolean) : [];
-		if (notes.length) row.note = notes.join(' ');
+		// A server without it has to restart before it connects, a warning;
+		// one that keeps it until a restart is only news.
+		const notices = [];
+		if (xdebug && xdebug.note) notices.push({ id: 'status', intent: xdebug.on ? 'info' : 'warning', text: xdebug.note });
+		const others = xdebug && xdebug.on ? othersNote(xdebug.others) : '';
+		if (others) notices.push({ id: 'others', intent: 'warning', text: others });
+		if (notices.length) row.notices = notices;
 		if (xdebug && xdebug.on) row.setup = true;
 		rows.push(row);
 	}

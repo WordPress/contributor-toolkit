@@ -1386,24 +1386,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Step debugging (#723): what the running server has, the launch.json for
   // VS Code, and the other sites sending to the same port.
   const xdebug = xdebugSection({ setting: Boolean(settings && settings.xdebug), running, startedWith: serverXdebug, sitePath, serve: project.serve, url: serverUrl, others: xdebugOthers });
-  const [xdebugSetupOpen, setXdebugSetupOpen] = useState(false);
-  // A copy that failed says why, as the path's does.
+  // Which editor's setup is open, 'vscode' or 'phpstorm', or null.
+  const [xdebugEditor, setXdebugEditor] = useState(null);
+  // A copy that failed says so on its button, and why in the log.
   const copyXdebugConfig = useCallback(async (text) => {
     try {
       if (!navigator?.clipboard?.writeText) {
-        throw new Error(__('Clipboard access is not available in this environment'));
+        throw new Error('Clipboard access is not available in this environment');
       }
       await navigator.clipboard.writeText(text);
       return true;
     } catch (err) {
-      confirm(sprintf(
-        // translators: %s: why a value for the editor could not be copied, a sentence.
-        __('Unable to copy: %s'),
-        err?.message ?? String(err)
-      ), { tone: 'error' });
+      // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole.
+      console.error('Could not copy a value for the editor:', err);
       return false;
     }
-  }, [confirm]);
+  }, []);
   // A link to the running site is opened in the browser by the main process.
   const openSiteLink = (url) => window.api.openExternal(url);
 
@@ -2533,7 +2531,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         }}
         pathCopied={pathCopied}
         onCopyPath={copyPath}
-        onOpenXdebugSetup={() => setXdebugSetupOpen(true)}
+        onOpenXdebugSetup={setXdebugEditor}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
         changed={{ ...changedGroups, onOpenFile: openAffectedFile, onRevertFile: revertFile, revertReason, revertError }}
@@ -2549,7 +2547,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onClose={() => setDirtyModalOpen(false)}
         />
       ) : null}
-      <XdebugSetupDialog open={Boolean(xdebug && xdebug.on) && xdebugSetupOpen} config={xdebug ? xdebug.config : ''} phpStorm={xdebug ? xdebug.phpStorm : []} onCopy={copyXdebugConfig} onClose={() => setXdebugSetupOpen(false)} />
+      <XdebugSetupDialog editor={xdebug && xdebug.on ? xdebugEditor : null} config={xdebug ? xdebug.config : ''} phpStorm={xdebug ? xdebug.phpStorm : []} onCopy={copyXdebugConfig} onClose={() => setXdebugEditor(null)} />
       <RenameSiteDialog open={renameModalOpen} sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
       <ConfirmDialog question={asking ? asking.question : null} onConfirm={() => asking.action()} onClose={() => setAsking(null)} />
       {isPatchOpen && (
