@@ -115,6 +115,19 @@ const LOCAL_EXCLUDES = [
 	'/.clinerules/'
 ];
 
+// A block of its own rather than more rules under the one above (#737): that
+// block is written once, so a site seeded before these were added would
+// never receive them.
+const EDITOR_EXCLUDES_MARKER = '# WordPress Contributor Toolkit editor folders';
+const EDITOR_EXCLUDES = [
+	'/.idea/',
+	'/.vscode/',
+	'/.vs/',
+	'/.fleet/',
+	'/.zed/',
+	'/.nova/'
+];
+
 /**
  * Seeds per-site ignores for machine-local files that must never become part
  * of a contribution. This lives in `.git/info/exclude`, not the repository's
@@ -126,7 +139,7 @@ const LOCAL_EXCLUDES = [
  * Existing rules above or below the block are never rewritten.
  *
  * @param {string} dir Repository working directory.
- * @return {Promise<boolean>} Whether the default block was appended.
+ * @return {Promise<boolean>} Whether the agent or editor block was appended.
  */
 async function ensureLocalExcludes(dir) {
 	const gitDir = path.join(dir, '.git');
@@ -139,7 +152,9 @@ async function ensureLocalExcludes(dir) {
 	// Older PRs predate WordPress's /gutenberg ignore. Keep this generated
 	// download out of WIP commits even when their .gitignore is checked out.
 	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit generated Gutenberg', ['/gutenberg/'], { once: true });
-	return appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
+	const agents = await appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
+	const editors = await appendExcludeBlock(dir, EDITOR_EXCLUDES_MARKER, EDITOR_EXCLUDES, { once: true });
+	return agents || editors;
 }
 
 // Screenshot harness only (scripts/screenshots/): point userData at a throwaway
