@@ -28,23 +28,28 @@ const { makeSite } = require( '../helpers/git-site.cjs' );
 
 const SERVER_URL = 'http://127.0.0.1:39403/';
 
-// Answers the server's start as main does, with whether it started with
-// Xdebug taken from the setting at that moment, and, when the test says
-// another site's server has it, whose it is instead.
+// Answers the server's start as main does: with whether it started with
+// Xdebug, taken from the setting at that moment, and, when another site's
+// stubbed server has it, whose it is instead. Main's own check is in
+// `ipc-wiring.test.cjs`.
 async function stubServer( app, session ) {
 	await app.evaluate( ( { ipcMain, shell }, url ) => {
 		shell.openExternal = async () => {};
 		ipcMain.removeHandler( 'npm:run-script' );
 		ipcMain.handle( 'npm:run-script', async () => ( { runId: 'e2e-xdebug' } ) );
 		ipcMain.removeHandler( 'playground:start' );
+		global.e2eXdebugServers = new Set();
 		ipcMain.handle( 'playground:start', async ( event, sitePath ) => {
-			const xdebug = Boolean( global.e2eXdebug ) && ! global.e2eXdebugHeldBy;
-			const report = { xdebug, ...( global.e2eXdebugHeldBy ? { xdebugHeldBy: global.e2eXdebugHeldBy } : {} ) };
+			const heldBy = global.e2eXdebug ? [ ...global.e2eXdebugServers ].find( ( other ) => other !== sitePath ) : undefined;
+			const xdebug = Boolean( global.e2eXdebug ) && ! heldBy;
+			if ( xdebug ) global.e2eXdebugServers.add( sitePath );
+			const report = { xdebug, ...( heldBy ? { xdebugHeldBy: heldBy } : {} ) };
 			event.sender.send( 'playground:url', { sitePath, url, ...report } );
 			return { ok: true, url, ...report };
 		} );
 		ipcMain.removeHandler( 'playground:stop' );
 		ipcMain.handle( 'playground:stop', async ( event, sitePath ) => {
+			global.e2eXdebugServers.delete( sitePath );
 			event.sender.send( 'playground:stopped', { sitePath, code: 0 } );
 			return { ok: true };
 		} );
@@ -114,7 +119,52 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	const launch = JSON.parse( await vscode.locator( '.xdebug-launch-config' ).textContent() );
 	expect( launch.configurations[ 0 ] ).toMatchObject( { type: 'php', request: 'launch', port: 9003 } );
 	expect( launch.configurations[ 0 ].pathMappings ).toEqual( { '/wordpress': path.join( site.dir, 'src' ) } );
-	await expect( vscode.getByRole( 'button', { name: 'Copy launch.json', exact: true } ) ).toBeVisible();
+	// INVARIANT — the launch.json listens on this machine only.
+	expect( launch.configurations[ 0 ].hostname ).toBe( '127.0.0.1' );
+
+	// INVARIANT — copying follows the design system's pattern: the button
+	// keeps its name, shows a check for two seconds after the copy, an error
+	// icon for a copy that failed, and the result is said. A second copy
+	// restarts the two seconds. The clipboard is a stand-in, as in the other
+	// journeys: it is the system's, shared with the person running them.
+	const copyLaunch = vscode.getByRole( 'button', { name: 'Copy launch.json', exact: true } );
+	const icon = () => copyLaunch.locator( 'svg' ).evaluate( ( svg ) => svg.innerHTML );
+	const spoken = () => page.locator( '#a11y-speak-polite' ).textContent();
+	await page.clock.install();
+	await page.evaluate( () => {
+		navigator.clipboard.writeText = async ( text ) => {
+			window.__e2eCopied = text;
+		};
+	} );
+	const resting = await icon();
+	await copyLaunch.click();
+	await expect.poll( () => page.evaluate( () => window.__e2eCopied ) ).toBe( await vscode.locator( '.xdebug-launch-config' ).textContent() );
+	await expect.poll( spoken ).toContain( 'Copied to clipboard' );
+	await expect( copyLaunch ).toHaveAccessibleName( 'Copy launch.json' );
+	const success = await icon();
+	expect( success ).not.toBe( resting );
+	await page.clock.fastForward( 1500 );
+	await copyLaunch.click();
+	await page.clock.fastForward( 1500 );
+	expect( await icon() ).toBe( success );
+	await page.clock.fastForward( 600 );
+	await expect.poll( icon ).toBe( resting );
+	await page.evaluate( () => {
+		navigator.clipboard.writeText = async () => {
+			throw new Error( 'the document is not focused' );
+		};
+	} );
+	await copyLaunch.click();
+	await expect.poll( spoken ).toContain( 'Couldn’t copy to clipboard.' );
+	await expect( copyLaunch ).toHaveAccessibleName( 'Copy launch.json' );
+	const failure = await icon();
+	expect( failure ).not.toBe( resting );
+	expect( failure ).not.toBe( success );
+	await page.evaluate( () => {
+		navigator.clipboard.writeText = async ( text ) => {
+			window.__e2eCopied = text;
+		};
+	} );
 	await page.keyboard.press( 'Escape' );
 	await expect( vscode ).toHaveCount( 0 );
 	// INVARIANT — closed, the dialog gives the focus back to the button,
@@ -142,6 +192,11 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	await expect( phpStorm.getByText( path.join( site.dir, 'src' ), { exact: true } ) ).toBeVisible();
 	await expect( phpStorm.getByText( '/wordpress', { exact: true } ) ).toBeVisible();
 	await expect( phpStorm.getByRole( 'button', { name: 'Copy', exact: true } ) ).toHaveCount( 4 );
+	// INVARIANT — each value's Copy copies that value, and is described by
+	// its field's name.
+	const copyLocal = phpStorm.getByRole( 'button', { name: 'Copy', exact: true, description: 'File/Directory' } );
+	await copyLocal.click();
+	await expect.poll( () => page.evaluate( () => window.__e2eCopied ) ).toBe( path.join( site.dir, 'src' ) );
 	await page.keyboard.press( 'Escape' );
 	await expect( phpStorm ).toHaveCount( 0 );
 
@@ -160,21 +215,53 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 
 // One running server has Xdebug at a time (#723). Main decides that at the
 // start (`ipc-wiring.test.cjs`); a site started while another's server has
-// it is told whose, and its details say so.
-test( 'a site started while another site’s server has Xdebug says which site has it, and offers no setup', async ( { session } ) => {
-	const site = await makeSite( session );
-	const { app, page } = await session.start( site.settings );
+// it is told whose, and its details name that site while its server is up.
+test( 'a site started while another site’s server has Xdebug names that site until its server stops', async ( { session } ) => {
+	const first = await makeSite( session, { label: 'first-site' } );
+	const second = await makeSite( session, { label: 'second-site' } );
+	const { app, page } = await session.start( {
+		...first.settings,
+		sites: [ first.dir, second.dir ],
+		siteMeta: { ...first.settings.siteMeta, ...second.settings.siteMeta },
+	} );
 	const followSetting = await stubServer( app, session );
-	await app.evaluate( () => { global.e2eXdebugHeldBy = '/elsewhere/other-site'; } );
+	// A site's entry in the list is named with its server's state while it
+	// runs, as "first-site (Server running)".
+	const open = async ( label ) => {
+		await page.getByRole( 'button', { name: new RegExp( `^${ label }( \\(.*\\))?$` ) } ).click();
+		await expect( ui.siteHeading( page, label ) ).toBeVisible();
+	};
+	const held = page.getByText( 'Xdebug is on for first-site, so this site started without it. Stop that site’s server, then restart this one to use it here.', { exact: true } );
+	const freed = page.getByText( 'This site started without Xdebug because another site’s server had it. Restart the server to use it.', { exact: true } );
+	const setup = page.getByRole( 'button', { name: 'Set up Xdebug for your editor', exact: true } );
 
 	await setXdebug( page, true );
 	await followSetting();
+	await open( 'first-site' );
+	await ui.startDevServerButton( page ).click();
+	await expect( setup ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — the second site's server starts without Xdebug, and its
+	// row names the site that has it; there is no setup for a server that
+	// would not connect.
+	await open( 'second-site' );
 	await ui.startDevServerButton( page ).click();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( held ).toBeVisible();
+	await expect( setup ).toHaveCount( 0 );
 
-	// INVARIANT — the row names the site that has it, by the name the list
-	// would show, and says how to have it here; there is no setup for a
-	// server that would not connect.
-	await expect( page.getByText( 'Xdebug is on for other-site, so this site started without it. Stop that site’s server, then restart this one to use it here.', { exact: true } ) ).toBeVisible();
-	await expect( page.getByRole( 'button', { name: 'Set up Xdebug for your editor', exact: true } ) ).toHaveCount( 0 );
+	// INVARIANT — once the first site's server stops, the second site no
+	// longer sends the contributor to stop it, and says to restart.
+	await open( 'first-site' );
+	await ui.stopDevServerButton( page ).click();
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await open( 'second-site' );
+	await expect( freed ).toBeVisible();
+	await expect( held ).toHaveCount( 0 );
+
+	// INVARIANT — restarted, the second site has it.
+	await ui.stopDevServerButton( page ).click();
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await ui.startDevServerButton( page ).click();
+	await expect( setup ).toBeVisible( { timeout: 30_000 } );
 } );

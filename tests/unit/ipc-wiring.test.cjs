@@ -3707,6 +3707,34 @@ test('playground:start gives Xdebug to one running server at a time, and says wh
 	assert.equal(JSON.parse(cp.spawned[2].args[1]).xdebug, true);
 });
 
+// A server that has not reported its address in time is killed and its
+// start reported failed (#73). With Xdebug, Playground's own requests while
+// it starts connect to the editor too, and a contributor paused on a
+// breakpoint there has a server that is waiting, not hung (#723). Nothing
+// can stop a server while it starts, so it still has a limit, a longer one.
+for (const [xdebug, limitMs] of [[false, 120_000], [true, 15 * 60_000]]) {
+	test(`playground:start gives a server ${xdebug ? 'with' : 'without'} Xdebug ${limitMs / 60_000} minutes to report its address before it is killed`, async (t) => {
+		t.mock.timers.enable({ apis: ['setTimeout'] });
+		const settings = fakeSettingsStore({ preferences: { xdebug } });
+		const cp = stubbedSpawn();
+		const killChildTree = spy();
+		const main = loadMain({
+			stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) }, './kill-tree': { killChildTree } }
+		});
+
+		const pending = main.invokeWith('playground:start', createIpcEvent(), '/sites/wp');
+		await reachSpawn(t, cp, pending);
+
+		t.mock.timers.tick(limitMs - 1);
+		assert.equal(killChildTree.calls.length, 0, 'killed before its time was up');
+		t.mock.timers.tick(1);
+		assert.equal(killChildTree.calls.length, 1);
+		const result = await pending;
+		assert.equal(result.ok, false);
+		assert.match(result.error, new RegExp(`within ${limitMs / 1000} seconds`));
+	});
+}
+
 test('playground:start passes over a stored PHP version the bundled Playground no longer has', async (t) => {
 	const settings = fakeSettingsStore({ preferences: { phpVersion: '5.6' } });
 	const cp = stubbedSpawn();

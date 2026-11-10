@@ -20,6 +20,8 @@ The **Debugging** row of the site's details then names *Xdebug*, and while the s
 4. Open **Run and Debug**, choose **Listen for Xdebug**, and start it.
 5. Set a breakpoint, and load a page of the site in the browser.
 
+The launch.json listens on `127.0.0.1` only, so other machines on your network cannot connect to it.
+
 The app does not write `.vscode/launch.json` for you, but it does keep the file out of your patch: neither Core nor Gutenberg ignores it, so the app adds it to the site's local Git excludes. Gutenberg's own files in `.vscode/`, such as `launch-example.json`, are not affected.
 
 ## Connect PhpStorm

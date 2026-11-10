@@ -4455,7 +4455,12 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	// into "fails loudly" (issue #73): on expiry the child is killed — which
 	// fires the close handler and the playground:stopped event — and the
 	// renderer surfaces the returned error.
-	const START_TIMEOUT_MS = 120000;
+	//
+	// With Xdebug, Playground's own requests while the server starts connect
+	// to the editor as well, so a contributor paused on a breakpoint there has
+	// a server that is waiting, not hung (#723). Nothing can stop a server
+	// while it starts, so it keeps a limit, a longer one.
+	const START_TIMEOUT_MS = serveConfig.xdebug ? 15 * 60 * 1000 : 120000;
 	return new Promise((resolve) => {
 		pendingResolve = resolve;
 		timeoutId = setTimeout(() => {
