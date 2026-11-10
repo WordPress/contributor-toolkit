@@ -4324,10 +4324,19 @@ function playgroundLogScope(sitePath) {
 	return `playground:${path.basename(sitePath)}#${suffix}`;
 }
 
+// Starts that have not spawned their server yet, by site, so that a stop
+// that comes while one still reads the store can cancel it (#723): nothing
+// else would, and the server would start with nothing in the window to stop
+// it.
+const playgroundStarts = {};
+
 ipcMain.handle('playground:start', async (event, sitePath) => {
+	const start = { cancelled: false };
+	playgroundStarts[sitePath] = start;
 	// Ensure a per-site SMTP server is running alongside the dev server and get its port
 	const smtp = await ensureSmtpServerForSite(sitePath).catch(() => null);
 	if (playgroundServers[sitePath]?.child) {
+		delete playgroundStarts[sitePath];
 		const { url, xdebug, xdebugHeldBy } = playgroundServers[sitePath];
 		return { ok: true, url, xdebug, ...(xdebugHeldBy ? { xdebugHeldBy } : {}) };
 	}
@@ -4338,13 +4347,21 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	// read here, once, and the map below keys on sitePath as before, so
 	// playground:stop and the quit sweep are untouched.
 	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
-	const isPluginMount = serve.strategy === 'plugin-mount';
-	const buildDir = path.join(sitePath, 'build');
 	// The PHP version and the debug flags the settings hold (#559), read at
 	// each start so a change applies to the next. A version the bundled
 	// Playground no longer has, after a bump, is passed over for the fallback.
 	const logScope = playgroundLogScope(sitePath);
+	// eslint-disable-next-line @wordpress/no-unused-vars-before-return -- this read is the start's last await, and the cancel check below has to come after it.
 	const settings = readSettings((await getStore()).get('preferences'));
+	// Stopped before it got here: nothing to spawn.
+	if (playgroundStarts[sitePath] === start) delete playgroundStarts[sitePath];
+	if (start.cancelled) {
+		logEvent(logScope, 'start cancelled before the server was spawned');
+		await stopSmtpServerForSite(sitePath).catch(() => {});
+		return { ok: false, cancelled: true };
+	}
+	const isPluginMount = serve.strategy === 'plugin-mount';
+	const buildDir = path.join(sitePath, 'build');
 	const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
 	if (phpVersion !== settings.phpVersion) {
 		logEvent(logScope, `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
@@ -4458,8 +4475,8 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	//
 	// With Xdebug, Playground's own requests while the server starts connect
 	// to the editor as well, so a contributor paused on a breakpoint there has
-	// a server that is waiting, not hung (#723). Nothing can stop a server
-	// while it starts, so it keeps a limit, a longer one.
+	// a server that is waiting, not hung (#723), so it has longer. The window
+	// can cancel a start, so the limit is only for a start nobody cancels.
 	const START_TIMEOUT_MS = serveConfig.xdebug ? 15 * 60 * 1000 : 120000;
 	return new Promise((resolve) => {
 		pendingResolve = resolve;
@@ -4480,7 +4497,11 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 
 ipcMain.handle('playground:stop', async (_event, sitePath) => {
 	const server = playgroundServers[sitePath];
-	if (!server?.child) return { ok: true };
+	if (!server?.child) {
+		// A start that has not spawned yet stops itself when it gets there.
+		if (playgroundStarts[sitePath]) playgroundStarts[sitePath].cancelled = true;
+		return { ok: true };
+	}
 	try {
 		// The runner spawns the PHP-WASM server under it, so the same tree kill the
 		// quit sweep uses (#83) is what actually stops the site (#146).

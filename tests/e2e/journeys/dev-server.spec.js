@@ -125,14 +125,14 @@ async function standIn( app, page, sitePath ) {
 	};
 }
 
-test( 'the dev server\'s button starts one server and cannot be pressed while it starts, says when it is up, stops it without touching the watch, and tells a crash from a stop', async ( { session } ) => {
+test( 'the dev server\'s button starts one server and offers to cancel it while it starts, says when it is up, stops it without touching the watch, and tells a crash from a stop', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	// The terminal is in the tray, which is closed when the window opens.
 	await ui.openTray( page, 'Terminal' );
 	const server = await standIn( app, page, site.dir );
 
-	const starting = page.getByRole( 'button', { name: 'Starting development server…', exact: true } );
+	const starting = page.getByRole( 'button', { name: 'Cancel the development server start', exact: true } );
 	const line = ( text ) => ui.tray( page, 'Logs' ).getByText( text, { exact: true } );
 	const siteLink = page.getByRole( 'link', { name: 'View site', exact: true } );
 	// The site's dot in the sites list, with what the list says of it: the
@@ -159,14 +159,14 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	// INVARIANT — the sites list says it too, before the site's name.
 	await expect( listDot( 'e2e-site (Server starting…)', 'busy' ) ).toHaveCount( 1 );
 
-	// INVARIANT — while it starts there is nothing to press, here or in the
-	// header's menu: that is what now keeps a second press from starting a
-	// second server (#488). The hook still refuses a second start by itself,
-	// and no journey reaches that refusal any more.
-	await expect( starting ).toBeDisabled();
+	// INVARIANT — while it starts the button, and the header's menu, offer to
+	// cancel the start, by a name that is not Stop's (#723): a press is never
+	// a second start (#488). Cancelling is the next journey's.
+	await expect( starting ).toBeEnabled();
 	await ui.processMenuButton( page, 'Server starting…' ).click();
-	await expect( page.getByRole( 'menuitem', { name: 'Starting development server…', exact: true } ) ).toBeDisabled();
+	await expect( page.getByRole( 'menuitem', { name: 'Cancel the development server start', exact: true } ) ).toBeEnabled();
 	await page.keyboard.press( 'Escape' );
+	expect( ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 
 	// INVARIANT — once the server has an address the site is opened in the
 	// browser, once, the address is shown, and the button offers to stop it.
@@ -264,6 +264,48 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	await expect( line( 'Dev server failed to start: port 9400 is taken' ) ).toBeVisible();
 } );
 
+// A start can be cancelled (#723): with Xdebug it can be paused on a
+// breakpoint in the editor before the server has an address, and the time
+// limit was the only way out (#507).
+test( 'a start can be cancelled while it starts: the server is stopped, it is not called a failure or a crash, and what it says afterwards is not taken for a running server', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	await ui.openTray( page, 'Terminal' );
+	const server = await standIn( app, page, site.dir );
+	const starting = page.getByRole( 'button', { name: 'Cancel the development server start', exact: true } );
+	const line = ( text ) => ui.tray( page, 'Logs' ).getByText( text, { exact: true } );
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.openTray( page, 'Logs' );
+
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
+	await expect( starting ).toBeVisible();
+
+	// INVARIANT — cancelling stops this site's server, says so, and offers to
+	// start again; it is not reported as a start that failed.
+	await starting.click();
+	await expect.poll( async () => ( await server.asked() ).stops ).toEqual( [ site.dir ] );
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await expect( line( 'Dev server start cancelled.' ) ).toBeVisible();
+	await expect( page.getByText( 'The development server could not start. Its last lines are in the Logs.', { exact: true } ) ).toHaveCount( 0 );
+
+	// INVARIANT — what the cancelled start says afterwards, an address or its
+	// exit, is not a running server and not a crash.
+	await server.serverHasAddress();
+	await server.serverHasGone( null );
+	await server.heard();
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await expect( ui.stopDevServerButton( page ) ).toHaveCount( 0 );
+	await expect( page.getByText( 'The development server stopped by itself. Its last lines are in the Logs.', { exact: true } ) ).toHaveCount( 0 );
+	expect( ( await server.asked() ).opened ).toEqual( [] );
+
+	// INVARIANT — and a new start is one server, which comes up.
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir, site.dir ] );
+	await server.serverHasAddress();
+	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
+} );
+
 test( 'on a project whose watcher rebuilds everything, the server waits for a first build and for the watcher to be ready, gives up if the build fails, and starts at once on a build that is already there', async ( { session } ) => {
 	// A Gutenberg checkout, which the fixture is not a built one of.
 	const site = await makeSite( session );
@@ -271,7 +313,7 @@ test( 'on a project whose watcher rebuilds everything, the server waits for a fi
 	const { app, page } = await session.start( site.settings );
 	const server = await standIn( app, page, site.dir );
 
-	const starting = page.getByRole( 'button', { name: 'Starting development server…', exact: true } );
+	const starting = page.getByRole( 'button', { name: 'Cancel the development server start', exact: true } );
 	const line = ( text ) => ui.tray( page, 'Logs' ).getByText( text, { exact: true } );
 	// What the server says is in the logs, in the tray.
 	await ui.openTray( page, 'Logs' );

@@ -3710,8 +3710,8 @@ test('playground:start gives Xdebug to one running server at a time, and says wh
 // A server that has not reported its address in time is killed and its
 // start reported failed (#73). With Xdebug, Playground's own requests while
 // it starts connect to the editor too, and a contributor paused on a
-// breakpoint there has a server that is waiting, not hung (#723). Nothing
-// can stop a server while it starts, so it still has a limit, a longer one.
+// breakpoint there has a server that is waiting, not hung (#723), so it has
+// longer. The window can cancel a start; the limit is for one nobody does.
 for (const [xdebug, limitMs] of [[false, 120_000], [true, 15 * 60_000]]) {
 	test(`playground:start gives a server ${xdebug ? 'with' : 'without'} Xdebug ${limitMs / 60_000} minutes to report its address before it is killed`, async (t) => {
 		t.mock.timers.enable({ apis: ['setTimeout'] });
@@ -3734,6 +3734,43 @@ for (const [xdebug, limitMs] of [[false, 120_000], [true, 15 * 60_000]]) {
 		assert.match(result.error, new RegExp(`within ${limitMs / 1000} seconds`));
 	});
 }
+
+// A start can be stopped while it starts (#723): with Xdebug a contributor
+// can be paused on a breakpoint before the server has an address. A stop
+// that comes before the server is spawned, while the start is still reading
+// the store, cancels it: nothing is spawned, and the start says it was
+// cancelled rather than failed.
+test('playground:stop before the server is spawned cancels the start, and nothing is spawned', async () => {
+	const settings = fakeSettingsStore();
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+
+	const pending = main.invokeWith('playground:start', createIpcEvent(), '/sites/wp');
+	assert.deepEqual(await main.invoke('playground:stop', '/sites/wp'), { ok: true });
+
+	assert.deepEqual(await pending, { ok: false, cancelled: true });
+	assert.equal(cp.spawned.length, 0);
+});
+
+// Once spawned, a start is stopped as a running server is: its process tree
+// is killed, and the start's reply says it did not start.
+test('playground:stop while the spawned server has no address yet kills it', async (t) => {
+	const settings = fakeSettingsStore();
+	const cp = stubbedSpawn();
+	const killChildTree = spy((child) => child.emit('close', null, 'SIGTERM'));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) }, './kill-tree': { killChildTree } }
+	});
+
+	const pending = main.invokeWith('playground:start', createIpcEvent(), '/sites/wp');
+	await reachSpawn(t, cp, pending);
+	assert.deepEqual(await main.invoke('playground:stop', '/sites/wp'), { ok: true });
+
+	assert.equal(killChildTree.calls.length, 1);
+	assert.equal((await pending).ok, false);
+});
 
 test('playground:start passes over a stored PHP version the bundled Playground no longer has', async (t) => {
 	const settings = fakeSettingsStore({ preferences: { phpVersion: '5.6' } });

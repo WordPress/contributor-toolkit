@@ -307,7 +307,7 @@ test( 'the open site\'s two processes are fully translatable, in the header and 
 	await expect( details.getByText( said( 'Edits in %s are compiled as they are saved.', 'src/' ), { exact: true } ) ).toBeVisible();
 	expect( await inDetails() ).toEqual( [] );
 	await menuButton( 'Server starting…' ).click();
-	await expect( item( 'Starting development server…' ) ).toBeVisible();
+	await expect( item( 'Cancel the development server start' ) ).toBeVisible();
 	expect( await inMenu() ).toEqual( [] );
 	await page.keyboard.press( 'Escape' );
 	await menuGone();

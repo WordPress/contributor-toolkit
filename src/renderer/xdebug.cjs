@@ -91,31 +91,31 @@ function phpStormSettings({ sitePath, serve, url }) {
  * Whether the site's running server has Xdebug, and what to say when that is
  * not what the setting says. The setting applies at a server's next start,
  * so a change made while one runs is said, and not shown as done. One
- * running server has Xdebug at a time, so a server started while another
- * site's had it started without it, and says whose.
+ * running server has Xdebug at a time, so a server without it while another
+ * site's has it says which site, and how to have it here.
  *
  * @param {Object}  root0
- * @param {boolean} root0.setting         What the settings hold.
- * @param {boolean} root0.running         The site's server is up.
- * @param {boolean} root0.startedWith     It started with Xdebug.
- * @param {string}  [root0.heldBy]        The name of the site whose server had Xdebug when this one started, while that server is still up, or ''.
- * @param {boolean} [root0.heldByStopped] Another site's server had Xdebug when this one started, and has stopped since.
+ * @param {boolean} root0.setting       What the settings hold.
+ * @param {boolean} root0.running       The site's server is up.
+ * @param {boolean} root0.startedWith   It started with Xdebug.
+ * @param {string}  [root0.holder]      The name of the site whose server has Xdebug now, or ''.
+ * @param {boolean} [root0.heldAtStart] It started without Xdebug because another site's server had it.
  * @return {{on: boolean, note: string}}
  */
-function xdebugStatus({ setting, running, startedWith, heldBy = '', heldByStopped = false }) {
+function xdebugStatus({ setting, running, startedWith, holder = '', heldAtStart = false }) {
 	if (!running) return { on: false, note: '' };
 	if (startedWith && !setting) return { on: true, note: __('Xdebug is still on for this site until you restart the server.') };
-	if (!startedWith && setting && heldBy) {
+	if (!startedWith && setting && holder) {
 		return {
 			on: false,
 			note: sprintf(
 				// translators: %s: the name of the site whose server has Xdebug.
-				__('Xdebug is on for %s, so this site started without it. Stop that site’s server, then restart this one to use it here.'),
-				heldBy
+				__('Xdebug is on for %s. Stop that site’s server, then restart this one to use it here.'),
+				holder
 			)
 		};
 	}
-	if (!startedWith && setting && heldByStopped) return { on: false, note: __('This site started without Xdebug because another site’s server had it. Restart the server to use it.') };
+	if (!startedWith && setting && heldAtStart) return { on: false, note: __('This site started without Xdebug because another site’s server had it. Restart the server to use it.') };
 	if (!startedWith && setting) return { on: false, note: __('Xdebug is turned on, but this site started before that. Restart the server to use it.') };
 	return { on: startedWith, note: '' };
 }
@@ -126,19 +126,21 @@ function xdebugStatus({ setting, running, startedWith, heldBy = '', heldByStoppe
  * and the launch.json for VS Code and the values for PhpStorm while it has
  * it (and nothing when it would not connect).
  *
- * @param {Object}  root0
- * @param {boolean} root0.setting         What the settings hold.
- * @param {boolean} root0.running         The site's server is up.
- * @param {boolean} root0.startedWith     It started with Xdebug.
- * @param {string}  [root0.heldBy]        The name of the site whose server had Xdebug when this one started, while that server is still up, or ''.
- * @param {boolean} [root0.heldByStopped] That server has stopped since.
- * @param {string}  root0.sitePath        The checkout's folder.
- * @param {Object}  root0.serve           The project's serve model.
- * @param {string}  root0.url             The running server's address.
+ * @param {Object}   root0
+ * @param {boolean}  root0.setting       What the settings hold.
+ * @param {boolean}  root0.running       The site's server is up.
+ * @param {boolean}  root0.startedWith   It started with Xdebug.
+ * @param {boolean}  [root0.heldAtStart] It started without Xdebug because another site's server had it.
+ * @param {string}   root0.sitePath      The checkout's folder.
+ * @param {Object}   [root0.servers]     What each site's view last said of its server, by path, from sites-list.cjs.
+ * @param {Function} [root0.nameFor]     A site's name, by its path.
+ * @param {Object}   root0.serve         The project's serve model.
+ * @param {string}   root0.url           The running server's address.
  * @return {?{on: boolean, note: string, config: string, phpStorm: Array}}
  */
-function xdebugSection({ setting, running, startedWith, heldBy = '', heldByStopped = false, sitePath, serve, url }) {
-	const status = xdebugStatus({ setting, running, startedWith, heldBy, heldByStopped });
+function xdebugSection({ setting, running, startedWith, heldAtStart = false, sitePath, servers = {}, nameFor = (dir) => dir, serve, url }) {
+	const holderPath = xdebugHolder({ sitePath, servers });
+	const status = xdebugStatus({ setting, running, startedWith, holder: holderPath ? nameFor(holderPath) : '', heldAtStart });
 	if (!status.on && !status.note) return null;
 	return {
 		...status,
@@ -148,19 +150,18 @@ function xdebugSection({ setting, running, startedWith, heldBy = '', heldByStopp
 }
 
 /**
- * The site whose server had Xdebug when this site's started, while that
- * server is still up. Main names it once, at this site's start; the server
- * can stop afterwards, and naming it then would send the contributor to stop
- * a server that is not running.
+ * The other site whose server has Xdebug now, from what each site's view
+ * says of its server. Main names the one that had it once, at this site's
+ * start; that server can stop, and another start with it, afterwards.
  *
- * @param {Object}  root0
- * @param {?string} root0.heldBy  Its path, as main reported it, or null.
- * @param {Object}  root0.servers What each site's view last said of its server, by path, from sites-list.cjs.
- * @return {?string} The path, or null.
+ * @param {Object} root0
+ * @param {string} root0.sitePath This site.
+ * @param {Object} root0.servers  What each site's view last said of its server, by path: `{status, text, xdebug}`.
+ * @return {?string} Its path, or null for none.
  */
-function liveXdebugHolder({ heldBy, servers }) {
-	const report = heldBy && servers ? servers[heldBy] : null;
-	return report && (report.status === 'online' || report.status === 'busy') ? heldBy : null;
+function xdebugHolder({ sitePath, servers }) {
+	const found = Object.entries(servers || {}).find(([other, report]) => other !== sitePath && report && report.status === 'online' && report.xdebug);
+	return found ? found[0] : null;
 }
 
-module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, liveXdebugHolder };
+module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder };

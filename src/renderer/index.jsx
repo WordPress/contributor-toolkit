@@ -31,7 +31,7 @@ import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
-import { liveXdebugHolder, xdebugSection } from './xdebug.cjs';
+import { xdebugSection } from './xdebug.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -1377,17 +1377,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // taken back when the view goes: the report before a change is taken back
   // in the same commit as the new one is made, so the list sees one change,
   // not a grey dot in between.
+  // The report also says whether the server has Xdebug (#723), for the other
+  // sites' details to say whose server has it.
   const { status: serverDotStatus, text: serverDotText } = serverReport(serverState);
+  const reportsXdebug = running && serverXdebug;
   useEffect(() => {
     if (!onServerStatus) return undefined;
-    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText });
+    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText, xdebug: reportsXdebug });
     return () => onServerStatus(sitePath, null);
-  }, [onServerStatus, sitePath, serverDotStatus, serverDotText]);
-  // Step debugging (#723): what the running server has, whose server had it
-  // when this one started without it, while that server is still up, and
-  // what each editor needs.
-  const xdebugHolder = liveXdebugHolder({ heldBy: serverXdebugHeldBy, servers: serverReports });
-  const xdebug = xdebugSection({ setting: Boolean(settings && settings.xdebug), running, startedWith: serverXdebug, heldBy: xdebugHolder ? siteNameFor(xdebugHolder) : '', heldByStopped: Boolean(serverXdebugHeldBy) && !xdebugHolder, sitePath, serve: project.serve, url: serverUrl });
+  }, [onServerStatus, sitePath, serverDotStatus, serverDotText, reportsXdebug]);
+  // Step debugging (#723): what the running server has, whose server has it
+  // when this one does not, and what each editor needs.
+  const xdebug = xdebugSection({ setting: Boolean(settings && settings.xdebug), running, startedWith: serverXdebug, heldAtStart: Boolean(serverXdebugHeldBy), sitePath, servers: serverReports, nameFor: siteNameFor, serve: project.serve, url: serverUrl });
   // Which editor's setup is open, 'vscode' or 'phpstorm', or null.
   const [xdebugEditor, setXdebugEditor] = useState(null);
   // A copy that failed says so on its button, and why in the log.

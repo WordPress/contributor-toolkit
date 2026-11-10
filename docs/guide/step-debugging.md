@@ -60,3 +60,9 @@ A site you start while another site's server has Xdebug starts without it. Its *
 - Check that no other site's server is running with Xdebug.
 
 With Xdebug on and VS Code not listening, the site works as usual, only a little slower.
+
+## If the server stays on "starting"
+
+Playground runs some PHP of its own while the server starts, and with Xdebug on, your editor can stop there too: on a breakpoint, or, in PhpStorm, on **Force break at first line** or on its question about which server the connection is for. The server waits until your editor lets it go on.
+
+Continue in your editor, or select **Cancel** next to **Server starting…** in the site's details. A server that starts with Xdebug is given 15 minutes, instead of the usual 2, before the app gives up on it.

@@ -214,15 +214,15 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 } );
 
 // One running server has Xdebug at a time (#723). Main decides that at the
-// start (`ipc-wiring.test.cjs`); a site started while another's server has
-// it is told whose, and its details name that site while its server is up.
-test( 'a site started while another site’s server has Xdebug names that site until its server stops', async ( { session } ) => {
-	const first = await makeSite( session, { label: 'first-site' } );
-	const second = await makeSite( session, { label: 'second-site' } );
+// start (`ipc-wiring.test.cjs`); a site whose server started without it says
+// which site's server has it now, from what each site says of its own.
+test( 'a site whose server started without Xdebug names the site that has it now, and says to restart once no site does', async ( { session } ) => {
+	const made = [];
+	for ( const label of [ 'first-site', 'second-site', 'third-site' ] ) made.push( await makeSite( session, { label } ) );
 	const { app, page } = await session.start( {
-		...first.settings,
-		sites: [ first.dir, second.dir ],
-		siteMeta: { ...first.settings.siteMeta, ...second.settings.siteMeta },
+		...made[ 0 ].settings,
+		sites: made.map( ( site ) => site.dir ),
+		siteMeta: Object.assign( {}, ...made.map( ( site ) => site.settings.siteMeta ) ),
 	} );
 	const followSetting = await stubServer( app, session );
 	// A site's entry in the list is named with its server's state while it
@@ -231,37 +231,49 @@ test( 'a site started while another site’s server has Xdebug names that site u
 		await page.getByRole( 'button', { name: new RegExp( `^${ label }( \\(.*\\))?$` ) } ).click();
 		await expect( ui.siteHeading( page, label ) ).toBeVisible();
 	};
-	const held = page.getByText( 'Xdebug is on for first-site, so this site started without it. Stop that site’s server, then restart this one to use it here.', { exact: true } );
+	const heldBy = ( label ) => page.getByText( `Xdebug is on for ${ label }. Stop that site’s server, then restart this one to use it here.`, { exact: true } );
 	const freed = page.getByText( 'This site started without Xdebug because another site’s server had it. Restart the server to use it.', { exact: true } );
 	const setup = page.getByRole( 'button', { name: 'Set up Xdebug for your editor', exact: true } );
+	const start = async ( label ) => {
+		await open( label );
+		await ui.startDevServerButton( page ).click();
+		await expect( ui.stopDevServerButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	};
+	const stop = async ( label ) => {
+		await open( label );
+		await ui.stopDevServerButton( page ).click();
+		await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	};
 
 	await setXdebug( page, true );
 	await followSetting();
-	await open( 'first-site' );
-	await ui.startDevServerButton( page ).click();
-	await expect( setup ).toBeVisible( { timeout: 30_000 } );
+	await start( 'first-site' );
+	await expect( setup ).toBeVisible();
 
 	// INVARIANT — the second site's server starts without Xdebug, and its
 	// row names the site that has it; there is no setup for a server that
 	// would not connect.
-	await open( 'second-site' );
-	await ui.startDevServerButton( page ).click();
-	await expect( ui.stopDevServerButton( page ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( held ).toBeVisible();
+	await start( 'second-site' );
+	await expect( heldBy( 'first-site' ) ).toBeVisible();
 	await expect( setup ).toHaveCount( 0 );
 
 	// INVARIANT — once the first site's server stops, the second site no
 	// longer sends the contributor to stop it, and says to restart.
-	await open( 'first-site' );
-	await ui.stopDevServerButton( page ).click();
-	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await stop( 'first-site' );
 	await open( 'second-site' );
 	await expect( freed ).toBeVisible();
-	await expect( held ).toHaveCount( 0 );
 
-	// INVARIANT — restarted, the second site has it.
-	await ui.stopDevServerButton( page ).click();
-	await expect( ui.startDevServerButton( page ) ).toBeVisible();
-	await ui.startDevServerButton( page ).click();
-	await expect( setup ).toBeVisible( { timeout: 30_000 } );
+	// INVARIANT — a third site started now has Xdebug, and the second names
+	// it, not the first: a restart now would not give it Xdebug.
+	await start( 'third-site' );
+	await expect( setup ).toBeVisible();
+	await open( 'second-site' );
+	await expect( heldBy( 'third-site' ) ).toBeVisible();
+	await expect( freed ).toHaveCount( 0 );
+
+	// INVARIANT — with the third stopped, the second, restarted, has it.
+	await stop( 'third-site' );
+	await stop( 'second-site' );
+	await start( 'second-site' );
+	await expect( setup ).toBeVisible();
 } );

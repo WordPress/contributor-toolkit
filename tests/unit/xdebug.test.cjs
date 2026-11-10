@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, liveXdebugHolder } = require('../../src/renderer/xdebug.cjs');
+const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder } = require('../../src/renderer/xdebug.cjs');
 
 const mappings = (text) => JSON.parse(text).configurations[0].pathMappings;
 
@@ -63,39 +63,46 @@ test('a server started without Xdebug after it was turned on says to restart it'
 	assert.match(status.note, /restart the server/i);
 });
 
-// One running server has Xdebug at a time (#723): a site started while
-// another's server had it says whose, and how to have it here.
-test('a server started without Xdebug because another site’s server has it names that site', () => {
-	const status = xdebugStatus({ setting: true, running: true, startedWith: false, heldBy: 'Second site' });
-	assert.equal(status.on, false);
-	assert.equal(status.note, 'Xdebug is on for Second site, so this site started without it. Stop that site’s server, then restart this one to use it here.');
-});
-
-// Main names the site whose server had Xdebug once, at this site's start.
-// That server can stop afterwards, and then naming it would send the
-// contributor to stop a server that is not running; the site is named only
-// while its server is still up.
-test('the site whose server had Xdebug is named only while its server is still up', () => {
+// One running server has Xdebug at a time (#723). Which one it is now comes
+// from what each site's view says of its server: main names the holder once,
+// at this site's start, and that server can stop, and another take it, after.
+test('the site whose server has Xdebug now is another one whose running server reports it', () => {
 	const servers = {
-		'/sites/up': { status: 'online', text: 'Server running' },
-		'/sites/restarting': { status: 'busy', text: 'Server starting…' },
+		'/sites/wp': { status: 'online', text: 'Server running', xdebug: true },
+		'/sites/plain': { status: 'online', text: 'Server running', xdebug: false },
 		'/sites/stopped': { status: 'offline', text: '' },
-		'/sites/crashed': { status: 'failed', text: 'The development server stopped by itself.' }
+		'/sites/holder': { status: 'online', text: 'Server running', xdebug: true }
 	};
-	assert.equal(liveXdebugHolder({ heldBy: '/sites/up', servers }), '/sites/up');
-	assert.equal(liveXdebugHolder({ heldBy: '/sites/restarting', servers }), '/sites/restarting');
-	assert.equal(liveXdebugHolder({ heldBy: '/sites/stopped', servers }), null);
-	assert.equal(liveXdebugHolder({ heldBy: '/sites/crashed', servers }), null);
-	assert.equal(liveXdebugHolder({ heldBy: '/sites/gone', servers }), null);
-	assert.equal(liveXdebugHolder({ heldBy: null, servers }), null);
+	assert.equal(xdebugHolder({ sitePath: '/sites/plain', servers }), '/sites/wp');
+	assert.equal(xdebugHolder({ sitePath: '/sites/wp', servers: { '/sites/wp': servers['/sites/wp'] } }), null);
+	assert.equal(xdebugHolder({ sitePath: '/sites/plain', servers: { '/sites/stopped': { status: 'offline', text: '', xdebug: true } } }), null);
+	assert.equal(xdebugHolder({ sitePath: '/sites/plain', servers: {} }), null);
 });
 
-// Once that server is gone, the site says it started without Xdebug because
-// another site had it, and to restart; the restart is told whose it is then.
-test('a server started without Xdebug whose holder has stopped since says to restart', () => {
-	const status = xdebugStatus({ setting: true, running: true, startedWith: false, heldBy: '', heldByStopped: true });
+// A site whose server does not have Xdebug, while the setting is on, says
+// how to have it here, by who has it now.
+test('a server without Xdebug while another site’s server has it names that site', () => {
+	for (const heldAtStart of [true, false]) {
+		const status = xdebugStatus({ setting: true, running: true, startedWith: false, holder: 'Second site', heldAtStart });
+		assert.equal(status.on, false);
+		assert.equal(status.note, 'Xdebug is on for Second site. Stop that site’s server, then restart this one to use it here.');
+	}
+});
+
+test('a server that started without Xdebug because another site had it, now no one’s, says to restart', () => {
+	const status = xdebugStatus({ setting: true, running: true, startedWith: false, holder: '', heldAtStart: true });
 	assert.equal(status.on, false);
 	assert.equal(status.note, 'This site started without Xdebug because another site’s server had it. Restart the server to use it.');
+});
+
+// The section works the holder out from the reports, by the name the list
+// shows: the holder main named at the start has gone, and a third site has
+// it now.
+test('the details name the site that has Xdebug now, not the one that had it at the start', () => {
+	const servers = { '/sites/third': { status: 'online', text: 'Server running', xdebug: true } };
+	const section = xdebugSection({ setting: true, running: true, startedWith: false, heldAtStart: true, sitePath: '/sites/wp', servers, nameFor: (dir) => dir === '/sites/third' ? 'Third site' : '?', serve: { strategy: 'docroot' } });
+	assert.equal(section.note, 'Xdebug is on for Third site. Stop that site’s server, then restart this one to use it here.');
+	assert.equal(xdebugSection({ setting: true, running: true, startedWith: false, heldAtStart: true, sitePath: '/sites/wp', servers: {}, nameFor: () => '?', serve: { strategy: 'docroot' } }).note, 'This site started without Xdebug because another site’s server had it. Restart the server to use it.');
 });
 
 test('a server started with Xdebug after it was turned off says it is still on until a restart', () => {

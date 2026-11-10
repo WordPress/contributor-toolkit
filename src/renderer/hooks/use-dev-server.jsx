@@ -65,6 +65,11 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
   // as this signal, but the watcher no longer holds that lock (#247), so
   // startPhpServer needs its own flag to know the boot was not aborted.
   const devServerActiveRef = useRef(false);
+  // Moves on at each stop, so that a start that was stopped while it started
+  // (#723) is told apart by what it hears back afterwards: its address, its
+  // exit and its failed reply are of a start that is over, and are not a
+  // running server, a crash or a start that failed.
+  const startGenerationRef = useRef(0);
 
   useEffect(() => { runningRef.current = running; }, [running]);
   useEffect(() => { waitingForWatchRef.current = waitingForWatch; }, [waitingForWatch]);
@@ -72,6 +77,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
   const stopDevServer = useCallback(async () => {
     if (stoppingRef.current) return;
     stoppingRef.current = true;
+    startGenerationRef.current += 1;
     if (runningRef.current) serverStopRequestedRef.current = true;
     devServerActiveRef.current = false;
     setWaitingForWatch(false);
@@ -103,6 +109,8 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
     }
     serverStartRequestedRef.current = true;
     serverStopRequestedRef.current = false;
+    const generation = startGenerationRef.current;
+    const over = () => generation !== startGenerationRef.current;
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
     ensureStick('runtime');
@@ -120,7 +128,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
         sitePath,
         (p)=>appendRuntime(p.data || ''),
         (url, xdebug, xdebugHeldBy)=>{
-          if (stoppingRef.current) {
+          if (stoppingRef.current || over()) {
             serverStartRequestedRef.current = false;
             return;
           }
@@ -135,6 +143,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
           serverStartRequestedRef.current = false;
         },
         ()=>{
+          if (over()) return;
           const requested = serverStopRequestedRef.current;
           serverStopRequestedRef.current = false;
           setRunning(false); runningRef.current = false; setServerUrl(''); setServerXdebug(false); setServerXdebugHeldBy(null); serverStartRequestedRef.current = false;
@@ -157,6 +166,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       );
       // A failed start reports through the return value, not an exception.
       // This also covers spawn failures that never produce a "stopped" event.
+      if (over()) return;
       if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
         // translators: %s: why the server did not start.
         appendRuntime(`${sprintf(__('Dev server failed to start: %s'), res.error || __('unknown error'))}\n`);
@@ -166,6 +176,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
         return;
       }
     } catch (error) {
+      if (over()) return;
       // translators: %s: why the server did not start.
       appendRuntime(`${sprintf(__('Failed to start PHP server: %s'), error && error.message ? error.message : String(error))}\n`);
       setServerFailure('start');
@@ -185,9 +196,13 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
 
   const toggleDevServer = async ()=>{
     if (!running) {
-      // A start is already queued behind the watch (or in flight): a second
-      // click must not queue a second server start (#488).
-      if (devServerActiveRef.current) return;
+      // A start is already queued behind the watch (or in flight): a press
+      // now cancels it (#723), and never queues a second server start (#488).
+      if (devServerActiveRef.current) {
+        appendRuntime(`${__('Dev server start cancelled.')}\n`);
+        await stopDevServer();
+        return;
+      }
       if (!skipInit && !hasBuilt) { confirm(__('Please complete the full build before starting the dev server. You can also skip the wizard.'), { tone: 'error' }); return; }
       serverStartRequestedRef.current = false;
       devServerActiveRef.current = true;
