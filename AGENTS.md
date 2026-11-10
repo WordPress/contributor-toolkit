@@ -41,6 +41,20 @@ Once the pull request is open and out of draft, read the CodeRabbit check's mess
 
 That file carries the procedure as well as the standard. Follow it rather than improvising a review.
 
+### Branch names follow Gutenberg's convention
+
+Name a branch `[type]/[change]`, the convention in [Gutenberg's Git workflow](https://github.com/WordPress/gutenberg/blob/trunk/docs/contributors/code/git-workflow.md#branch-naming): a prefix for the kind of change, then a short description in lowercase words joined by hyphens. When the branch is for an issue, put its number first in the description.
+
+- `add/` adds a new feature.
+- `try/` is an experiment, a feature added tentatively.
+- `update/` changes an existing feature.
+- `remove/` removes an existing feature.
+- `fix/` fixes an existing issue.
+
+For example, `fix/736-pr-number-in-issue-field` or `add/sidebar-context-menu`. A release branch is the one exception: `release/X.Y.Z`, as [RELEASING.md](RELEASING.md) says.
+
+Do not push a branch under any other name. A name made up of a username and an issue title cut off part-way, which some worktree tools generate, is renamed to this shape before the first push.
+
 ### A pull request you did not open belongs to its author
 
 Never push commits to, rebase, update, edit the description of, or merge a pull request that the person you are working for did not open. That holds even when the repository lets maintainers push to the branch, even when the fix is one line, and even when the author has been quiet for weeks. The author decides what lands on their branch and when it merges.
