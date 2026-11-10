@@ -4504,6 +4504,56 @@ test('git:list-ticket-patches on a Gutenberg site names its repository and provi
 	assert.ok(settings.values['ticketPatches:WordPress/gutenberg:62281'], 'the Gutenberg key carries the repository');
 });
 
+// Whether a number typed into the issue field is a pull request (#736): asked
+// of the site's own repository on a Gutenberg site, and not asked at all on a
+// Core site, whose Trac tickets share no numbers with GitHub.
+test('github:is-pull-request asks github-prs about the site\'s own repository, and only on a GitHub-issue site', async () => {
+	const isPullRequest = spy(async () => ({ known: true, pullRequest: true }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp', '/sites/gb'],
+		siteMeta: { '/sites/wp': {}, '/sites/gb': { projectType: 'gutenberg' } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { isPullRequest } } });
+
+	assert.deepEqual(await main.invoke('github:is-pull-request', '/sites/gb', 71234), { ok: true, pullRequest: true });
+	assert.deepEqual(await main.invoke('github:is-pull-request', '/sites/wp', 71234), { ok: true, pullRequest: false });
+	assert.deepEqual(isPullRequest.calls, [[71234, { repo: 'WordPress/gutenberg' }]]);
+	assert.equal((await main.invoke('github:is-pull-request', '/sites/other', 1)).ok, false, 'an unregistered site is refused');
+});
+
+// The id crosses IPC untrusted, so it is read by the parser the link uses:
+// what `Number()` would accept (`0x1f`, `1e3`) or past the bound is refused
+// before anything is asked of GitHub.
+test('github:is-pull-request reads the id with the site\'s own parser, and asks nothing about one it refuses', async () => {
+	const isPullRequest = spy(async () => ({ known: true, pullRequest: false }));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { isPullRequest } } });
+
+	for (const id of ['0x1f', '1e3', '99999999', 0, null]) {
+		assert.equal((await main.invoke('github:is-pull-request', '/sites/gb', id)).ok, false, `refuses ${id}`);
+	}
+	assert.deepEqual(isPullRequest.calls, []);
+	await main.invoke('github:is-pull-request', '/sites/gb', '#4496');
+	assert.deepEqual(isPullRequest.calls, [[4496, { repo: 'WordPress/gutenberg' }]]);
+});
+
+// No clear answer links anyway, and says why in the log: a check that stopped
+// working on a spent quota must leave a trace, not quietly let pull requests
+// through (#736).
+test('github:is-pull-request links when GitHub gives no clear answer, and logs the reason', async () => {
+	const logEvent = spy(() => {});
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: {
+		...silentLogging({ logEvent }),
+		...settings.stubs,
+		'./github-prs': { isPullRequest: async () => ({ known: false, reason: 'rate-limited (GitHub returned 403)' }) }
+	} });
+
+	assert.deepEqual(await main.invoke('github:is-pull-request', '/sites/gb', 71234), { ok: true, pullRequest: false });
+	const logged = logEvent.calls.filter(([area]) => area === 'github').map(([, line]) => line);
+	assert.ok(logged.some((line) => line.includes('#71234') && line.includes('rate-limited')), `logged: ${JSON.stringify(logged)}`);
+});
+
 test('git:list-ticket-patches returns no-ticket without calling github-prs when none is linked', async () => {
 	const fetchLinkedPrs = spy(async () => ({ status: 'ok', items: [] }));
 	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
@@ -8047,6 +8097,7 @@ const WIRED = new Set([
 	'git:preview-patch',
 	'git:apply-patch',
 	'git:list-ticket-patches',
+	'github:is-pull-request',
 	'trac:fetch-attachment',
 	'trac:list-attachments',
 	'editor:list',
