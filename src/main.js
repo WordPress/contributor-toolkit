@@ -139,7 +139,8 @@ const EDITOR_EXCLUDES = [
  * Existing rules above or below the block are never rewritten.
  *
  * @param {string} dir Repository working directory.
- * @return {Promise<boolean>} Whether the agent or editor block was appended.
+ * @return {Promise<boolean>} Whether the agent or editor block was appended;
+ *                            the Gutenberg block is not counted.
  */
 async function ensureLocalExcludes(dir) {
 	const gitDir = path.join(dir, '.git');
