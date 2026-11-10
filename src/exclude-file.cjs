@@ -3,8 +3,9 @@
 /**
  * The one writer of the app's blocks in a site's `.git/info/exclude` (#523):
  * the machine-local excludes and the generated Gutenberg download main.js
- * seeds (#19), and the files another branch ignored that a switch leaves
- * behind (#521). No Electron, so ticket-branches.js can use it too.
+ * seeds (#19), the editor folders (#737), and the files another branch
+ * ignored that a switch leaves behind (#521). No Electron, so
+ * ticket-branches.js can use it too.
  *
  * A block is its marker line and the rules under it. Rules above or below the
  * app's blocks are never rewritten; this only appends.
