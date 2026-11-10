@@ -260,7 +260,13 @@ function EditorControl({ settings, onChange }) {
         setEditors(res?.detected || []);
         setNames(res?.names || null);
       })
-      .catch(() => { if (!cancelled) setEditors([]); });
+      .catch((err) => {
+        // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
+        console.error('Could not list the editors on this machine:', err);
+        if (cancelled) return;
+        setEditors([]);
+        setError(__('Could not look for editors on this machine, so none can be chosen here.'));
+      });
     return () => { cancelled = true; };
   }, []);
 

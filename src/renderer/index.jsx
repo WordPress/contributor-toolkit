@@ -991,10 +991,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   }, [sitePath]);
 
   // A file under "Changed files" (#669): one click, into the editor chosen in
-  // Settings (#738), or with none chosen the only editor detection finds, or
-  // the file manager when it finds none. With more than one found and none
-  // chosen, a menu beside the file asks which (`fileMenu`), rather than the
-  // app picking one for the contributor. Detection is asked here rather than
+  // Settings (#738), or the file manager when detection finds no editor.
+  // With editors found and none chosen, a menu beside the file asks which
+  // (`fileMenu`), rather than the app picking one for the contributor.
+  // Detection is asked here rather than
   // read from `detectedEditors`, which holds nothing until the site's menu has
   // been opened once; it stats a dozen paths and spawns nothing.
   //
@@ -1008,6 +1008,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not list the editors on this machine:', err);
     }
+    // The site may have been left, or the file gone from the list, while
+    // detection answered: the menu is portalled over the whole window, so it
+    // would ask about this site's file over another site's page.
+    if (!siteRef.current.active || !anchor?.isConnected) return;
     const target = fileOpenTarget({ editors, preferred: settings?.editor ?? null });
     if (target.kind === 'editor') await openIn(target.path, relPath);
     else if (target.kind === 'choose') setFileMenu({ relPath, anchor, editors });
