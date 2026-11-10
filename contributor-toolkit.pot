@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-11-10T20:06:20+00:00\n"
+"POT-Creation-Date: 2026-11-10T20:57:43+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -314,42 +314,42 @@ msgstr ""
 msgid "Applying the patch failed: %s"
 msgstr ""
 
-#: src/main.js:3590
+#: src/main.js:3611
 msgid ""
 "There is uncommitted work on trunk — decide what happens to it before "
 "starting the ticket"
 msgstr ""
 
-#: src/main.js:3690
+#: src/main.js:3711
 msgid ""
 "Link a ticket first: trunk is what tickets are measured against, not a "
 "ticket."
 msgstr ""
 
-#: src/main.js:3692
+#: src/main.js:3713
 #: src/renderer/ticket-trunk-notice.cjs:147
 msgid "Only a ticket branch can be moved onto the current trunk."
 msgstr ""
 
-#: src/main.js:3694
+#: src/main.js:3715
 msgid ""
 "This ticket has no recorded starting point, so the app cannot move its work "
 "onto the current trunk."
 msgstr ""
 
-#: src/main.js:3849
+#: src/main.js:3870
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3850
+#: src/main.js:3871
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3856
+#: src/main.js:3877
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/main.js:4018
+#: src/main.js:4039
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
@@ -357,7 +357,7 @@ msgid ""
 "finishes on its own."
 msgstr ""
 
-#: src/main.js:4021
+#: src/main.js:4042
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
@@ -365,60 +365,60 @@ msgid ""
 "its own."
 msgstr ""
 
-#: src/main.js:4025
+#: src/main.js:4046
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
 "running and holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:4028
+#: src/main.js:4049
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
 "holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:4032
+#: src/main.js:4053
 msgid "This site requires a newer Node.js than this app bundles."
 msgstr ""
 
-#: src/main.js:4032
+#: src/main.js:4053
 msgid "Retrying with engine checks relaxed…"
 msgstr ""
 
-#: src/main.js:4119
+#: src/main.js:4140
 #. %s: why npm could not be started.
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4439
+#: src/main.js:4460
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4442
+#: src/main.js:4463
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4472
+#: src/main.js:4493
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.js:4534
+#: src/main.js:4555
 #. %s: the name of the folder the web server serves, local-playground-web.
 msgid "%s directory not found."
 msgstr ""
 
-#: src/main.js:4582
+#: src/main.js:4603
 msgid "Server exited before becoming ready"
 msgstr ""
 
-#: src/main.js:4614
+#: src/main.js:4635
 msgid "Timed out starting web server"
 msgstr ""
 
@@ -3044,6 +3044,13 @@ msgstr ""
 msgid "Only %s issues can be linked here."
 msgstr ""
 
+#: src/renderer/github-issue.cjs:145
+#. %d: a pull request number, such as 71234.
+msgid ""
+"#%d is a pull request, not an issue. To test it, use Check out a pull "
+"request. To work on it, link the issue it fixes."
+msgstr ""
+
 #: src/renderer/github-issue.cjs:53
 #. %s: a GitHub repository, such as WordPress/gutenberg.
 msgid "Enter an issue number like 1234, or a %s issue URL."
@@ -3279,19 +3286,19 @@ msgstr ""
 msgid "WordPress npm helper terminal."
 msgstr ""
 
-#: src/renderer/hooks/use-site-ticket.jsx:115
+#: src/renderer/hooks/use-site-ticket.jsx:116
 msgid "Could not save the ticket."
 msgstr ""
 
-#: src/renderer/hooks/use-site-ticket.jsx:179
+#: src/renderer/hooks/use-site-ticket.jsx:205
 msgid "Could not discard the changes."
 msgstr ""
 
-#: src/renderer/hooks/use-site-ticket.jsx:218
+#: src/renderer/hooks/use-site-ticket.jsx:244
 msgid "Could not save the patch."
 msgstr ""
 
-#: src/renderer/hooks/use-site-ticket.jsx:246
+#: src/renderer/hooks/use-site-ticket.jsx:272
 msgid "Could not delete the branch."
 msgstr ""
 
