@@ -61,6 +61,7 @@ const EXPECTED_API_KEYS = [
 	'getSites',
 	'getSitesWithMeta',
 	'hasUnsubmittedWork',
+	'isPullRequest',
 	'isWorktreeDirty',
 	'leavePullRequest',
 	'listBranches',
