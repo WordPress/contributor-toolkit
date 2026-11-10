@@ -1855,6 +1855,49 @@ test('git:get-patch excludes local coding-agent directories from a managed site 
 	);
 });
 
+// A site seeded before #737 already has the agent block, which is written only
+// once, so the editor folders have to arrive in a block of their own.
+test('site:status excludes editor folders from a site seeded before they were added (issue #737)', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-wiring-editor-exclude-');
+	fs.writeFileSync(path.join(dir, 'README.md'), 'managed wordpress-develop site\n');
+	commitFiles(dir, ['README.md'], 'init');
+	fs.writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '# WordPress Contributor Toolkit local excludes\n/.claude/\n');
+
+	const editorArtifacts = [
+		'.idea/workspace.xml',
+		'.vscode/settings.json',
+		'.vs/slnx.sqlite',
+		'.fleet/settings.json',
+		'.zed/settings.json',
+		'.nova/Configuration.json'
+	];
+	for (const filepath of editorArtifacts) {
+		fs.mkdirSync(path.dirname(path.join(dir, filepath)), { recursive: true });
+		fs.writeFileSync(path.join(dir, filepath), 'local editor configuration\n');
+	}
+	fs.appendFileSync(path.join(dir, 'README.md'), 'real contributor edit\n');
+
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } }).stubs
+		}
+	});
+	await main.invoke('site:status', dir);
+	const result = await main.invoke('git:get-patch', dir);
+
+	assert.equal(result.ok, true);
+	assert.match(result.patch, /README\.md/, 'the contributor\'s WordPress change stays visible');
+	for (const filepath of editorArtifacts) {
+		assert.doesNotMatch(result.patch, new RegExp(filepath.split('/')[0].replace('.', '\\.') + '/'));
+	}
+
+	await main.invoke('site:status', dir);
+	const exclude = fs.readFileSync(path.join(dir, '.git', 'info', 'exclude'), 'utf8');
+	assert.equal(exclude.split('# WordPress Contributor Toolkit editor folders').length - 1, 1, 'the editor block is added only once');
+	assert.equal(exclude.split('# WordPress Contributor Toolkit local excludes').length - 1, 1, 'the agent block is not written again');
+});
+
 // --- what the patch says about deletions, additions and binaries (#85) ---
 
 // A repository with a committed base, for the generation tests below. Returns
