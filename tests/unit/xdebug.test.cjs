@@ -179,17 +179,12 @@ test('Cursor gets the VS Code setup, under its own name', () => {
 	assert.deepEqual(xdebugEditors(found('cursor')), [{ id: 'cursor', name: 'Cursor', setup: 'vscode' }]);
 });
 
-// Detection misses some installs, PhpStorm from JetBrains' own installer on
-// Windows among them, so finding none with a setup offers both rather than
-// nothing.
-test('with no detected editor that has a setup, the menu offers VS Code and PhpStorm', () => {
-	const both = [
-		{ id: 'vscode', name: 'VS Code', setup: 'vscode' },
-		{ id: 'phpstorm', name: 'PhpStorm', setup: 'phpstorm' }
-	];
-	assert.deepEqual(xdebugEditors([]), both);
-	assert.deepEqual(xdebugEditors(found('sublime')), both);
-	assert.deepEqual(xdebugEditors(undefined), both);
+// With no editor found that has a setup, there is nothing to set up: the
+// menu has no entries, and the Debugging row offers no setup.
+test('with no detected editor that has a setup, the menu offers nothing', () => {
+	assert.deepEqual(xdebugEditors([]), []);
+	assert.deepEqual(xdebugEditors(found('sublime')), []);
+	assert.deepEqual(xdebugEditors(undefined), []);
 });
 
 // Zed reads its debug setup from .zed/debug.json, a list of scenarios, and

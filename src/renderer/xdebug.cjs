@@ -194,9 +194,8 @@ function xdebugHolder({ sitePath, servers }) {
  * The editors the setup menu offers: those found on this machine that have a
  * setup, in this order. Cursor reads VS Code's launch.json, so it gets that
  * setup under its own name. Sublime Text has none: its PHP debugger needs
- * Node.js installed, which the toolkit does not ask for. Detection misses some installs (PhpStorm from
- * JetBrains' own installer on Windows, most of Linux), so when it finds none
- * with a setup the menu offers VS Code and PhpStorm rather than nothing.
+ * Node.js installed, which the toolkit does not ask for. With none found
+ * that has a setup, there is nothing to set up, and the list is empty.
  *
  * @param {Array<{id: string}>} [detected] From `editor:list`.
  * @return {Array<{id: string, name: string, setup: string}>} `setup` is 'vscode', 'phpstorm' or 'zed'.
@@ -209,8 +208,7 @@ function xdebugEditors(detected) {
 		{ id: 'zed', name: __('Zed'), setup: 'zed' }
 	];
 	const ids = new Set((detected || []).map((editor) => editor.id));
-	const found = editors.filter((editor) => ids.has(editor.id));
-	return found.length ? found : editors.filter((editor) => editor.id === 'vscode' || editor.id === 'phpstorm');
+	return editors.filter((editor) => ids.has(editor.id));
 }
 
 module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, zedDebugConfig };

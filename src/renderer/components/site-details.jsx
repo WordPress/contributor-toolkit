@@ -387,7 +387,7 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
                           <Notice.Description>{notice.text}</Notice.Description>
                         </Notice.Root>
                       ))}
-                      {row.setup ? (
+                      {row.setup && xdebugEditors.length ? (
                         <Menu.Root>
                           <Menu.Trigger
                             render={

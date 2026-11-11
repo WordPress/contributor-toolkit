@@ -319,8 +319,8 @@ test( 'a setup dialog closed by the server going does not open again by itself a
 
 // The menu offers the editors found on this machine that have a setup (#723):
 // Cursor gets VS Code's, Zed its own, and Sublime Text none. Finding none of
-// them offers VS Code and PhpStorm, since detection misses some installs.
-test( 'the setup menu offers the detected editors that have a setup, and VS Code and PhpStorm when it finds none', async ( { session } ) => {
+// them, there is nothing to set up, and no setup is offered.
+test( 'the setup menu offers the detected editors that have a setup, and no setup when it finds none', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	const followSetting = await stubServer( app, session, [ 'sublime', 'zed', 'cursor' ] );
@@ -361,10 +361,13 @@ test( 'the setup menu offers the detected editors that have a setup, and VS Code
 	await page.keyboard.press( 'Escape' );
 	await expect( zed ).toHaveCount( 0 );
 
-	// INVARIANT — with nothing detected that has a setup, VS Code and PhpStorm.
+	// INVARIANT — with nothing detected that has a setup, the row still names
+	// Xdebug and offers no setup.
 	await app.evaluate( () => { global.e2eEditors = [ 'sublime' ]; } );
 	await ui.stopDevServerButton( page ).click();
 	await ui.startDevServerButton( page ).click();
-	await setup.click();
-	await expect.poll( items ).toEqual( [ 'VS Code', 'PhpStorm' ] );
+	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
+	await expect( page.getByText( 'WP_DEBUG · SCRIPT_DEBUG · Xdebug', { exact: true } ) ).toBeVisible();
+	await page.evaluate( () => window.api.listEditors() );
+	await expect( setup ).toHaveCount( 0 );
 } );
