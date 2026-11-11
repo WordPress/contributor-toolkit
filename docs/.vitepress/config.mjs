@@ -11,6 +11,7 @@
 // to keep `npm run build` working locally.
 
 import { defineConfig } from 'vitepress';
+import llmstxt from 'vitepress-plugin-llms';
 
 export default defineConfig( {
 	title: 'WordPress Contributor Toolkit',
@@ -25,6 +26,11 @@ export default defineConfig( {
 	// moved so that PR does not have to change to land.
 	srcExclude: [ 'testing.md' ],
 	vite: {
+		// Generates llms.txt and llms-full.txt into the build output, so AI
+		// tools can read the guide without scraping the HTML. Generated at
+		// build time rather than hand-written, so a page added or renamed
+		// cannot leave them behind.
+		plugins: [ llmstxt() ],
 		server: {
 			watch: {
 				// The build writes into .vitepress/dist, which sits inside the
