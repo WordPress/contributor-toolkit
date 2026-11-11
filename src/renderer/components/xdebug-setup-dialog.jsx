@@ -88,18 +88,24 @@ function VsCodeSteps({ config, onCopy }) {
 // scenarios for its PHP extension's Xdebug adapter.
 function ZedSteps({ config, onCopy }) {
   return (
-    <ol className="xdebug-setup-steps">
-      <Step words={__('Install the <b>PHP</b> extension.')} />
-      <Step words={__('Open the site’s folder, and put this in <code>.zed/debug.json</code>:')}>
-        <div className="xdebug-launch-config-box">
-          <pre className="xdebug-launch-config">{config}</pre>
-          <Stack direction="row" justify="end">
-            <CopyButton text={config} label={__('Copy debug.json')} onCopy={onCopy} />
-          </Stack>
-        </div>
-      </Step>
-      <Step words={__('Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.')} />
-    </ol>
+    <>
+      <ol className="xdebug-setup-steps">
+        <Step words={__('Run <b>zed: extensions</b> from the command palette, and install <b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with.')} />
+        <Step words={__('Open the site’s folder, and put this in <code>.zed/debug.json</code>:')}>
+          <div className="xdebug-launch-config-box">
+            <pre className="xdebug-launch-config">{config}</pre>
+            <Stack direction="row" justify="end">
+              <CopyButton text={config} label={__('Copy debug.json')} onCopy={onCopy} />
+            </Stack>
+          </div>
+        </Step>
+        <Step words={__('Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.')} />
+      </ol>
+      {/* Zed hides a scenario whose adapter it does not have, and says only that there are none. */}
+      <Notice.Root intent="info" spokenMessage={SILENT}>
+        <Notice.Description>{__('If Zed says no debug tasks were found, the PHP extension is not installed.')}</Notice.Description>
+      </Notice.Root>
+    </>
   );
 }
 

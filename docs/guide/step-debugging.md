@@ -40,13 +40,15 @@ If the site starts on another port, PhpStorm asks which server the connection is
 
 ## Connect Zed
 
-1. In Zed, install the **PHP** extension.
+1. In Zed, run **zed: extensions** from the command palette, and install **PHP**. Its Xdebug adapter is what Zed debugs PHP with.
 2. Open the site's folder.
 3. In the site's details, select **Set up Xdebug for your editor**, choose **Zed**, then select **Copy debug.json**, and paste it into `.zed/debug.json` in that folder.
 4. Run **debugger: start** from the command palette, and choose **Listen for Xdebug**.
 5. Set a breakpoint, and load a page of the site in the browser.
 
 Like the launch.json, the debug.json listens on `127.0.0.1` only.
+
+If Zed says no debug tasks were found, the PHP extension is not installed: Zed leaves out a debug task whose adapter it does not have.
 
 ## Where to set breakpoints
 

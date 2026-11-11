@@ -349,6 +349,10 @@ test( 'the setup menu offers the detected editors that have a setup, and VS Code
 	const zed = page.getByRole( 'dialog', { name: 'Set up Zed', exact: true } );
 	await expect( zed ).toBeVisible();
 	await expect( zed.getByText( '.zed/debug.json', { exact: true } ) ).toBeVisible();
+	// INVARIANT — it says where the PHP extension comes from, and what Zed
+	// says without it: Zed hides a scenario whose adapter is missing.
+	await expect( zed.getByText( 'Run zed: extensions from the command palette, and install PHP. Its Xdebug adapter is what Zed debugs PHP with.', { exact: true } ) ).toBeVisible();
+	await expect( zed.getByText( 'If Zed says no debug tasks were found, the PHP extension is not installed.', { exact: true } ) ).toBeVisible();
 	const [ scenario ] = JSON.parse( await zed.locator( '.xdebug-launch-config' ).textContent() );
 	expect( scenario ).toMatchObject( { adapter: 'Xdebug', request: 'launch', port: 9003, hostname: '127.0.0.1' } );
 	expect( scenario.pathMappings ).toEqual( { '/wordpress': path.join( site.dir, 'src' ) } );
