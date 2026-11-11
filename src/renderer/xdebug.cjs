@@ -49,6 +49,24 @@ function xdebugLaunchConfig({ sitePath, serve }) {
 }
 
 /**
+ * The .zed/debug.json a contributor pastes into Zed. Zed's PHP extension runs
+ * the same Xdebug adapter as VS Code's PHP Debug, as "Xdebug", so the
+ * listener and the mapping are the launch.json's; the file is a list of
+ * scenarios rather than an object.
+ *
+ * @param {Object} root0
+ * @param {string} root0.sitePath The checkout's folder, in this platform's form.
+ * @param {Object} root0.serve    The project's serve model: `{strategy, pluginSlug}`.
+ * @return {string} The file's text.
+ */
+function zedDebugConfig({ sitePath, serve }) {
+	const { server, local } = xdebugMapping({ sitePath, serve });
+	return JSON.stringify([
+		{ label: 'Listen for Xdebug', adapter: 'Xdebug', request: 'launch', hostname: XDEBUG_HOST, port: XDEBUG_PORT, pathMappings: { [server]: local } }
+	], null, 2);
+}
+
+/**
  * The one mapping between the path PHP sees and the folder on this machine,
  * which every editor needs; see `xdebugLaunchConfig` for why it is this one.
  *
@@ -123,7 +141,8 @@ function xdebugStatus({ setting, running, startedWith, holder = '', heldAtStart 
 /**
  * What the server's details say of Xdebug: null when there is nothing to
  * say; otherwise whether the server has it, the note from `xdebugStatus`,
- * and the launch.json for VS Code and the values for PhpStorm while it has
+ * and the launch.json for VS Code, the debug.json for Zed and the values for
+ * PhpStorm while it has
  * it (and nothing when it would not connect).
  *
  * @param {Object}   root0
@@ -136,7 +155,7 @@ function xdebugStatus({ setting, running, startedWith, holder = '', heldAtStart 
  * @param {Function} [root0.nameFor]     A site's name, by its path.
  * @param {Object}   root0.serve         The project's serve model.
  * @param {string}   root0.url           The running server's address.
- * @return {?{on: boolean, note: string, config: string, phpStorm: Array}}
+ * @return {?{on: boolean, note: string, config: string, zed: string, phpStorm: Array}}
  */
 function xdebugSection({ setting, running, startedWith, heldAtStart = false, sitePath, servers = {}, nameFor = (dir) => dir, serve, url }) {
 	const holderPath = xdebugHolder({ sitePath, servers });
@@ -145,6 +164,7 @@ function xdebugSection({ setting, running, startedWith, heldAtStart = false, sit
 	return {
 		...status,
 		config: status.on ? xdebugLaunchConfig({ sitePath, serve }) : '',
+		zed: status.on ? zedDebugConfig({ sitePath, serve }) : '',
 		phpStorm: status.on ? phpStormSettings({ sitePath, serve, url }) : []
 	};
 }
@@ -164,4 +184,27 @@ function xdebugHolder({ sitePath, servers }) {
 	return found ? found[0] : null;
 }
 
-module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder };
+/**
+ * The editors the setup menu offers: those found on this machine that have a
+ * setup, in this order. Cursor reads VS Code's launch.json, so it gets that
+ * setup under its own name. Sublime Text has none: its PHP debugger needs
+ * Node.js installed, which the toolkit does not ask for. Detection misses some installs (PhpStorm from
+ * JetBrains' own installer on Windows, most of Linux), so when it finds none
+ * with a setup the menu offers VS Code and PhpStorm rather than nothing.
+ *
+ * @param {Array<{id: string}>} [detected] From `editor:list`.
+ * @return {Array<{id: string, name: string, setup: string}>} `setup` is 'vscode', 'phpstorm' or 'zed'.
+ */
+function xdebugEditors(detected) {
+	const editors = [
+		{ id: 'vscode', name: __('VS Code'), setup: 'vscode' },
+		{ id: 'cursor', name: __('Cursor'), setup: 'vscode' },
+		{ id: 'phpstorm', name: __('PhpStorm'), setup: 'phpstorm' },
+		{ id: 'zed', name: __('Zed'), setup: 'zed' }
+	];
+	const ids = new Set((detected || []).map((editor) => editor.id));
+	const found = editors.filter((editor) => ids.has(editor.id));
+	return found.length ? found : editors.filter((editor) => editor.id === 'vscode' || editor.id === 'phpstorm');
+}
+
+module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, zedDebugConfig };

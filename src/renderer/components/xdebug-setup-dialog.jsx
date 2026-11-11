@@ -84,6 +84,25 @@ function VsCodeSteps({ config, onCopy }) {
   );
 }
 
+// Zed reads its debug setup from a file in the project as well, a list of
+// scenarios for its PHP extension's Xdebug adapter.
+function ZedSteps({ config, onCopy }) {
+  return (
+    <ol className="xdebug-setup-steps">
+      <Step words={__('Install the <b>PHP</b> extension.')} />
+      <Step words={__('Open the site’s folder, and put this in <code>.zed/debug.json</code>:')}>
+        <div className="xdebug-launch-config-box">
+          <pre className="xdebug-launch-config">{config}</pre>
+          <Stack direction="row" justify="end">
+            <CopyButton text={config} label={__('Copy debug.json')} onCopy={onCopy} />
+          </Stack>
+        </div>
+      </Step>
+      <Step words={__('Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.')} />
+    </ol>
+  );
+}
+
 // A value for PhpStorm's settings: its field's name over it, and its copy
 // button at the end, described by that name.
 function PhpStormValue({ value, onCopy }) {
@@ -121,34 +140,46 @@ function PhpStormSteps({ values, onCopy }) {
 
 /**
  * How to stop on breakpoints while the site's server has Xdebug (#723), for
- * one editor, picked from the Debugging row's menu: VS Code, with the
- * launch.json it needs, or PhpStorm, with the values its settings need. The
+ * one editor, picked from the Debugging row's menu: VS Code or Cursor, with
+ * the launch.json they need, Zed, with its debug.json, or PhpStorm, with the
+ * values its settings need. The
  * app shows and copies them, and never writes them into the checkout, where
  * they would end up in a patch.
  *
  * @param {Object}   props
- * @param {?string}  props.editor   'vscode' or 'phpstorm' while open, or null.
+ * @param {?Object}  props.editor   The editor while open, from `xdebugEditors`: `{id, name, setup}`; or null.
  * @param {string}   props.config   The launch.json, from `xdebugLaunchConfig`.
+ * @param {string}   props.zed      The debug.json, from `zedDebugConfig`.
  * @param {Array}    props.phpStorm The PhpStorm values, from `phpStormSettings`.
  * @param {Function} props.onCopy   Copies a text, resolving to whether it worked.
  * @param {Function} props.onClose
  */
-export function XdebugSetupDialog({ editor, config, phpStorm, onCopy, onClose }) {
+export function XdebugSetupDialog({ editor, config, zed, phpStorm, onCopy, onClose }) {
   // The editor stays drawn while the dialog closes, when `editor` is already
   // null.
   const [shown, setShown] = useState(editor);
   if (editor && editor !== shown) setShown(editor);
-  const phpStormShown = (editor || shown) === 'phpstorm';
+  const drawn = editor || shown;
+  const setup = drawn ? drawn.setup : null;
+  const phpStormShown = setup === 'phpstorm';
+  const steps = {
+    phpstorm: <PhpStormSteps values={phpStorm} onCopy={onCopy} />,
+    zed: <ZedSteps config={zed} onCopy={onCopy} />
+  };
   return (
     <Dialog.Root open={Boolean(editor)} onOpenChange={(next) => { if (!next) onClose(); }}>
       <Dialog.Popup size="medium" className="xdebug-setup-dialog">
         <Dialog.Header>
-          <Dialog.Title>{phpStormShown ? __('Set up PhpStorm') : __('Set up VS Code')}</Dialog.Title>
+          <Dialog.Title>{sprintf(
+            // translators: %s: an editor's name, such as VS Code or PhpStorm.
+            __('Set up %s'),
+            drawn ? drawn.name : ''
+          )}</Dialog.Title>
           <Dialog.CloseIcon />
         </Dialog.Header>
         <Dialog.Content>
           <Stack direction="column" gap="lg">
-            {phpStormShown ? <PhpStormSteps values={phpStorm} onCopy={onCopy} /> : <VsCodeSteps config={config} onCopy={onCopy} />}
+            {steps[setup] || <VsCodeSteps config={config} onCopy={onCopy} />}
             {phpStormShown ? (
               <Notice.Root intent="info" spokenMessage={SILENT}>
                 <Notice.Description>{__('If the site starts on another port, PhpStorm asks which server it is; update the Port above.')}</Notice.Description>

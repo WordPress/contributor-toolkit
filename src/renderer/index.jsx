@@ -31,7 +31,7 @@ import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
-import { xdebugSection } from './xdebug.cjs';
+import { xdebugEditors, xdebugSection } from './xdebug.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -1389,13 +1389,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Step debugging (#723): what the running server has, whose server has it
   // when this one does not, and what each editor needs.
   const xdebug = xdebugSection({ setting: Boolean(settings && settings.xdebug), running, startedWith: serverXdebug, heldAtStart: Boolean(serverXdebugHeldBy), sitePath, servers: serverReports, nameFor: siteNameFor, serve: project.serve, url: serverUrl });
-  // Which editor's setup is open, 'vscode' or 'phpstorm', or null.
+  // Which editor's setup is open, by its id in `xdebugEditors`, or null.
   const [xdebugEditor, setXdebugEditor] = useState(null);
   // The dialog shows only while the server has Xdebug. A server that goes
   // closes it, and the choice goes with it, or the next start would open
   // the dialog unasked.
   const xdebugOn = Boolean(xdebug && xdebug.on);
   useEffect(() => { if (!xdebugOn) setXdebugEditor(null); }, [xdebugOn]);
+  // The setup menu offers the editors found on this machine, looked for
+  // again each time the server has Xdebug.
+  useEffect(() => { if (xdebugOn) loadDetected(); }, [xdebugOn, loadDetected]);
+  const setupEditors = useMemo(() => xdebugEditors(detectedEditors), [detectedEditors]);
   // A copy that failed says so on its button, and why in the log.
   const copyXdebugConfig = useCallback(async (text) => {
     try {
@@ -2539,6 +2543,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         }}
         pathCopied={pathCopied}
         onCopyPath={copyPath}
+        xdebugEditors={setupEditors}
         onOpenXdebugSetup={setXdebugEditor}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
@@ -2555,7 +2560,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onClose={() => setDirtyModalOpen(false)}
         />
       ) : null}
-      <XdebugSetupDialog editor={xdebug && xdebug.on ? xdebugEditor : null} config={xdebug ? xdebug.config : ''} phpStorm={xdebug ? xdebug.phpStorm : []} onCopy={copyXdebugConfig} onClose={() => setXdebugEditor(null)} />
+      <XdebugSetupDialog editor={xdebugOn ? setupEditors.find((entry) => entry.id === xdebugEditor) || null : null} config={xdebug ? xdebug.config : ''} zed={xdebug ? xdebug.zed : ''} phpStorm={xdebug ? xdebug.phpStorm : []} onCopy={copyXdebugConfig} onClose={() => setXdebugEditor(null)} />
       <RenameSiteDialog open={renameModalOpen} sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
       <ConfirmDialog question={asking ? asking.question : null} onConfirm={() => asking.action()} onClose={() => setAsking(null)} />
       {isPatchOpen && (

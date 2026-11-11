@@ -31,10 +31,15 @@ const SERVER_URL = 'http://127.0.0.1:39403/';
 // Answers the server's start as main does: with whether it started with
 // Xdebug, taken from the setting at that moment, and, when another site's
 // stubbed server has it, whose it is instead. Main's own check is in
-// `ipc-wiring.test.cjs`.
-async function stubServer( app, session ) {
-	await app.evaluate( ( { ipcMain, shell }, url ) => {
+// `ipc-wiring.test.cjs`. Detection finds the editors given, VS Code and
+// PhpStorm unless told otherwise, whatever the machine has installed.
+const EDITORS = [ 'vscode', 'phpstorm' ];
+async function stubServer( app, session, editors = EDITORS ) {
+	await app.evaluate( ( { ipcMain, shell }, [ url, ids ] ) => {
 		shell.openExternal = async () => {};
+		global.e2eEditors = ids;
+		ipcMain.removeHandler( 'editor:list' );
+		ipcMain.handle( 'editor:list', () => ( { detected: global.e2eEditors.map( ( id ) => ( { id, name: id, path: `/e2e/${ id }` } ) ) } ) );
 		ipcMain.removeHandler( 'npm:run-script' );
 		ipcMain.handle( 'npm:run-script', async () => ( { runId: 'e2e-xdebug' } ) );
 		ipcMain.removeHandler( 'playground:start' );
@@ -53,7 +58,7 @@ async function stubServer( app, session ) {
 			event.sender.send( 'playground:stopped', { sitePath, code: 0 } );
 			return { ok: true };
 		} );
-	}, SERVER_URL );
+	}, [ SERVER_URL, editors ] );
 	return async () => {
 		const xdebug = Boolean( session.readSettings().preferences?.xdebug );
 		await app.evaluate( ( _electron, value ) => { global.e2eXdebug = value; }, xdebug );
@@ -309,4 +314,52 @@ test( 'a setup dialog closed by the server going does not open again by itself a
 	await ui.startDevServerButton( page ).click();
 	await expect( setup ).toBeVisible( { timeout: 30_000 } );
 	await expect( vscode ).toHaveCount( 0 );
+} );
+
+// The menu offers the editors found on this machine that have a setup (#723):
+// Cursor gets VS Code's, Zed its own, and Sublime Text none. Finding none of
+// them offers VS Code and PhpStorm, since detection misses some installs.
+test( 'the setup menu offers the detected editors that have a setup, and VS Code and PhpStorm when it finds none', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	const followSetting = await stubServer( app, session, [ 'sublime', 'zed', 'cursor' ] );
+	const setup = page.getByRole( 'button', { name: 'Set up Xdebug for your editor', exact: true } );
+	const items = () => page.getByRole( 'menuitem' ).allTextContents();
+
+	await setXdebug( page, true );
+	await expect.poll( () => session.readSettings().preferences?.xdebug ).toBe( true );
+	await followSetting();
+	await ui.startDevServerButton( page ).click();
+	await setup.click();
+	// INVARIANT — only the detected editors with a setup, in a fixed order.
+	await expect.poll( items ).toEqual( [ 'Cursor', 'Zed' ] );
+
+	// INVARIANT — Cursor's is VS Code's launch.json, under Cursor's name.
+	await page.getByRole( 'menuitem', { name: 'Cursor', exact: true } ).click();
+	const cursor = page.getByRole( 'dialog', { name: 'Set up Cursor', exact: true } );
+	await expect( cursor ).toBeVisible();
+	expect( JSON.parse( await cursor.locator( '.xdebug-launch-config' ).textContent() ).configurations[ 0 ] ).toMatchObject( { type: 'php', port: 9003 } );
+	await page.keyboard.press( 'Escape' );
+	await expect( cursor ).toHaveCount( 0 );
+
+	// INVARIANT — Zed's is a .zed/debug.json for its Xdebug adapter, listening
+	// on this machine only, with the same mapping.
+	await setup.click();
+	await page.getByRole( 'menuitem', { name: 'Zed', exact: true } ).click();
+	const zed = page.getByRole( 'dialog', { name: 'Set up Zed', exact: true } );
+	await expect( zed ).toBeVisible();
+	await expect( zed.getByText( '.zed/debug.json', { exact: true } ) ).toBeVisible();
+	const [ scenario ] = JSON.parse( await zed.locator( '.xdebug-launch-config' ).textContent() );
+	expect( scenario ).toMatchObject( { adapter: 'Xdebug', request: 'launch', port: 9003, hostname: '127.0.0.1' } );
+	expect( scenario.pathMappings ).toEqual( { '/wordpress': path.join( site.dir, 'src' ) } );
+	await expect( zed.getByRole( 'button', { name: 'Copy debug.json', exact: true } ) ).toBeVisible();
+	await page.keyboard.press( 'Escape' );
+	await expect( zed ).toHaveCount( 0 );
+
+	// INVARIANT — with nothing detected that has a setup, VS Code and PhpStorm.
+	await app.evaluate( () => { global.e2eEditors = [ 'sublime' ]; } );
+	await ui.stopDevServerButton( page ).click();
+	await ui.startDevServerButton( page ).click();
+	await setup.click();
+	await expect.poll( items ).toEqual( [ 'VS Code', 'PhpStorm' ] );
 } );

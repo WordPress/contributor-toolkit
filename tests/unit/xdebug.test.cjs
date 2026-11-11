@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder } = require('../../src/renderer/xdebug.cjs');
+const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, zedDebugConfig } = require('../../src/renderer/xdebug.cjs');
 
 const mappings = (text) => JSON.parse(text).configurations[0].pathMappings;
 
@@ -157,4 +157,56 @@ test('the PhpStorm values for a plugin-mount site map the checkout to the plugin
 	assert.equal(values.find((v) => v.id === 'port').value, '9401');
 	assert.equal(values.find((v) => v.id === 'local').value, 'C:\\sites\\gb');
 	assert.equal(values.find((v) => v.id === 'server').value, '/wordpress/wp-content/plugins/gutenberg');
+});
+
+// The setup menu offers the editors found on this machine that have a setup:
+// VS Code's launch.json, which Cursor reads as well, and PhpStorm's values.
+const found = (...ids) => ids.map((id) => ({ id, name: id, path: `/apps/${id}` }));
+
+test('the setup menu lists the detected editors that have a setup, in a fixed order', () => {
+	assert.deepEqual(xdebugEditors(found('zed', 'sublime', 'phpstorm', 'vscode')), [
+		{ id: 'vscode', name: 'VS Code', setup: 'vscode' },
+		{ id: 'phpstorm', name: 'PhpStorm', setup: 'phpstorm' },
+		{ id: 'zed', name: 'Zed', setup: 'zed' }
+	]);
+});
+
+test('Cursor gets the VS Code setup, under its own name', () => {
+	assert.deepEqual(xdebugEditors(found('cursor')), [{ id: 'cursor', name: 'Cursor', setup: 'vscode' }]);
+});
+
+// Detection misses some installs, PhpStorm from JetBrains' own installer on
+// Windows among them, so finding none with a setup offers both rather than
+// nothing.
+test('with no detected editor that has a setup, the menu offers VS Code and PhpStorm', () => {
+	const both = [
+		{ id: 'vscode', name: 'VS Code', setup: 'vscode' },
+		{ id: 'phpstorm', name: 'PhpStorm', setup: 'phpstorm' }
+	];
+	assert.deepEqual(xdebugEditors([]), both);
+	assert.deepEqual(xdebugEditors(found('sublime')), both);
+	assert.deepEqual(xdebugEditors(undefined), both);
+});
+
+// Zed reads its debug setup from .zed/debug.json, a list of scenarios, and
+// runs the same Xdebug adapter VS Code's PHP Debug is, under the name
+// "Xdebug", with the same listener and mapping keys.
+test('the Zed config is a debug.json scenario that listens on 127.0.0.1:9003 with the launch.json mapping', () => {
+	for (const serve of [{ strategy: 'docroot' }, { strategy: 'plugin-mount', pluginSlug: 'gutenberg' }]) {
+		const scenarios = JSON.parse(zedDebugConfig({ sitePath: '/sites/wp', serve }));
+		assert.equal(scenarios.length, 1);
+		const [listen] = scenarios;
+		assert.equal(listen.adapter, 'Xdebug');
+		assert.equal(listen.request, 'launch');
+		assert.equal(listen.port, 9003);
+		assert.equal(listen.hostname, '127.0.0.1');
+		assert.equal(typeof listen.label, 'string');
+		assert.deepEqual(listen.pathMappings, mappings(xdebugLaunchConfig({ sitePath: '/sites/wp', serve })));
+	}
+});
+
+test('a server with Xdebug gets its Zed config', () => {
+	const section = xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/', setting: true, running: true, startedWith: true });
+	assert.equal(section.zed, zedDebugConfig({ sitePath: '/sites/wp', serve: { strategy: 'docroot' } }));
+	assert.equal(xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, setting: true, running: true, startedWith: false }).zed, '');
 });

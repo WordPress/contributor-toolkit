@@ -1,8 +1,8 @@
 # Step debugging with Xdebug
 
-A site's PHP can run with Xdebug, so you can stop on a breakpoint in VS Code and step through Core one line at a time. It is off unless you turn it on, because it slows every request.
+A site's PHP can run with Xdebug, so you can stop on a breakpoint in your editor and step through Core one line at a time. It is off unless you turn it on, because it slows every request.
 
-This is a proof of concept. It has setup for VS Code and PhpStorm, and one running site has Xdebug at a time.
+This is a proof of concept. It has setup for VS Code, Cursor, PhpStorm and Zed, and one running site has Xdebug at a time.
 
 ## Turn it on
 
@@ -12,7 +12,11 @@ This is a proof of concept. It has setup for VS Code and PhpStorm, and one runni
 
 The **Debugging** row of the site's details then names *Xdebug*, and while the server runs with it, a **Set up Xdebug for your editor** menu sits under the row. If the row says *Restart the server to use it* instead, the server started before you turned the setting on.
 
-## Connect VS Code
+The menu lists the editors the app finds on your computer that it has setup for. If it finds none of them, it lists VS Code and PhpStorm, because some installs are not found, such as PhpStorm from JetBrains' own installer on Windows. Sublime Text has no setup: its PHP debugger needs Node.js installed on your computer.
+
+## Connect VS Code or Cursor
+
+Cursor uses the same setup as VS Code: choose **Cursor** in the menu, and follow the same steps in Cursor.
 
 1. In VS Code, install the **PHP Debug** extension by Xdebug.
 2. Open the site's folder.
@@ -22,7 +26,7 @@ The **Debugging** row of the site's details then names *Xdebug*, and while the s
 
 The launch.json listens on `127.0.0.1` only, so other machines on your network cannot connect to it.
 
-The app does not write `.vscode/launch.json` for you, but it does keep the file out of your patch: neither Core nor Gutenberg ignores it, so the app adds it to the site's local Git excludes. Gutenberg's own files in `.vscode/`, such as `launch-example.json`, are not affected.
+The app does not write `.vscode/launch.json` for you, but it does keep the file out of your patch: neither Core nor Gutenberg ignores it, so the app adds it to the site's local Git excludes. It does the same for Zed's `.zed/debug.json`. Gutenberg's own files in `.vscode/`, such as `launch-example.json`, are not affected.
 
 ## Connect PhpStorm
 
@@ -33,6 +37,16 @@ PhpStorm keeps its debug setup in its own settings, so the app gives you the val
 3. Turn on **Run → Start Listening for PHP Debug Connections**, set a breakpoint, and load the site.
 
 If the site starts on another port, PhpStorm asks which server the connection is for. Update the server's port to the one the dialog shows.
+
+## Connect Zed
+
+1. In Zed, install the **PHP** extension.
+2. Open the site's folder.
+3. In the site's details, select **Set up Xdebug for your editor**, choose **Zed**, then select **Copy debug.json**, and paste it into `.zed/debug.json` in that folder.
+4. Run **debugger: start** from the command palette, and choose **Listen for Xdebug**.
+5. Set a breakpoint, and load a page of the site in the browser.
+
+Like the launch.json, the debug.json listens on `127.0.0.1` only.
 
 ## Where to set breakpoints
 
@@ -51,15 +65,15 @@ Every site's server sends Xdebug to port 9003, and your editor cannot tell two s
 
 A site you start while another site's server has Xdebug starts without it. Its **Debugging** row says which site has it. To debug the second site, stop the first site's server, then restart the second one.
 
-## If VS Code does not stop
+## If your editor does not stop
 
 - Check that the site's details show **Set up Xdebug for your editor** under **Debugging**. If they do not, restart the server.
-- Check that **Listen for Xdebug** is running in VS Code, or that PhpStorm is listening for debug connections, and that no other program uses port 9003.
+- Check that **Listen for Xdebug** is running in VS Code, Cursor or Zed, or that PhpStorm is listening for debug connections, and that no other program uses port 9003.
 - On a Core site, check that the breakpoint is in `src/`, not `build/`, and not in one of the three files above.
 - On a Gutenberg site, check that the breakpoint is in one of the checkout's own PHP files.
 - Check that no other site's server is running with Xdebug.
 
-With Xdebug on and VS Code not listening, the site works as usual, only a little slower.
+With Xdebug on and no editor listening, the site works as usual, only a little slower.
 
 ## If the server stays on "starting"
 

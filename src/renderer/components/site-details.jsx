@@ -345,12 +345,13 @@ function useStickyWhileItFits(active) {
  * @param {Object}   props.facts               What `siteDetailsRows` takes.
  * @param {boolean}  props.pathCopied          The path has just been copied with the button here.
  * @param {Function} props.onCopyPath
- * @param {Function} [props.onOpenXdebugSetup] Opens an editor's setup, given `'vscode'` or `'phpstorm'`, for the Debugging row while the server has Xdebug.
+ * @param {Array}    [props.xdebugEditors]     The editors the Debugging row's setup menu offers, from `xdebugEditors`.
+ * @param {Function} [props.onOpenXdebugSetup] Opens an editor's setup, given its id, for the Debugging row while the server has Xdebug.
  * @param {Object}   [props.server]            The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]             The build watch's section, or null likewise: `{ process, onToggle }`.
  * @param {Object}   [props.changed]           The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertReason, revertError }`. No files, no section.
  */
-export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, onOpenXdebugSetup = null, server = null, watch = null, changed = null }) {
+export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, xdebugEditors = [], onOpenXdebugSetup = null, server = null, watch = null, changed = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);
   return (
     <div id={id} className="dashboard-sidebar-slot" inert={open ? undefined : ''}>
@@ -397,12 +398,11 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
                             }
                           />
                           <Menu.Popup>
-                            <Menu.Item onClick={() => onOpenXdebugSetup('vscode')}>
-                              <Menu.ItemLabel>{__('VS Code')}</Menu.ItemLabel>
-                            </Menu.Item>
-                            <Menu.Item onClick={() => onOpenXdebugSetup('phpstorm')}>
-                              <Menu.ItemLabel>{__('PhpStorm')}</Menu.ItemLabel>
-                            </Menu.Item>
+                            {xdebugEditors.map((entry) => (
+                              <Menu.Item key={entry.id} onClick={() => onOpenXdebugSetup(entry.id)}>
+                                <Menu.ItemLabel>{entry.name}</Menu.ItemLabel>
+                              </Menu.Item>
+                            ))}
                           </Menu.Popup>
                         </Menu.Root>
                       ) : null}

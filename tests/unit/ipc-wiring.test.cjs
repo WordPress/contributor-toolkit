@@ -8979,8 +8979,8 @@ test('old PRs do not count generated Gutenberg files, including a previously par
 // the patch, on a site whose local excludes were written before it existed
 // too: the link the Playground CLI makes to its VFS root in the folder the
 // server runs from, which on a Gutenberg site is the checkout, and the
-// .vscode/launch.json the editor setup asks for, which neither Core nor
-// Gutenberg ignores. Gutenberg tracks other files in .vscode/, and a change
+// .vscode/launch.json and .zed/debug.json the editor setups ask for, which
+// neither Core nor Gutenberg ignores. Gutenberg tracks other files in .vscode/, and a change
 // to one of them is still work.
 for (const shape of ['core', 'gutenberg']) {
 	test(`what Xdebug leaves in a ${shape} checkout is not counted as work or put in the patch`, async (t) => {
@@ -9001,6 +9001,8 @@ for (const shape of ['core', 'gutenberg']) {
 		fs.symlinkSync(target, path.join(dir, '.playground-xdebug-root'), 'junction');
 		fs.mkdirSync(path.join(dir, '.vscode'), { recursive: true });
 		fs.writeFileSync(path.join(dir, '.vscode', 'launch.json'), '{ "version": "0.2.0" }\n');
+		fs.mkdirSync(path.join(dir, '.zed'));
+		fs.writeFileSync(path.join(dir, '.zed', 'debug.json'), '[]\n');
 		const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
 		const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
@@ -9013,6 +9015,7 @@ for (const shape of ['core', 'gutenberg']) {
 		assert.match(result.patch, /my edit/);
 		assert.doesNotMatch(result.patch, /playground-xdebug-root/);
 		assert.doesNotMatch(result.patch, /launch\.json/);
+		assert.doesNotMatch(result.patch, /debug\.json/);
 		if (shape === 'gutenberg') assert.match(result.patch, /launch-example\.json/);
 	});
 }

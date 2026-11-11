@@ -142,10 +142,11 @@ async function ensureLocalExcludes(dir) {
 	// What step debugging leaves in a checkout (#723). With Xdebug on, the
 	// Playground CLI links its VFS root into the folder the server runs from,
 	// which for a plugin-mount site is the checkout, and leaves the link behind
-	// when the server stops. And the editor setup asks for a
-	// .vscode/launch.json, which neither Core nor Gutenberg ignores; only that
-	// file, since Gutenberg tracks others in .vscode/.
-	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit Xdebug', ['/.playground-xdebug-root', '/.vscode/launch.json'], { once: true });
+	// when the server stops. And the editor setups ask for a
+	// .vscode/launch.json and a .zed/debug.json, which neither Core nor
+	// Gutenberg ignores; only those files, since Gutenberg tracks others in
+	// .vscode/.
+	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit Xdebug', ['/.playground-xdebug-root', '/.vscode/launch.json', '/.zed/debug.json'], { once: true });
 	return appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
 }
 
