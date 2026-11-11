@@ -188,7 +188,7 @@ export function XdebugSetupDialog({ editor, config, zed, phpStorm, onCopy, onClo
             {steps[setup] || <VsCodeSteps config={config} onCopy={onCopy} />}
             {phpStormShown ? (
               <Notice.Root intent="info" spokenMessage={SILENT}>
-                <Notice.Description>{__('If the site starts on another port, PhpStorm asks which server it is; update the Port above.')}</Notice.Description>
+                <Notice.Description>{__('If the site starts on another port, PhpStorm asks which server it is; update the Host above.')}</Notice.Description>
               </Notice.Root>
             ) : null}
             <OneSiteNote />

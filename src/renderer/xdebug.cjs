@@ -88,6 +88,12 @@ function xdebugMapping({ sitePath, serve }) {
  * in its own settings rather than a file in the project: the server the site
  * runs on and its path mapping, each labelled with the field's name there.
  *
+ * PhpStorm finds the server for a connection by PHP's SERVER_NAME and
+ * SERVER_PORT, and Playground sets SERVER_NAME to the address with its port
+ * and SERVER_PORT to 80. So the host is the address with the port, and the
+ * port is 80, as Playground's own PhpStorm setup writes them; the address's
+ * host and port find no server, and PhpStorm drops every request.
+ *
  * @param {Object} root0
  * @param {string} root0.sitePath The checkout's folder.
  * @param {Object} root0.serve    The project's serve model.
@@ -95,11 +101,11 @@ function xdebugMapping({ sitePath, serve }) {
  * @return {Array<{id: string, label: string, value: string}>}
  */
 function phpStormSettings({ sitePath, serve, url }) {
-	const { hostname, port } = new URL(url);
+	const { host } = new URL(url);
 	const { server, local } = xdebugMapping({ sitePath, serve });
 	return [
-		{ id: 'host', label: __('Host'), value: hostname },
-		{ id: 'port', label: __('Port'), value: port },
+		{ id: 'host', label: __('Host'), value: host },
+		{ id: 'port', label: __('Port'), value: '80' },
 		{ id: 'local', label: __('File/Directory'), value: local },
 		{ id: 'server', label: __('Absolute path on the server'), value: server }
 	];

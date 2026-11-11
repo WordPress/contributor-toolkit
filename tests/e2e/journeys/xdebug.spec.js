@@ -193,7 +193,8 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	await page.getByRole( 'menuitem', { name: 'PhpStorm', exact: true } ).click();
 	const phpStorm = page.getByRole( 'dialog', { name: 'Set up PhpStorm', exact: true } );
 	await expect( phpStorm ).toBeVisible();
-	await expect( phpStorm.getByText( '39403', { exact: true } ) ).toBeVisible();
+	await expect( phpStorm.getByText( '127.0.0.1:39403', { exact: true } ) ).toBeVisible();
+	await expect( phpStorm.getByText( '80', { exact: true } ) ).toBeVisible();
 	await expect( phpStorm.getByText( path.join( site.dir, 'src' ), { exact: true } ) ).toBeVisible();
 	await expect( phpStorm.getByText( '/wordpress', { exact: true } ) ).toBeVisible();
 	await expect( phpStorm.getByRole( 'button', { name: 'Copy', exact: true } ) ).toHaveCount( 4 );

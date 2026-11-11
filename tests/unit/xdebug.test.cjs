@@ -142,11 +142,14 @@ test('a server with Xdebug gets its launch.json and its PhpStorm values', () => 
 
 // PhpStorm keeps its debug setup in its own settings, so the toolkit gives
 // the values to enter there: the server the site runs on, and the same
-// mapping the launch.json has.
-test('the PhpStorm values for a Core site name the server and the src/ mapping', () => {
+// mapping the launch.json has. PhpStorm finds the server by PHP's
+// SERVER_NAME and SERVER_PORT, and Playground sets those to the address with
+// its port, and 80: so that is the host and the port, as Playground's own
+// PhpStorm setup has them.
+test('the PhpStorm values for a Core site name the server as Playground reports it, and the src/ mapping', () => {
 	assert.deepEqual(phpStormSettings({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/' }), [
-		{ id: 'host', label: 'Host', value: '127.0.0.1' },
-		{ id: 'port', label: 'Port', value: '9400' },
+		{ id: 'host', label: 'Host', value: '127.0.0.1:9400' },
+		{ id: 'port', label: 'Port', value: '80' },
 		{ id: 'local', label: 'File/Directory', value: '/sites/wp/src' },
 		{ id: 'server', label: 'Absolute path on the server', value: '/wordpress' }
 	]);
@@ -154,7 +157,8 @@ test('the PhpStorm values for a Core site name the server and the src/ mapping',
 
 test('the PhpStorm values for a plugin-mount site map the checkout to the plugin’s mount', () => {
 	const values = phpStormSettings({ sitePath: 'C:\\sites\\gb', serve: { strategy: 'plugin-mount', pluginSlug: 'gutenberg' }, url: 'http://127.0.0.1:9401/' });
-	assert.equal(values.find((v) => v.id === 'port').value, '9401');
+	assert.equal(values.find((v) => v.id === 'host').value, '127.0.0.1:9401');
+	assert.equal(values.find((v) => v.id === 'port').value, '80');
 	assert.equal(values.find((v) => v.id === 'local').value, 'C:\\sites\\gb');
 	assert.equal(values.find((v) => v.id === 'server').value, '/wordpress/wp-content/plugins/gutenberg');
 });

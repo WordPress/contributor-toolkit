@@ -36,7 +36,9 @@ PhpStorm keeps its debug setup in its own settings, so the app gives you the val
 2. In **Settings → PHP → Servers**, add a server with **Xdebug** as its debugger. Copy the **Host** and **Port** from the dialog, turn on **Use path mappings**, and map the dialog's **File/Directory** to its **Absolute path on the server**.
 3. Turn on **Run → Start Listening for PHP Debug Connections**, set a breakpoint, and load the site.
 
-If the site starts on another port, PhpStorm asks which server the connection is for. Update the server's port to the one the dialog shows.
+The **Host** includes the site's port, such as `127.0.0.1:9400`, and the **Port** is `80`. That is how Playground describes the site to PHP, and PhpStorm uses it to find the server. With the host as `127.0.0.1` and the port as `9400`, PhpStorm ignores every request.
+
+If the site starts on another port, PhpStorm asks which server the connection is for. Update the server's **Host** to the one the dialog shows.
 
 ## Connect Zed
 
