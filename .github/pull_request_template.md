@@ -43,8 +43,9 @@ missing piece from a rejected one will ask about every one of them. -->
 places `node --test` cannot reach. See AGENTS.md for the full shape.
 
 Platforms: any / macOS / Windows — and say why if it is not "any".
-Buildkite builds signed artifacts for every branch with an open PR, so this can
-be driven on a real machine without a local build. Check the build matches the
+Buildkite builds artifacts for every branch with an open PR, so this can be
+driven on a real machine without a local build. The Windows installer is unsigned
+unless "Sign the Windows build?" is unblocked. Check the build matches the
 current head commit; force-pushing invalidates earlier ones. -->
 
 **Starting state:**
