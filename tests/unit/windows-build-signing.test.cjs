@@ -20,16 +20,23 @@ function runBuild(t, { branch, sign, npmExitCode = 0 }) {
 	fs.mkdirSync(bin);
 	fs.mkdirSync(commands, { recursive: true });
 
-	const stub = (file, body) => {
-		fs.writeFileSync(file, `#!/bin/sh\n${body}\n`);
+	// PowerShell on Windows only resolves commands with a PATHEXT extension, so stubs there are batch files.
+	const isWindows = process.platform === 'win32';
+	const stub = (name, call, exitCode = 0, extra = '') => {
+		const file = path.join(bin, isWindows ? `${name}.cmd` : name);
+		const body = isWindows
+			? `@echo ${call}>>"${log}"\r\n${extra && `@${extra.windows}\r\n`}@exit /b ${exitCode}\r\n`
+			: `#!/bin/sh\necho "${call}" >> '${log}'\n${extra && `${extra.posix}\n`}exit ${exitCode}\n`;
+		fs.writeFileSync(file, body);
 		fs.chmodSync(file, 0o755);
+		return file;
 	};
 	fs.writeFileSync(path.join(commands, 'setup_windows_code_signing.ps1'), `Add-Content -Path '${log}' -Value 'setup'\n`);
-	stub(path.join(bin, 'bash'), `echo "install" >> '${log}'`);
-	stub(path.join(bin, 'npm'), `echo "build" >> '${log}'\nmkdir -p dist && touch dist/app.exe\nexit ${npmExitCode}`);
-	stub(path.join(bin, 'signtool'), `echo "verify" >> '${log}'`);
+	stub('bash', 'install');
+	stub('npm', 'build', npmExitCode, { posix: 'mkdir -p dist && touch dist/app.exe', windows: 'mkdir dist 2>nul & type nul > dist\\app.exe' });
+	const signtool = stub('signtool', 'verify');
 
-	const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, BUILDKITE_BRANCH: branch, SIGNTOOL_PATH: path.join(bin, 'signtool') };
+	const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, BUILDKITE_BRANCH: branch, SIGNTOOL_PATH: signtool };
 	delete env.SIGN_WINDOWS_BUILD;
 	if (sign !== undefined) env.SIGN_WINDOWS_BUILD = sign;
 
