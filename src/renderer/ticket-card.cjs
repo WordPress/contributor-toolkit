@@ -25,7 +25,7 @@ function ticketCardWords(provider) {
 			linkPrompt: __('Link the issue you’re working on.'),
 			fieldLabel: __('Issue number or URL'),
 			// translators: an example of what to type; the number stays as it is.
-			fieldExample: __('e.g. 71234'),
+			fieldExample: __('e.g. 71210'),
 			linkAction: __('Link issue'),
 			linking: __('Linking issue'),
 			browse: __('Browse good first issues on GitHub'),
