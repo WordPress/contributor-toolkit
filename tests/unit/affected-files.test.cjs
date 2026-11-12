@@ -128,6 +128,13 @@ test('an editor chosen and uninstalled since is as if none were chosen (#738)', 
 	assert.deepEqual(fileOpenTarget({ editors: [], preferred: 'cursor' }), { kind: 'reveal' });
 });
 
+test('a question with no file left to ask beside asks nothing, and the other two answers need none (#738)', () => {
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, CURSOR], canAsk: false }), { kind: 'none' });
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE], preferred: 'cursor', canAsk: false }), { kind: 'none' });
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, CURSOR], preferred: 'cursor', canAsk: false }), { kind: 'editor', path: CURSOR.path });
+	assert.deepEqual(fileOpenTarget({ editors: [], canAsk: false }), { kind: 'reveal' });
+});
+
 test('with no editor found, the file is shown in the file manager', () => {
 	assert.deepEqual(fileOpenTarget({ editors: [] }), { kind: 'reveal' });
 	assert.deepEqual(fileOpenTarget({}), { kind: 'reveal' });

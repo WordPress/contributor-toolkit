@@ -197,16 +197,25 @@ function visibleAffectedRows(rows, collapsed) {
  * offers any other application); and the file manager when there is none, so
  * the link always does something.
  *
+ * The question is a menu beside the file, so it is asked only while the file
+ * can still be asked beside: on the site still open, with its button still on
+ * the page. Detection answers after the click, and a menu portalled over the
+ * window would otherwise ask about this site's file over another site's page.
+ * With nothing to ask beside, the click asks nothing (`none`). Opening in the
+ * chosen editor and showing in the file manager need no menu, so they happen
+ * either way.
+ *
  * @param {Object}  root0
  * @param {Array}   [root0.editors]   Detected applications, `{ id, name, path }`.
  * @param {?string} [root0.preferred] The id of the editor chosen in Settings, or null for none.
- * @return {{kind: 'editor', path: string}|{kind: 'choose'}|{kind: 'reveal'}}
+ * @param {boolean} [root0.canAsk]    The file's button is still on the open site's page.
+ * @return {{kind: 'editor', path: string}|{kind: 'choose'}|{kind: 'reveal'}|{kind: 'none'}}
  */
-function fileOpenTarget({ editors = [], preferred = null } = {}) {
+function fileOpenTarget({ editors = [], preferred = null, canAsk = true } = {}) {
 	const list = Array.isArray(editors) ? editors : [];
 	const chosen = preferred ? list.find((candidate) => candidate.id === preferred) : null;
 	if (chosen) return { kind: 'editor', path: chosen.path };
-	if (list.length > 0) return { kind: 'choose' };
+	if (list.length > 0) return canAsk ? { kind: 'choose' } : { kind: 'none' };
 	return { kind: 'reveal' };
 }
 

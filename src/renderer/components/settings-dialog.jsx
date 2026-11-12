@@ -7,7 +7,7 @@ import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalT
 import { __, sprintf } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, InputLayout, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
 import { useThemeWarnings } from './app-theme.jsx';
-import { editorItems, editorGone, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
+import { editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // A notice here is read by its role, and is not also spoken: the dialog it
@@ -287,7 +287,7 @@ function EditorControl({ settings, onChange }) {
   // control does not go on naming it.
   useEffect(() => {
     if (!editorGone(listed, editor)) return;
-    setGone(names?.[editor] || editor);
+    setGone(editorName(editor, names));
     onChange('editor', null);
   }, [listed, editor, names, onChange]);
 

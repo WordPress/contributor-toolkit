@@ -205,8 +205,20 @@ const ASK_FOR_EDITOR = 'ask';
 function editorItems(editors, editor, names = null) {
 	const items = [{ value: ASK_FOR_EDITOR, label: __('Ask each time') }];
 	for (const found of editors || []) items.push({ value: found.id, label: found.name });
-	if (editor && !items.some((item) => item.value === editor)) items.push({ value: editor, label: names?.[editor] || editor });
+	if (editor && !items.some((item) => item.value === editor)) items.push({ value: editor, label: editorName(editor, names) });
 	return items;
+}
+
+/**
+ * What an editor set in Settings is called where detection no longer finds
+ * it (#738): the table's name for it, or its id where the table has none.
+ *
+ * @param {string}                  editor  The id set.
+ * @param {?Object<string, string>} [names] Every editor the table knows, name by id.
+ * @return {string}
+ */
+function editorName(editor, names = null) {
+	return names?.[editor] || editor;
 }
 
 /**
@@ -234,4 +246,4 @@ function editorValue(choice) {
 	return choice === ASK_FOR_EDITOR ? null : choice;
 }
 
-module.exports = { editorItems, editorGone, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE };
+module.exports = { editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE };

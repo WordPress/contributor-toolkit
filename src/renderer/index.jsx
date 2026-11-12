@@ -1019,13 +1019,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       console.error('Could not list the editors on this machine:', err);
     }
     // The site may have been left, or the file gone from the list, while
-    // detection answered: the menu is portalled over the whole window, so it
-    // would ask about this site's file over another site's page.
-    if (!siteRef.current.active || !anchor?.isConnected) return;
-    const target = fileOpenTarget({ editors, preferred: settings?.editor ?? null });
+    // detection answered; `fileOpenTarget` says what that changes.
+    const canAsk = siteRef.current.active && Boolean(anchor?.isConnected);
+    const target = fileOpenTarget({ editors, preferred: settings?.editor ?? null, canAsk });
     if (target.kind === 'editor') await openIn(target.path, relPath);
     else if (target.kind === 'choose') setFileMenu({ relPath, anchor, editors });
-    else await showInFileManager(relPath);
+    else if (target.kind === 'reveal') await showInFileManager(relPath);
   }, [openIn, showInFileManager, settings?.editor]);
   const runFileMenuAction = useCallback(async (item) => {
     const relPath = fileMenu?.relPath ?? null;
