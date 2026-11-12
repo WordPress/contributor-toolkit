@@ -24,13 +24,18 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	// Trac stands in for itself: if anything on this site asks for the ticket
 	// with the issue's number, the stub answers with a Core ticket's facts and
 	// records the call, so the check below can fail by name.
-	await app.evaluate( ( { ipcMain } ) => {
+	await app.evaluate( ( { ipcMain }, pr ) => {
 		ipcMain.removeHandler( 'trac:list-attachments' );
 		ipcMain.handle( 'trac:list-attachments', () => {
 			global.__tracScrapes = ( global.__tracScrapes || 0 ) + 1;
 			return { ok: true, status: 'ok', items: [], ticket: { summary: 'A CORE TICKET WITH THE SAME NUMBER', keywords: [] } };
 		} );
-	} );
+		// GitHub stands in too, for whether a number is a pull request: only
+		// the fixture's own pull request is one. On the real repository 71234
+		// is a pull request as well.
+		ipcMain.removeHandler( 'github:is-pull-request' );
+		ipcMain.handle( 'github:is-pull-request', ( _e, _sitePath, id ) => ( { ok: true, pullRequest: id === pr } ) );
+	}, PR );
 
 	// INVARIANT — the row and the header say which kind of site this is.
 	await expect( page.getByText( 'Gutenberg', { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
@@ -50,6 +55,14 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	await field.fill( 'https://github.com/WordPress/gutenberg/pull/4496' );
 	await ui.linkIssueButton( page ).click();
 	await expect( page.getByRole( 'alert' ).filter( { hasText: 'That is a pull request' } ) ).toBeVisible();
+	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
+
+	// INVARIANT — so is a pull request's bare number, which only GitHub can
+	// tell apart from an issue's, and the refusal says where a pull request
+	// goes instead (#736).
+	await field.fill( String( PR ) );
+	await ui.linkIssueButton( page ).click();
+	await expect( page.getByRole( 'alert' ).filter( { hasText: `#${ PR } is a pull request, not an issue. To test it, use Check out a pull request.` } ) ).toBeVisible();
 	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
 
 	// INVARIANT — linking an issue by URL names it on the card and gives it a

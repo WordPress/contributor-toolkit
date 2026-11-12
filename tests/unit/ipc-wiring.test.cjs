@@ -861,13 +861,15 @@ test('sites:delete reports a folder it could not remove instead of pretending (#
 
 test('site:status reports the trunk snapshot trunk-update read, not its own guess', async () => {
 	const readTrunkInfo = spy(async () => ({ trunkOid: 'abc123', trunkDate: '2026-01-01T00:00:00Z' }));
-	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { initialized: true } } });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { initialized: true, buildFailed: true } } });
 	const main = loadMain({
 		stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { readTrunkInfo } }
 	});
 
 	const status = await main.invoke('site:status', '/sites/wp');
 
+	// The last build's outcome, which outlives the session (#503).
+	assert.equal(status.buildFailed, true);
 	assert.deepEqual(readTrunkInfo.calls, [['/sites/wp']]);
 	assert.equal(status.trunkOid, 'abc123');
 	assert.equal(status.trunkDate, '2026-01-01T00:00:00Z');
@@ -1851,6 +1853,49 @@ test('git:get-patch excludes local coding-agent directories from a managed site 
 		1,
 		'the managed block is added only once'
 	);
+});
+
+// A site seeded before #737 already has the agent block, which is written only
+// once, so the editor folders have to arrive in a block of their own.
+test('site:status excludes editor folders from a site seeded before they were added (issue #737)', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-wiring-editor-exclude-');
+	fs.writeFileSync(path.join(dir, 'README.md'), 'managed wordpress-develop site\n');
+	commitFiles(dir, ['README.md'], 'init');
+	fs.writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '# WordPress Contributor Toolkit local excludes\n/.claude/\n');
+
+	const editorArtifacts = [
+		'.idea/workspace.xml',
+		'.vscode/settings.json',
+		'.vs/slnx.sqlite',
+		'.fleet/settings.json',
+		'.zed/settings.json',
+		'.nova/Configuration.json'
+	];
+	for (const filepath of editorArtifacts) {
+		fs.mkdirSync(path.dirname(path.join(dir, filepath)), { recursive: true });
+		fs.writeFileSync(path.join(dir, filepath), 'local editor configuration\n');
+	}
+	fs.appendFileSync(path.join(dir, 'README.md'), 'real contributor edit\n');
+
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } }).stubs
+		}
+	});
+	await main.invoke('site:status', dir);
+	const result = await main.invoke('git:get-patch', dir);
+
+	assert.equal(result.ok, true);
+	assert.match(result.patch, /README\.md/, 'the contributor\'s WordPress change stays visible');
+	for (const filepath of editorArtifacts) {
+		assert.doesNotMatch(result.patch, new RegExp(filepath.split('/')[0].replace('.', '\\.') + '/'));
+	}
+
+	await main.invoke('site:status', dir);
+	const exclude = fs.readFileSync(path.join(dir, '.git', 'info', 'exclude'), 'utf8');
+	assert.equal(exclude.split('# WordPress Contributor Toolkit editor folders').length - 1, 1, 'the editor block is added only once');
+	assert.equal(exclude.split('# WordPress Contributor Toolkit local excludes').length - 1, 1, 'the agent block is not written again');
 });
 
 // --- what the patch says about deletions, additions and binaries (#85) ---
@@ -3175,6 +3220,8 @@ test('a runner that exited but never closed is let go after a grace, with npm\'s
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
+			// A build's done writes buildFailed to the store first (#503).
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killTreeByPid }
 		}
@@ -3208,6 +3255,8 @@ test('a runner that exited but never closed is let go after a grace, with npm\'s
 	assert.ok(!event.sent.some((m) => m.channel === 'npm:run-script:done'), 'done is the close handler\'s to send');
 	// Node emits close with the stored exit code once the destroyed pipes shut.
 	child.emit('close', 1, null);
+	// The build's done follows a store write.
+	await new Promise((resolve) => setImmediate(resolve));
 	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 1 }]);
 });
 
@@ -3217,6 +3266,8 @@ test('a runner whose close follows its exit inside the grace is left alone', asy
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
+			// A build's done writes buildFailed to the store first (#503).
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killTreeByPid }
 		}
@@ -3232,6 +3283,8 @@ test('a runner whose close follows its exit inside the grace is left alone', asy
 
 	assert.deepEqual(killTreeByPid.calls, [], 'a tree that closed has nothing left to force, and its pid may be reissued');
 	assert.deepEqual(child.stdout.destroy.calls, []);
+	// The build's done follows a store write.
+	await new Promise((resolve) => setImmediate(resolve));
 	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 0 }]);
 });
 
@@ -3262,6 +3315,61 @@ test('an install that exited but never closed is let go the same way', async (t)
 	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:install:done').map((m) => m.payload), [{ installId, code: 1 }]);
 });
 
+// The build's counterpart to installFailed (#503). build/'s marker file is
+// written part-way through a build, so after a restart a build that failed
+// late read as complete: its outcome has to outlive the session.
+test('a build\'s outcome is recorded before its done event', async () => {
+	const cp = stubbedSpawn();
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { initialized: true } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, 'child_process': { spawn: cp.spawn } }
+	});
+	const ends = async (name, code) => {
+		const event = createIpcEvent();
+		const { runId } = await main.invokeWith('npm:run-script', event, '/sites/wp', name);
+		const child = cp.children[cp.children.length - 1];
+		let recorded;
+		event.sender.send = ((send) => (channel, payload) => {
+			if (channel === 'npm:run-script:done') recorded = settings.values.siteMeta['/sites/wp'].buildFailed;
+			send(channel, payload);
+		})(event.sender.send);
+		child.emit('exit', code, null);
+		child.emit('close', code, null);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code }]);
+		return recorded;
+	};
+
+	assert.equal(await ends('build', 1), true, 'recorded before the renderer is told, so its status reload sees it');
+	// Any other script says nothing about build/.
+	await ends('lint', 0);
+	assert.equal(settings.values.siteMeta['/sites/wp'].buildFailed, true);
+	assert.equal(await ends('build', 0), false);
+});
+
+test('a build whose outcome cannot be recorded says so in the log, and still reports its end', async () => {
+	const cp = stubbedSpawn();
+	const logError = spy();
+	const store = { get: () => ({}), set: () => { throw new Error('disk full'); } };
+	const main = loadMain({
+		stubs: {
+			'./logging': { ...silentLogging()['./logging'], logError },
+			'./settings-store': { getStore: async () => store, peekStore: () => store },
+			'child_process': { spawn: cp.spawn }
+		}
+	});
+	const event = createIpcEvent();
+	const { runId } = await main.invokeWith('npm:run-script', event, '/sites/wp', 'build');
+	cp.children[0].emit('exit', 0, null);
+	cp.children[0].emit('close', 0, null);
+	await new Promise((resolve) => setImmediate(resolve));
+
+	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 0 }]);
+	assert.equal(logError.calls.length, 1);
+	assert.equal(logError.calls[0][0], 'npm');
+	assert.match(logError.calls[0][1], /disk full/);
+});
+
 test('npm:kill arms no escalation for a child that had already closed', async (t) => {
 	const cp = stubbedSpawn();
 	const killTreeByPid = spy();
@@ -3290,6 +3398,9 @@ test('npm:kill stands the escalation down once the tree has closed', async (t) =
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
+			// The close below ends a build, whose done records buildFailed
+			// (#503); without this it would load the real electron-store.
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killChildTree: spy(() => true), killTreeByPid }
 		}
@@ -4568,6 +4679,56 @@ test('git:list-ticket-patches on a Gutenberg site names its repository and provi
 	assert.equal(result.ok, true);
 	assert.ok(settings.values['ticketPatches:62281'], 'the Core key is the one it always was');
 	assert.ok(settings.values['ticketPatches:WordPress/gutenberg:62281'], 'the Gutenberg key carries the repository');
+});
+
+// Whether a number typed into the issue field is a pull request (#736): asked
+// of the site's own repository on a Gutenberg site, and not asked at all on a
+// Core site, whose Trac tickets share no numbers with GitHub.
+test('github:is-pull-request asks github-prs about the site\'s own repository, and only on a GitHub-issue site', async () => {
+	const isPullRequest = spy(async () => ({ known: true, pullRequest: true }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp', '/sites/gb'],
+		siteMeta: { '/sites/wp': {}, '/sites/gb': { projectType: 'gutenberg' } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { isPullRequest } } });
+
+	assert.deepEqual(await main.invoke('github:is-pull-request', '/sites/gb', 71234), { ok: true, pullRequest: true });
+	assert.deepEqual(await main.invoke('github:is-pull-request', '/sites/wp', 71234), { ok: true, pullRequest: false });
+	assert.deepEqual(isPullRequest.calls, [[71234, { repo: 'WordPress/gutenberg' }]]);
+	assert.equal((await main.invoke('github:is-pull-request', '/sites/other', 1)).ok, false, 'an unregistered site is refused');
+});
+
+// The id crosses IPC untrusted, so it is read by the parser the link uses:
+// what `Number()` would accept (`0x1f`, `1e3`) or past the bound is refused
+// before anything is asked of GitHub.
+test('github:is-pull-request reads the id with the site\'s own parser, and asks nothing about one it refuses', async () => {
+	const isPullRequest = spy(async () => ({ known: true, pullRequest: false }));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { isPullRequest } } });
+
+	for (const id of ['0x1f', '1e3', '99999999', 0, null]) {
+		assert.equal((await main.invoke('github:is-pull-request', '/sites/gb', id)).ok, false, `refuses ${id}`);
+	}
+	assert.deepEqual(isPullRequest.calls, []);
+	await main.invoke('github:is-pull-request', '/sites/gb', '#4496');
+	assert.deepEqual(isPullRequest.calls, [[4496, { repo: 'WordPress/gutenberg' }]]);
+});
+
+// No clear answer links anyway, and says why in the log: a check that stopped
+// working on a spent quota must leave a trace, not quietly let pull requests
+// through (#736).
+test('github:is-pull-request links when GitHub gives no clear answer, and logs the reason', async () => {
+	const logEvent = spy(() => {});
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: {
+		...silentLogging({ logEvent }),
+		...settings.stubs,
+		'./github-prs': { isPullRequest: async () => ({ known: false, reason: 'rate-limited (GitHub returned 403)' }) }
+	} });
+
+	assert.deepEqual(await main.invoke('github:is-pull-request', '/sites/gb', 71234), { ok: true, pullRequest: false });
+	const logged = logEvent.calls.filter(([area]) => area === 'github').map(([, line]) => line);
+	assert.ok(logged.some((line) => line.includes('#71234') && line.includes('rate-limited')), `logged: ${JSON.stringify(logged)}`);
 });
 
 test('git:list-ticket-patches returns no-ticket without calling github-prs when none is linked', async () => {
@@ -6490,11 +6651,37 @@ test('the carry takes the applied-patch record onto the ticket with the files (i
 	assert.ok(!meta.appliedPatch, 'and trunk stops claiming a patch whose files it no longer holds');
 });
 
-// The window between creating the branch and moving the record: a patch
-// applied in it is recorded against the branch and is the newer of the two.
-// Overwriting it would drop the text Revert reverses with, leaving a patch on
-// disk the app cannot undo — the loss the carry exists to prevent, arriving
-// from the other side.
+// Every `set` is a write of the whole settings file, so every one is a state a
+// quit or a crash can leave behind. Moving the record in a write of its own,
+// after the one that creates the branch's entry, persisted #236's state for
+// exactly that long: HEAD is already on the ticket, so the entry is what the
+// reader keys on, and the claim about its files was still on trunk.
+test('no state the carry stores has the ticket\'s entry and the record on trunk (issue #474)', async (t) => {
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-patch-one-write-');
+	const applied = { label: '62281.diff', appliedAt: '2026-09-15T08:22:44.741Z', files: ['wp-login.php'], text: 'diff\n' };
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { appliedPatch: applied } } });
+	const stored = [];
+	const store = await settings.stubs['./settings-store'].getStore();
+	const set = store.set;
+	store.set = (key, value) => {
+		if (key === 'siteMeta') stored.push(structuredClone(value[dir]));
+		set(key, value);
+	};
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	assert.equal((await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true })).ok, true);
+	assert.ok(await carriedWork(event), 'the carry finished and said so — see the note in the test above');
+
+	const split = stored.filter((m) => m.branches?.['ticket/62281'] && m.appliedPatch);
+	assert.deepEqual(split, [], 'the entry is created in the same write that takes the record off trunk');
+	assert.deepEqual(stored.at(-1).branches['ticket/62281'].appliedPatch, applied, 'and the record did arrive');
+});
+
+// An entry that already holds a record, left by a branch of the same name that
+// Git no longer has, is not trunk's to replace. Overwriting it would drop the
+// text Revert reverses with, leaving a patch on disk the app cannot undo — the
+// loss the carry exists to prevent, arriving from the other side.
 test('the carry does not overwrite a patch recorded against the branch while it ran (issue #236)', async (t) => {
 	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-patch-race-');
 	const fromTrunk = { label: 'older.diff', appliedAt: '2026-09-15T08:00:00.000Z', files: ['wp-login.php'], text: 'older\n' };
@@ -8113,6 +8300,7 @@ const WIRED = new Set([
 	'git:preview-patch',
 	'git:apply-patch',
 	'git:list-ticket-patches',
+	'github:is-pull-request',
 	'trac:fetch-attachment',
 	'trac:list-attachments',
 	'editor:list',
@@ -8980,8 +9168,8 @@ test('old PRs do not count generated Gutenberg files, including a previously par
 // too: the link the Playground CLI makes to its VFS root in the folder the
 // server runs from, which on a Gutenberg site is the checkout, and the
 // .vscode/launch.json and .zed/debug.json the editor setups ask for, which
-// neither Core nor Gutenberg ignores. Gutenberg tracks other files in .vscode/, and a change
-// to one of them is still work.
+// the editor-folder excludes cover. Gutenberg tracks other files in .vscode/,
+// and a change to one of them is still work.
 for (const shape of ['core', 'gutenberg']) {
 	test(`what Xdebug leaves in a ${shape} checkout is not counted as work or put in the patch`, async (t) => {
 		const dir = adoptedRepo(t, `ipc-xdebug-${shape}-`);

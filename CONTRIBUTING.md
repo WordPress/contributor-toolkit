@@ -57,6 +57,10 @@ Worth knowing so you don't wait on them:
 - **Download stats** ([`download-stats.yml`](.github/workflows/download-stats.yml)) is a weekly cron that records release-asset counts to a `metrics` branch. It is not related to PR quality.
 - **Translatable strings** ([`i18n-pot.yml`](.github/workflows/i18n-pot.yml)) runs after a push to trunk and publishes the `.pot` to the `translations` branch for translate.wordpress.org. It never runs on a PR.
 
+## Branch names
+
+Branches follow [Gutenberg's convention](https://github.com/WordPress/gutenberg/blob/trunk/docs/contributors/code/git-workflow.md#branch-naming), `[type]/[change]`: `add/`, `try/`, `update/`, `remove/` or `fix/`, then a short description, with the issue number first when there is one. For example, `fix/736-pr-number-in-issue-field`. Release branches are `release/X.Y.Z`. [AGENTS.md](AGENTS.md#branch-names-follow-gutenbergs-convention) has the full rule.
+
 ## Before you open a pull request
 
 In an agent-assisted change your agent runs steps 1–3 — it invokes the review, applies or defers the findings, and drafts the PR summary. Your job is to see that they happen and that the summary is honest; you own the result even though the agent produced it.

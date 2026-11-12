@@ -26,7 +26,7 @@ Cursor uses the same setup as VS Code: choose **Cursor** in the menu, and follow
 
 The launch.json listens on `127.0.0.1` only, so other machines on your network cannot connect to it.
 
-The app does not write `.vscode/launch.json` for you, but it does keep the file out of your patch: neither Core nor Gutenberg ignores it, so the app adds it to the site's local Git excludes. It does the same for Zed's `.zed/debug.json`. Gutenberg's own files in `.vscode/`, such as `launch-example.json`, are not affected.
+The app does not write `.vscode/launch.json` for you, but it does keep the file out of your patch: the site's local Git excludes leave out editor folders such as `.vscode/` and `.zed/`, so Zed's `.zed/debug.json` stays out too. Gutenberg's own files in `.vscode/`, such as `launch-example.json`, are tracked, so a change to one of them is still part of your work.
 
 ## Connect PhpStorm
 

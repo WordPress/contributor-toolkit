@@ -30,7 +30,7 @@ const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs'
 const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, discardFile, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir, snapshotFiles, rollback } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
-const { fetchLinkedPrs } = require('./github-prs');
+const { fetchLinkedPrs, isPullRequest } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
 const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = require('./github-pr.cjs');
 const { buildPullRequestEntries } = require('./pr-files.cjs');
@@ -115,6 +115,19 @@ const LOCAL_EXCLUDES = [
 	'/.clinerules/'
 ];
 
+// A block of its own rather than more rules under the one above (#737): that
+// block is written once, so a site seeded before these were added would
+// never receive them.
+const EDITOR_EXCLUDES_MARKER = '# WordPress Contributor Toolkit editor folders';
+const EDITOR_EXCLUDES = [
+	'/.idea/',
+	'/.vscode/',
+	'/.vs/',
+	'/.fleet/',
+	'/.zed/',
+	'/.nova/'
+];
+
 /**
  * Seeds per-site ignores for machine-local files that must never become part
  * of a contribution. This lives in `.git/info/exclude`, not the repository's
@@ -126,7 +139,8 @@ const LOCAL_EXCLUDES = [
  * Existing rules above or below the block are never rewritten.
  *
  * @param {string} dir Repository working directory.
- * @return {Promise<boolean>} Whether the default block was appended.
+ * @return {Promise<boolean>} Whether the agent or editor block was appended;
+ *                            the Gutenberg block is not counted.
  */
 async function ensureLocalExcludes(dir) {
 	const gitDir = path.join(dir, '.git');
@@ -142,12 +156,12 @@ async function ensureLocalExcludes(dir) {
 	// What step debugging leaves in a checkout (#723). With Xdebug on, the
 	// Playground CLI links its VFS root into the folder the server runs from,
 	// which for a plugin-mount site is the checkout, and leaves the link behind
-	// when the server stops. And the editor setups ask for a
-	// .vscode/launch.json and a .zed/debug.json, which neither Core nor
-	// Gutenberg ignores; only those files, since Gutenberg tracks others in
-	// .vscode/.
-	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit Xdebug', ['/.playground-xdebug-root', '/.vscode/launch.json', '/.zed/debug.json'], { once: true });
-	return appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
+	// when the server stops. The launch.json and debug.json the editor setups
+	// ask for are under the editor folders excluded below.
+	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit Xdebug', ['/.playground-xdebug-root'], { once: true });
+	const agents = await appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
+	const editors = await appendExcludeBlock(dir, EDITOR_EXCLUDES_MARKER, EDITOR_EXCLUDES, { once: true });
+	return agents || editors;
 }
 
 // Screenshot harness only (scripts/screenshots/): point userData at a throwaway
@@ -1857,36 +1871,32 @@ async function changeWorkMetaOn(sitePath, ref, change) {
  * its files and offering to revert it over a clean tree, and the revert failed
  * blaming a trunk update that never happened.
  *
- * One `changeSiteMeta`, because the clear and the write have to be indivisible:
- * split in two, a concurrent write leaves the record in both places or in
- * neither, and neither is the worse of the two — it takes the patch text with
- * it, which is what Revert reverses with.
+ * A function of the record rather than a write of its own, because it has to
+ * land in the same `changeSiteMeta` that creates the branch's entry and moves
+ * `currentBranch` onto it. Split off, the clear and the write can be separated
+ * by a concurrent write, leaving the record in both places or in neither; and
+ * even run back to back, a quit or a crash between the two writes persists the
+ * state #236 described — the files on the branch, the claim about them still
+ * on trunk (#474). Folded in, the entry is still created holding its branch
+ * point, in the same write that gives it one (#172).
  *
- * Called after the branch's own meta is written, so the entry exists with its
- * branch point rather than being created here holding this one field (#172).
- *
- * @param {string} sitePath
- * @param {string} ref      The branch the work was carried onto.
+ * @param {Object} m   The site's record, with the branch's entry already in it.
+ * @param {string} ref The branch the work was carried onto.
+ * @return {Object} The record to store.
  */
-async function carryAppliedPatch(sitePath, ref) {
-    await changeSiteMeta(sitePath, (m) => {
-        const carried = m.appliedPatch;
-        if (!carried) return m;
-        const branches = { ...(m.branches || {}) };
-        // No entry means nowhere per-branch for it to live, and the reader
-        // would look at the site for it anyway (workMetaScope). Leaving it on
-        // trunk is wrong but visible; moving it somewhere unread is not.
-        if (!branches[ref]) return m;
-        // A patch applied while this link was still running belongs to the
-        // branch and is newer. Overwriting it with trunk's would drop the text
-        // Revert reverses with, leaving a patch on disk the app cannot undo —
-        // the same loss this function exists to prevent, in the other
-        // direction. Trunk's record is left where it is, visibly wrong, rather
-        // than taking a newer one down with it.
-        if (branches[ref].appliedPatch) return m;
-        branches[ref] = { ...branches[ref], appliedPatch: carried };
-        return { ...m, appliedPatch: null, branches };
-    });
+function carryAppliedPatch(m, ref) {
+    const carried = m.appliedPatch;
+    if (!carried) return m;
+    const branches = { ...(m.branches || {}) };
+    // An entry that already holds a record — left by a branch of this name
+    // that Git no longer has — is not trunk's to replace. Overwriting it would
+    // drop the text Revert reverses with, leaving a patch on disk the app
+    // cannot undo — the same loss this function exists to prevent, in the
+    // other direction. Trunk's record is left where it is, visibly wrong,
+    // rather than taking the other one down with it.
+    if (branches[ref].appliedPatch) return m;
+    branches[ref] = { ...branches[ref], appliedPatch: carried };
+    return { ...m, appliedPatch: null, branches };
 }
 
 async function writeWorkMeta(sitePath, patch) {
@@ -3207,9 +3217,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, projectType: project.id, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
+		return { hasNodeModules, hasBuilt, projectType: project.id, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), buildFailed: Boolean(m.buildFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, projectType: getProjectType().id, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, pullRequest: null, legacy: false, mergeInProgress: null };
+		return { hasNodeModules: false, hasBuilt: false, projectType: getProjectType().id, skipInitWizard: false, initialized: false, installFailed: false, buildFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, pullRequest: null, legacy: false, mergeInProgress: null };
 	}
 });
 
@@ -3471,6 +3481,27 @@ async function ticketCheckoutRef(sitePath, ticketRef) {
     return await resolveRef(sitePath, ref) ? ref : ticketRef;
 }
 
+// Whether the number typed into the issue field is a pull request (#736). Its
+// own channel rather than a step of sites:set-ticket, so the renderer asks it
+// only of what the field was given, and a journey can answer it without
+// GitHub. A Core site has no GitHub issues to confuse it with.
+ipcMain.handle('github:is-pull-request', async (_e, sitePath, id) => withRegisteredSite(sitePath, async () => {
+	const meta = await readSiteMeta(sitePath);
+	const workItem = workItemFor(meta);
+	if (workItem.kind !== 'github-issue') return { ok: true, pullRequest: false };
+	// The id crosses IPC untrusted, so it is read by the same parser, with the
+	// same bound, as the link it is asked for.
+	const parsed = workItem.parseRef(String(id));
+	if (!parsed.ok) return { ok: false, error: parsed.error };
+	const { owner, repo } = projectTypeForSite(meta).upstream;
+	const answer = await isPullRequest(parsed.id, { repo: `${owner}/${repo}` });
+	if (!answer.known) {
+		logEvent('github', `could not tell whether #${parsed.id} on ${owner}/${repo} is a pull request, so linking it: ${answer.reason}`);
+		return { ok: true, pullRequest: false };
+	}
+	return { ok: true, pullRequest: answer.pullRequest };
+}));
+
 ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => withRegisteredSite(sitePath, async () => {
 	// Empty means unlink — the panel's Unlink button and a cleared field both
 	// land here, and neither is an error. The branch and its work stay; going
@@ -3595,24 +3626,30 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		({ baseOid } = await startTicketBranch(sitePath, parsed.id, { prefix }));
 	}
 
-	await mergeBranchMeta(sitePath, branchRef, {
-		tracTicket: parsed.id,
-		// Only when this flow is the one that created the branch. The
-		// existing-branch path used to read the recorded base and write it
-		// straight back, which rolled back a `branches:rebase` that moved it
-		// while the switch was running — the base is the one value a branch
-		// cannot recompute (#172), and a write is not the way to leave it
-		// alone.
-		...(baseOid === undefined ? {} : { baseOid }),
-		lastUsedAt: new Date().toISOString()
+	// One write for the branch's entry, the site's pointer to it and, on a
+	// carry, the applied-patch record (#474): stored one after another, a quit
+	// between them leaves the files on the branch and the record on trunk.
+	await changeSiteMeta(sitePath, (m) => {
+		const branches = { ...(m.branches || {}) };
+		branches[branchRef] = {
+			...(branches[branchRef] || {}),
+			tracTicket: parsed.id,
+			// Only when this flow is the one that created the branch. The
+			// existing-branch path used to read the recorded base and write it
+			// straight back, which rolled back a `branches:rebase` that moved it
+			// while the switch was running — the base is the one value a branch
+			// cannot recompute (#172), and a write is not the way to leave it
+			// alone.
+			...(baseOid === undefined ? {} : { baseOid }),
+			lastUsedAt: new Date().toISOString()
+		};
+		const next = { ...m, branches, tracTicket: parsed.id, currentBranch: checkoutRef };
+		// The record travels with the files (#236).
+		return carriedFrom === TRUNK ? carryAppliedPatch(next, branchRef) : next;
 	});
-	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
-	if (carriedFrom === TRUNK) {
-		// The record travels with the files (#236), before the notice that
-		// says they arrived.
-		await carryAppliedPatch(sitePath, branchRef);
-		reportCarriedWork(event, sitePath, parsed.id);
-	}
+	// After the record has moved, so the notice that says the files arrived
+	// never reaches a renderer still reading the patch as trunk's.
+	if (carriedFrom === TRUNK) reportCarriedWork(event, sitePath, parsed.id);
 	return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 }));
 
@@ -4252,7 +4289,16 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 		onLog: (type, data) => {
 			event.sender.send('npm:run-script:log', { runId, type, data });
 		},
-		onDone: (code) => {
+		onDone: async (code) => {
+			// The build's counterpart to installFailed, recorded before the done
+			// event for the same reason (#503): build/'s marker file is written
+			// part-way through, so a build that failed late reads as complete
+			// unless its outcome outlives the session.
+			if (scriptName === 'build') {
+				try { await mergeSiteMeta(directoryPath, { buildFailed: code !== 0 }); } catch (e) {
+					logError('npm', `could not record how the build in ${directoryPath} ended (code ${code}): ${String(e && e.message ? e.message : e)}`);
+				}
+			}
 			event.sender.send('npm:run-script:done', { runId, code });
 			untrackDirectoryChild(directoryPath, runningScripts[runId]);
 			delete runningScripts[runId];

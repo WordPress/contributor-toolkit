@@ -107,9 +107,51 @@ function parseIssueRef(input, { repoPath = 'WordPress/gutenberg' } = {}) {
 	return fromDigits(match[3]);
 }
 
+/**
+ * The issue number to ask GitHub about before linking what the field holds, or
+ * null when there is nothing to ask (#736).
+ *
+ * GitHub numbers issues and pull requests from one sequence, so a bare number
+ * is only known to be an issue once GitHub says so. A Trac site has no such
+ * mix-up to catch, and input the parser refuses is refused by the link itself,
+ * with the parser's own message.
+ *
+ * @param {{kind: string, parseRef: Function}} workItem The site's work-item provider.
+ * @param {string}                             input    What the contributor typed.
+ * @return {number|null}
+ */
+function issueToCheck(workItem, input) {
+	if (!workItem || workItem.kind !== 'github-issue') return null;
+	const parsed = workItem.parseRef(input);
+	return parsed.ok ? parsed.id : null;
+}
+
+/**
+ * What the issue field says when the number it was given is a pull request, or
+ * null when the link should go ahead (#736).
+ *
+ * Only a clear "this is a pull request" refuses. A failed or missing answer
+ * links: not being able to reach GitHub is no reason to stop someone linking
+ * the issue they meant, and main logs why it could not tell.
+ *
+ * @param {number}  id
+ * @param {?Object} answer What `github:is-pull-request` returned, if anything.
+ * @return {string|null}
+ */
+function pullRequestRefusal(id, answer) {
+	if (!answer || answer.ok !== true || answer.pullRequest !== true) return null;
+	return sprintf(
+		// translators: %d: a pull request number, such as 71234.
+		__('#%d is a pull request, not an issue. To test it, use Check out a pull request. To work on it, link the issue it fixes.'),
+		id
+	);
+}
+
 module.exports = {
 	GITHUB_HOST,
 	MAX_ISSUE_ID,
 	issueUrl,
-	parseIssueRef
+	issueToCheck,
+	parseIssueRef,
+	pullRequestRefusal
 };

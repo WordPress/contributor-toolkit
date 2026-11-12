@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { EventEmitter } = require('node:events');
-const { httpGet, fetchLinkedPrs, MAX_COMMIT_LOOKUPS } = require('../../src/github-prs');
+const { httpGet, fetchLinkedPrs, isPullRequest, MAX_COMMIT_LOOKUPS } = require('../../src/github-prs');
 const { pickLatest } = require('../../src/latest-patch.cjs');
 
 // A stand-in for Electron's `net`: request() hands back an EventEmitter whose
@@ -390,4 +390,31 @@ test('fetchLinkedPrs without a repository is a Core site\'s, unchanged (#251)', 
 	assert.strictEqual(res.items.length, 1);
 	assert.match(gh.calls[0], /repo%3AWordPress%2Fwordpress-develop/);
 	assert.match(gh.commitCalls()[0], /repos\/WordPress\/wordpress-develop\//);
+});
+
+// --- isPullRequest (#736) ------------------------------------------------
+
+test('isPullRequest asks the repository for the number and reads pull_request off the answer', async () => {
+	const urls = [];
+	const get = (body) => async (url) => { urls.push(url); return { status: 200, headers: {}, body: JSON.stringify(body) }; };
+	assert.deepStrictEqual(await isPullRequest(71234, { repo: 'WordPress/gutenberg', httpGet: get({ number: 71234, pull_request: { url: 'x' } }) }), { known: true, pullRequest: true });
+	assert.deepStrictEqual(await isPullRequest(4496, { repo: 'WordPress/gutenberg', httpGet: get({ number: 4496 }) }), { known: true, pullRequest: false });
+	assert.deepStrictEqual(urls, [
+		'https://api.github.com/repos/WordPress/gutenberg/issues/71234',
+		'https://api.github.com/repos/WordPress/gutenberg/issues/4496'
+	]);
+});
+
+test('isPullRequest says it could not tell, and why, for anything short of a clear answer', async () => {
+	const cases = [
+		[async () => ({ status: 404, headers: {}, body: '{"message":"Not Found"}' }), /GitHub returned 404/],
+		[async () => ({ status: 403, headers: { 'x-ratelimit-remaining': '0' }, body: '{}' }), /^rate-limited/],
+		[async () => ({ status: 200, headers: {}, body: 'not json' }), /unreadable/],
+		[async () => { throw new Error('net::ERR_INTERNET_DISCONNECTED'); }, /^offline: net::ERR_INTERNET_DISCONNECTED/]
+	];
+	for (const [answer, reason] of cases) {
+		const result = await isPullRequest(71234, { httpGet: answer });
+		assert.strictEqual(result.known, false);
+		assert.match(result.reason, reason);
+	}
 });

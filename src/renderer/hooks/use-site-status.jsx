@@ -30,11 +30,15 @@ import { useCallback, useEffect, useState } from 'react';
 // `ticketBehindTrunk` the same way; the dev server's start asks the main
 // process itself whether the site is built and copies that into `hasBuilt`;
 // skipping the first-run checklist sets `skipInit`; and discarding every
-// change clears `appliedPatch`, with no read after it. The other eight change
+// change clears `appliedPatch`, with no read after it. The other nine change
 // only through `loadStatus`.
 export function useSiteStatus({ sitePath, metaPatchRef }) {
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
+  // How the last npm run build ended, kept in the site's meta by main.js like
+  // the install's (#503): build/'s marker is written part-way through a build,
+  // so without it a build that failed late read as complete after a restart.
+  const [buildFailed, setBuildFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
@@ -60,6 +64,7 @@ export function useSiteStatus({ sitePath, metaPatchRef }) {
       const s = await window.api.getSiteStatus(sitePath);
       setHasNodeModules(Boolean(s?.hasNodeModules));
       setInstallFailed(Boolean(s?.installFailed));
+      setBuildFailed(Boolean(s?.buildFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
       setSkipInit(Boolean(s?.skipInitWizard));
       setTrunkDate(s?.trunkDate || null);
@@ -90,6 +95,7 @@ export function useSiteStatus({ sitePath, metaPatchRef }) {
   return {
     hasNodeModules,
     installFailed,
+    buildFailed,
     hasBuilt,
     setHasBuilt,
     skipInit,

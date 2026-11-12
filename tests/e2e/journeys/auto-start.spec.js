@@ -144,6 +144,54 @@ test( 'with the watch set to start when a site is opened, opening one asks for t
 	await nothingStarted( again.page, again.app );
 } );
 
+test( 'coming back to a site while a build runs in it starts nothing until the build has ended (#503)', async ( { session } ) => {
+	const first = await makeSite( session, { label: 'first' } );
+	const second = await makeSite( session, { label: 'second' } );
+	const settings = {
+		sites: [ first.dir, second.dir ],
+		siteMeta: { ...first.settings.siteMeta, ...second.settings.siteMeta },
+		preferences: { autoStartWatch: true }
+	};
+	await session.start( { ...settings, preferences: {} } );
+	session.writeSettings( settings );
+	const { app, page } = await session.restart( { beforeWindow: standIn } );
+
+	// The site the window opens on has its watch asked for; the test ends it,
+	// so there is one to start again.
+	await expect.poll( async () => ( await asked( app ) ).scripts.length, { timeout: 30_000 } ).toBe( 1 );
+	const [ { dir: openedDir } ] = ( await asked( app ) ).scripts;
+	const [ openedSite, otherSite ] = openedDir === first.dir ? [ first, second ] : [ second, first ];
+	const openedLabel = openedSite.settings.siteMeta[ openedSite.dir ].label;
+	const otherLabel = otherSite.settings.siteMeta[ otherSite.dir ].label;
+	await tell( app, 'npm:run-script:done', { runId: 'e2e-run-1', code: 0 } );
+
+	// A full build typed in its terminal, which writes build/ for minutes.
+	await ui.openTray( page, 'Terminal' );
+	const terminal = ui.terminalInput( page );
+	await terminal.pressSequentially( 'npm run build', { delay: 10 } );
+	await terminal.press( 'Enter' );
+	await expect.poll( async () => ( await asked( app ) ).scripts.length ).toBe( 2 );
+	expect( ( await asked( app ) ).scripts[ 1 ] ).toEqual( { dir: openedSite.dir, name: 'build', args: [] } );
+
+	// Away and back: the other site has its watch asked for.
+	await ui.sidebarEntry( page, otherLabel ).click();
+	await expect( ui.siteHeading( page, otherLabel ) ).toBeVisible();
+	await expect.poll( async () => ( await asked( app ) ).scripts.length ).toBe( 3 );
+	await ui.sidebarEntry( page, openedLabel ).click();
+	await expect( ui.siteHeading( page, openedLabel ) ).toBeVisible();
+
+	// INVARIANT — while the build writes build/, opening the site starts no
+	// watch over it, as its button would not.
+	await nothingMore( page );
+	expect( ( await asked( app ) ).scripts ).toHaveLength( 3 );
+
+	// INVARIANT — once it has ended, what opening the site asked for starts.
+	await tell( app, 'npm:run-script:done', { runId: 'e2e-run-2', code: 0 } );
+	await expect.poll( async () => ( await asked( app ) ).scripts.length ).toBe( 4 );
+	expect( ( await asked( app ) ).scripts[ 3 ] ).toEqual( { dir: openedSite.dir, ...CORE_WATCH } );
+	expect( ( await asked( app ) ).starts ).toEqual( [] );
+} );
+
 test( 'what the last quit stopped is started again at the next launch, once, and only while the quit setting says so', async ( { session } ) => {
 	const served = await makeSite( session, { label: 'served' } );
 	const watched = await makeSite( session, { label: 'watched' } );

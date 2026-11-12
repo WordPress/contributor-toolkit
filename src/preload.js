@@ -137,6 +137,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	setSiteTicket: (sitePath, ref, options) => ipcRenderer.invoke('sites:set-ticket', sitePath, ref, options)
 ,
+	isPullRequest: (sitePath, id) => ipcRenderer.invoke('github:is-pull-request', sitePath, id)
+,
 	// Ticket branches (#108): the tickets open in a site, and moving between them.
 	listBranches: (sitePath) => ipcRenderer.invoke('branches:list', sitePath)
 ,

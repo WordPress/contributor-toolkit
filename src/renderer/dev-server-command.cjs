@@ -71,8 +71,9 @@ function watchReadyPattern(build) {
  * rebuilding (`buildInterrupted`), may have left build/ empty or half
  * written, and the marker file the status reads is not proof otherwise. In
  * those cases the watch goes first and completes build/, as before #499. A
- * paused watch means an apply is building on its own; serving meanwhile is
- * what the guide already promises.
+ * paused watch means an apply is installing or building on its own. While it
+ * installs, serving is what the guide already promises; while it builds, the
+ * start is held before it gets here (#503, buildHoldsStarts).
  *
  * @param {{hasBuilt?: boolean, watchState?: string, buildInterrupted?: boolean}} [flags]
  * @param {{watch: {readyPattern?: string}}}                                      [build]

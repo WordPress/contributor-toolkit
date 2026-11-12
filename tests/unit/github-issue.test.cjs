@@ -6,7 +6,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { parseIssueRef, issueUrl } = require('../../src/renderer/github-issue.cjs');
+const { parseIssueRef, issueUrl, issueToCheck, pullRequestRefusal } = require('../../src/renderer/github-issue.cjs');
+const { workItemProvider } = require('../../src/work-item.cjs');
 const { addFilter, removeFilter } = require('@wordpress/hooks');
 const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
@@ -117,4 +118,29 @@ test('parseIssueRef refuses in the locale applied (#629)', (t) => {
 	assert.equal(parseIssueRef('https://example.com/a/b/issues/1').error, pseudoLocalize('Only %s issues are supported.').replace('%s', 'github.com'));
 	assert.equal(parseIssueRef('https://github.com/WordPress/gutenberg/pull/1').error, pseudoLocalize('That is a pull request. Link the issue it fixes instead.'));
 	assert.equal(parseIssueRef('https://github.com/other/repo/issues/1').error, pseudoLocalize('Only %s issues can be linked here.').replace('%s', 'WordPress/gutenberg'));
+});
+
+// --- a pull request's number in the issue field (#736) ---------------------
+
+test('issueToCheck asks about what a GitHub-issue site would link, and nothing else', () => {
+	const gutenberg = workItemProvider('github-issue', GB);
+	assert.strictEqual(issueToCheck(gutenberg, '71234'), 71234);
+	assert.strictEqual(issueToCheck(gutenberg, '#71234'), 71234);
+	assert.strictEqual(issueToCheck(gutenberg, 'https://github.com/WordPress/gutenberg/issues/71234'), 71234);
+	// Refused by the parser already, so the link says why without GitHub.
+	assert.strictEqual(issueToCheck(gutenberg, 'https://github.com/WordPress/gutenberg/pull/71234'), null);
+	assert.strictEqual(issueToCheck(gutenberg, ''), null);
+	assert.strictEqual(issueToCheck(gutenberg, 'not a number'), null);
+	// A Trac ticket shares no numbers with GitHub.
+	assert.strictEqual(issueToCheck(workItemProvider('trac'), '71234'), null);
+});
+
+test('pullRequestRefusal refuses only on a clear pull-request answer, and says where a pull request goes', () => {
+	assert.strictEqual(
+		pullRequestRefusal(71234, { ok: true, pullRequest: true }),
+		'#71234 is a pull request, not an issue. To test it, use Check out a pull request. To work on it, link the issue it fixes.'
+	);
+	for (const answer of [{ ok: true, pullRequest: false }, { ok: false, error: 'Site is not registered' }, null, undefined]) {
+		assert.strictEqual(pullRequestRefusal(71234, answer), null);
+	}
 });
