@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-11-10T21:18:42+00:00\n"
+"POT-Creation-Date: 2026-11-12T18:13:59+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -1149,36 +1149,36 @@ msgid ""
 "overlap, and fails without touching anything if they do."
 msgstr ""
 
-#: src/renderer/apply-card.cjs:141
+#: src/renderer/apply-card.cjs:145
 msgid ""
 "Another command is running on this site. Wait for it to finish, or stop it "
 "with Ctrl+C in the terminal."
 msgstr ""
 
-#: src/renderer/apply-card.cjs:206
+#: src/renderer/apply-card.cjs:210
 msgid "The checkout was not changed."
 msgstr ""
 
-#: src/renderer/apply-card.cjs:231
+#: src/renderer/apply-card.cjs:235
 #. 1: a file's path. 2: how many of its changes failed. 3: how many it has.
 msgid "%1$s — %2$d of %3$d change"
 msgid_plural "%1$s — %2$d of %3$d changes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/apply-card.cjs:237
+#: src/renderer/apply-card.cjs:241
 #. %s: a line of code from a file, which is shown in a code font. Keep the %s.
 msgid "Near %s"
 msgstr ""
 
-#: src/renderer/apply-card.cjs:240
+#: src/renderer/apply-card.cjs:244
 #. %d: how many lines of a file are not shown.
 msgid "… %d more line"
 msgid_plural "… %d more lines"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/apply-card.cjs:246
+#: src/renderer/apply-card.cjs:250
 #. %d: a line number in a patch file.
 msgid "line %d of the patch"
 msgstr ""
@@ -1195,71 +1195,81 @@ msgstr ""
 msgid "A pull request is checked out with its author’s commits."
 msgstr ""
 
-#: src/renderer/apply-card.cjs:33
+#: src/renderer/apply-card.cjs:34
+#. an example of what to type; the number stays as it is.
+msgid "e.g. 71234"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:35
 msgid "Check out a pull request"
 msgstr ""
 
-#: src/renderer/apply-card.cjs:34
+#: src/renderer/apply-card.cjs:36
 msgid "Test a pull request in this checkout. Your own changes are preserved."
 msgstr ""
 
-#: src/renderer/apply-card.cjs:39
-msgid "Apply a patch or PR"
-msgstr ""
-
-#: src/renderer/apply-card.cjs:40
-msgid "Test changes in this checkout. Your own changes are preserved."
-msgstr ""
-
-#: src/renderer/apply-card.cjs:41
-msgid "Pull request"
+#: src/renderer/apply-card.cjs:42
+#. an example of what to type; the number stays as it is.
+msgid "e.g. 9000"
 msgstr ""
 
 #: src/renderer/apply-card.cjs:43
+msgid "Apply a patch or PR"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:44
+msgid "Test changes in this checkout. Your own changes are preserved."
+msgstr ""
+
+#: src/renderer/apply-card.cjs:45
+msgid "Pull request"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:47
 #. a noun, the name of a tab: a diff is a file of changes, also called a patch.
 msgid "Diff"
 msgstr ""
 
-#: src/renderer/apply-card.cjs:44
+#: src/renderer/apply-card.cjs:48
 msgid "Choose a .diff or .patch file…"
 msgstr ""
 
-#: src/renderer/apply-card.cjs:45
+#: src/renderer/apply-card.cjs:49
 msgid ""
 "A .diff or .patch file is applied to the current branch as a removable "
 "layer."
 msgstr ""
 
-#: src/renderer/apply-card.cjs:69
+#: src/renderer/apply-card.cjs:73
 #. %d: the number of a pull request.
 msgid "Apply PR #%d"
 msgstr ""
 
-#: src/renderer/apply-card.cjs:83
+#: src/renderer/apply-card.cjs:87
 #. %s: the name of a file, or several separated by commas.
 msgid "%s is a binary file and will be skipped."
 msgid_plural "%s are binary files and will be skipped."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/apply-card.cjs:87
+#: src/renderer/apply-card.cjs:91
 #. %s: the name of a patch file, such as 65933.diff.
 msgid "Apply %s"
 msgstr ""
 
-#: src/renderer/apply-card.cjs:89
+#: src/renderer/apply-card.cjs:93
 #. 1: the name of a patch file. 2: how many files it changes.
 msgid "%1$s changes %2$d file."
 msgid_plural "%1$s changes %2$d files."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/apply-card.cjs:90
+#: src/renderer/apply-card.cjs:94
 #: src/renderer/pr-checkout.cjs:131
 msgid "Apply and rebuild"
 msgstr ""
 
-#: src/renderer/apply-card.cjs:94
+#: src/renderer/apply-card.cjs:98
 #: src/renderer/pr-checkout.cjs:134
 msgid ""
 "It changes package-lock.json, so dependencies will be installed before the "
@@ -1852,15 +1862,15 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: src/renderer/components/apply-card.jsx:103
+#: src/renderer/components/apply-card.jsx:104
 msgid "Revert this patch"
 msgstr ""
 
-#: src/renderer/components/apply-card.jsx:169
+#: src/renderer/components/apply-card.jsx:170
 msgid "Try another patch on this ticket"
 msgstr ""
 
-#: src/renderer/components/apply-card.jsx:336
+#: src/renderer/components/apply-card.jsx:337
 #: src/renderer/components/confirm-dialog.jsx:43
 #: src/renderer/components/dirty-tree-modal.jsx:82
 #: src/renderer/components/pull-request-destination.jsx:156
@@ -1868,19 +1878,19 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: src/renderer/components/apply-card.jsx:365
+#: src/renderer/components/apply-card.jsx:366
 msgid "Revert this PR before applying another PR or patch file."
 msgstr ""
 
-#: src/renderer/components/apply-card.jsx:75
+#: src/renderer/components/apply-card.jsx:76
 msgid "Save a copy of your work"
 msgstr ""
 
-#: src/renderer/components/apply-card.jsx:76
+#: src/renderer/components/apply-card.jsx:77
 msgid "Discard this ticket to its base"
 msgstr ""
 
-#: src/renderer/components/apply-card.jsx:89
+#: src/renderer/components/apply-card.jsx:90
 msgid ""
 "This patch is applied to your current work. Removing it may require undoing "
 "overlapping edits."
@@ -4695,7 +4705,7 @@ msgstr ""
 
 #: src/renderer/ticket-card.cjs:28
 #. an example of what to type; the number stays as it is.
-msgid "e.g. 71234"
+msgid "e.g. 71210"
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:29
@@ -5508,7 +5518,7 @@ msgctxt "the Window menu: make the window fill the screen, or back"
 msgid "Zoom"
 msgstr ""
 
-#: src/renderer/apply-card.cjs:201
+#: src/renderer/apply-card.cjs:205
 #. %s: a sentence that did not end in a full stop. Use the mark your language ends a sentence with, or none.
 msgctxt "ends a sentence that lacks a full stop"
 msgid "%s."
