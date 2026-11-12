@@ -57,6 +57,12 @@ test('nothing that can be pressed moves when detection answers', () => {
 	// The three lists a contributor can see in one opening of the menu, on a
 	// machine where nothing was known, and on one where an editor was: while
 	// looking, and after. A row that is in both keeps its place.
+	//
+	// With an editor chosen in Settings (#738), the flyout is replaced by one
+	// row once detection finds it, so on the first opening of the menu that
+	// row can change under the pointer. That is a known exception, kept small
+	// by detecting as the site opens; a site's menu opened from the sites list
+	// before any detection has answered can still show it.
 	const zed = { name: 'Zed', path: '/zed' };
 	const code = { name: 'Visual Studio Code', path: '/code' };
 	const sequences = [

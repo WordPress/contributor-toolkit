@@ -59,8 +59,8 @@ function SiteMenuItems({ menu, onAction }) {
 
 /**
  * Which application a file under "Changed files" opens in, asked beside the
- * file when no editor is chosen in Settings and detection found more than
- * one (#738). The items are the site menu's "Open in", so the two offer the
+ * file when no editor is chosen in Settings and detection found one or
+ * more (#738). The items are the site menu's "Open in", so the two offer the
  * same applications in the same order. Focus goes back to the file when the
  * menu closes, chosen or dismissed.
  *
