@@ -338,6 +338,61 @@ test( 'a start cancelled while the debug.log tail comes up does not ask for a se
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 } );
 
+// On a site with no build, a start waits for the build the watch runs first,
+// and that build goes on when the start is cancelled. Each start waits on it,
+// so starts cancelled while it runs must not each ask for a server when it
+// is done.
+test( 'starts cancelled during the first build ask for one server when it is done, not one each', async ( { session } ) => {
+	const site = await makeSite( session );
+	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
+	const { app, page } = await session.start( site.settings );
+	const server = await standIn( app, page, site.dir );
+	const starting = page.getByRole( 'button', { name: 'Cancel the development server start', exact: true } );
+
+	await expect( ui.startDevServerButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).scripts ).toEqual( [ { name: 'build', args: [] } ] );
+	for ( let i = 0; i < 2; i++ ) {
+		await starting.click();
+		await expect( ui.startDevServerButton( page ) ).toBeVisible();
+		await ui.startDevServerButton( page ).click();
+		await expect( starting ).toBeVisible();
+	}
+
+	// INVARIANT — the build ends well and the watch is ready: the start that
+	// is still going asks for one server, and the cancelled ones for none.
+	await server.scriptEnds( 1, 0 );
+	await expect.poll( async () => ( await server.asked() ).scripts ).toHaveLength( 2 );
+	await server.scriptPrints( 2, 'Watching for changes\n' );
+	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
+	await server.heard();
+	await page.waitForTimeout( 200 );
+	expect( ( await server.asked() ).starts ).toEqual( [ site.dir ] );
+	await server.serverHasAddress();
+	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
+} );
+
+// Cancelling the start cancels the server, not the build it was waiting for,
+// which still holds the terminal: Ctrl+C there stops it.
+test( 'a start cancelled during the first build leaves the build holding the terminal', async ( { session } ) => {
+	const site = await makeSite( session );
+	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
+	const { app, page } = await session.start( site.settings );
+	await ui.openTray( page, 'Terminal' );
+	const server = await standIn( app, page, site.dir );
+	const starting = page.getByRole( 'button', { name: 'Cancel the development server start', exact: true } );
+
+	await expect( ui.startDevServerButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).scripts ).toEqual( [ { name: 'build', args: [] } ] );
+	await starting.click();
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+
+	// INVARIANT — the build is still the terminal's, so Ctrl+C stops it.
+	await ui.terminalInput( page ).press( 'Control+c' );
+	await expect.poll( async () => ( await server.asked() ).kills ).toEqual( [ 'e2e-run-1' ] );
+} );
+
 test( 'on a project whose watcher rebuilds everything, the server waits for a first build and for the watcher to be ready, gives up if the build fails, and starts at once on a build that is already there', async ( { session } ) => {
 	// A Gutenberg checkout, which the fixture is not a built one of.
 	const site = await makeSite( session );

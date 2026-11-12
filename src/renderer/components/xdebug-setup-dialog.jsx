@@ -130,7 +130,7 @@ function PhpStormSteps({ values, onCopy }) {
       <Step
         words={sprintf(
           // translators: %d: the port Xdebug connects to. <b> marks the name of a settings page.
-          __('In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options.'),
+          __('In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, turn off both “Force break at first line” options, and turn off “Can accept external connections”, so only this computer can connect.'),
           XDEBUG_PORT
         )}
       />

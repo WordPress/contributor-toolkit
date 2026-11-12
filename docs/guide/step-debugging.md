@@ -32,7 +32,7 @@ The app does not write `.vscode/launch.json` for you, but it does keep the file 
 
 PhpStorm keeps its debug setup in its own settings, so the app gives you the values to enter there. In the site's details, select **Set up Xdebug for your editor**, and choose **PhpStorm**.
 
-1. In **Settings → PHP → Debug**, make sure **Debug port** includes 9003. Turn off both **Force break at first line** options: every request first runs a file of Playground's own, which has no mapping, and PhpStorm would stop there.
+1. In **Settings → PHP → Debug**, make sure **Debug port** includes 9003. Turn off both **Force break at first line** options: every request first runs a file of Playground's own, which has no mapping, and PhpStorm would stop there. Also turn off **Can accept external connections**: it is on by default, and lets other computers on your network connect to PhpStorm's debugger.
 2. In **Settings → PHP → Servers**, add a server with **Xdebug** as its debugger. Copy the **Host** and **Port** from the dialog, turn on **Use path mappings**, and map the dialog's **File/Directory** to its **Absolute path on the server**.
 3. Turn on **Run → Start Listening for PHP Debug Connections**, set a breakpoint, and load the site.
 

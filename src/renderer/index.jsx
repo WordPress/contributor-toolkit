@@ -1228,7 +1228,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
   // `loadStatus` above; the terminal and the build watch below run through it.
-  const { installing, building, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
+  const { installing, building, buildInterrupted, buildInterruptedRef, markBuildInterrupted, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
 
   // The site's terminal (#554): the xterm instance, what is typed in it and
   // the commands it runs through the three runners above. The lock, the kill
@@ -1314,7 +1314,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The dev server (#554): its state, its guards and its one button. It is
   // called here because starting it needs everything above: the build watch,
   // the logs, the mail, the terminal's lock and the script runner.
-  const { serverUrl, serverXdebug, serverXdebugHeldBy, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
+  const { serverUrl, serverXdebug, serverXdebugHeldBy, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);

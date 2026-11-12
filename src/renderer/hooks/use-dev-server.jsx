@@ -24,8 +24,6 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // there (#558), and `startDebugTail` and `stopDebugTail` are its debug.log
 // tail.
 // `listenForMail`, `stopListeningForMail` and `loadMail` are the site's mail.
-// `terminalKillRef`, `markTerminalRunning` and `currentRunIdRef` are the
-// terminal's lock and the script runner's current run, which a stop clears.
 // `hasBuilt`, `setHasBuilt` and `skipInit` are what the site's status says,
 // and `projectBuild` is the project's build plan. `confirm` says, in the
 // window's notices, that a start was refused for want of a build.
@@ -36,7 +34,7 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // `isDevProcessActive` and `serverFailure` are what the page's words about
 // the server are decided from, in site-processes.cjs, and `startElapsed` is
 // how long a start has been going.
-export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
+export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef }) {
   const [serverUrl, setServerUrl] = useState('');
   // Whether the running server started with Xdebug (#723), which is what the
   // page shows: the setting applies only at the next start.
@@ -94,13 +92,13 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
     setServerXdebugHeldBy(null);
     stoppingRef.current = false;
     waitingForWatchRef.current = false;
-    terminalKillRef.current = null;
-    markTerminalRunning(false);
-    currentRunIdRef.current = null;
     // The watcher is independent now (#247): stopping the dev server leaves it
     // running, so a contributor can keep compiling on save without serving the
-    // site. Stopping it is its own control's business.
-  }, [currentRunIdRef, markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail, terminalKillRef]);
+    // site. Stopping it is its own control's business. The server holds
+    // neither the terminal nor a script run, so a stop leaves those alone:
+    // a start cancelled during the build before the watch leaves that build
+    // the terminal's, for Ctrl+C to stop (#723).
+  }, [setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail]);
 
   const startPhpServer = useCallback(async () => {
     if (serverStartRequestedRef.current || stoppingRef.current || !devServerActiveRef.current) {
@@ -230,12 +228,16 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       // The server needs build/ on disk, which the build watch guarantees. Start
       // the watch first (automatically, if it is not already running) and hang
       // the server start off its readiness — the watch stays independent after.
+      // The watch keeps every start's wait, a cancelled one's too, so each
+      // answers only while its own start is the one going (#723).
+      const generation = startGenerationRef.current;
+      const current = () => generation === startGenerationRef.current;
       startBuildWatch({
-        onReady: () => { startPhpServer().catch(() => {}); },
+        onReady: () => { if (current()) startPhpServer().catch(() => {}); },
         // The watch never got to a complete build/: nothing to serve, so the
         // server goes back to offering a start instead of starting forever.
         onFail: () => {
-          if (serverStartRequestedRef.current) return;
+          if (!current() || serverStartRequestedRef.current) return;
           devServerActiveRef.current = false;
           setStarting(false);
           // translators: %s: the folder the site is served from, build/.

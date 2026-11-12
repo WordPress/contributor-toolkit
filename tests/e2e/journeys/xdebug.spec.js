@@ -198,6 +198,10 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	await expect( phpStorm.getByText( path.join( site.dir, 'src' ), { exact: true } ) ).toBeVisible();
 	await expect( phpStorm.getByText( '/wordpress', { exact: true } ) ).toBeVisible();
 	await expect( phpStorm.getByRole( 'button', { name: 'Copy', exact: true } ) ).toHaveCount( 4 );
+	// INVARIANT — and is told to listen for this computer only: the server's
+	// host does not decide where PhpStorm listens, and by default it accepts
+	// connections from other machines.
+	await expect( phpStorm.getByText( /turn off “Can accept external connections”/ ) ).toBeVisible();
 	// INVARIANT — each value's Copy copies that value, and is described by
 	// its field's name.
 	const copyLocal = phpStorm.getByRole( 'button', { name: 'Copy', exact: true, description: 'File/Directory' } );
