@@ -30,12 +30,16 @@ function applyCardWords(patchFiles) {
 	if (!patchFiles) {
 		return {
 			...shared,
+			// translators: an example of what to type; the number stays as it is.
+			prExample: __('e.g. 71234'),
 			title: __('Check out a pull request'),
 			description: __('Test a pull request in this checkout. Your own changes are preserved.')
 		};
 	}
 	return {
 		...shared,
+		// translators: an example of what to type; the number stays as it is.
+		prExample: __('e.g. 9000'),
 		title: __('Apply a patch or PR'),
 		description: __('Test changes in this checkout. Your own changes are preserved.'),
 		prTab: __('Pull request'),

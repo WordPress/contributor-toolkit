@@ -21,6 +21,7 @@ function PullRequestField({ words, entry }) {
       <div className="inline-field">
         <InputControl
           label={words.prLabel}
+          placeholder={words.prExample}
           value={entry.value}
           disabled={entry.disabled}
           onChange={(event) => entry.onChange(event.currentTarget.value)}
