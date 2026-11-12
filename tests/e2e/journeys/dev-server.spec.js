@@ -372,6 +372,43 @@ test( 'starts cancelled during the first build ask for one server when it is don
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 } );
 
+// A start first reads afresh whether the site is built. A cancel that comes
+// while it reads is the start's end: it does not go on to start the build.
+test( 'a start cancelled while it reads whether the site is built starts no build', async ( { session } ) => {
+	const site = await makeSite( session );
+	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
+	const { app, page } = await session.start( site.settings );
+	const server = await standIn( app, page, site.dir );
+	const starting = page.getByRole( 'button', { name: 'Cancel the development server start', exact: true } );
+	await expect( ui.startDevServerButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	// The next read of the site's status, held until the test lets it go: the
+	// real one, so that what it answers is what the app would.
+	await app.evaluate( ( { ipcMain } ) => {
+		const real = ipcMain._invokeHandlers.get( 'site:status' );
+		ipcMain.removeHandler( 'site:status' );
+		ipcMain.handle( 'site:status', async ( ...args ) => {
+			if ( ! global.__e2eLetStatus ) await new Promise( ( open ) => {
+				global.__e2eLetStatus = open;
+			} );
+			return real( ...args );
+		} );
+	} );
+
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( () => app.evaluate( () => typeof global.__e2eLetStatus ) ).toBe( 'function' );
+	await starting.click();
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+
+	// INVARIANT — the read answers after the cancel, and nothing is built or
+	// served.
+	await app.evaluate( () => global.__e2eLetStatus() );
+	await server.heard();
+	await page.waitForTimeout( 200 );
+	expect( ( await server.asked() ).scripts ).toEqual( [] );
+	expect( ( await server.asked() ).starts ).toEqual( [] );
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+} );
+
 // Cancelling the start cancels the server, not the build it was waiting for,
 // which still holds the terminal: Ctrl+C there stops it.
 test( 'a start cancelled during the first build leaves the build holding the terminal', async ( { session } ) => {

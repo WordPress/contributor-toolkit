@@ -364,8 +364,11 @@ contextBridge.exposeInMainWorld('api', {
 		// Invoke AFTER listeners are attached so early logs/URL are captured.
 		// A start that throws has no server, so no 'stopped' is coming to
 		// remove them: left on, they answer the site's next server too (#604).
+		// Nor does a start cancelled before its server was spawned (#723).
 		try {
-			return await ipcRenderer.invoke('playground:start', sitePath);
+			const res = await ipcRenderer.invoke('playground:start', sitePath);
+			if (res && res.cancelled) cleanup();
+			return res;
 		} catch (e) {
 			cleanup();
 			throw e;

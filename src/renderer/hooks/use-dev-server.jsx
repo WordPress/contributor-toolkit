@@ -209,6 +209,10 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       devServerActiveRef.current = true;
       setServerFailure('');
       setStarting(true);
+      // This start's generation, which a cancel moves on: taken before the
+      // read below, so a cancel during it ends the start there (#723).
+      const generation = startGenerationRef.current;
+      const current = () => generation === startGenerationRef.current;
       // A built site whose watch would first remove build/ (Gutenberg's npm run
       // dev, #488) has nothing to wait for: the server starts on the build/ it
       // has, in seconds instead of the watch's rebuild (#499). The watch stays
@@ -219,6 +223,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       // have gone since (a watch rebuild, a clean by hand).
       let builtNow = hasBuilt;
       try { const fresh = await window.api.getSiteStatus(sitePath); builtNow = Boolean(fresh?.hasBuilt); setHasBuilt(builtNow); } catch {}
+      if (!current()) return;
       if (serveWithoutWatch({ hasBuilt: builtNow, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild)) {
         // translators: %s: the folder the site is served from, build/.
         appendRuntime(`${sprintf(__('%s is complete: starting the server without the build watch. Start build watch to compile edits on save.'), 'build/')}\n`);
@@ -230,8 +235,6 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       // the server start off its readiness — the watch stays independent after.
       // The watch keeps every start's wait, a cancelled one's too, so each
       // answers only while its own start is the one going (#723).
-      const generation = startGenerationRef.current;
-      const current = () => generation === startGenerationRef.current;
       startBuildWatch({
         onReady: () => { if (current()) startPhpServer().catch(() => {}); },
         // The watch never got to a complete build/: nothing to serve, so the

@@ -252,6 +252,7 @@ test( 'a site whose server started without Xdebug names the site that has it now
 	};
 
 	await setXdebug( page, true );
+	await expect.poll( () => session.readSettings().preferences?.xdebug ).toBe( true );
 	await followSetting();
 	await start( 'first-site' );
 	await expect( setup ).toBeVisible();
