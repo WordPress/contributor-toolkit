@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { editorItems, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
+const { editorItems, editorGone, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
 
 test('the GitHub line says the account is still being read, and offers no sign-out, until it is', () => {
 	assert.deepEqual(githubAccountLine(null), { text: 'Reading…', canSignOut: false });
@@ -118,6 +118,15 @@ test('the editor entries are asking each time, then what detection found, and th
 	// table has none for it.
 	assert.deepEqual(editorItems([found[0]], 'cursor', { vscode: 'Visual Studio Code', cursor: 'Cursor' }), [first, { value: 'vscode', label: 'Visual Studio Code' }, { value: 'cursor', label: 'Cursor' }]);
 	assert.deepEqual(editorItems([found[0]], 'cursor'), [first, { value: 'vscode', label: 'Visual Studio Code' }, { value: 'cursor', label: 'cursor' }]);
+});
+
+test('the editor set is gone only when a detection that answered does not find it (#738)', () => {
+	const found = [{ id: 'vscode' }];
+	assert.equal(editorGone(found, 'cursor'), true);
+	assert.equal(editorGone(found, 'vscode'), false);
+	assert.equal(editorGone(found, null), false);
+	// Not answered yet, or failed: nothing is known to be gone.
+	assert.equal(editorGone(null, 'cursor'), false);
 });
 
 test('asking each time is kept as no choice, and an editor as its id (#738)', () => {

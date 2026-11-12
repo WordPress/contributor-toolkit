@@ -15,7 +15,7 @@
 // that row does not move either.
 'use strict';
 
-const { __ } = require('@wordpress/i18n');
+const { __, sprintf } = require('@wordpress/i18n');
 
 /**
  * What the file manager is called where the app is running. It has a name on
@@ -127,17 +127,29 @@ function updateHeldReason({ isUpdating = false, installing = false, building = f
  * @param {boolean} [root0.isPending]  The site is still being set up.
  * @param {boolean} [root0.isDeleting] The site is being deleted.
  * @param {string}  [root0.updateHeld] Why an update cannot start, as `updateHeldReason` says it, or '' when it can.
+ * @param {?string} [root0.preferred]  The editor chosen in Settings (#738), by id, or null for "Ask each time".
  * @return {Array<{id: string, label: string, items?: Array, disabled?: boolean, description?: string, separated?: boolean}>}
  */
-function siteMenuItems({ platform, editors = [], detecting = false, isPending = false, isDeleting = false, updateHeld = '' } = {}) {
+function siteMenuItems({ platform, editors = [], detecting = false, isPending = false, isDeleting = false, updateHeld = '', preferred = null } = {}) {
 	const update = { id: 'update-trunk', label: __('Update to latest trunk') };
+	// With an editor chosen in Settings and found on this machine, "Open in"
+	// is that editor and nothing else. Until detection finds it, or once it is
+	// gone, the menu asks as it does with none chosen.
+	const chosen = preferred ? (editors || []).find((editor) => editor.id === preferred) : null;
+	let openIn;
+	if (chosen) {
+		// translators: %s is the name of the editor chosen in Settings, for example "Visual Studio Code".
+		openIn = { id: 'open-in', label: sprintf(__('Open in %s'), chosen.name), path: chosen.path };
+	} else {
+		// translators: the label of a menu that lists applications, each by its name: "Open in" and then, in the menu, "Visual Studio Code".
+		openIn = { id: 'open-in-menu', label: __('Open in'), items: openInItems({ editors, detecting }) };
+	}
 	const items = [
 		{ id: 'rename', label: __('Rename…') },
 		{ id: 'copy-path', label: __('Copy path') },
 		{ id: 'show-in-file-manager', label: fileManagerLabel(platform) },
 		updateHeld ? { ...update, disabled: true, description: updateHeld } : update,
-		// translators: the label of a menu that lists applications, each by its name: "Open in" and then, in the menu, "Visual Studio Code".
-		{ id: 'open-in-menu', label: __('Open in'), items: openInItems({ editors, detecting }) }
+		openIn
 	];
 	if (!isPending) {
 		items.push(isDeleting

@@ -74,6 +74,16 @@ test('nothing that can be pressed moves when detection answers', () => {
 	}
 });
 
+test('with an editor chosen in Settings and found, "Open in" is that editor; otherwise the menu asks (#738)', () => {
+	const editors = [{ id: 'vscode', name: 'Visual Studio Code', path: '/code' }, { id: 'cursor', name: 'Cursor', path: '/cursor' }];
+	const openIn = (state) => siteMenuItems(state).find((item) => item.id === 'open-in' || item.id === 'open-in-menu');
+	assert.deepEqual(openIn({ editors, preferred: 'cursor' }), { id: 'open-in', label: 'Open in Cursor', path: '/cursor' });
+	assert.equal(openInEditorPath(openIn({ editors, preferred: 'cursor' })), '/cursor');
+	for (const state of [{ editors }, { editors, preferred: 'zed' }, { editors: [], detecting: true, preferred: 'cursor' }]) {
+		assert.equal(openIn(state).id, 'open-in-menu', JSON.stringify(state));
+	}
+});
+
 test('the menu carries the applications under "Open in"', () => {
 	const editors = [{ name: 'Zed', path: '/zed' }];
 	const openIn = siteMenuItems({ editors, detecting: true }).find((item) => item.id === 'open-in-menu');

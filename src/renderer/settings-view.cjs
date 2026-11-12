@@ -210,6 +210,20 @@ function editorItems(editors, editor, names = null) {
 }
 
 /**
+ * Whether the editor set is one detection no longer finds (#738), so that the
+ * setting can go back to asking rather than keep naming an editor that is not
+ * there. Only a detection that answered can say so: a lookup that failed, or
+ * has not answered, found nothing either way.
+ *
+ * @param {?Array<{id: string}>} editors What detection found, or null when it did not answer.
+ * @param {?string}              editor  The id set, or null to ask.
+ * @return {boolean}
+ */
+function editorGone(editors, editor) {
+	return Boolean(editor) && Array.isArray(editors) && !editors.some((found) => found.id === editor);
+}
+
+/**
  * What a choice in the editor control is kept as: asking each time is kept
  * as no choice.
  *
@@ -220,4 +234,4 @@ function editorValue(choice) {
 	return choice === ASK_FOR_EDITOR ? null : choice;
 }
 
-module.exports = { editorItems, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE };
+module.exports = { editorItems, editorGone, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE };

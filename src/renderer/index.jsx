@@ -990,6 +990,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
+  // With an editor chosen in Settings, the site's menu names it in place of
+  // the "Open in" flyout, which needs detection to have found it. Detection
+  // otherwise runs only as the menu opens, so the row would change under the
+  // pointer the first time; running it as the site opens means it is
+  // usually there already.
+  const preferredEditor = settings?.editor ?? null;
+  useEffect(() => {
+    if (isActive && preferredEditor) loadDetected();
+  }, [isActive, preferredEditor, loadDetected]);
+
   // A file under "Changed files" (#669): one click, into the editor chosen in
   // Settings (#738), or the file manager when detection finds no editor.
   // With editors found and none chosen, a menu beside the file asks which
@@ -2227,7 +2237,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           detailsOpen={detailsOpen}
           detailsId={detailsId}
           onToggleDetails={onToggleDetails}
-          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld }}
+          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld, preferred: settings?.editor ?? null }}
           onMenuOpen={loadDetected}
           onAction={runSiteMenuAction}
           work={skipInit ? {
@@ -2259,7 +2269,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <SiteContextMenu
           key={contextMenu.serial}
           position={contextMenu.position}
-          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld }}
+          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld, preferred: settings?.editor ?? null }}
           onMenuOpen={loadDetected}
           onAction={runSiteMenuAction}
           onClose={onCloseContextMenu}

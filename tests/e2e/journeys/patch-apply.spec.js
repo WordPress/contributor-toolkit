@@ -318,7 +318,7 @@ test( 'with no editor chosen, a changed file asks which, and the one chosen in t
 	// and the editors detection found; the one chosen is kept by its id.
 	await ui.settingsButton( page ).click();
 	const dialog = ui.settingsDialog( page );
-	const editor = dialog.getByRole( 'combobox', { name: 'Open changed files in', exact: true } );
+	const editor = dialog.getByRole( 'combobox', { name: 'Code editor', exact: true } );
 	await expect( editor ).toHaveText( 'Ask each time' );
 	await editor.click();
 	await page.getByRole( 'option', { name: 'Cursor', exact: true } ).click();
@@ -335,6 +335,28 @@ test( 'with no editor chosen, a changed file asks which, and the one chosen in t
 		{ sitePath: site.dir, editorPath: cursor.path, relPath: 'src/wp-login.php' },
 	] );
 	await expect( menu ).toHaveCount( 0 );
+
+	// INVARIANT — the site's menu names the chosen editor in place of the
+	// "Open in" flyout, and opens the site in it.
+	await ui.siteMenuButton( page ).click();
+	const siteMenu = page.getByRole( 'menu' );
+	await expect( siteMenu.getByRole( 'menuitem', { name: 'Open in Cursor', exact: true } ) ).toBeVisible();
+	await expect( siteMenu.getByRole( 'menuitem', { name: 'Open in', exact: true } ) ).toHaveCount( 0 );
+	await siteMenu.getByRole( 'menuitem', { name: 'Open in Cursor', exact: true } ).click();
+	await expect.poll( async () => ( await asked() ).opens.at( -1 ) ).toEqual( { sitePath: site.dir, editorPath: cursor.path, relPath: null } );
+
+	// INVARIANT — once the chosen editor is uninstalled, the settings go back
+	// to asking each time, and say why.
+	await app.evaluate( ( { ipcMain }, detected ) => {
+		ipcMain.removeHandler( 'editor:list' );
+		ipcMain.handle( 'editor:list', () => ( { detected, names: { vscode: 'Visual Studio Code', cursor: 'Cursor' } } ) );
+	}, [ vscode ] );
+	await ui.settingsButton( page ).click();
+	await expect( editor ).toHaveText( 'Ask each time' );
+	const notice = dialog.getByRole( 'alert' ).filter( { hasText: 'Cursor is no longer installed' } );
+	await expect( notice ).toBeVisible();
+	await expect( notice ).toContainText( 'Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.' );
+	await expect.poll( () => session.readSettings().preferences?.editor ).toBeNull();
 } );
 
 test( 'files edited or added after a patch are told apart from the patch\'s own (#669)', async ( { session } ) => {
