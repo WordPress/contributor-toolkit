@@ -10,9 +10,9 @@ steps:
     if: build.branch == "trunk" || build.branch =~ /^release\//
     agents: { queue: windows }
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
+    command: .buildkite/commands/build_windows.ps1
     env:
       SIGN_WINDOWS_BUILD: 1
-    command: .buildkite/commands/build_windows.ps1
     artifact_paths:
       - dist\*.exe
     notify:
