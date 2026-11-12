@@ -33,14 +33,14 @@ test('the menu\'s own list is the same whatever detection finds and while it is 
 	}
 });
 
-test('the way to choose another application is first, then each one detection found by its name', () => {
+test('each application detection found is offered by its name, then the way to choose another, last (#738)', () => {
 	const items = openInItems({
 		editors: [{ name: 'Visual Studio Code', path: 'C:\\Code.exe' }, { name: 'Zed', path: 'C:\\zed.exe' }]
 	});
 	assert.deepEqual(items, [
-		{ id: 'open-in-other', label: 'Other application…' },
 		{ id: 'open-in', label: 'Visual Studio Code', path: 'C:\\Code.exe' },
-		{ id: 'open-in', label: 'Zed', path: 'C:\\zed.exe' }
+		{ id: 'open-in', label: 'Zed', path: 'C:\\zed.exe' },
+		{ id: 'open-in-other', label: 'Other application…' }
 	]);
 });
 
@@ -49,20 +49,21 @@ test('choosing another application is offered whatever detection found, and whil
 	assert.deepEqual(ids(openInItems({ editors: null })), ['open-in-other']);
 	assert.deepEqual(ids(openInItems()), ['open-in-other']);
 	const looking = openInItems({ editors: [{ name: 'Zed', path: '/zed' }], detecting: true });
-	assert.deepEqual(ids(looking), ['open-in-other', 'open-in', 'detecting']);
-	assert.deepEqual(looking.at(-1), { id: 'detecting', label: 'Looking for applications…', disabled: true });
+	assert.deepEqual(ids(looking), ['open-in', 'detecting', 'open-in-other']);
+	assert.deepEqual(looking.at(-2), { id: 'detecting', label: 'Looking for applications…', disabled: true });
 });
 
-test('nothing that can be pressed moves when detection answers', () => {
+test('no application found moves when detection answers', () => {
 	// The three lists a contributor can see in one opening of the menu, on a
 	// machine where nothing was known, and on one where an editor was: while
-	// looking, and after. A row that is in both keeps its place.
+	// looking, and after. An application in both keeps its place.
 	//
-	// With an editor chosen in Settings (#738), the flyout is replaced by one
-	// row once detection finds it, so on the first opening of the menu that
-	// row can change under the pointer. That is a known exception, kept small
-	// by detecting as the site opens; a site's menu opened from the sites list
-	// before any detection has answered can still show it.
+	// Two rows are known exceptions, both kept rare by detecting as a site
+	// opens, so the answer is usually in before the menu is (#738):
+	// "Other application…", which is last to the design's order and so moves
+	// down as applications arrive; and, with an editor chosen in Settings,
+	// the flyout itself, which becomes one "Open in <editor>" row once
+	// detection finds it.
 	const zed = { name: 'Zed', path: '/zed' };
 	const code = { name: 'Visual Studio Code', path: '/code' };
 	const sequences = [
@@ -73,7 +74,7 @@ test('nothing that can be pressed moves when detection answers', () => {
 	const keyOf = (item) => item.path || item.id;
 	for (const [before, after] of sequences) {
 		before.forEach((item, index) => {
-			if (item.disabled) return;
+			if (item.disabled || item.id === 'open-in-other') return;
 			const then = after.findIndex((other) => keyOf(other) === keyOf(item));
 			assert.equal(then, index, `${item.label} moved from row ${index} to row ${then}`);
 		});
@@ -152,7 +153,7 @@ test('no arguments at all is the menu of an ordinary site', () => {
 
 // Both menus that offer "Open in" answer an item through this (#738).
 test('an Open in item asks for its application, Other application… for the dialog, and anything else for nothing', () => {
-	const [other, editor] = openInItems({ editors: [{ name: 'Cursor', path: '/Applications/Cursor.app' }] });
+	const [editor, other] = openInItems({ editors: [{ name: 'Cursor', path: '/Applications/Cursor.app' }] });
 	assert.equal(openInEditorPath(editor), '/Applications/Cursor.app');
 	assert.equal(openInEditorPath(other), null);
 	assert.equal(openInEditorPath({ id: 'delete' }), undefined);

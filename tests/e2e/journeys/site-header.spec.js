@@ -154,10 +154,12 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 	const OWN_ITEMS = [ 'Rename…', 'Copy path', /^Show in /, 'Update to latest trunk', 'Open in', 'Delete site' ];
 
 	// INVARIANT — the menu looks for applications as it opens, and its own
-	// list does not wait for the answer.
+	// list does not wait for the answer. (The site opening may have looked
+	// too, so it is counted from what had been asked before the click.)
+	const listsBefore = ( await applications.asked() ).lists;
 	await ui.siteMenuButton( page ).click();
 	await expect( menu.getByRole( 'menuitem' ) ).toHaveText( OWN_ITEMS );
-	await expect.poll( async () => ( await applications.asked() ).lists ).toBe( 1 );
+	await expect.poll( async () => ( await applications.asked() ).lists ).toBeGreaterThan( listsBefore );
 
 	// INVARIANT — copying the path puts the open site's path on the
 	// clipboard, and says so where it will be seen with the menu gone.
@@ -177,10 +179,10 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 	// about to press there has moved.
 	await ui.siteMenuButton( page ).click();
 	await openApplications( page );
-	// CHARACTERISATION — the way to choose is first, where what arrives
-	// later cannot move it. That a row never moves is the module's, with a
-	// unit test that walks the lists before and after an answer.
-	await expect( page.getByRole( 'menu', { name: 'Open in' } ).getByRole( 'menuitem' ) ).toHaveText( [ 'Other application…', EDITOR.name ] );
+	// CHARACTERISATION — each application found, then the way to choose
+	// another, last (#738). Which rows may move when detection answers is
+	// the module's, with a unit test that walks the lists before and after.
+	await expect( page.getByRole( 'menu', { name: 'Open in' } ).getByRole( 'menuitem' ) ).toHaveText( [ EDITOR.name, 'Other application…' ] );
 	await expect( menu.getByRole( 'menuitem' ) ).toHaveText( OWN_ITEMS );
 
 	// INVARIANT — opening in a named application asks for this site's folder

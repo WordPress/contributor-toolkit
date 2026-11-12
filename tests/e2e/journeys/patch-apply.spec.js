@@ -298,7 +298,8 @@ test( 'with no editor chosen, a changed file asks which, and the one chosen in t
 	// Visual Studio Code is not picked for being found first.
 	await file.click();
 	const menu = page.getByRole( 'menu' );
-	await expect( menu.getByRole( 'menuitem' ) ).toHaveText( [ 'Other application…', 'Visual Studio Code', 'Cursor' ] );
+	await expect( menu.getByRole( 'menuitem' ) ).toHaveText( [ 'Visual Studio Code', 'Cursor', 'Other application…' ] );
+	await expect( menu.getByText( 'Open in', { exact: true } ) ).toBeVisible();
 	expect( ( await asked() ).opens ).toEqual( [] );
 
 	// INVARIANT — dismissing it opens nothing and gives the file its focus back.

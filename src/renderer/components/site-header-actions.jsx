@@ -61,7 +61,8 @@ function SiteMenuItems({ menu, onAction }) {
  * Which application a file under "Changed files" opens in, asked beside the
  * file when no editor is chosen in Settings and detection found one or
  * more (#738). The items are the site menu's "Open in", so the two offer the
- * same applications in the same order. Focus goes back to the file when the
+ * same applications in the same order, under an "Open in" label of their own
+ * since nothing else on screen says what the list is for. Focus goes back to the file when the
  * menu closes, chosen or dismissed.
  *
  * @param {Object}      props
@@ -83,7 +84,10 @@ export function OpenFileInMenu({ anchor, editors, onAction, onClose }) {
         }
       />
       <Menu.Popup positioner={<Menu.Positioner anchor={anchor} align="start" />}>
-        {openInItems({ editors }).map((item) => <MenuAction key={`${item.id}:${item.path || ''}`} item={item} onAction={onAction} />)}
+        <Menu.Group>
+          <Menu.GroupLabel>{__('Open in')}</Menu.GroupLabel>
+          {openInItems({ editors }).map((item) => <MenuAction key={`${item.id}:${item.path || ''}`} item={item} onAction={onAction} />)}
+        </Menu.Group>
       </Menu.Popup>
     </Menu.Root>
   );
