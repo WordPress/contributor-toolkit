@@ -5,8 +5,8 @@ steps:
   ########################################################
   # Windows build
   ########################################################
-  # RELEASING.md ships the artifacts from the release/* pull request's build, so that branch signs too.
   - label: ":windows: Windows Build"
+    # RELEASING.md ships the artifacts from the release/* pull request's build, so that branch signs too.
     if: build.branch == "trunk" || build.branch =~ /^release\//
     agents: { queue: windows }
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
