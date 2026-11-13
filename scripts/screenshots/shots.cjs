@@ -239,6 +239,20 @@ const shots = [
 		}
 	},
 	{
+		// A pull request's number typed where the issue goes (#736), and the
+		// issue its description fixes offered in its place (#748).
+		slug: 'gutenberg-pull-request-refused',
+		tier: 'fixture',
+		variant: 'gutenberg',
+		target: (page) => ui.card(page, 'GitHub issue'),
+		prepare: async (page) => {
+			await selectSite(page, 'my-gutenberg-fix');
+			await ui.issueField(page).fill('86733');
+			await ui.linkIssueButton(page).click();
+			await page.getByRole('button', { name: 'Link #47401', exact: true }).waitFor();
+		}
+	},
+	{
 		slug: 'gutenberg-pull-request-panel',
 		tier: 'fixture',
 		variant: 'gutenberg',

@@ -17,6 +17,12 @@ The issue is stored with the site, so it survives restarts. You can change or re
 
 Two things are refused by name rather than linked: a pull request URL, because the obvious mistake is pasting the pull request instead of the issue it fixes, and an issue from another repository, because a site cannot cite a number from a project it is not a checkout of.
 
+A pull request's bare number is refused too. GitHub numbers issues and pull requests from one sequence, so the app asks GitHub which one a number is before linking it. When the pull request's description names the issues it fixes (`Fixes #47401`, the same forms the [linked pull requests](#linked-pull-requests) list reads), the refusal names them and shows a **Link #47401** button for each, which links that issue instead. A button is checked the same way the field is, so one that names another pull request is refused as well. When the description does not name an issue on `WordPress/gutenberg`, the refusal says so, and you can find the issue on GitHub. To try the pull request rather than work on its issue, use the **Check out a pull request** card.
+
+![The GitHub issue card refusing pull request #86733 and offering a Link #47401 button for the issue it fixes](/screenshots/gutenberg-pull-request-refused.png)
+
+If GitHub cannot be reached, the number is linked as typed.
+
 If you do not have an issue yet, click **Not sure yet? Browse good first issues on GitHub** to open the `Good First Issue` list in your browser.
 
 Linking an issue gives it its own branch inside the site, named `issue/71234`, so the work you do for it is kept apart from every other issue on that site. Everything in [Working on several tickets](./ticket-branches) applies, with *issue* for *ticket*: switching, parking, the **Your issues on this site** card, the update to the current trunk, and the four choices for edits made before linking.

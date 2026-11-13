@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { bodyCitesTicket, bodyCitesIssue, citesWorkItemFor, parseLinkedPrs, orderByCommitDate, classifyHttpFailure } = require('../../src/patch-sources.cjs');
+const { bodyCitesTicket, bodyCitesIssue, issuesClosedBy, citesWorkItemFor, parseLinkedPrs, orderByCommitDate, classifyHttpFailure } = require('../../src/patch-sources.cjs');
 
 // Shaped like a real search/issues item, trimmed to the fields the parser reads.
 function item(number, overrides = {}) {
@@ -206,6 +206,24 @@ test('bodyCitesIssue: a bare #N, a longer number, another repository or a prefix
 	assert.strictEqual(bodyCitesIssue('prefix #71234', 71234, GB), false, '"fix" inside a word is not the keyword');
 	assert.strictEqual(bodyCitesIssue(null, 71234, GB), false);
 	assert.strictEqual(bodyCitesIssue('Fixes #71234', '', GB), false);
+});
+
+test('issuesClosedBy: every issue a body closes, in order, by the forms bodyCitesIssue accepts (#748)', () => {
+	const body = [
+		'Fixes #70001.',
+		'Also closes: WordPress/gutenberg#70002 and resolves https://github.com/WordPress/gutenberg/issues/70003',
+		'fixes #70001 again'
+	].join('\n');
+	assert.deepStrictEqual(issuesClosedBy(body, GB), [70001, 70002, 70003]);
+	for (const n of issuesClosedBy(body, GB)) assert.strictEqual(bodyCitesIssue(body, n, GB), true, `the two agree on #${n}`);
+});
+
+test('issuesClosedBy: a mention, another repository or no body names nothing (#748)', () => {
+	assert.deepStrictEqual(issuesClosedBy('Related to #70001. See https://github.com/WordPress/gutenberg/issues/70002', GB), []);
+	assert.deepStrictEqual(issuesClosedBy('Fixes WordPress/wordpress-develop#70001', GB), []);
+	assert.deepStrictEqual(issuesClosedBy('prefix #70001', GB), []);
+	assert.deepStrictEqual(issuesClosedBy(null, GB), []);
+	assert.deepStrictEqual(issuesClosedBy('', GB), []);
 });
 
 test('citesWorkItemFor: Trac by default, the issue form for a GitHub site (#251)', () => {

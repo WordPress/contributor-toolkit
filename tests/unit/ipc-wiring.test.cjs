@@ -4702,14 +4702,14 @@ test('git:list-ticket-patches on a Gutenberg site names its repository and provi
 // of the site's own repository on a Gutenberg site, and not asked at all on a
 // Core site, whose Trac tickets share no numbers with GitHub.
 test('github:is-pull-request asks github-prs about the site\'s own repository, and only on a GitHub-issue site', async () => {
-	const isPullRequest = spy(async () => ({ known: true, pullRequest: true }));
+	const isPullRequest = spy(async () => ({ known: true, pullRequest: true, fixes: [70001] }));
 	const settings = fakeSettingsStore({
 		sites: ['/sites/wp', '/sites/gb'],
 		siteMeta: { '/sites/wp': {}, '/sites/gb': { projectType: 'gutenberg' } }
 	});
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { isPullRequest } } });
 
-	assert.deepEqual(await main.invoke('github:is-pull-request', '/sites/gb', 71234), { ok: true, pullRequest: true });
+	assert.deepEqual(await main.invoke('github:is-pull-request', '/sites/gb', 71234), { ok: true, pullRequest: true, fixes: [70001] });
 	assert.deepEqual(await main.invoke('github:is-pull-request', '/sites/wp', 71234), { ok: true, pullRequest: false });
 	assert.deepEqual(isPullRequest.calls, [[71234, { repo: 'WordPress/gutenberg' }]]);
 	assert.equal((await main.invoke('github:is-pull-request', '/sites/other', 1)).ok, false, 'an unregistered site is refused');

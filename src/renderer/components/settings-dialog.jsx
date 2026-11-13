@@ -300,7 +300,7 @@ function EditorControl({ settings, onChange }) {
     <Stack direction="column" gap="md">
       <SelectControl
         label={__('Code editor')}
-        description={__('What “Open in” in the site’s menu and the files under “Changed files” open in. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.')}
+        description={__('What “Open in” in the site’s menu and the files under “Changed files” open in, and which editor’s Xdebug setup the site’s details offer. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.')}
         items={items}
         value={editor || ASK_FOR_EDITOR}
         disabled={!settings || !editors}

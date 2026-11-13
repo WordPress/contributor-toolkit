@@ -32,7 +32,7 @@ import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, buildHoldsStarts, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
-import { xdebugEditors, xdebugSection } from './xdebug.cjs';
+import { xdebugEditors, xdebugSection, xdebugSetupEditor } from './xdebug.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -1180,7 +1180,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // switching, moving onto trunk and deleting, with the question a switch
   // asks about trunk's loose edits. The three refs are how it and the apply
   // chain, called further down, reach each other.
-  const { ticketInput, setTicketInput, ticketError, setTicketError, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, linkRef, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
+  const { ticketInput, setTicketInput, ticketError, setTicketError, offeredIssues, linkOfferedIssue, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, linkRef, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
 
   // A ticket arrived from a link and this is the site in front of the
   // contributor (#464). The answer goes through `saveTicket` like any other
@@ -1466,6 +1466,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // again each time the server has Xdebug.
   useEffect(() => { if (xdebugOn) loadDetected(); }, [xdebugOn, loadDetected]);
   const setupEditors = useMemo(() => xdebugEditors(detectedEditors), [detectedEditors]);
+  // The editor chosen in Settings opens its setup without the menu (#767).
+  const setupEditor = xdebugSetupEditor({ editors: setupEditors, preferred: settings?.editor ?? null });
   // A copy that failed says so on its button, and why in the log.
   const copyXdebugConfig = useCallback(async (text) => {
     try {
@@ -1700,6 +1702,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       {ticketError ? (
         <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
           <Notice.Description>{ticketError}</Notice.Description>
+          {/* The issues a refused pull request fixes, one click from being
+              linked instead of looked up on GitHub (#748). */}
+          {offeredIssues.length ? (
+            <Notice.Actions>
+              {offeredIssues.map((issue) => (
+                <ReasonedUiButton key={issue} variant="outline" tone="neutral" size="compact" reason={ticketActionsReason} onClick={() => linkOfferedIssue(issue)}>
+                  {
+                    // translators: %d: a GitHub issue number, such as 70001.
+                    sprintf(__('Link #%d'), issue)
+                  }
+                </ReasonedUiButton>
+              ))}
+            </Notice.Actions>
+          ) : null}
         </Notice.Root>
       ) : null}
       {switchProgressLine}
@@ -2675,6 +2691,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         pathCopied={pathCopied}
         onCopyPath={copyPath}
         xdebugEditors={setupEditors}
+        xdebugSetupEditor={setupEditor}
         onOpenXdebugSetup={setXdebugEditor}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
