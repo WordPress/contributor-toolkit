@@ -63,6 +63,19 @@ function serverDot(report) {
 }
 
 /**
+ * A site's name: its label, or its folder's name when the label is missing
+ * or blank. The list, the site's own page and another site's details all
+ * name a site this way.
+ *
+ * @param {string}  sitePath
+ * @param {?string} [label]  The label the site was given, if any.
+ * @return {string}
+ */
+function siteDisplayName(sitePath, label) {
+	return (label && label.trim()) || pathBasename(sitePath);
+}
+
+/**
  * What a site's view reports of its server: the word the header's own dot
  * is drawn from, and the words to say beside it, which for a server that
  * went by itself or could not start are the sentence that says so, since
@@ -81,9 +94,9 @@ function serverReport(process) {
  * The same object comes back when nothing changed, so a report that says
  * what the last one said does not re-render the list.
  *
- * @param {Object}                              current  Reports by path.
- * @param {string}                              sitePath
- * @param {{status: string, text: string}|null} report
+ * @param {Object}                                                current  Reports by path.
+ * @param {string}                                                sitePath
+ * @param {{status: string, text: string, xdebug?: boolean}|null} report
  * @return {Object}
  */
 function withServerReport(current, sitePath, report) {
@@ -94,7 +107,7 @@ function withServerReport(current, sitePath, report) {
 		delete rest[sitePath];
 		return rest;
 	}
-	if (last && last.status === report.status && last.text === report.text) return current;
+	if (last && last.status === report.status && last.text === report.text && Boolean(last.xdebug) === Boolean(report.xdebug)) return current;
 	return { ...current, [sitePath]: report };
 }
 
@@ -134,7 +147,7 @@ function sitesListRows({ sites, siteMeta = {}, deleting = [], servers = {}, now 
 		return {
 			id: rowId(sitePath),
 			path: sitePath,
-			name: (meta.label && meta.label.trim()) || pathBasename(sitePath),
+			name: siteDisplayName(sitePath, meta.label),
 			project,
 			description: isDeleting ? __('Deleting site…') : project,
 			deleting: isDeleting,
@@ -166,4 +179,4 @@ function siteToOpen({ selection, current, rows }) {
 	return next ? next.path : current;
 }
 
-module.exports = { sitesListRows, siteAttention, serverDot, serverReport, withServerReport, siteToOpen, rowId };
+module.exports = { sitesListRows, siteDisplayName, siteAttention, serverDot, serverReport, withServerReport, siteToOpen, rowId };

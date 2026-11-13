@@ -329,12 +329,17 @@ body {
 
 /* It stays in view while the cards scroll past it, as long as it fits in
    what is in view; taller than that, the component lets it go. */
+/* The slot clips at both its edges, so the details keep room inside them on
+   each side for a focus ring, which is drawn outside what has the focus, at
+   most twice the ring's width: a button at either edge, such as the
+   Debugging row's, came back with its ring cut off (#723). */
 .dashboard-sidebar {
   position: sticky;
   top: 0;
   width: var(--dashboard-sidebar-width);
   min-width: 0;
   box-sizing: border-box;
+  padding-inline: calc(2 * var(--wpds-border-width-focus));
   transform: translateX(0);
   transition: transform var(--wpds-motion-duration-lg)
     var(--wpds-motion-easing-expressive);
@@ -1719,6 +1724,139 @@ body {
   font-size: var(--wpds-typography-font-size-xs);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* A notice under a row of the details (#723) is as wide as the details; the
+   row's other items keep their own width. */
+.details-notice {
+  align-self: stretch;
+}
+
+/* The launch.json in the VS Code setup (#723), read as code: the weak
+   surface and the monospace of the logs, kept as it will be pasted and
+   scrolled sideways rather than wrapped. Its copy button sits under it, in
+   the same box. */
+.xdebug-launch-config-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-sm);
+  min-width: 0;
+  padding: var(--wpds-dimension-padding-md);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-background-surface-neutral-weak);
+}
+
+.xdebug-launch-config {
+  margin: 0;
+  overflow-x: auto;
+  color: var(--wpds-color-foreground-content-neutral);
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-sm);
+  white-space: pre;
+}
+
+/* The values PhpStorm's settings need, one box with a line between each:
+   its field's name, small and in capitals, over the value as code, and its
+   copy button at the end. */
+.xdebug-values {
+  margin: 0;
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-md);
+}
+
+.xdebug-value {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-areas:
+    "label copy"
+    "value copy";
+  column-gap: var(--wpds-dimension-gap-lg);
+  row-gap: var(--wpds-dimension-gap-xs);
+  align-items: center;
+  padding: var(--wpds-dimension-padding-md);
+}
+
+.xdebug-value + .xdebug-value {
+  border-block-start: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.xdebug-value dt,
+.xdebug-value dd {
+  margin: 0;
+}
+
+.xdebug-value-label {
+  grid-area: label;
+  text-transform: uppercase;
+}
+
+.xdebug-value-text {
+  grid-area: value;
+  overflow-wrap: anywhere;
+}
+
+.xdebug-value-copy {
+  grid-area: copy;
+}
+
+.xdebug-value code {
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-sm);
+}
+
+/* Its steps: each number in a circle beside its words, and a line between
+   one step and the next. */
+.xdebug-setup-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: xdebug-step;
+}
+
+.xdebug-setup-step {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: var(--wpds-dimension-gap-md);
+  padding-block: var(--wpds-dimension-padding-md);
+  counter-increment: xdebug-step;
+}
+
+.xdebug-setup-step:first-child {
+  padding-block-start: 0;
+}
+
+.xdebug-setup-step:last-child {
+  padding-block-end: 0;
+}
+
+.xdebug-setup-step + .xdebug-setup-step {
+  border-block-start: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.xdebug-setup-step::before {
+  content: counter(xdebug-step);
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: 50%;
+  background: var(--wpds-color-background-surface-neutral-weak);
+  color: var(--wpds-color-foreground-content-neutral);
+  font-size: var(--wpds-typography-font-size-sm);
+}
+
+.xdebug-setup-step strong {
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.xdebug-setup-step code {
+  font-family: var(--wpds-typography-font-family-mono);
 }
 
 /* What a patch would change: its files, in the preview. Long lists scroll

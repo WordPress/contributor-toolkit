@@ -1,11 +1,23 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { sitesListRows, siteAttention, serverDot, serverReport, withServerReport, siteToOpen, rowId } = require('../../src/renderer/sites-list.cjs');
+const { sitesListRows, siteDisplayName, siteAttention, serverDot, serverReport, withServerReport, siteToOpen, rowId } = require('../../src/renderer/sites-list.cjs');
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse('2026-10-01T12:00:00.000Z');
 const daysAgo = (days) => new Date(NOW - days * DAY).toISOString();
+
+// The one rule for a site's name, which the list, the site's own page and
+// another site's details all use: its label, and its folder when the label
+// is missing or blank.
+test('a site is named by its label, and by its folder when the label is missing or blank', () => {
+	assert.equal(siteDisplayName('/sites/one', 'My site'), 'My site');
+	assert.equal(siteDisplayName('/sites/one', '  Padded  '), 'Padded');
+	assert.equal(siteDisplayName('/sites/one', '   '), 'one');
+	assert.equal(siteDisplayName('/sites/one', ''), 'one');
+	assert.equal(siteDisplayName('/sites/one'), 'one');
+	assert.equal(siteDisplayName('C:\\sites\\two', null), 'two');
+});
 
 test('a row is named by the site\'s label, and by its folder when it has none', () => {
 	const rows = sitesListRows({
@@ -188,4 +200,14 @@ test('a report replaces the site\'s entry, a report of null takes it out, and a 
 	assert.deepEqual(withServerReport(two, '/a', null), { '/b': two['/b'] });
 	assert.equal(withServerReport(two, '/gone', null), two);
 	assert.equal(withServerReport(one, '/a', up), one);
+});
+
+// Each site's details work out whose server has Xdebug from these reports
+// (#723), so a report that says only that has changed is a change.
+test('a report that changes only whether the server has Xdebug replaces the entry', () => {
+	const one = withServerReport({}, '/a', { status: 'online', text: 'Server running', xdebug: false });
+	const two = withServerReport(one, '/a', { status: 'online', text: 'Server running', xdebug: true });
+	assert.notEqual(two, one);
+	assert.equal(two['/a'].xdebug, true);
+	assert.equal(withServerReport(two, '/a', { status: 'online', text: 'Server running', xdebug: true }), two);
 });

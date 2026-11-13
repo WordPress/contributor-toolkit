@@ -6,23 +6,23 @@ steps:
   # Windows build
   ########################################################
   - label: ":windows: Windows Build"
+    # RELEASING.md ships the artifacts from the release/* pull request's build, so that branch signs too.
+    if: build.branch == "trunk" || build.branch =~ /^release\//
     agents: { queue: windows }
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
-    command: |
-      echo "~~~ Setup code signing"
-      .buildkite/commands/setup_windows_code_signing.ps1
+    command: .buildkite/commands/build_windows.ps1
+    env:
+      SIGN_WINDOWS_BUILD: 1
+    artifact_paths:
+      - dist\*.exe
+    notify:
+      - github_commit_status: { context: "Windows Build" }
 
-      echo "~~~ Install dependencies"
-      bash .buildkite/commands/install_node_dependencies.sh
-
-      echo "~~~ Build Windows artifact"
-      npm run dist:win
-
-      echo "~~~ Verify Azure Trusted Signing signature"
-      Get-ChildItem dist\*.exe | ForEach-Object {
-        & $env:SIGNTOOL_PATH verify /pa /v $_.FullName
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      }
+  - label: ":windows: Windows Build (unsigned)"
+    if: build.branch != "trunk" && build.branch !~ /^release\//
+    agents: { queue: windows }
+    plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
+    command: .buildkite/commands/build_windows.ps1
     artifact_paths:
       - dist\*.exe
     notify:
@@ -82,3 +82,22 @@ steps:
       - dist/*.AppImage
     notify:
       - github_commit_status: { context: "Linux Build" }
+
+  ########################################################
+  # Signed Windows build on demand
+  ########################################################
+  # Last, because every step after a block waits for it.
+  - block: ":lock: Sign the Windows build?"
+    if: build.branch != "trunk" && build.branch !~ /^release\//
+    key: sign-windows-build
+
+  - label: ":windows: Windows Build (signed)"
+    if: build.branch != "trunk" && build.branch !~ /^release\//
+    depends_on: sign-windows-build
+    agents: { queue: windows }
+    plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
+    env:
+      SIGN_WINDOWS_BUILD: 1
+    command: .buildkite/commands/build_windows.ps1
+    artifact_paths:
+      - dist\*.exe

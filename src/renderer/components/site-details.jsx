@@ -6,10 +6,14 @@ import { __, sprintf } from '@wordpress/i18n';
 // eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- see above.
 import { __experimentalTreeGrid as TreeGrid, __experimentalTreeGridCell as TreeGridCell, __experimentalTreeGridRow as TreeGridRow } from '@wordpress/components';
 import { chevronDown, chevronRight, globe, offline, page, pencil, plus, seen, table, undo, unseen, wordpress } from '@wordpress/icons';
-import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, Tooltip, VisuallyHidden } from '@wordpress/ui';
+import { Button, EmptyState, Icon, IconButton, Link, Menu, Notice, Stack, Text, Tooltip, VisuallyHidden } from '@wordpress/ui';
 import { affectedFileTree, visibleAffectedRows } from '../affected-files.cjs';
 import { siteDetailsRows } from '../site-details.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
+
+// The row's notices change with the server and the setting, which the
+// contributor has just done themselves: nothing to announce.
+const SILENT = '';
 
 // A section's heading, with its process's dot and the button that starts and
 // stops it. The button shows one word and is named by the whole of what it
@@ -335,17 +339,19 @@ function useStickyWhileItFits(active) {
  * out of the tab order and the accessibility tree as well as out of sight.
  *
  * @param {Object}   props
- * @param {string}   props.id         The element's id, which the button that shows and hides it names.
+ * @param {string}   props.id                  The element's id, which the button that shows and hides it names.
  * @param {boolean}  props.open
- * @param {string}   props.siteName   For the region's name.
- * @param {Object}   props.facts      What `siteDetailsRows` takes.
- * @param {boolean}  props.pathCopied The path has just been copied with the button here.
+ * @param {string}   props.siteName            For the region's name.
+ * @param {Object}   props.facts               What `siteDetailsRows` takes.
+ * @param {boolean}  props.pathCopied          The path has just been copied with the button here.
  * @param {Function} props.onCopyPath
- * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
- * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
- * @param {Object}   [props.changed]  The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertReason, revertError }`. No files, no section.
+ * @param {Array}    [props.xdebugEditors]     The editors the Debugging row's setup menu offers, from `xdebugEditors`.
+ * @param {Function} [props.onOpenXdebugSetup] Opens an editor's setup, given its id, for the Debugging row while the server has Xdebug.
+ * @param {Object}   [props.server]            The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
+ * @param {Object}   [props.watch]             The build watch's section, or null likewise: `{ process, onToggle }`.
+ * @param {Object}   [props.changed]           The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertReason, revertError }`. No files, no section.
  */
-export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, changed = null }) {
+export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, xdebugEditors = [], onOpenXdebugSetup = null, server = null, watch = null, changed = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);
   return (
     <div id={id} className="dashboard-sidebar-slot" inert={open ? undefined : ''}>
@@ -368,6 +374,41 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
                     {row.note ? <Text variant="body-sm" className="warning-text">{row.note}</Text> : null}
                   </Stack>
                 );
+                // The Debugging row says what the running server has (#723)
+                // in notices under the value, and while the server has
+                // Xdebug, has the menu of editors to set up under those: the
+                // row's value is too long to share its line.
+                if (row.notices || row.setup) {
+                  return (
+                    <Stack key={row.id} direction="column" align="start" gap="sm">
+                      {fact}
+                      {(row.notices || []).map((notice) => (
+                        <Notice.Root key={notice.id} className="details-notice" intent={notice.intent} spokenMessage={SILENT}>
+                          <Notice.Description>{notice.text}</Notice.Description>
+                        </Notice.Root>
+                      ))}
+                      {row.setup && xdebugEditors.length ? (
+                        <Menu.Root>
+                          <Menu.Trigger
+                            render={
+                              <Button variant="outline" tone="neutral" size="compact">
+                                {__('Set up Xdebug for your editor')}
+                                <Icon icon={chevronDown} size={16} />
+                              </Button>
+                            }
+                          />
+                          <Menu.Popup>
+                            {xdebugEditors.map((entry) => (
+                              <Menu.Item key={entry.id} onClick={() => onOpenXdebugSetup(entry.id)}>
+                                <Menu.ItemLabel>{entry.name}</Menu.ItemLabel>
+                              </Menu.Item>
+                            ))}
+                          </Menu.Popup>
+                        </Menu.Root>
+                      ) : null}
+                    </Stack>
+                  );
+                }
                 if (!row.copyable) return fact;
                 // The button says the copy worked on itself, for the eye. For
                 // a screen reader it is said by the region beside it, which

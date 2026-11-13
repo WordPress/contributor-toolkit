@@ -53,9 +53,13 @@ How you invoke it depends on your agent:
 
 Worth knowing so you don't wait on them:
 
-- **Buildkite signed builds** produce Windows, Linux, and macOS artifacts for every branch with an open PR, so a change is testable on a real machine without a local build. Force-pushing a branch invalidates earlier artifacts — check the build matches the current head commit before testing.
+- **Buildkite builds** produce Windows, Linux, and macOS artifacts for every branch with an open PR, so a change is testable on a real machine without a local build. The Windows installer is signed on trunk and `release/*` only; on other branches, unblock **Sign the Windows build?** in the Buildkite build when you need a signed one, and download it from the **Windows Build (signed)** job. Force-pushing a branch invalidates earlier artifacts — check the build matches the current head commit before testing.
 - **Download stats** ([`download-stats.yml`](.github/workflows/download-stats.yml)) is a weekly cron that records release-asset counts to a `metrics` branch. It is not related to PR quality.
 - **Translatable strings** ([`i18n-pot.yml`](.github/workflows/i18n-pot.yml)) runs after a push to trunk and publishes the `.pot` to the `translations` branch for translate.wordpress.org. It never runs on a PR.
+
+## Tracking issues
+
+An issue that groups other issues gets the `tracking-issue` label, and the issues it groups are added to it as [sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues), so GitHub shows their progress on it. It stays open until its sub-issues close, and work happens in the sub-issues, not on the tracking issue. [All open tracking issues](https://github.com/WordPress/contributor-toolkit/issues?q=is%3Aissue%20state%3Aopen%20label%3Atracking-issue).
 
 ## Branch names
 
