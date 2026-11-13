@@ -18,33 +18,47 @@ const path = require('path');
 
 const USAGE = `Usage: toolkit <command> [site] [options]
 
-Commands:
-  sites          List the sites in the WordPress Contributor Toolkit and what each one is doing
-  log [site]     Print the end of a site's WordPress debug.log
-  mail [site]    Print the mail a site sent, which the app caught
-  help           Show this message
+Commands that read:
+  sites                List the sites in the WordPress Contributor Toolkit and what each one is doing
+  log [site]           Print the end of a site's WordPress debug.log
+  mail [site]          Print the mail a site sent, which the app caught
+
+Commands that change a site (turned on in the app: Settings, Tools):
+  server start [site]  Start a site's development server, and wait until it has an address
+  server stop [site]   Stop a site's development server
+
+  help                 Show this message
 
 A site is named by its path, by a folder inside it, or by its name in the app.
 Left out, it is the site the current folder is in.
 
 Options:
-  --json         Print the answer as JSON
-  --lines <n>    With log: how many lines to print (100 unless given)
+  --json               Print the answer as JSON
+  --lines <n>          With log: how many lines to print (100 unless given)
 
 The WordPress Contributor Toolkit has to be open: this command asks the running app.
 `;
 
-// What each command asks the app for, and whether it is about one site.
+// How long the app gets to answer. A read is one lookup; a change is a press
+// of a button in the app, answered when what it started has ended, and a
+// first server start can sit behind a full build.
+const READ_TIMEOUT_MS = 30000;
+const CHANGE_TIMEOUT_MS = 35 * 60 * 1000;
+
+// What each command asks the app for, whether it is about one site, and how
+// long it may take. A command of two words is keyed by both.
 const COMMANDS = {
-	sites: { action: 'sites.list', site: false },
-	log: { action: 'site.log', site: true },
-	mail: { action: 'site.mail', site: true }
+	sites: { action: 'sites.list', site: false, timeoutMs: READ_TIMEOUT_MS },
+	log: { action: 'site.log', site: true, timeoutMs: READ_TIMEOUT_MS },
+	mail: { action: 'site.mail', site: true, timeoutMs: READ_TIMEOUT_MS },
+	'server start': { action: 'site.server.start', site: true, timeoutMs: CHANGE_TIMEOUT_MS },
+	'server stop': { action: 'site.server.stop', site: true, timeoutMs: CHANGE_TIMEOUT_MS }
 };
 
-const EXIT = { OK: 0, FAILED: 1, USAGE: 2 };
+// The first words that take a second.
+const GROUPS = new Set(Object.keys(COMMANDS).filter((name) => name.includes(' ')).map((name) => name.split(' ')[0]));
 
-// How long the app gets to answer. A listing reads one branch name per site.
-const ANSWER_TIMEOUT_MS = 30000;
+const EXIT = { OK: 0, FAILED: 1, USAGE: 2 };
 
 /**
  * @param {string[]} argv The arguments after the script.
@@ -67,6 +81,7 @@ function parseArgs(argv) {
 			if (!Number.isInteger(lines) || lines < 1) return { usageError: '--lines takes a whole number, 1 or more' };
 		} else if (arg.startsWith('-')) return { usageError: `Unknown option: ${arg}` };
 		else if (!command) command = arg;
+		else if (GROUPS.has(command)) command = `${command} ${arg}`;
 		else if (site === null && Object.hasOwn(COMMANDS, command) && COMMANDS[command].site) site = arg;
 		else return { usageError: `Unexpected argument: ${arg}` };
 	}
@@ -86,7 +101,7 @@ function parseArgs(argv) {
  * @param {number} [options.timeoutMs]
  * @return {Promise<Object>} The reply, `{ok: true, result}` or `{ok: false, code, error}`.
  */
-function ask(endpoint, request, { timeoutMs = ANSWER_TIMEOUT_MS } = {}) {
+function ask(endpoint, request, { timeoutMs = READ_TIMEOUT_MS } = {}) {
 	return new Promise((resolve) => {
 		let received = '';
 		let settled = false;
@@ -185,7 +200,9 @@ function formatMail(result) {
 const FORMATTERS = {
 	sites: (result) => formatSites(result.sites),
 	log: formatLog,
-	mail: formatMail
+	mail: formatMail,
+	'server start': (result) => `${result.started ? 'The server is running at' : 'The server was already running at'} ${result.url}\n`,
+	'server stop': (result) => (result.stopped ? 'The server is stopped.\n' : 'The server was not running.\n')
 };
 
 /**
@@ -212,14 +229,14 @@ async function run(argv, { out = (s) => process.stdout.write(s), err = (s) => pr
 		return EXIT.USAGE;
 	}
 
-	const { action, site } = COMMANDS[args.command];
+	const { action, site, timeoutMs } = COMMANDS[args.command];
 	// A command about one site, run with none named, is about the site the
 	// tool is standing in. The app decides whether that folder is one.
 	// `.` and `./src` are folders too, and only this process knows what they
 	// are relative to.
 	const named = args.site && args.site.startsWith('.') ? path.resolve(cwd, args.site) : args.site;
 	const params = site ? { site: named || cwd, ...(args.lines === null ? {} : { lines: args.lines }) } : undefined;
-	const reply = await send(args.endpoint, params ? { action, params } : { action });
+	const reply = await send(args.endpoint, params ? { action, params } : { action }, { timeoutMs });
 	if (args.json) {
 		// The whole answer, failure included, on stdout: a tool that asked
 		// for JSON reads one stream.

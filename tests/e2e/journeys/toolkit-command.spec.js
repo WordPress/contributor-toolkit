@@ -115,3 +115,90 @@ test( 'the toolkit command lists the open app\'s sites and reads one\'s log and 
 	expect( closed.status ).toBe( 1 );
 	expect( JSON.parse( closed.stdout ) ).toMatchObject( { ok: false, code: 'not-running' } );
 } );
+
+/**
+ * A tool changing a site: the dev server, started and stopped.
+ *
+ * What only a launch can show is the whole road: the command, the socket,
+ * main's gate, the window asked, the row pressing its own button, the page's
+ * state read back, and the answer on stdout. And the two things a person
+ * does first: find the command, and turn the switch on.
+ *
+ * Nothing is run, as in dev-server.spec.js, which says what that leaves out:
+ * the handlers that start and stop a server, start a script and open a page
+ * in the browser are answered by stubs. The stub that starts the server says
+ * its address itself, on the channel the real one says it on, and answers at
+ * once; the real one answers only once the server is up.
+ */
+test( 'a tool can start and stop a site\'s server only once the settings allow it, and the window shows what it did', async ( { session } ) => {
+	const URL = 'http://127.0.0.1:9400/';
+	const site = await makeSite( session, { label: 'served-site' } );
+	const { app, page } = await session.start( site.settings );
+	await expect( ui.siteHeading( page, 'served-site' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect.poll( () => fs.existsSync( shimOf( session ) ), { timeout: 15_000 } ).toBe( true );
+	await app.evaluate( ( { ipcMain }, url ) => {
+		const asked = { starts: [], stops: [], opened: [] };
+		global.__e2eToolkit = asked;
+		const replace = ( channel, handler ) => {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, handler );
+		};
+		replace( 'playground:start', ( event, dir ) => {
+			asked.starts.push( dir );
+			event.sender.send( 'playground:url', { sitePath: dir, url } );
+			return { ok: true, url };
+		} );
+		replace( 'playground:stop', ( event, dir ) => {
+			asked.stops.push( dir );
+			return { ok: true };
+		} );
+		replace( 'npm:run-script', () => ( { runId: 'e2e-watch' } ) );
+		replace( 'npm:kill', () => ( { ok: true } ) );
+		replace( 'url:open', ( event, opened ) => {
+			asked.opened.push( opened );
+			return true;
+		} );
+	}, URL );
+	const asked = () => app.evaluate( () => global.__e2eToolkit );
+	const startButton = page.getByRole( 'button', { name: 'Start development server', exact: true } );
+	await expect( startButton.first() ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — with the switch as the app ships it, off, a tool is refused
+	// and told where the switch is, and no server is asked for.
+	const refused = toolkit( session, 'server', 'start', 'served-site', '--json' );
+	expect( refused.status ).toBe( 1 );
+	expect( JSON.parse( refused.stdout ) ).toMatchObject( { ok: false, code: 'tools-not-allowed' } );
+	expect( ( await asked() ).starts ).toEqual( [] );
+
+	// INVARIANT — the settings say where the command is, as a shell takes it,
+	// and hold the switch.
+	await ui.settingsButton( page ).click();
+	const dialog = ui.settingsDialog( page );
+	await ui.settingsTab( page, 'Tools' ).click();
+	await expect( dialog.getByText( `"${ shimOf( session ) }"`, { exact: true } ) ).toBeVisible();
+	const allow = dialog.getByRole( 'switch', { name: 'Let tools on this computer change my sites', exact: true } );
+	await expect( allow ).not.toBeChecked();
+	await allow.click();
+	await expect( allow ).toBeChecked();
+	await ui.closeDialogButton( dialog ).click();
+
+	// INVARIANT — turned on, the command starts the site's server, once, and
+	// answers with its address; and the page says the server is up, as it
+	// would had the button been pressed.
+	const started = toolkit( session, 'server', 'start', 'served-site', '--json' );
+	expect( started.stderr ).toBe( '' );
+	expect( JSON.parse( started.stdout ) ).toEqual( { ok: true, site: site.dir, url: URL, started: true } );
+	expect( ( await asked() ).starts ).toEqual( [ site.dir ] );
+	await expect( page.getByRole( 'link', { name: 'View site', exact: true } ).first() ).toBeVisible();
+
+	// INVARIANT — asked again, it starts nothing and says the address it has.
+	const again = toolkit( session, 'server', 'start', 'served-site' );
+	expect( again.stdout ).toBe( `The server was already running at ${ URL }\n` );
+	expect( ( await asked() ).starts ).toEqual( [ site.dir ] );
+
+	// INVARIANT — stop stops that server, and the page offers the start again.
+	const stopped = toolkit( session, 'server', 'stop', 'served-site', '--json' );
+	expect( JSON.parse( stopped.stdout ) ).toEqual( { ok: true, site: site.dir, stopped: true } );
+	expect( ( await asked() ).stops ).toEqual( [ site.dir ] );
+	await expect( startButton.first() ).toBeVisible();
+} );

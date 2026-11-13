@@ -106,6 +106,24 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value)
 ,
+	// Where the `toolkit` command is (#764), for the settings to show and
+	// copy: `{ ok: true, path }`, or `{ ok: false }` where the app could not
+	// start answering tools.
+	getToolkitCommand: () => ipcRenderer.invoke('control:command')
+,
+	// What a tool asked the app to do to a site (#764), handed to the window
+	// to carry out as a press of its own button would. Subscribing says the
+	// page is listening; `replyToControlRequest` is the answer to one, by the
+	// id it came with.
+	subscribeControlRequests: (handler) => {
+		const h = (_e, request) => handler && handler(request);
+		ipcRenderer.on('control:request', h);
+		ipcRenderer.invoke('control:ready');
+		return () => ipcRenderer.removeListener('control:request', h);
+	}
+,
+	replyToControlRequest: (id, reply) => ipcRenderer.invoke('control:reply', id, reply)
+,
 	// The languages the app can show, for the settings; and the relaunch a
 	// change of language takes.
 	listLanguages: () => ipcRenderer.invoke('i18n:languages')

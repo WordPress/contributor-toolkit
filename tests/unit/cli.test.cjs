@@ -187,3 +187,29 @@ test('mail is printed newest first as it was answered, with its text, and says w
 	// the newest few for all there are.
 	assert.match(formatMail({ total: 120, emails: [{ sentAt: null, from: '', to: '', subject: 'One', text: '', textTruncated: false }] }), /The newest 1 of 120 mails\./);
 });
+
+test('server start and stop are commands of two words, and wait as long as a build can take', async () => {
+	assert.deepEqual(parseArgs(['server', 'start', 'My site']), { command: 'server start', json: false, endpoint: null, site: 'My site', lines: null });
+	assert.match(parseArgs(['server']).usageError, /Unknown command: server/);
+	assert.match(parseArgs(['server', 'restart']).usageError, /Unknown command: server restart/);
+
+	const waits = [];
+	const run1 = (argv, reply) => run(argv, { out: () => {}, err: () => {}, cwd: '/sites/wp', send: async (endpoint, request, options) => { waits.push(options.timeoutMs); return reply; } });
+	await run1(['--endpoint', ENDPOINT, 'sites'], { ok: true, result: { sites: [] } });
+	await run1(['--endpoint', ENDPOINT, 'server', 'start'], { ok: true, result: { url: 'http://127.0.0.1:9400', started: true } });
+	assert.ok(waits[1] > waits[0] * 10, 'a change is given far longer than a read');
+
+	const started = await runWith(['--endpoint', ENDPOINT, 'server', 'start'], { ok: true, result: { site: '/sites/wp', url: 'http://127.0.0.1:9400', started: true } });
+	assert.deepEqual(started.sent[0].request, { action: 'site.server.start', params: { site: '/sites/wp/src/wp-includes' } });
+	assert.equal(started.out, 'The server is running at http://127.0.0.1:9400\n');
+	const already = await runWith(['--endpoint', ENDPOINT, 'server', 'start'], { ok: true, result: { url: 'http://127.0.0.1:9400', started: false } });
+	assert.equal(already.out, 'The server was already running at http://127.0.0.1:9400\n');
+
+	assert.equal((await runWith(['--endpoint', ENDPOINT, 'server', 'stop'], { ok: true, result: { stopped: true } })).out, 'The server is stopped.\n');
+	assert.equal((await runWith(['--endpoint', ENDPOINT, 'server', 'stop'], { ok: true, result: { stopped: false } })).out, 'The server was not running.\n');
+
+	// Turned off in the app: the sentence says where to turn it on.
+	const off = await runWith(['--endpoint', ENDPOINT, 'server', 'start'], { ok: false, code: 'tools-not-allowed', error: 'Changing a site from a tool is turned off.' });
+	assert.equal(off.code, EXIT.FAILED);
+	assert.match(off.err, /turned off/);
+});

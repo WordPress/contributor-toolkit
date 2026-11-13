@@ -121,6 +121,11 @@ const SETTINGS = {
 			return { ok: true, value };
 		}
 	},
+	// Whether a tool outside the window may change a site through the
+	// `toolkit` command (#764): create one, link a ticket, start a server.
+	// Off unless turned on. What a tool may read needs no switch, since it
+	// is what the settings file beside the socket already says.
+	toolAccess: { fallback: false, accept: acceptSwitch },
 	// The editor a file of "Changed files" opens in (#738), by its id in
 	// editor-launch.js's table, or nothing to ask each time. An id and not a
 	// path: what is launched is still the path detection finds, so an editor
@@ -164,6 +169,7 @@ function readSettings(preferences = {}) {
 		customBackground: color('customBackground'),
 		customPrimary: color('customPrimary'),
 		newSiteLocation: text('newSiteLocation'),
+		toolAccess: flag('toolAccess'),
 		editor: text('editor')
 	};
 }

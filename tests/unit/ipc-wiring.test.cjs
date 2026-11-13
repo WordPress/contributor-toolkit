@@ -2615,7 +2615,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder, editor: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder, toolAccess: false, editor: null } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -8087,10 +8087,10 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
 	});
 
-	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, toolAccess: false, editor: null } });
 	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
 	assert.equal(settings.values.preferences.locale, 'de');
-	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, toolAccess: false, editor: null } });
 });
 
 test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
@@ -8200,6 +8200,9 @@ const WIRED = new Set([
 	'provenance:set-event',
 	'settings:get',
 	'settings:set',
+	'control:command',
+	'control:ready',
+	'control:reply',
 	'sites:resume',
 	'i18n:languages',
 	'github:account',
@@ -9152,7 +9155,7 @@ test('the control channel offers reads only, and sites.list answers from the sto
 	// The whole door. A second action is a second thing a process other than
 	// the app can ask for, and belongs in the review of the change that adds
 	// it rather than arriving unnoticed.
-	assert.deepEqual(Object.keys(actions), ['sites.list', 'site.log', 'site.mail']);
+	assert.deepEqual(Object.keys(actions), ['sites.list', 'site.log', 'site.mail', 'site.server.start', 'site.server.stop']);
 
 	assert.deepEqual(await actions['sites.list']({}), {
 		sites: [
@@ -9194,9 +9197,18 @@ test('the app writes the toolkit command for its own profile, and stops answerin
 		assert.doesNotThrow(() => fs.accessSync(shimPath, fs.constants.X_OK), 'the command can be run');
 	}
 
+	// The settings are told where it is, to show it and copy it.
+	assert.deepEqual(await main.invoke('control:command'), { ok: true, path: shimPath });
+
 	assert.equal(close.calls.length, 0);
 	await main.emitAppEvent('before-quit');
 	assert.equal(close.calls.length, 1);
+});
+
+test('the settings are told there is no toolkit command while the app is not answering tools', async () => {
+	// The default load: a control channel that never finishes starting.
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore().stubs } });
+	assert.deepEqual(await main.invoke('control:command'), { ok: false });
 });
 
 test('site.log answers the end of the debug.log of the site named, and only of a site the app has', async (t) => {
@@ -9301,4 +9313,58 @@ test('site.mail answers the newest few of a site that has sent a great many, and
 	assert.equal(answer.total, MAX_MAILS + 25);
 	assert.equal(answer.emails.length, MAX_MAILS);
 	assert.equal(answer.emails[0].subject, `Mail ${MAX_MAILS + 24}`, 'the newest is first');
+});
+
+// A window's page, as far as main is concerned: it says it is listening, is
+// sent requests, and answers them by id.
+const controlRequests = (win) => win.sent.filter(({ channel }) => channel === 'control:request').map(({ payload }) => payload);
+
+test('an action that changes a site is refused until the person turns it on, and nothing reaches the window', async (t) => {
+	const site = tempDir(t, 'ipc-wiring-control-off-');
+	const settings = fakeSettingsStore({ sites: [site] });
+	const { main, actions } = await controlWiring(t, settings);
+	const [win] = main.windows;
+	await main.invoke('control:ready');
+
+	for (const action of ['site.server.start', 'site.server.stop']) {
+		await assert.rejects(actions[action]({ site }), (e) => e.code === 'tools-not-allowed' && /Settings/.test(e.message), action);
+	}
+	// Only a real `true` turns it on.
+	settings.values.preferences = { toolAccess: 'true' };
+	await assert.rejects(actions['site.server.start']({ site }), (e) => e.code === 'tools-not-allowed');
+	assert.deepEqual(controlRequests(win), []);
+});
+
+test('turned on, an action is handed to the window for a site the app has, and the window\'s answer is the action\'s', async (t) => {
+	const site = tempDir(t, 'ipc-wiring-control-on-');
+	const settings = fakeSettingsStore({ sites: [site], siteMeta: { [site]: { label: 'Login fix' } }, preferences: { toolAccess: true } });
+	const { main, actions } = await controlWiring(t, settings);
+	const [win] = main.windows;
+	await main.invoke('control:ready');
+
+	// A site the app does not have is refused before the window is asked.
+	await assert.rejects(actions['site.server.start']({ site: '/sites/unknown' }), (e) => e.code === 'unknown-site');
+	assert.deepEqual(controlRequests(win), []);
+
+	// The window is told the registry's path, whatever the tool called the
+	// site, and nothing of what the tool sent as the site.
+	const started = actions['site.server.start']({ site: 'login fix' });
+	for (let waited = 0; waited < 50 && controlRequests(win).length === 0; waited++) await new Promise((resolve) => setImmediate(resolve));
+	const [request] = controlRequests(win);
+	assert.deepEqual({ ...request, id: null }, { id: null, action: 'site.server.start', sitePath: site, params: {} });
+	assert.equal(await main.invoke('control:reply', request.id, { ok: true, result: { url: 'http://127.0.0.1:9400', started: true } }), true);
+	assert.deepEqual(await started, { site, url: 'http://127.0.0.1:9400', started: true });
+
+	// The window's refusal is the action's, with its code.
+	const stopped = actions['site.server.stop']({ site });
+	for (let waited = 0; waited < 50 && controlRequests(win).length === 1; waited++) await new Promise((resolve) => setImmediate(resolve));
+	await main.invoke('control:reply', controlRequests(win)[1].id, { ok: false, code: 'busy', error: 'The server is still starting.' });
+	await assert.rejects(stopped, (e) => e.code === 'busy' && e.message === 'The server is still starting.');
+
+	// A page that reloads while it is asked answers nothing: the request is
+	// ended, and not left for a tool to wait on.
+	const interrupted = actions['site.server.start']({ site });
+	for (let waited = 0; waited < 50 && controlRequests(win).length === 2; waited++) await new Promise((resolve) => setImmediate(resolve));
+	win.emitNavigation('did-start-loading', win.url);
+	await assert.rejects(interrupted, (e) => e.code === 'window-closed');
 });

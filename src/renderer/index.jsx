@@ -23,6 +23,7 @@ import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStart
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
+import { createControlRegistry, createOutcomeWaiters, performSiteControl } from './control-requests.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
@@ -144,6 +145,18 @@ function App({ settingsState }) {
       .catch(() => { if (!cancelled) setResume({ servers: [], watches: [] }); });
     return () => { cancelled = true; };
   }, []);
+  // What a tool asked the app to do to a site (#764). Main hands each request
+  // to the window, which carries it out in the row of the site it is for, as
+  // a press of that row's own button, and answers when it has ended. Which
+  // row, and what a row with no such site answers, is control-requests.cjs's.
+  const [controlRegistry] = useState(createControlRegistry);
+  useEffect(() => {
+    const unsub = window.api.subscribeControlRequests(async (request) => {
+      const reply = await controlRegistry.handle(request);
+      window.api.replyToControlRequest(request?.id, reply);
+    });
+    return () => { if (unsub) unsub(); };
+  }, [controlRegistry]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -722,6 +735,7 @@ function App({ settingsState }) {
                         settings={settings}
                         startingPhp={startingPhp}
                         resume={resumeFor(resume, s)}
+                        controlRegistry={controlRegistry}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
                         onServerStatus={onServerStatus}
@@ -781,7 +795,7 @@ function App({ settingsState }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, onActivate = null, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, controlRegistry = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, onActivate = null, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1435,6 +1449,31 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // through everything above, and because what follows reads whether an
   // apply is under way.
   const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, forgetChangedFiles, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
+
+  // What a tool asked for, carried out here (#764). The row offers its own
+  // functions as the presses and its own state as what an answer is read
+  // from; what to press and how an action ended are control-requests.cjs's.
+  // The state is handed over after every render, which is when an answer
+  // that was waiting on it can be given.
+  const [controlWaiters] = useState(createOutcomeWaiters);
+  const controlState = useRef(null);
+  useEffect(() => {
+    const snapshot = {
+      held: statusLoading || isPending || isDeleting || isUpdating || setupChainState !== 'idle',
+      canServe: skipInit || hasBuilt,
+      server: { running, starting: isServerStarting, url: serverUrl, failure: serverFailure }
+    };
+    controlState.current = { snapshot, presses: { toggleDevServer } };
+    controlWaiters.settle(snapshot);
+  });
+  useEffect(() => {
+    if (!controlRegistry) return undefined;
+    const unregister = controlRegistry.register(sitePath, (action) => performSiteControl(action, { ...controlState.current, waiters: controlWaiters }));
+    return () => {
+      unregister();
+      controlWaiters.abandon();
+    };
+  }, [controlRegistry, controlWaiters, sitePath]);
 
   // The tickets with work on this site (#108), in a card of their own (#240)
   // below the Trac ticket card and the patch one — which ticket am I on, what

@@ -66,6 +66,7 @@ const { getStore, peekStore } = require('./settings-store');
 const { sitesToResume, readResume } = require('./resume-sites.cjs');
 const { controlEndpoint, cliShimPath, startControlServer, ControlRefusal } = require('./control-channel.cjs');
 const { MAX_MAILS, describeSite, resolveSite, logLineCount, lastLines, describeEmail } = require('./control-sites.cjs');
+const { createWindowRequests } = require('./control-window.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -608,6 +609,11 @@ function createWindow() {
 	// a ticket waiting when one starts keeps waiting for the page that follows
 	// rather than being flushed into one that is still loading.
 	mainWindow.webContents.on('did-start-loading', () => deepLinkQueue.reset());
+	// The same for what a tool asked the window to do (#764): the page that
+	// was asked is gone, and the one that follows has not subscribed. A
+	// window that is closed is a page that is gone too.
+	mainWindow.webContents.on('did-start-loading', () => windowRequests.reset());
+	mainWindow.on('closed', () => windowRequests.reset());
 
 	// This is the window with the preload bridge, so it stays on the app's own
 	// page and opens no other (window-navigation.js). Nothing awaits the events
@@ -3131,14 +3137,44 @@ app.on('before-quit', () => {
 	if (controlServer) controlServer.close();
 });
 
-// What a tool outside the window may ask for (#764), by name. This map is the
-// whole of it: the channel in control-channel.cjs refuses any name that is not
-// a key here. Reads only, so far. Each one answers what the settings file in
-// the same directory, or a site's own folder, already says to anything that
-// can open the socket, plus what is checked out and what is running. An action that changes a site is a
-// different decision from a read: it wants the gates the IPC handler for the
-// same change has (`legacySiteBlock`, `mergeInProgressBlock`), and an answer
-// to whether the person is asked first.
+// What a tool asked the window to do, and is waiting to hear about; see
+// control-window.cjs for why the window is asked at all.
+const windowRequests = createWindowRequests({
+	send: (request) => {
+		if (!mainWindow || mainWindow.isDestroyed?.()) throw new Error('no window');
+		mainWindow.webContents.send('control:request', request);
+	},
+	newId: () => crypto.randomUUID()
+});
+
+// The page is listening for requests. Its own mount calls this.
+ipcMain.handle('control:ready', () => {
+	windowRequests.markReady();
+	return true;
+});
+
+// The page's answer to one request.
+ipcMain.handle('control:reply', (_e, id, reply) => windowRequests.answer(id, reply));
+
+// An action that changes a site: allowed only once the person has turned it
+// on in the settings, about a site the app has, and carried out by the
+// window. With no window, as on macOS after its close, one is opened: what a
+// tool does to a site is done where the person can see it.
+function windowAction(action) {
+	return async (params) => {
+		const s = await getStore();
+		if (!readSettings(s.get('preferences')).toolAccess) {
+			throw new ControlRefusal('tools-not-allowed', 'Changing a site from a tool is turned off. In the WordPress Contributor Toolkit, open Settings, choose Tools, and turn on "Let tools on this computer change my sites".');
+		}
+		const sitePath = await controlSite(params.site);
+		if (!mainWindow || mainWindow.isDestroyed?.()) createWindow();
+		const { site: _site, ...rest } = params;
+		const reply = await windowRequests.ask({ action, sitePath, params: rest });
+		if (!reply.ok) throw new ControlRefusal(reply.code, String(reply.error || ''));
+		return { site: sitePath, ...reply.result };
+	};
+}
+
 // The site a tool named, as a path out of the registry, or a refusal.
 async function controlSite(ref) {
 	const s = await getStore();
@@ -3158,6 +3194,15 @@ async function controlSite(ref) {
 	throw new ControlRefusal(found.code, found.error);
 }
 
+// What a tool outside the window may ask for (#764), by name. This map is the
+// whole of it: the channel in control-channel.cjs refuses any name that is not
+// a key here. The reads answer what the settings file in the same directory,
+// or a site's own folder, already says to anything that can open the socket,
+// plus what is checked out and what is running. An action that changes a
+// site is a different decision: it goes through `windowAction`, which
+// refuses unless the person turned it on in the settings, and hands the work
+// to the window, so every gate a button has (`legacySiteBlock`,
+// `mergeInProgressBlock`, the terminal's lock) is the one that applies.
 const controlActions = {
 	'sites.list': async () => {
 		const s = await getStore();
@@ -3207,10 +3252,16 @@ const controlActions = {
 		const emails = await getSiteEmails(sitePath);
 		const newestFirst = [...emails].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0));
 		return { site: sitePath, total: newestFirst.length, emails: newestFirst.slice(0, MAX_MAILS).map(describeEmail) };
-	}
+	},
+	// From here down, actions that change a site. Each is a press of a button
+	// the window already has; `windowAction` says who may ask and how.
+	'site.server.start': windowAction('site.server.start'),
+	'site.server.stop': windowAction('site.server.stop')
 };
 
 let controlServer = null;
+// Where the `toolkit` command was written, once it has been.
+let toolkitCommandPath = null;
 
 // Starts answering tools outside the window, and writes the `toolkit` command
 // they ask through. Both live in the profile directory, so the installed app,
@@ -3232,11 +3283,17 @@ async function startControlChannel() {
 		const shim = cliShim({ execPath: nodeExecPath(), compatPath: null, cliPath: path.join(__dirname, 'cli.cjs'), cliArgs: ['--endpoint', endpoint] });
 		await fs.promises.mkdir(path.dirname(shimPath), { recursive: true });
 		await fs.promises.writeFile(shimPath, shim, { mode: 0o755 });
+		toolkitCommandPath = shimPath;
 		logEvent('control', `answering at ${endpoint}; the command is ${shimPath}`);
 	} catch (e) {
 		logError('control', `could not start the control channel: ${String(e && e.message ? e.message : e)}`);
 	}
 }
+
+// For the settings, which show the command's path and copy it. The command is
+// written after the window is made, so a dialog opened in the first moments
+// may be told there is none yet; it asks again each time it opens.
+ipcMain.handle('control:command', () => (toolkitCommandPath ? { ok: true, path: toolkitCommandPath } : { ok: false }));
 
 ipcMain.handle('sites:get', async () => {
 	const s = await getStore();
