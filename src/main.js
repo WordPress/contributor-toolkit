@@ -98,7 +98,7 @@ const { resolveTheme, nativeThemeSource, THEME_KEYS } = require('./theme.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { fingerprint, editedSinceChange } = require('./change-fingerprint.cjs');
-const { detectEditors, matchDetectedEditor, openSiteInEditor, existingSiteFile, REFUSAL_REASONS } = require('./editor-launch');
+const { editorCandidates, detectEditors, matchDetectedEditor, openSiteInEditor, existingSiteFile, REFUSAL_REASONS } = require('./editor-launch');
 const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
 const { mainWindowSize } = require('./window-size.cjs');
 const { appendExcludeBlock } = require('./exclude-file.cjs');
@@ -3834,7 +3834,12 @@ const detectionDeps = () => ({
 
 // The editors on this machine. Detection stats a dozen or so absolute locations,
 // so it runs when the contributor opens the menu rather than on every load.
-ipcMain.handle('editor:list', async () => ({ detected: await detectEditors(detectionDeps()) }));
+// `names` is every editor the table knows on this platform, by id, so the
+// settings can name the one chosen once it is no longer installed (#738).
+ipcMain.handle('editor:list', async () => ({
+	detected: await detectEditors(detectionDeps()),
+	names: Object.fromEntries(editorCandidates({ platform: process.platform }).map(({ id, name }) => [id, name]))
+}));
 
 // The application the contributor just named, or null for "one this list does
 // not have" — which opens the file dialog, and is the reason no editor is ever
@@ -3985,7 +3990,8 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 		isAbsolute: path.isAbsolute,
 		isDirectory: () => directory,
 		isLanguage: (tag) => known.some((language) => language.tag === tag),
-		isPhpVersion: (version) => phpVersions().includes(version)
+		isPhpVersion: (version) => phpVersions().includes(version),
+		isEditor: (id) => editorCandidates({ platform: process.platform }).some((candidate) => candidate.id === id)
 	});
 	if (!accepted.ok) return { ok: false, error: accepted.error };
 	await setPreference(key, accepted.value);

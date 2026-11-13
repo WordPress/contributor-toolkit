@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { siteMenuItems, openInItems, fileManagerLabel, updateHeldReason } = require('../../src/renderer/site-menu.cjs');
+const { siteMenuItems, openInItems, openInEditorPath, fileManagerLabel, updateHeldReason } = require('../../src/renderer/site-menu.cjs');
 
 const ids = (items) => items.map((item) => item.id);
 const TOP = ['rename', 'copy-path', 'show-in-file-manager', 'update-trunk', 'open-in-menu', 'delete'];
@@ -33,14 +33,14 @@ test('the menu\'s own list is the same whatever detection finds and while it is 
 	}
 });
 
-test('the way to choose another application is first, then each one detection found by its name', () => {
+test('each application detection found is offered by its name, then the way to choose another, last (#738)', () => {
 	const items = openInItems({
 		editors: [{ name: 'Visual Studio Code', path: 'C:\\Code.exe' }, { name: 'Zed', path: 'C:\\zed.exe' }]
 	});
 	assert.deepEqual(items, [
-		{ id: 'open-in-other', label: 'Other application…' },
 		{ id: 'open-in', label: 'Visual Studio Code', path: 'C:\\Code.exe' },
-		{ id: 'open-in', label: 'Zed', path: 'C:\\zed.exe' }
+		{ id: 'open-in', label: 'Zed', path: 'C:\\zed.exe' },
+		{ id: 'open-in-other', label: 'Other application…' }
 	]);
 });
 
@@ -49,14 +49,21 @@ test('choosing another application is offered whatever detection found, and whil
 	assert.deepEqual(ids(openInItems({ editors: null })), ['open-in-other']);
 	assert.deepEqual(ids(openInItems()), ['open-in-other']);
 	const looking = openInItems({ editors: [{ name: 'Zed', path: '/zed' }], detecting: true });
-	assert.deepEqual(ids(looking), ['open-in-other', 'open-in', 'detecting']);
-	assert.deepEqual(looking.at(-1), { id: 'detecting', label: 'Looking for applications…', disabled: true });
+	assert.deepEqual(ids(looking), ['open-in', 'detecting', 'open-in-other']);
+	assert.deepEqual(looking.at(-2), { id: 'detecting', label: 'Looking for applications…', disabled: true });
 });
 
-test('nothing that can be pressed moves when detection answers', () => {
+test('no application found moves when detection answers', () => {
 	// The three lists a contributor can see in one opening of the menu, on a
 	// machine where nothing was known, and on one where an editor was: while
-	// looking, and after. A row that is in both keeps its place.
+	// looking, and after. An application in both keeps its place.
+	//
+	// Two rows are known exceptions, both kept rare by detecting as a site
+	// opens, so the answer is usually in before the menu is (#738):
+	// "Other application…", which is last to the design's order and so moves
+	// down as applications arrive; and, with an editor chosen in Settings,
+	// the flyout itself, which becomes one "Open in <editor>" row once
+	// detection finds it.
 	const zed = { name: 'Zed', path: '/zed' };
 	const code = { name: 'Visual Studio Code', path: '/code' };
 	const sequences = [
@@ -67,10 +74,20 @@ test('nothing that can be pressed moves when detection answers', () => {
 	const keyOf = (item) => item.path || item.id;
 	for (const [before, after] of sequences) {
 		before.forEach((item, index) => {
-			if (item.disabled) return;
+			if (item.disabled || item.id === 'open-in-other') return;
 			const then = after.findIndex((other) => keyOf(other) === keyOf(item));
 			assert.equal(then, index, `${item.label} moved from row ${index} to row ${then}`);
 		});
+	}
+});
+
+test('with an editor chosen in Settings and found, "Open in" is that editor; otherwise the menu asks (#738)', () => {
+	const editors = [{ id: 'vscode', name: 'Visual Studio Code', path: '/code' }, { id: 'cursor', name: 'Cursor', path: '/cursor' }];
+	const openIn = (state) => siteMenuItems(state).find((item) => item.id === 'open-in' || item.id === 'open-in-menu');
+	assert.deepEqual(openIn({ editors, preferred: 'cursor' }), { id: 'open-in', label: 'Open in Cursor', path: '/cursor' });
+	assert.equal(openInEditorPath(openIn({ editors, preferred: 'cursor' })), '/cursor');
+	for (const state of [{ editors }, { editors, preferred: 'zed' }, { editors: [], detecting: true, preferred: 'cursor' }]) {
+		assert.equal(openIn(state).id, 'open-in-menu', JSON.stringify(state));
 	}
 });
 
@@ -132,4 +149,14 @@ test('an update that is not held carries no reason', () => {
 
 test('no arguments at all is the menu of an ordinary site', () => {
 	assert.deepEqual(ids(siteMenuItems()), TOP);
+});
+
+// Both menus that offer "Open in" answer an item through this (#738).
+test('an Open in item asks for its application, Other application… for the dialog, and anything else for nothing', () => {
+	const [editor, other] = openInItems({ editors: [{ name: 'Cursor', path: '/Applications/Cursor.app' }] });
+	assert.equal(openInEditorPath(editor), '/Applications/Cursor.app');
+	assert.equal(openInEditorPath(other), null);
+	assert.equal(openInEditorPath({ id: 'delete' }), undefined);
+	assert.equal(openInEditorPath({ id: 'detecting', disabled: true }), undefined);
+	assert.equal(openInEditorPath(null), undefined);
 });

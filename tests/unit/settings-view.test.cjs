@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
+const { editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
 
 test('the GitHub line says the account is still being read, and offers no sign-out, until it is', () => {
 	assert.deepEqual(githubAccountLine(null), { text: 'Reading…', canSignOut: false });
@@ -107,4 +107,35 @@ test('what the next launch starts for a site comes from the list the quit left',
 	assert.equal(resumeFor(resume, '/other'), null);
 	assert.equal(resumeFor(null, '/a'), null);
 	assert.equal(resumeFor({}, '/a'), null);
+});
+
+test('the editor entries are asking each time, then what detection found, and the one set if it is none of them (#738)', () => {
+	const first = { value: ASK_FOR_EDITOR, label: 'Ask each time' };
+	const found = [{ id: 'vscode', name: 'Visual Studio Code' }, { id: 'cursor', name: 'Cursor' }];
+	assert.deepEqual(editorItems(null, null), [first]);
+	assert.deepEqual(editorItems(found, 'cursor'), [first, { value: 'vscode', label: 'Visual Studio Code' }, { value: 'cursor', label: 'Cursor' }]);
+	// Uninstalled since: by the table's name, and by its id only where the
+	// table has none for it.
+	assert.deepEqual(editorItems([found[0]], 'cursor', { vscode: 'Visual Studio Code', cursor: 'Cursor' }), [first, { value: 'vscode', label: 'Visual Studio Code' }, { value: 'cursor', label: 'Cursor' }]);
+	assert.deepEqual(editorItems([found[0]], 'cursor'), [first, { value: 'vscode', label: 'Visual Studio Code' }, { value: 'cursor', label: 'cursor' }]);
+});
+
+test('an editor no longer found is called by the table\'s name, or by its id where the table has none (#738)', () => {
+	assert.equal(editorName('cursor', { cursor: 'Cursor' }), 'Cursor');
+	assert.equal(editorName('cursor', { vscode: 'Visual Studio Code' }), 'cursor');
+	assert.equal(editorName('cursor'), 'cursor');
+});
+
+test('the editor set is gone only when a detection that answered does not find it (#738)', () => {
+	const found = [{ id: 'vscode' }];
+	assert.equal(editorGone(found, 'cursor'), true);
+	assert.equal(editorGone(found, 'vscode'), false);
+	assert.equal(editorGone(found, null), false);
+	// Not answered yet, or failed: nothing is known to be gone.
+	assert.equal(editorGone(null, 'cursor'), false);
+});
+
+test('asking each time is kept as no choice, and an editor as its id (#738)', () => {
+	assert.equal(editorValue(ASK_FOR_EDITOR), null);
+	assert.equal(editorValue('cursor'), 'cursor');
 });

@@ -74,9 +74,10 @@ import { AppFooter, LogsToggleNote, trayToggleId } from './components/app-footer
 import { BottomTray, SiteTrayActionsFill, SiteTrayFill } from './components/bottom-tray.jsx';
 import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
-import { SiteContextMenu, SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
+import { OpenFileInMenu, SiteContextMenu, SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
 import { changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, unsubmittedFromReply } from './affected-files.cjs';
+import { openInEditorPath } from './site-menu.cjs';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
@@ -989,11 +990,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
-  // A file under "Changed files" (#669): one click, into the first editor
-  // detection finds, or the file manager when it finds none. Detection is asked
-  // here rather than read from `detectedEditors`, which holds nothing until the
-  // site's menu has been opened once; it stats a dozen paths and spawns nothing.
-  const openAffectedFile = useCallback(async (relPath) => {
+  // Detection runs as the site opens as well as when its menu does, so that
+  // the menu's rows are usually there before it is: "Open in <editor>" with
+  // an editor chosen in Settings, and the "Open in" flyout's applications,
+  // above "Other application…", without either changing under the pointer.
+  // It stats a dozen paths and spawns nothing.
+  useEffect(() => {
+    if (isActive) loadDetected();
+  }, [isActive, loadDetected]);
+
+  // A file under "Changed files" (#669): one click, into the editor chosen in
+  // Settings (#738), or the file manager when detection finds no editor.
+  // With editors found and none chosen, a menu beside the file asks which
+  // (`fileMenu`), rather than the app picking one for the contributor.
+  // Detection is asked here rather than
+  // read from `detectedEditors`, which holds nothing until the site's menu has
+  // been opened once; it stats a dozen paths and spawns nothing.
+  //
+  // `anchor` is the file's button, which the menu opens beside.
+  const [fileMenu, setFileMenu] = useState(null);
+  const openAffectedFile = useCallback(async (relPath, anchor) => {
     let editors = [];
     try {
       editors = (await window.api.listEditors())?.detected || [];
@@ -1001,10 +1017,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not list the editors on this machine:', err);
     }
-    const target = fileOpenTarget({ editors });
+    // The site may have been left, or the file gone from the list, while
+    // detection answered; `fileOpenTarget` says what that changes.
+    const canAsk = siteRef.current.active && Boolean(anchor?.isConnected);
+    const target = fileOpenTarget({ editors, preferred: settings?.editor ?? null, canAsk });
     if (target.kind === 'editor') await openIn(target.path, relPath);
-    else await showInFileManager(relPath);
-  }, [openIn, showInFileManager]);
+    else if (target.kind === 'choose') setFileMenu({ relPath, anchor, editors });
+    else if (target.kind === 'reveal') await showInFileManager(relPath);
+  }, [openIn, showInFileManager, settings?.editor]);
+  const runFileMenuAction = useCallback(async (item) => {
+    const relPath = fileMenu?.relPath ?? null;
+    setFileMenu(null);
+    const editorPath = openInEditorPath(item);
+    if (editorPath !== undefined) await openIn(editorPath, relPath);
+  }, [fileMenu, openIn]);
 
   // The note's probe. It asks the wide question — unsubmitted work measured
   // from the ticket's branch point, the same measurement the patch makes —
@@ -1400,8 +1426,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       if (!isActive) onActivate?.();
       await startTrunkUpdate();
     }
-    else if (item.id === 'open-in') await openIn(item.path);
-    else if (item.id === 'open-in-other') await openIn(null);
+    else if (openInEditorPath(item) !== undefined) await openIn(openInEditorPath(item));
     else if (item.id === 'delete') askFirst(deleteSiteQuestion(displayName), () => onDelete(sitePath));
   };
 
@@ -2210,7 +2235,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           detailsOpen={detailsOpen}
           detailsId={detailsId}
           onToggleDetails={onToggleDetails}
-          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld }}
+          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld, preferred: settings?.editor ?? null }}
           onMenuOpen={loadDetected}
           onAction={runSiteMenuAction}
           work={skipInit ? {
@@ -2229,11 +2254,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           } : null}
         />
       ) : null}
+      {fileMenu ? createPortal(
+        <OpenFileInMenu
+          anchor={fileMenu.anchor}
+          editors={fileMenu.editors}
+          onAction={runFileMenuAction}
+          onClose={() => setFileMenu(null)}
+        />,
+        document.body
+      ) : null}
       {contextMenu ? createPortal(
         <SiteContextMenu
           key={contextMenu.serial}
           position={contextMenu.position}
-          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld }}
+          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld, preferred: settings?.editor ?? null }}
           onMenuOpen={loadDetected}
           onAction={runSiteMenuAction}
           onClose={onCloseContextMenu}

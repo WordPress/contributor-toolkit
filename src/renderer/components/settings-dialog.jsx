@@ -7,7 +7,7 @@ import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalT
 import { __, sprintf } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, InputLayout, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
 import { useThemeWarnings } from './app-theme.jsx';
-import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
+import { editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // A notice here is read by its role, and is not also spoken: the dialog it
@@ -242,6 +242,95 @@ function OpeningAndQuitting({ settings, onChange }) {
   );
 }
 
+// The editor the app opens a site and its changed files in (#738), from the
+// ones detection finds on this machine, which is asked when the dialog opens:
+// an editor installed while the app runs is one the next opening offers. With
+// one chosen, the site menu's "Open in" names it and a changed file opens in
+// it; with none, both ask.
+function EditorControl({ settings, onChange }) {
+  const [editors, setEditors] = useState(null);
+  const [names, setNames] = useState(null);
+  const [error, setError] = useState('');
+  // What detection answered, or null until it has, and for a lookup that
+  // failed: only an answer can say the editor set has gone.
+  const [listed, setListed] = useState(null);
+  // The name of an editor set here that is no longer installed, once the
+  // setting has gone back to asking for it.
+  const [gone, setGone] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    window.api.listEditors()
+      .then((res) => {
+        if (cancelled) return;
+        setEditors(res?.detected || []);
+        setListed(res?.detected || []);
+        setNames(res?.names || null);
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
+        console.error('Could not list the editors on this machine:', err);
+        if (cancelled) return;
+        setEditors([]);
+        setError(__('Could not look for editors on this machine, so none can be chosen here.'));
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Drawn here with each id as its value, as the language control's are,
+  // for the reason given there.
+  const editor = settings ? settings.editor : null;
+  const items = useMemo(() => editorItems(editors, editor, names), [editors, editor, names]);
+
+  // An editor set here and uninstalled since is already asked about
+  // everywhere it would open; the setting goes back to asking too, so the
+  // control does not go on naming it.
+  useEffect(() => {
+    if (!editorGone(listed, editor)) return;
+    setGone(editorName(editor, names));
+    onChange('editor', null);
+  }, [listed, editor, names, onChange]);
+
+  const choose = async (value) => {
+    const result = await onChange('editor', editorValue(value));
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that editor.')));
+  };
+
+  return (
+    <Stack direction="column" gap="md">
+      <SelectControl
+        label={__('Code editor')}
+        description={__('What “Open in” in the site’s menu and the files under “Changed files” open in. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.')}
+        items={items}
+        value={editor || ASK_FOR_EDITOR}
+        disabled={!settings || !editors}
+        onValueChange={choose}
+      >
+        {items.map((item) => (
+          <SelectControl.Item key={item.value} value={item.value} label={item.label}>
+            <SelectControl.ItemLabel>{item.label}</SelectControl.ItemLabel>
+          </SelectControl.Item>
+        ))}
+      </SelectControl>
+      {gone && !editor ? (
+        <Notice.Root intent="warning" role="alert" spokenMessage={SILENT}>
+          <Notice.Title>{sprintf(
+            // translators: %s is the name of an editor that was chosen here and is no longer installed, for example "Zed".
+            __('%s is no longer installed'),
+            gone
+          )}</Notice.Title>
+          <Notice.Description>{__('Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.')}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+    </Stack>
+  );
+}
+
 // The folder new sites go in. The system's dialog chooses it, main checks
 // it, and what main then holds is what is shown: a folder it refused is
 // said under the field and nothing changes.
@@ -271,6 +360,10 @@ function GeneralTab({ settings, loaded, onChange }) {
         <LanguageControl settings={settings} loaded={loaded} onChange={onChange} />
       </Stack>
       <OpeningAndQuitting settings={settings} onChange={onChange} />
+      <Stack direction="column" gap="xl">
+        <Text variant="heading-lg" render={<h3 />}>{__('Applications')}</Text>
+        <EditorControl settings={settings} onChange={onChange} />
+      </Stack>
       <Stack direction="column" gap="xl">
         <Text variant="heading-lg" render={<h3 />}>{__('New sites')}</Text>
         <FolderField

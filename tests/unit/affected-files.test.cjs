@@ -108,12 +108,31 @@ test('a closed folder that is no longer a row hides nothing', () => {
 	assert.deepEqual(visibleAffectedRows(rows, new Set(['src/wp-includes/blocks/'])).map((row) => row.name), ['src/wp-includes/blocks']);
 });
 
-// Detection's order is the site menu's order, which puts Visual Studio Code
-// first where it is installed: the file opens in the editor that menu offers
-// first.
-test('a file opens in the first editor detection found', () => {
-	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, CURSOR] }), { kind: 'editor', path: VSCODE.path });
-	assert.deepEqual(fileOpenTarget({ editors: [CURSOR] }), { kind: 'editor', path: CURSOR.path });
+// The editor chosen in Settings (#738), when detection still finds it, and
+// otherwise a question, even of one editor: it may be installed and not be
+// the one the contributor uses.
+test('a file opens in the editor chosen in Settings while detection finds it', () => {
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, CURSOR], preferred: 'cursor' }), { kind: 'editor', path: CURSOR.path });
+	assert.deepEqual(fileOpenTarget({ editors: [CURSOR], preferred: 'cursor' }), { kind: 'editor', path: CURSOR.path });
+});
+
+test('with no editor chosen, any editor found is a question, one as much as two (#738)', () => {
+	assert.deepEqual(fileOpenTarget({ editors: [CURSOR], preferred: null }), { kind: 'choose' });
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, CURSOR], preferred: null }), { kind: 'choose' });
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, CURSOR] }), { kind: 'choose' });
+});
+
+test('an editor chosen and uninstalled since is as if none were chosen (#738)', () => {
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE], preferred: 'cursor' }), { kind: 'choose' });
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, { ...CURSOR, id: 'zed' }], preferred: 'cursor' }), { kind: 'choose' });
+	assert.deepEqual(fileOpenTarget({ editors: [], preferred: 'cursor' }), { kind: 'reveal' });
+});
+
+test('a question with no file left to ask beside asks nothing, and the other two answers need none (#738)', () => {
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, CURSOR], canAsk: false }), { kind: 'none' });
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE], preferred: 'cursor', canAsk: false }), { kind: 'none' });
+	assert.deepEqual(fileOpenTarget({ editors: [VSCODE, CURSOR], preferred: 'cursor', canAsk: false }), { kind: 'editor', path: CURSOR.path });
+	assert.deepEqual(fileOpenTarget({ editors: [], canAsk: false }), { kind: 'reveal' });
 });
 
 test('with no editor found, the file is shown in the file manager', () => {
