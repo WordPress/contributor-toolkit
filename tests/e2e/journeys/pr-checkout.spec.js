@@ -200,12 +200,14 @@ test( 'each file a checked-out pull request changed opens in the editor from the
 	await expect( ui.revertPrButton( page ) ).toBeVisible( { timeout: 60_000 } );
 
 	// INVARIANT — the pull request's files are listed while it is checked
-	// out, as an applied patch's are, and one click opens the file in the
-	// editor detection found, inside the site.
+	// out, as an applied patch's are, and the file opens in the editor
+	// detection found, inside the site, once the menu beside it has asked
+	// which (#738).
 	const file = page
 		.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } )
 		.getByRole( 'button', { name: 'wp-login.php', exact: true } );
 	await file.click();
+	await page.getByRole( 'menu' ).getByRole( 'menuitem', { name: editor.name, exact: true } ).click();
 	await expect.poll( () => app.evaluate( () => global.__e2eOpens ) ).toEqual( [
 		{ sitePath: site.dir, editorPath: editor.path, relPath: 'src/wp-login.php' },
 	] );

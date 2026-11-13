@@ -124,6 +124,18 @@ const SETTINGS = {
 			if (!isDirectory(value)) return { ok: false, error: __('That folder does not exist.') };
 			return { ok: true, value };
 		}
+	},
+	// The editor a file of "Changed files" opens in (#738), by its id in
+	// editor-launch.js's table, or nothing to ask each time. An id and not a
+	// path: what is launched is still the path detection finds, so an editor
+	// uninstalled since is as if none were set.
+	editor: {
+		fallback: null,
+		accept(value, { isEditor }) {
+			if (value === null || value === undefined || value === '') return { ok: true, value: null };
+			if (typeof value !== 'string' || !isEditor(value)) return { ok: false, error: __('Choose one of the editors the app found.') };
+			return { ok: true, value };
+		}
 	}
 };
 
@@ -156,7 +168,8 @@ function readSettings(preferences = {}) {
 		theme: THEMES.includes(stored.theme) ? stored.theme : SETTINGS.theme.fallback,
 		customBackground: color('customBackground'),
 		customPrimary: color('customPrimary'),
-		newSiteLocation: text('newSiteLocation')
+		newSiteLocation: text('newSiteLocation'),
+		editor: text('editor')
 	};
 }
 
@@ -170,6 +183,7 @@ function readSettings(preferences = {}) {
  * @param {Function} deps.isDirectory  Whether a path is a folder on this machine.
  * @param {Function} deps.isLanguage   Whether a tag is one of the languages the app can show.
  * @param {Function} deps.isPhpVersion Whether a version is one the bundled Playground has.
+ * @param {Function} deps.isEditor     Whether an id is one of the editors detection knows.
  * @return {{ok: true, value: *}|{ok: false, error: string}} The value to store, or why not.
  */
 function acceptSetting(key, value, deps) {

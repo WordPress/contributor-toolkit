@@ -210,10 +210,12 @@ test( 'each file the applied patch changed opens in the editor from the details 
 	await expect( file ).toBeFocused();
 	await expect( file.locator( '..' ).locator( 'svg' ) ).toHaveCount( 1 );
 
-	// INVARIANT — the file is listed once the patch is applied, and one click
-	// opens it in the editor detection found, inside the site. The site's menu
-	// is never opened first: the click must not depend on it having been.
+	// INVARIANT — the file is listed once the patch is applied, and with no
+	// editor chosen in the settings a click asks which (#738), even of the one
+	// editor detection found, and opens it there, inside the site. The site's
+	// menu is never opened first: the click must not depend on it having been.
 	await file.click();
+	await page.getByRole( 'menu' ).getByRole( 'menuitem', { name: EDITOR.name, exact: true } ).click();
 	await expect.poll( async () => ( await asked() ).opens ).toEqual( [
 		{ sitePath: site.dir, editorPath: EDITOR.path, relPath: 'src/wp-login.php' },
 	] );
@@ -242,6 +244,7 @@ test( 'choosing another application after a file would not open opens that file 
 	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
 
 	await affectedFile( page, 'src/wp-login.php' ).click();
+	await page.getByRole( 'menu' ).getByRole( 'menuitem', { name: EDITOR.name, exact: true } ).click();
 	await page.getByRole( 'button', { name: 'Choose application…', exact: true } ).click();
 
 	// INVARIANT — the way out the notice offers opens the same file, in the
@@ -271,6 +274,90 @@ test( 'with no editor on the machine, an applied file is shown in the file manag
 		{ sitePath: site.dir, relPath: 'src/wp-login.php' },
 	] );
 	expect( ( await asked() ).opens ).toEqual( [] );
+} );
+
+test( 'with no editor chosen, a changed file asks which, and the one chosen in the settings is used without asking (#738)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	// Ids from the detection table, which is what the setting is checked
+	// against: Visual Studio Code first, as detection finds it.
+	const vscode = { id: 'vscode', name: 'Visual Studio Code', path: path.join( os.tmpdir(), 'example-vscode' ) };
+	const cursor = { id: 'cursor', name: 'Cursor', path: path.join( os.tmpdir(), 'example-cursor' ) };
+	const asked = await standInForApplications( app, [ vscode, cursor ] );
+	await ui.linkTicket( page, '60001' );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+	const file = affectedFile( page, 'src/wp-login.php' );
+
+	// INVARIANT — nothing is opened for the contributor: a menu beside the
+	// file offers what the site menu's "Open in" does, in its order, and
+	// Visual Studio Code is not picked for being found first.
+	await file.click();
+	const menu = page.getByRole( 'menu' );
+	await expect( menu.getByRole( 'menuitem' ) ).toHaveText( [ 'Visual Studio Code', 'Cursor', 'Other application…' ] );
+	await expect( menu.getByText( 'Open in', { exact: true } ) ).toBeVisible();
+	expect( ( await asked() ).opens ).toEqual( [] );
+
+	// INVARIANT — dismissing it opens nothing and gives the file its focus back.
+	await page.keyboard.press( 'Escape' );
+	await expect( menu ).toHaveCount( 0 );
+	await expect( file ).toBeFocused();
+	expect( ( await asked() ).opens ).toEqual( [] );
+
+	// INVARIANT — the one chosen opens the file, inside the site.
+	await file.click();
+	await menu.getByRole( 'menuitem', { name: 'Cursor', exact: true } ).click();
+	await expect.poll( async () => ( await asked() ).opens ).toEqual( [
+		{ sitePath: site.dir, editorPath: cursor.path, relPath: 'src/wp-login.php' },
+	] );
+
+	// INVARIANT — the settings offer asking each time, which is what is set,
+	// and the editors detection found; the one chosen is kept by its id.
+	await ui.settingsButton( page ).click();
+	const dialog = ui.settingsDialog( page );
+	const editor = dialog.getByRole( 'combobox', { name: 'Code editor', exact: true } );
+	await expect( editor ).toHaveText( 'Ask each time' );
+	await editor.click();
+	await page.getByRole( 'option', { name: 'Cursor', exact: true } ).click();
+	await expect( editor ).toHaveText( 'Cursor' );
+	await expect.poll( () => session.readSettings().preferences?.editor ).toBe( 'cursor' );
+	await ui.closeDialogButton( dialog ).click();
+	await expect( dialog ).toHaveCount( 0 );
+
+	// INVARIANT — with an editor chosen, the click opens the file in it
+	// without asking.
+	await file.click();
+	await expect.poll( async () => ( await asked() ).opens ).toEqual( [
+		{ sitePath: site.dir, editorPath: cursor.path, relPath: 'src/wp-login.php' },
+		{ sitePath: site.dir, editorPath: cursor.path, relPath: 'src/wp-login.php' },
+	] );
+	await expect( menu ).toHaveCount( 0 );
+
+	// INVARIANT — the site's menu names the chosen editor in place of the
+	// "Open in" flyout, and opens the site in it.
+	await ui.siteMenuButton( page ).click();
+	const siteMenu = page.getByRole( 'menu' );
+	await expect( siteMenu.getByRole( 'menuitem', { name: 'Open in Cursor', exact: true } ) ).toBeVisible();
+	await expect( siteMenu.getByRole( 'menuitem', { name: 'Open in', exact: true } ) ).toHaveCount( 0 );
+	await siteMenu.getByRole( 'menuitem', { name: 'Open in Cursor', exact: true } ).click();
+	await expect.poll( async () => ( await asked() ).opens.at( -1 ) ).toEqual( { sitePath: site.dir, editorPath: cursor.path, relPath: null } );
+
+	// INVARIANT — once the chosen editor is uninstalled, the settings go back
+	// to asking each time, and say why.
+	await app.evaluate( ( { ipcMain }, detected ) => {
+		ipcMain.removeHandler( 'editor:list' );
+		ipcMain.handle( 'editor:list', () => ( { detected, names: { vscode: 'Visual Studio Code', cursor: 'Cursor' } } ) );
+	}, [ vscode ] );
+	await ui.settingsButton( page ).click();
+	await expect( editor ).toHaveText( 'Ask each time' );
+	const notice = dialog.getByRole( 'alert' ).filter( { hasText: 'Cursor is no longer installed' } );
+	await expect( notice ).toBeVisible();
+	await expect( notice ).toContainText( 'Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.' );
+	await expect.poll( () => session.readSettings().preferences?.editor ).toBeNull();
 } );
 
 test( 'files edited or added after a patch are told apart from the patch\'s own (#669)', async ( { session } ) => {

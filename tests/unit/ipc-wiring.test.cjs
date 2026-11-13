@@ -2610,7 +2610,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder, editor: null } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -2625,10 +2625,22 @@ test('settings:set refuses a key that is not a setting without writing, whatever
 	const settings = fakeSettingsStore({ preferences: { wporgHandle: 'janedoe' } });
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.equal((await main.invoke('settings:set', 'editor', folder)).ok, false);
+	assert.equal((await main.invoke('settings:set', 'terminal', folder)).ok, false);
 	assert.equal((await main.invoke('settings:set', '__proto__', folder)).ok, false);
 	assert.equal((await main.invoke('settings:set', 'newSiteLocation', 'sites')).ok, false, 'a path that is not a full one');
 	assert.deepEqual(settings.values.preferences, { wporgHandle: 'janedoe' });
+});
+
+// The editor a changed file opens in (#738) is one of the editors the
+// detection table has for this platform, kept by its id.
+test('settings:set keeps an editor the table has, and refuses one it does not (#738)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.equal((await main.invoke('settings:set', 'editor', 'cursor')).settings.editor, 'cursor');
+	assert.equal((await main.invoke('settings:set', 'editor', 'notepad')).ok, false);
+	assert.equal(settings.values.preferences.editor, 'cursor');
+	assert.equal((await main.invoke('settings:set', 'editor', null)).settings.editor, null);
 });
 
 // The theme (#560) is Electron's to apply: main gives it `nativeTheme`, and
@@ -7019,7 +7031,7 @@ test('editor:open with no application named goes to the file dialog', async () =
 test('editor:list asks editor-launch what is installed, without a shell', async () => {
 	const detectEditors = spy(() => [{ id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' }]);
 	const main = loadMain({
-		stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './editor-launch': { detectEditors } }
+		stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './editor-launch': { ...require('../../src/editor-launch'), detectEditors } }
 	});
 
 	const result = await main.invoke('editor:list');
@@ -7030,6 +7042,10 @@ test('editor:list asks editor-launch what is installed, without a shell', async 
 	// or ran `which` beside this call, is what #24 was.
 	assert.equal(typeof detectEditors.calls[0][0].exists, 'function');
 	assert.equal(detectEditors.calls[0][0].platform, process.platform);
+	// Every editor the table knows, by name, so the settings can name one
+	// chosen and uninstalled since (#738).
+	assert.equal(result.names.vscode, 'Visual Studio Code');
+	assert.equal(result.names.cursor, 'Cursor');
 });
 
 test('dir:show asks site-registry whether the path may be revealed', async () => {
@@ -8200,10 +8216,10 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
 	});
 
-	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
 	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
 	assert.equal(settings.values.preferences.locale, 'de');
-	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
 });
 
 test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {

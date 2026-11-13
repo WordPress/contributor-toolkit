@@ -3,7 +3,7 @@
 # This file is `source`'d in CI before calling `buildkite-agent pipeline upload`, and can be used
 # to set up some variables that will be interpolated in the `.yml` pipeline before uploading it.
 
-export CI_TOOLKIT=automattic/a8c-ci-toolkit#6.1.0
+export CI_TOOLKIT=automattic/a8c-ci-toolkit#7.1.1
 export NVM_PLUGIN=automattic/nvm#0.6.0
 export DOCKER_PLUGIN=docker#v5.13.0
 export NODE_DOCKER_IMAGE=node:$(sed 's/^v//' .nvmrc)-trixie

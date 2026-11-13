@@ -29,6 +29,12 @@ test('both kinds of project say that a pull request is checked out, and that the
 	}
 });
 
+test('each project\'s pull request field shows a number that is a pull request in its own repository', () => {
+	// WordPress/wordpress-develop#9000 and WordPress/gutenberg#71234 are both pull requests (#760).
+	assert.equal(applyCardWords(true).prExample, 'e.g. 9000');
+	assert.equal(applyCardWords(false).prExample, 'e.g. 71234');
+});
+
 test('a preview is shown by its own site, and only while there is something to decide', () => {
 	const preview = { kind: 'patch', label: 'p.diff', paths: [] };
 	assert.equal(previewShown({ preview, active: true }), preview);

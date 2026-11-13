@@ -7,15 +7,14 @@
 // application…" always offered. Detection is a shortcut, and an application it
 // misses is not one this app refuses to use.
 //
-// It is a menu under the menu for a second reason. Detection runs as the menu
-// opens and answers when it answers, so the rows it adds arrive after the
-// menu is on screen. In the menu's own list they would push "Delete site"
-// down under a pointer that was aiming at something else. In a list of their
-// own they are added at its end, under the one row that is always there, so
-// that row does not move either.
+// It is a menu under the menu for a second reason. Detection answers when it
+// answers, so the rows it adds can arrive after the menu is on screen. In the
+// menu's own list they would push "Delete site" down under a pointer that was
+// aiming at something else. In a list of their own, they move nothing but
+// "Other application…", which is last.
 'use strict';
 
-const { __ } = require('@wordpress/i18n');
+const { __, sprintf } = require('@wordpress/i18n');
 
 /**
  * What the file manager is called where the app is running. It has a name on
@@ -31,15 +30,18 @@ function fileManagerLabel(platform) {
 }
 
 /**
- * The applications a folder can be opened in, in order: the way to choose any
- * application, which is always there and so is first, where nothing that
- * arrives later can move it; each one detection found, by its own name; and
- * a row that says detection is still running, which cannot be pressed and is
- * last, so that its going moves nothing that can be.
+ * The applications a folder can be opened in, in order: each one detection
+ * found, by its own name; a row that says detection is still running, which
+ * cannot be pressed; and last the way to choose any application, which is
+ * always there (#738, to the design's order).
  *
  * A list that is still counting is not an empty list, and the difference has
  * to be visible: without the row, a slow sweep looks exactly like a machine
  * with no editors on it.
+ *
+ * An application detection finds is added after the ones before it, so none
+ * moves. "Other application…" does move down as they arrive; detection runs
+ * as a site opens, so they have usually arrived before the menu does.
  *
  * @param {Object}  root0
  * @param {Array}   [root0.editors]   Detected applications, `{ name, path }`.
@@ -47,12 +49,25 @@ function fileManagerLabel(platform) {
  * @return {Array<{id: string, label: string, path?: string, disabled?: boolean}>}
  */
 function openInItems({ editors = [], detecting = false } = {}) {
-	const items = [
-		{ id: 'open-in-other', label: __('Other application…') },
-		...(editors || []).map((editor) => ({ id: 'open-in', label: editor.name, path: editor.path }))
-	];
+	const items = (editors || []).map((editor) => ({ id: 'open-in', label: editor.name, path: editor.path }));
 	if (detecting) items.push({ id: 'detecting', label: __('Looking for applications…'), disabled: true });
+	items.push({ id: 'open-in-other', label: __('Other application…') });
 	return items;
+}
+
+/**
+ * What an item of `openInItems` asks `editor:open` for: the application's
+ * path, null for "Other application…" (main's file dialog), or undefined for
+ * an item that opens nothing. The site's menu and the menu beside a changed
+ * file (#738) both answer an item through this, so the two cannot drift.
+ *
+ * @param {{id: string, path?: string}} item
+ * @return {?string|undefined}
+ */
+function openInEditorPath(item) {
+	if (item?.id === 'open-in') return item.path;
+	if (item?.id === 'open-in-other') return null;
+	return undefined;
 }
 
 /**
@@ -112,17 +127,29 @@ function updateHeldReason({ isUpdating = false, installing = false, building = f
  * @param {boolean} [root0.isPending]  The site is still being set up.
  * @param {boolean} [root0.isDeleting] The site is being deleted.
  * @param {string}  [root0.updateHeld] Why an update cannot start, as `updateHeldReason` says it, or '' when it can.
+ * @param {?string} [root0.preferred]  The editor chosen in Settings (#738), by id, or null for "Ask each time".
  * @return {Array<{id: string, label: string, items?: Array, disabled?: boolean, description?: string, separated?: boolean}>}
  */
-function siteMenuItems({ platform, editors = [], detecting = false, isPending = false, isDeleting = false, updateHeld = '' } = {}) {
+function siteMenuItems({ platform, editors = [], detecting = false, isPending = false, isDeleting = false, updateHeld = '', preferred = null } = {}) {
 	const update = { id: 'update-trunk', label: __('Update to latest trunk') };
+	// With an editor chosen in Settings and found on this machine, "Open in"
+	// is that editor and nothing else. Until detection finds it, or once it is
+	// gone, the menu asks as it does with none chosen.
+	const chosen = preferred ? (editors || []).find((editor) => editor.id === preferred) : null;
+	let openIn;
+	if (chosen) {
+		// translators: %s is the name of the editor chosen in Settings, for example "Visual Studio Code".
+		openIn = { id: 'open-in', label: sprintf(__('Open in %s'), chosen.name), path: chosen.path };
+	} else {
+		// translators: the label of a menu that lists applications, each by its name: "Open in" and then, in the menu, "Visual Studio Code".
+		openIn = { id: 'open-in-menu', label: __('Open in'), items: openInItems({ editors, detecting }) };
+	}
 	const items = [
 		{ id: 'rename', label: __('Rename…') },
 		{ id: 'copy-path', label: __('Copy path') },
 		{ id: 'show-in-file-manager', label: fileManagerLabel(platform) },
 		updateHeld ? { ...update, disabled: true, description: updateHeld } : update,
-		// translators: the label of a menu that lists applications, each by its name: "Open in" and then, in the menu, "Visual Studio Code".
-		{ id: 'open-in-menu', label: __('Open in'), items: openInItems({ editors, detecting }) }
+		openIn
 	];
 	if (!isPending) {
 		items.push(isDeleting
@@ -132,4 +159,4 @@ function siteMenuItems({ platform, editors = [], detecting = false, isPending = 
 	return items;
 }
 
-module.exports = { siteMenuItems, openInItems, fileManagerLabel, updateHeldReason };
+module.exports = { siteMenuItems, openInItems, openInEditorPath, fileManagerLabel, updateHeldReason };

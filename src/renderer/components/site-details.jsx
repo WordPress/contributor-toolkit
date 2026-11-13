@@ -179,7 +179,7 @@ function ChangedFileRow({ row, file, onOpenFile, revertReason }) {
         {(itemProps) => (
           <span className="affected-files-row">
             <Icon icon={page} size={16} className="affected-files-icon" />
-            <Link {...itemProps} render={<button type="button" />} className="link-button affected-file apply-break-all" tone="brand" title={row.path} aria-describedby={mark ? markId : undefined} onClick={() => onOpenFile(row.path)}>
+            <Link {...itemProps} render={<button type="button" />} className="link-button affected-file apply-break-all" tone="brand" title={row.path} aria-describedby={mark ? markId : undefined} onClick={(event) => onOpenFile(row.path, event.currentTarget)}>
               {row.name}
             </Link>
             {mark ? (

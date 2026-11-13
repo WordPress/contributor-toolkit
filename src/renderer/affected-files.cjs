@@ -190,18 +190,33 @@ function visibleAffectedRows(rows, collapsed) {
 }
 
 /**
- * Where a click on a file sends it: the first editor detection found, which
- * is the first the site menu's "Open in" offers, or the file manager when
- * there is none. The file manager rather than nothing, so the link always
- * does something.
+ * Where a click on a file sends it: the editor chosen in Settings (#738)
+ * while detection finds it; with none chosen, or one uninstalled since, a
+ * question whenever detection found any, so that no editor is picked for the
+ * contributor because it is the one the table found (the menu that asks also
+ * offers any other application); and the file manager when there is none, so
+ * the link always does something.
  *
- * @param {Object} root0
- * @param {Array}  [root0.editors] Detected applications, `{ name, path }`, in detection's order.
- * @return {{kind: 'editor', path: string}|{kind: 'reveal'}}
+ * The question is a menu beside the file, so it is asked only while the file
+ * can still be asked beside: on the site still open, with its button still on
+ * the page. Detection answers after the click, and a menu portalled over the
+ * window would otherwise ask about this site's file over another site's page.
+ * With nothing to ask beside, the click asks nothing (`none`). Opening in the
+ * chosen editor and showing in the file manager need no menu, so they happen
+ * either way.
+ *
+ * @param {Object}  root0
+ * @param {Array}   [root0.editors]   Detected applications, `{ id, name, path }`.
+ * @param {?string} [root0.preferred] The id of the editor chosen in Settings, or null for none.
+ * @param {boolean} [root0.canAsk]    The file's button is still on the open site's page.
+ * @return {{kind: 'editor', path: string}|{kind: 'choose'}|{kind: 'reveal'}|{kind: 'none'}}
  */
-function fileOpenTarget({ editors = [] } = {}) {
-	const first = Array.isArray(editors) ? editors[0] : null;
-	return first ? { kind: 'editor', path: first.path } : { kind: 'reveal' };
+function fileOpenTarget({ editors = [], preferred = null, canAsk = true } = {}) {
+	const list = Array.isArray(editors) ? editors : [];
+	const chosen = preferred ? list.find((candidate) => candidate.id === preferred) : null;
+	if (chosen) return { kind: 'editor', path: chosen.path };
+	if (list.length > 0) return canAsk ? { kind: 'choose' } : { kind: 'none' };
+	return { kind: 'reveal' };
 }
 
 module.exports = { affectedFiles, affectedFileTree, changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, unsubmittedFromReply, visibleAffectedRows };
