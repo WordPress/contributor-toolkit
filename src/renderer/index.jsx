@@ -23,7 +23,7 @@ import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStart
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
-import { createControlRegistry, createOutcomeWaiters, performSiteControl, performAppControl } from './control-requests.cjs';
+import { createControlRegistry, createOutcomeWaiters, performSiteControl, performAppControl, rowActivity, SETTLED } from './control-requests.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
@@ -468,7 +468,11 @@ function App({ settingsState }) {
   useEffect(() => {
     appControl.current = {
       snapshot: { creating: createSubmitting, defaultFolder: settings ? settings.newSiteLocation : null },
-      presses: { startSiteSetup, readStatus: (sitePath) => window.api.getSiteStatus(sitePath) }
+      presses: {
+        startSiteSetup,
+        readStatus: (sitePath) => window.api.getSiteStatus(sitePath),
+        whenSettled: (sitePath) => controlRegistry.handle({ sitePath, action: SETTLED })
+      }
     };
   });
   useEffect(() => controlRegistry.registerApp((action, params) => performAppControl(action, params, { latest: () => appControl.current })), [controlRegistry]);
@@ -1478,8 +1482,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const controlState = useRef(null);
   useEffect(() => {
     const snapshot = {
-      held: statusLoading || isPending || isDeleting || isUpdating || setupChainState !== 'idle',
-      busy: terminalRunning || isApplying || isUpdating || installing || building || ticketSaving,
+      ...rowActivity({ statusLoading, isPending, isDeleting, isUpdating, setupChainState, terminalRunning, isApplying, installing, building, ticketSaving }),
       canServe: skipInit || hasBuilt,
       scripts: projectBuild.allowedScripts,
       server: { running, starting: isServerStarting, url: serverUrl, failure: serverFailure },
@@ -1487,12 +1490,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       apply: {
         fetching: fetchingPr ?? fetchingAttachment ?? null,
         preview: applyPreview ? { kind: applyPreview.kind || 'patch', number: applyPreview.number ?? null, label: applyPreview.label } : null,
-        error: applyError,
-        conflict: ''
+        error: applyError
       },
       patches: {
         isTrac: showTracCards,
         prs: ticketPatches?.items || [],
+        prsStatus: ticketPatches?.status || null,
         prRankComplete: ticketPatches?.rankComplete,
         prsLoading: ticketPatchesLoading,
         attachments: tracAttachments?.items || [],
@@ -1509,6 +1512,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       previewPullRequest: (number) => previewPr({ number, url: `https://github.com/${project.upstream.owner}/${project.upstream.repo}/pull/${number}` }),
       previewAttachment,
       loadTracAttachments,
+      loadTicketPatches,
       applyPreview: () => runApply(),
       leavePullRequest: () => runPrSwitch({ leaving: true }),
       startTrunkUpdate,

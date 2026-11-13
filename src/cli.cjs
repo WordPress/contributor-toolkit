@@ -93,20 +93,19 @@ const EXIT = { OK: 0, FAILED: 1, USAGE: 2 };
 
 /**
  * @param {string[]} argv The arguments after the script.
- * @return {Object} `{ command, json, operand, site, options, endpoint, shim, app, appArgs }`, or `{ usageError }`.
+ * @return {Object} `{ command, json, operand, site, options, endpoint, shim, app }`, or `{ usageError }`.
  */
 function parseArgs(argv) {
-	const parsed = { command: null, json: false, operand: null, site: null, options: {}, endpoint: null, shim: null, app: null, appArgs: [] };
+	const parsed = { command: null, json: false, operand: null, site: null, options: {}, endpoint: null, shim: null, app: null };
 	for (let i = 0; i < argv.length; i += 1) {
 		const arg = argv[i];
 		if (arg === '--json') parsed.json = true;
 		else if (arg === '--help' || arg === '-h') parsed.command = parsed.command || 'help';
-		// The next four are written by the shim, which knows which profile's
+		// The next three are written by the shim, which knows which profile's
 		// app it belongs to, where it is itself, and how that app is started.
 		else if (arg === '--endpoint') parsed.endpoint = argv[i += 1] || null;
 		else if (arg === '--shim') parsed.shim = argv[i += 1] || null;
 		else if (arg === '--app') parsed.app = argv[i += 1] || null;
-		else if (arg === '--app-arg') parsed.appArgs.push(argv[i += 1] || '');
 		else if (arg.startsWith('--') && Object.hasOwn(OPTIONS, arg.slice(2))) {
 			const name = arg.slice(2);
 			if (!OPTIONS[name]) parsed.options[name] = true;
@@ -330,7 +329,7 @@ async function askOpeningTheApp(args, request, { send, err, timeoutMs, launch, r
 	if (first.ok || first.code !== 'not-running' || !args.app) return first;
 
 	err('Opening the WordPress Contributor Toolkit…\n');
-	launch(args.app, args.appArgs);
+	launch(args.app);
 	const deadline = now() + START_TIMEOUT_MS;
 	while (now() < deadline) {
 		await sleep(START_POLL_MS);
@@ -348,10 +347,10 @@ async function askOpeningTheApp(args, request, { send, err, timeoutMs, launch, r
 
 // Starts the app and lets go of it: it outlives this command. The variable
 // that makes this process Node would make the app Node too.
-function launchApp(app, appArgs) {
+function launchApp(app) {
 	const env = { ...process.env };
 	delete env.ELECTRON_RUN_AS_NODE;
-	const child = spawn(app, appArgs, { detached: true, stdio: 'ignore', env });
+	const child = spawn(app, [], { detached: true, stdio: 'ignore', env });
 	child.on('error', () => {});
 	child.unref();
 }

@@ -3304,7 +3304,9 @@ async function startControlChannel() {
 		// The command opens the app when it is closed, and is told how only by
 		// an installed app: from source, or under a test's throwaway profile,
 		// the copy it would open is not the one it belongs to.
-		const reopen = app.isPackaged ? ['--shim', shimPath, '--app', process.execPath] : [];
+		// An AppImage runs from a mount that is gone once it quits; the file
+		// to open again is the image itself.
+		const reopen = app.isPackaged ? ['--shim', shimPath, '--app', process.env.APPIMAGE || process.execPath] : [];
 		const shim = cliShim({ execPath: nodeExecPath(), compatPath: null, cliPath: path.join(__dirname, 'cli.cjs'), cliArgs: ['--endpoint', endpoint, ...reopen] });
 		await fs.promises.mkdir(path.dirname(shimPath), { recursive: true });
 		await fs.promises.writeFile(shimPath, shim, { mode: 0o755 });

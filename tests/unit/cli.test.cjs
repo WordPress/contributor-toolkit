@@ -37,7 +37,7 @@ async function runWith(argv, reply, extra = {}) {
 			return replies ? replies.shift() : reply;
 		},
 		cwd: CWD,
-		launch: (app, appArgs) => io.launched.push({ app, appArgs }),
+		launch: (app) => io.launched.push(app),
 		readFile: () => '',
 		sleep: async () => {},
 		...extra
@@ -246,7 +246,7 @@ test('with the app closed, an installed app is opened and asked again where it t
 		readFile: () => '"C:\\app\\cli.cjs" "--endpoint" "\\\\.\\pipe\\wpct-control-new" "--shim" "C:\\profile\\bin\\toolkit.cmd" %*'
 	});
 	assert.equal(opened.code, EXIT.OK);
-	assert.deepEqual(opened.launched, [{ app: 'C:\\Program Files\\Toolkit\\Toolkit.exe', appArgs: [] }]);
+	assert.deepEqual(opened.launched, ['C:\\Program Files\\Toolkit\\Toolkit.exe']);
 	assert.deepEqual(opened.sent.map((s) => s.endpoint), ['\\\\.\\pipe\\wpct-control-old', '\\\\.\\pipe\\wpct-control-new', '\\\\.\\pipe\\wpct-control-new']);
 	assert.match(opened.err, /Opening the WordPress Contributor Toolkit/);
 
@@ -272,6 +272,12 @@ test('with the app closed, an installed app is opened and asked again where it t
 test('the address is read off a shim of either platform, and not off one without it', () => {
 	assert.equal(endpointInShim('ELECTRON_RUN_AS_NODE=1 "/app/Helper" "/app/cli.cjs" "--endpoint" "/Users/dev/Library/Application Support/Toolkit/control.sock" "$@"\n'), '/Users/dev/Library/Application Support/Toolkit/control.sock');
 	assert.equal(endpointInShim('"C:\\app\\cli.cjs" "--endpoint" "\\\\.\\pipe\\wpct-control-abc" %*\r\n'), '\\\\.\\pipe\\wpct-control-abc');
+	// And off the shims the app itself writes, with what an installed app adds.
+	const { cliShim } = require('../../src/node-shims.cjs');
+	for (const [platform, endpoint] of [['darwin', '/Users/dev/Library/Application Support/Toolkit/control.sock'], ['win32', '\\\\.\\pipe\\wpct-control-abc']]) {
+		const shim = cliShim({ execPath: '/app/Helper', compatPath: null, cliPath: '/app/cli.cjs', cliArgs: ['--endpoint', endpoint, '--shim', '/profile/bin/toolkit', '--app', '/app/Toolkit'], platform });
+		assert.equal(endpointInShim(shim), endpoint, platform);
+	}
 	assert.equal(endpointInShim(''), null);
 	assert.equal(endpointInShim(undefined), null);
 });

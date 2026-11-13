@@ -69,7 +69,7 @@ Each command waits until what it asked for has ended. For a new site, an update 
 | `toolkit server start [site]` | Starts the dev server and prints its address. |
 | `toolkit server stop [site]` | Stops the dev server. |
 
-`toolkit run` refuses `watch` and `dev`: they never end. Start the server instead, which starts the build watch.
+`toolkit run` refuses `watch` and `dev`: they never end, and would hold the site's terminal. On a WordPress Core site, starting the server starts the build watch, so edits are compiled as they are saved. On a Gutenberg site that is already built, the server starts without the watch: run `toolkit run build` after editing, or start the watch in the window.
 
 ## An example
 
@@ -90,14 +90,23 @@ The `code` says why, so a tool can decide what to do next:
 
 | Code | What it means |
 | --- | --- |
-| `tools-not-allowed` | The switch in **Settings → Tools** is off. Only you can turn it on. |
+| `tools-not-allowed` | The switch in **Settings → Tools** is off. It is yours to turn on. |
 | `unknown-site`, `ambiguous-site` | No site, or more than one, matches what was named. `toolkit sites` lists them. |
 | `busy` | The site is in the middle of something: a build, an update, a switch. Try again when it has finished. |
+| `site-not-open`, `window-not-ready`, `window-closed` | The app's window was not there to do it: it was closed, reloaded, or the site is still being created or deleted. Try again. |
+| `not-built` | The site's setup has not finished, so there is nothing to serve. Run `toolkit install`, then `toolkit run build`. |
+| `unsupported-script` | The script is not one the terminal allows for this site, or is a watch. |
+| `no-ticket`, `already-applied` | `patch apply` needs a linked ticket, and no patch applied already. |
+| `is-pull-request` | The number given to `ticket link` on a Gutenberg site is a pull request, not an issue. Use `pr checkout`. |
+| `legacy-site`, `merge-in-progress` | The checkout is in a state the app does not change: made by an old version of the app, or with a merge or rebase left unfinished from a terminal. The site's page says what to do. |
 | `dirty-trunk`, `dirty` | Edits in the checkout would be left behind or reset. The app is asking what to do with them in its window. |
 | `no-latest-patch` | The ticket has no patch, or two are too close in time for the app to call one the latest. Choose one in the window. |
-| `trac-failed` | Trac could not be read. If it asked for a human check, answer it in the app's window. |
+| `trac-failed`, `patches-failed` | Trac or GitHub could not be read. If Trac asked for a human check, answer it in the app's window. |
+| `timed-out` | The app is still working on it. Look at its window before asking again. |
 | `script-failed`, `setup-failed`, `update-failed`, `apply-failed`, `server-failed` | The step ran and failed. The error says which, and the app's terminal has the output. |
 
 ## Who can use it
 
 Programs on this computer that can read the app's data folder, which is yours. The command talks to the app over a local socket in that folder, not over the network, so a web page or another computer cannot reach it. On Windows it is a named pipe whose name changes each time the app starts and is only written into that folder.
+
+The switch is your consent, not a lock. It is kept in the app's settings file in that same folder, so it stops a tool that asks the app, which is what a well-behaved tool does; it does not stop a program that is already able to change your files. With the switch on, `toolkit create --folder` makes a site in whatever folder the tool names.

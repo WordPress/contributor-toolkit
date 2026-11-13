@@ -23,14 +23,73 @@ const refusal = (code, error) => ({ ok: false, code, error });
 // behind a full build.
 const OUTCOME_TIMEOUT_MS = 30 * 60 * 1000;
 
+// How long a site's row gets to be mounted, and then to have read its status,
+// before a request for it is turned away.
+const ROW_WAIT_MS = 20000;
+const LOADING_WAIT_MS = 30000;
+
+// How long a press gets to show on the page that it began. A press the page
+// turned away, because a command took the terminal a moment before, says so
+// in the terminal and changes nothing an answer could be read from; without
+// this the request would wait out the whole of OUTCOME_TIMEOUT_MS.
+const START_GRACE_MS = 20000;
+
+/**
+ * What a row is in the middle of, from the flags its page is drawn from.
+ * `loading` is a status not yet read, which is waited for; `held` is what
+ * nothing may start under; `busy` is work that ends by itself.
+ *
+ * @param {Object}  flags
+ * @param {boolean} flags.statusLoading
+ * @param {boolean} flags.isPending
+ * @param {boolean} flags.isDeleting
+ * @param {boolean} flags.isUpdating
+ * @param {string}  flags.setupChainState
+ * @param {boolean} flags.terminalRunning
+ * @param {boolean} flags.isApplying
+ * @param {boolean} flags.installing
+ * @param {boolean} flags.building
+ * @param {boolean} flags.ticketSaving
+ * @return {{loading: boolean, held: boolean, busy: boolean}}
+ */
+function rowActivity({ statusLoading, isPending, isDeleting, isUpdating, setupChainState, terminalRunning, isApplying, installing, building, ticketSaving }) {
+	return {
+		loading: Boolean(statusLoading),
+		held: Boolean(isPending || isDeleting || isUpdating || (setupChainState && setupChainState !== 'idle')),
+		busy: Boolean(terminalRunning || isApplying || isUpdating || installing || building || ticketSaving)
+	};
+}
+
 /**
  * The rows that can be asked, by the site each is for.
  *
+ * @param {Object}   [root0]
+ * @param {Function} [root0.setTimer]
+ * @param {Function} [root0.clearTimer]
+ * @param {number}   [root0.rowWaitMs]
  * @return {{register: (sitePath: string, perform: Function) => Function, handle: (request: Object) => Promise<Object>}}
  */
-function createControlRegistry() {
+function createControlRegistry({ setTimer = setTimeout, clearTimer = clearTimeout, rowWaitMs = ROW_WAIT_MS } = {}) {
 	const rows = new Map();
+	const awaited = new Map();
 	let app = null;
+	// The page says it is listening as soon as it mounts, which is before it
+	// has read its sites and mounted a row for each: a request that opened
+	// the app, or its window, arrives in that gap. So a site with no row yet
+	// is waited for, briefly, before it is called not open.
+	const rowFor = (sitePath) => {
+		if (rows.has(sitePath)) return Promise.resolve(rows.get(sitePath));
+		return new Promise((resolve) => {
+			const waiter = (perform) => {
+				clearTimer(timer);
+				awaited.get(sitePath)?.delete(waiter);
+				resolve(perform);
+			};
+			const timer = setTimer(() => waiter(null), rowWaitMs);
+			if (!awaited.has(sitePath)) awaited.set(sitePath, new Set());
+			awaited.get(sitePath).add(waiter);
+		});
+	};
 	return {
 		/**
 		 * The window itself, for what is about no site yet: making one.
@@ -49,6 +108,7 @@ function createControlRegistry() {
 		 */
 		register(sitePath, perform) {
 			rows.set(sitePath, perform);
+			for (const waiter of [...(awaited.get(sitePath) || [])]) waiter(perform);
 			return () => { if (rows.get(sitePath) === perform) rows.delete(sitePath); };
 		},
 		/**
@@ -59,7 +119,7 @@ function createControlRegistry() {
 		 */
 		async handle(request) {
 			const forApp = request && (request.sitePath === null || request.sitePath === undefined);
-			const perform = request && (forApp ? app : rows.get(request.sitePath));
+			const perform = request && (forApp ? app : await rowFor(request.sitePath));
 			if (!perform) return refusal('site-not-open', 'The app’s window has no such site open. It may still be being created or deleted.');
 			try {
 				const reply = await perform(request.action, request.params || {});
@@ -79,24 +139,58 @@ function createControlRegistry() {
  * @param {Object}   [root0]
  * @param {Function} [root0.setTimer]
  * @param {Function} [root0.clearTimer]
+ * @param {number}   [root0.startGraceMs]
  * @return {{wait: (outcome: Function, timeoutMs?: number) => Promise<Object>, settle: (snapshot: Object) => void, abandon: () => void}}
  */
-function createOutcomeWaiters({ setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
+function createOutcomeWaiters({ setTimer = setTimeout, clearTimer = clearTimeout, startGraceMs = START_GRACE_MS } = {}) {
 	const waiting = new Set();
+	let last = null;
 	const finish = (waiter, reply) => {
 		if (!waiting.delete(waiter)) return;
 		clearTimer(waiter.timer);
+		clearTimer(waiter.grace);
 		waiter.resolve(reply);
 	};
 	return {
+		/**
+		 * Answers when `outcome` does. An outcome that can say whether what
+		 * was pressed ever began (`hasBegun`) is given a moment to, and is
+		 * answered as turned away if it has not.
+		 *
+		 * @param {Function} outcome     Takes the row's state; answers a reply, or null while there is none.
+		 * @param {number}   [timeoutMs]
+		 * @return {Promise<Object>}
+		 */
 		wait(outcome, timeoutMs = OUTCOME_TIMEOUT_MS) {
 			return new Promise((resolve) => {
-				const waiter = { outcome, resolve, timer: null };
+				const waiter = { outcome, resolve, timer: null, grace: null, gone: refusal('site-not-open', 'The site was closed in the app before it finished.') };
 				waiter.timer = setTimer(() => finish(waiter, refusal('timed-out', 'The app is still working on it. Look at its window, or ask again later.')), timeoutMs);
+				if (typeof outcome.hasBegun === 'function') {
+					waiter.grace = setTimer(() => {
+						if (!outcome.hasBegun()) finish(waiter, refusal('busy', 'The app did not start that: something else took the site’s terminal first. Try again when it has finished.'));
+					}, startGraceMs);
+				}
+				waiting.add(waiter);
+			});
+		},
+		/**
+		 * Resolves to whether the row's state came to satisfy `predicate`,
+		 * looking at the state it has now first.
+		 *
+		 * @param {Function} predicate
+		 * @param {number}   timeoutMs
+		 * @return {Promise<boolean>}
+		 */
+		until(predicate, timeoutMs) {
+			if (last && predicate(last)) return Promise.resolve(true);
+			return new Promise((resolve) => {
+				const waiter = { outcome: (snapshot) => (predicate(snapshot) ? true : null), resolve, timer: null, grace: null, gone: false };
+				waiter.timer = setTimer(() => finish(waiter, false), timeoutMs);
 				waiting.add(waiter);
 			});
 		},
 		settle(snapshot) {
+			last = snapshot;
 			for (const waiter of [...waiting]) {
 				const reply = waiter.outcome(snapshot);
 				if (reply) finish(waiter, reply);
@@ -104,7 +198,7 @@ function createOutcomeWaiters({ setTimer = setTimeout, clearTimer = clearTimeout
 		},
 		// The row is going away: a site deleted, a window closing.
 		abandon() {
-			for (const waiter of [...waiting]) finish(waiter, refusal('site-not-open', 'The site was closed in the app before it finished.'));
+			for (const waiter of [...waiting]) finish(waiter, waiter.gone);
 		}
 	};
 }
@@ -196,7 +290,7 @@ function scriptRefusal(script, allowed) {
 		return refusal('unsupported-script', `That script cannot be run on this site. The scripts it has: ${['install', ...allowed.filter((name) => !WATCH_SCRIPTS.includes(name))].join(', ')}.`);
 	}
 	if (WATCH_SCRIPTS.includes(script)) {
-		return refusal('unsupported-script', `npm run ${script} is a watch that does not end. Start the site’s server instead: the app starts the build watch with it.`);
+		return refusal('unsupported-script', `npm run ${script} is a watch that does not end, and would hold the site’s terminal. Run the build after editing instead.`);
 	}
 	return null;
 }
@@ -236,13 +330,15 @@ async function siteState(ctx) {
 // serverStartOutcome.
 function idleOutcome({ begun = false } = {}) {
 	let seen = begun;
-	return (snapshot) => {
+	const outcome = (snapshot) => {
 		if (snapshot.busy) {
 			seen = true;
 			return null;
 		}
 		return seen ? ok(snapshot) : null;
 	};
+	outcome.hasBegun = () => seen;
+	return outcome;
 }
 
 // A build that failed after a change is the change's news: the tree is as
@@ -322,13 +418,15 @@ function previewOutcome(key, matches) {
 // to say, and is asked for after.
 function applyOutcome() {
 	const idle = idleOutcome();
-	return (snapshot) => {
+	const outcome = (snapshot) => {
 		if (!idle(snapshot)) return null;
 		const { apply, ticket } = snapshot;
 		if (ticket.blocked) return switchRefusal({ code: 'dirty-trunk', canCarry: false, files: ticket.blocked.files });
-		if (apply.error) return refusal('apply-failed', apply.conflict ? `${apply.error} ${apply.conflict}` : apply.error);
+		if (apply.error) return refusal('apply-failed', apply.error);
 		return ok({});
 	};
+	outcome.hasBegun = idle.hasBegun;
+	return outcome;
 }
 
 async function checkoutPullRequest(ctx, params) {
@@ -365,19 +463,22 @@ async function leavePullRequest(ctx) {
 	return ok(withBuildNews({ pullRequest: null, left: true, ticket: state.ticket }, state));
 }
 
-// How a read of the ticket's patches ended: both lists are in, or the Trac
-// read failed. A pull request list still loading is waited for.
+// How a read of the ticket's patches ended: both lists are in, or one of
+// the two reads failed.
 function patchListOutcome() {
 	let seen = false;
-	return ({ patches }) => {
+	const outcome = ({ patches }) => {
 		if (patches.attachmentsLoading || patches.prsLoading) {
 			seen = true;
 			return null;
 		}
 		if (!seen) return null;
-		if (patches.attachmentsStatus === 'error') return refusal('trac-failed', 'The app could not read the ticket’s attachments from Trac. If Trac asked for a human check, answer it in the app’s window and ask again.');
+		if (patches.prsStatus === 'error') return refusal('patches-failed', 'The app could not read the ticket’s pull requests from GitHub. Ask again in a little while.');
+		if (patches.isTrac && patches.attachmentsStatus === 'error') return refusal('trac-failed', 'The app could not read the ticket’s attachments from Trac. If Trac asked for a human check, answer it in the app’s window and ask again.');
 		return ok(patches);
 	};
+	outcome.hasBegun = () => seen;
+	return outcome;
 }
 
 async function applyLatestPatch(ctx, _params, { pickLatest }) {
@@ -387,21 +488,22 @@ async function applyLatestPatch(ctx, _params, { pickLatest }) {
 	const before = await siteState(ctx);
 	if (!before.ticket) return refusal('no-ticket', 'No ticket is linked to this site. Link one first: the latest patch is the linked ticket’s.');
 	if (before.appliedPatch) return refusal('already-applied', `${before.appliedPatch} is already applied. Revert it in the app before applying another.`);
-	// The attachments are read when asked for, as the card's own button
-	// reads them: a visit to Trac, in a window of the app's.
-	let { patches } = first.snapshot;
-	if (patches.isTrac) {
-		const listing = ctx.waiters.wait(patchListOutcome());
-		first.presses.loadTracAttachments();
-		const listed = await listing;
-		if (!listed.ok) return listed;
-		patches = listed.result;
-	}
+	// Both lists are read now, by the card's own two reads. The page reads
+	// the pull requests only for the site that is on screen, and the
+	// attachments only when asked, a visit to Trac in a window of the app's;
+	// choosing the latest from a list never read would choose wrongly.
+	const listing = ctx.waiters.wait(patchListOutcome());
+	first.presses.loadTicketPatches();
+	if (first.snapshot.patches.isTrac) first.presses.loadTracAttachments();
+	const listed = await listing;
+	if (!listed.ok) return listed;
+	const patches = listed.result;
 	const latest = pickLatest({ prs: patches.prs, attachments: patches.isTrac ? patches.attachments : [], prRankComplete: patches.prRankComplete });
 	if (!latest) return refusal('no-latest-patch', 'The app cannot say which of the ticket’s patches is the latest: there is none, or two are too close to call. Choose one in the app’s window.');
 	if (latest.kind === 'pr') return checkoutPullRequest(ctx, { number: latest.key });
 
 	const attachment = patches.attachments.find((item) => (item.url || item.filename) === latest.key);
+	if (!attachment || !attachment.url) return refusal('no-latest-patch', 'The latest patch on the ticket cannot be fetched. Choose one in the app’s window.');
 	const previewing = ctx.waiters.wait(previewOutcome(attachment.url, (preview) => preview.kind !== 'pr' && preview.label === attachment.filename));
 	ctx.latest().presses.previewAttachment(attachment);
 	const preview = await previewing;
@@ -421,7 +523,7 @@ async function applyLatestPatch(ctx, _params, { pickLatest }) {
 // is the person's to answer.
 function updateOutcome() {
 	let seen = false;
-	return (snapshot) => {
+	const outcome = (snapshot) => {
 		const { update } = snapshot;
 		if (update.dirtyOpen) return refusal('dirty', 'The site has edits an update would reset. The app is asking what to do with them in its window: save them as a patch or discard them there.');
 		if (update.state !== 'idle' || snapshot.busy) {
@@ -432,6 +534,10 @@ function updateOutcome() {
 		if (update.failed) return refusal('update-failed', 'The update could not get the latest trunk. Why is in the app’s terminal.');
 		return ok({ updated: Boolean(update.summary) });
 	};
+	// A question asked is a beginning too: it is answered by the first
+	// branch above, before any grace runs out.
+	outcome.hasBegun = () => seen;
+	return outcome;
 }
 
 async function updateTrunk(ctx) {
@@ -463,6 +569,9 @@ const SITE_ACTIONS = {
 	'site.trunk.update': { run: updateTrunk }
 };
 
+// The window's own question to a row: has everything you were running ended.
+const SETTLED = 'site.settled';
+
 /**
  * Carries out one request in a row.
  *
@@ -476,16 +585,28 @@ const SITE_ACTIONS = {
  * @param {Function} root0.latest  Answers `{ snapshot, presses }`.
  * @param {Object}   root0.waiters From `createOutcomeWaiters`.
  * @param {Object}   [root0.deps]  What an action needs that is not the row's: `pickLatest`.
- * @return {?Promise<Object>} The reply, or null for an action a row does not have.
+ * @return {Promise<?Object>} The reply, or null for an action a row does not have.
  */
-function performSiteControl(action, params, { latest, waiters, deps = {} }) {
+async function performSiteControl(action, params, { latest, waiters, deps = {} }) {
+	// Asked by the window itself, never by a tool: main forwards only the
+	// names in its own map. A new site's row answers this once it has
+	// nothing left running.
+	if (action === SETTLED) {
+		const settled = await waiters.until((snapshot) => !snapshot.loading && !snapshot.held && !snapshot.busy, OUTCOME_TIMEOUT_MS);
+		return settled ? ok({}) : refusal('timed-out', 'The site is still being set up. Its page in the app shows how far it is.');
+	}
 	if (!Object.hasOwn(SITE_ACTIONS, action)) return null;
+	// A row that has not read its site's status yet knows nothing an action
+	// could be decided from. That read is a moment's; it is waited for.
+	if (!(await waiters.until((snapshot) => !snapshot.loading, LOADING_WAIT_MS))) {
+		return refusal('busy', 'The app is still reading that site. Try again in a moment.');
+	}
 	const entry = SITE_ACTIONS[action];
-	if (entry.run) return Promise.resolve(entry.run({ latest, waiters }, params || {}, deps));
+	if (entry.run) return entry.run({ latest, waiters }, params || {}, deps);
 	const { snapshot, presses } = latest();
 	const plan = entry.plan(snapshot);
-	if (plan.refuse) return Promise.resolve(plan.refuse);
-	if (plan.done) return Promise.resolve(plan.done);
+	if (plan.refuse) return plan.refuse;
+	if (plan.done) return plan.done;
 	// Waiting before pressing: a press that ends at once is still seen.
 	const reply = waiters.wait(entry.outcome(plan));
 	if (plan.press) presses[entry.press]();
@@ -539,6 +660,10 @@ async function createSite(ctx, params, deps = {}) {
 	if (!created || !created.ok) return refusal('setup-failed', (created && created.error) || 'The site could not be created. The app’s window says why.');
 	const ready = await waitForSetup(created.path, { readStatus: presses.readStatus, ...deps });
 	if (!ready.ok) return { ...ready, site: created.path };
+	// The folder that says "built" is there before the build that makes it
+	// has ended: the site is ready once its row has nothing left running.
+	const settled = await presses.whenSettled(created.path);
+	if (!settled.ok) return { ...settled, site: created.path };
 	return ok({ site: created.path, project, name });
 }
 
@@ -563,6 +688,10 @@ function performAppControl(action, params, { latest, deps = {} }) {
 }
 
 module.exports = {
+	SETTLED,
+	ROW_WAIT_MS,
+	START_GRACE_MS,
+	rowActivity,
 	APP_ACTIONS,
 	SETUP_POLL_MS,
 	waitForSetup,

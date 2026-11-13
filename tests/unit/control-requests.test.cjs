@@ -11,7 +11,9 @@ const assert = require('node:assert/strict');
 const {
 	APP_ACTIONS,
 	SITE_ACTIONS,
+	SETTLED,
 	MAX_OUTPUT,
+	rowActivity,
 	createControlRegistry,
 	createOutcomeWaiters,
 	serverStartPlan,
@@ -32,6 +34,7 @@ const CORE_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // A row's state: a built site with nothing running, unless said otherwise.
 function row(changes = {}) {
 	const base = {
+		loading: false,
 		held: false,
 		busy: false,
 		canServe: true,
@@ -39,7 +42,7 @@ function row(changes = {}) {
 		server: { running: false, starting: false, url: '', failure: '' },
 		ticket: { blocked: null },
 		apply: { fetching: null, preview: null, error: '', conflict: '' },
-		patches: { isTrac: true, prs: [], prRankComplete: true, prsLoading: false, attachments: [], attachmentsStatus: null, attachmentsLoading: false },
+		patches: { isTrac: true, prs: [], prsStatus: 'ok', prRankComplete: true, prsLoading: false, attachments: [], attachmentsStatus: null, attachmentsLoading: false },
 		update: { state: 'idle', dirtyOpen: false, failed: false, summary: null }
 	};
 	const next = { ...base, ...changes };
@@ -56,6 +59,8 @@ function mountedRow({ initial = row(), results = {}, statuses = [status()] } = {
 	const pressed = [];
 	const waiters = createOutcomeWaiters();
 	const state = { snapshot: initial };
+	// A mounted row has rendered once, and handed its state over.
+	waiters.settle(initial);
 	const remaining = [...statuses];
 	const press = (name) => (...args) => {
 		pressed.push(args.length ? { name, args } : name);
@@ -64,7 +69,7 @@ function mountedRow({ initial = row(), results = {}, statuses = [status()] } = {
 	const presses = {
 		readStatus: async () => (remaining.length > 1 ? remaining.shift() : remaining[0])
 	};
-	for (const name of ['toggleDevServer', 'runTerminalCommand', 'linkRef', 'unlinkTicket', 'previewPullRequest', 'previewAttachment', 'loadTracAttachments', 'applyPreview', 'leavePullRequest', 'startTrunkUpdate']) presses[name] = press(name);
+	for (const name of ['toggleDevServer', 'runTerminalCommand', 'linkRef', 'unlinkTicket', 'previewPullRequest', 'previewAttachment', 'loadTracAttachments', 'loadTicketPatches', 'applyPreview', 'leavePullRequest', 'startTrunkUpdate']) presses[name] = press(name);
 	return {
 		pressed,
 		perform: (action, params = {}) => performSiteControl(action, params, { latest: () => ({ snapshot: state.snapshot, presses }), waiters, deps: { pickLatest } }),
@@ -114,7 +119,7 @@ test('an action nothing has, and a row that throws, are answers', async () => {
 	});
 	assert.equal((await registry.handle({ action: 'site.delete', sitePath: '/sites/wp' })).code, 'unknown-action');
 	assert.deepEqual(await registry.handle({ action: 'breaks', sitePath: '/sites/wp' }), { ok: false, code: 'failed', error: 'the row broke' });
-	assert.equal(mountedRow().perform('site.delete'), null);
+	assert.equal(await mountedRow().perform('site.delete'), null);
 	assert.equal(performAppControl('sites.delete', {}, { latest: () => ({}) }), null);
 });
 
@@ -174,8 +179,10 @@ test('stop presses the button on a running server, and has ended when nothing is
 test('a start request presses once, a second one joins it, and both hear the address', async () => {
 	const site = mountedRow();
 	const first = site.perform('site.server.start');
+	await turn();
 	site.render(row({ server: { starting: true } }));
 	const second = site.perform('site.server.start');
+	await turn();
 	assert.deepEqual(site.pressed, ['toggleDevServer']);
 
 	site.render(row({ server: { running: true, url: URL } }));
@@ -186,6 +193,7 @@ test('a start request presses once, a second one joins it, and both hear the add
 test('a row that goes away answers what it owed, and one that never ends is given up on', async () => {
 	const site = mountedRow();
 	const reply = site.perform('site.server.start');
+	await turn();
 	site.waiters.abandon();
 	assert.equal((await reply).code, 'site-not-open');
 
@@ -392,7 +400,7 @@ test('with nothing on the ticket, or a read of Trac that failed, nothing is appl
 	const empty = mountedRow({ statuses: [status({ tracTicket: 62281 })] });
 	const none = empty.perform('site.patch.apply-latest');
 	await turn();
-	assert.deepEqual(empty.pressed, ['loadTracAttachments']);
+	assert.deepEqual(empty.pressed, ['loadTicketPatches', 'loadTracAttachments']);
 	empty.render(row({ patches: { attachmentsLoading: true } }));
 	empty.render(row({ patches: { attachmentsStatus: 'ok' } }));
 	assert.equal((await none).code, 'no-latest-patch');
@@ -403,7 +411,7 @@ test('with nothing on the ticket, or a read of Trac that failed, nothing is appl
 	down.render(row({ patches: { attachmentsLoading: true } }));
 	down.render(row({ patches: { attachmentsStatus: 'error' } }));
 	assert.equal((await failed).code, 'trac-failed');
-	assert.deepEqual(down.pressed, ['loadTracAttachments']);
+	assert.deepEqual(down.pressed, ['loadTicketPatches', 'loadTracAttachments']);
 });
 
 test('the latest patch on a Trac ticket is read from Trac, previewed, applied by the preview\'s own button, and named by main', async () => {
@@ -416,12 +424,12 @@ test('the latest patch on a Trac ticket is read from Trac, previewed, applied by
 	site.render(row({ patches: { attachmentsStatus: 'ok', attachments: [older, screenshot, ATTACHMENT] } }));
 	await turn();
 	// The newest that can be applied: not the older diff, not the screenshot.
-	assert.deepEqual(site.pressed, ['loadTracAttachments', { name: 'previewAttachment', args: [ATTACHMENT] }]);
+	assert.deepEqual(site.pressed, ['loadTicketPatches', 'loadTracAttachments', { name: 'previewAttachment', args: [ATTACHMENT] }]);
 
 	site.render(row({ apply: { fetching: ATTACHMENT.url } }));
 	site.render(row({ apply: { preview: { kind: 'patch', number: null, label: '62281.2.diff' } } }));
 	await turn();
-	assert.equal(site.pressed[2], 'applyPreview');
+	assert.equal(site.pressed[3], 'applyPreview');
 	site.render(row({ busy: true }));
 	site.render(row());
 	assert.deepEqual(await reply, { ok: true, result: { appliedPatch: '62281.2.diff' } });
@@ -442,21 +450,21 @@ test('a patch that does not apply is refused in the page\'s words, and nothing i
 	assert.deepEqual(await reply, { ok: false, code: 'apply-failed', error: 'The patch could not be applied.' });
 });
 
-test('the latest patch on a GitHub site is its newest pull request, with no visit to Trac', async () => {
-	const pr = { number: 9000, url: 'https://github.com/WordPress/gutenberg/pull/9000', lastCommitAt: '2026-11-12T10:00:00Z' };
+test('the latest patch on a GitHub site is its newest pull request, read for this request, with no visit to Trac', async () => {
+	const pr = { number: 9000, url: 'https://github.com/WordPress/gutenberg/pull/9000', commitDate: '2026-11-12T10:00:00Z' };
+	assert.deepEqual(pickLatest({ prs: [pr], attachments: [], prRankComplete: true })?.key, 9000, 'this app\'s own ranking names it');
+	// A row that is not the one on screen has never read the list.
 	const site = mountedRow({
-		initial: row({ patches: { isTrac: false, prs: [pr] } }),
+		initial: row({ patches: { isTrac: false, prs: [], prsStatus: null } }),
 		statuses: [status({ tracTicket: 70123 }), status({ tracTicket: 70123 }), status({ tracTicket: 70123, pullRequest: { number: 9000 } })]
 	});
-	// Only if this app's own ranking names one; an unranked list answers none.
-	const latest = pickLatest({ prs: [pr], attachments: [], prRankComplete: true });
 	const reply = site.perform('site.patch.apply-latest');
 	await turn();
-	if (!latest) {
-		assert.equal((await reply).code, 'no-latest-patch');
-		return;
-	}
-	assert.deepEqual(site.pressed, [{ name: 'previewPullRequest', args: [9000] }]);
+	assert.deepEqual(site.pressed, ['loadTicketPatches']);
+	site.render(row({ patches: { isTrac: false, prsLoading: true } }));
+	site.render(row({ patches: { isTrac: false, prs: [pr], prsStatus: 'ok' } }));
+	await turn();
+	assert.deepEqual(site.pressed[1], { name: 'previewPullRequest', args: [9000] });
 	site.render(row({ apply: { fetching: 9000 } }));
 	site.render(row({ apply: { preview: PR_PREVIEW } }));
 	await turn();
@@ -465,11 +473,22 @@ test('the latest patch on a GitHub site is its newest pull request, with no visi
 	assert.deepEqual(await reply, { ok: true, result: { pullRequest: 9000, checkedOut: true } });
 });
 
+test('a pull request list that could not be read is not taken for an empty one', async () => {
+	const site = mountedRow({ statuses: [status({ tracTicket: 62281 })] });
+	const reply = site.perform('site.patch.apply-latest');
+	await turn();
+	site.render(row({ patches: { prsLoading: true, attachmentsLoading: true } }));
+	site.render(row({ patches: { prsStatus: 'error', attachmentsStatus: 'ok', attachments: [ATTACHMENT] } }));
+	assert.equal((await reply).code, 'patches-failed');
+	assert.deepEqual(site.pressed, ['loadTicketPatches', 'loadTracAttachments'], 'nothing is previewed or applied');
+});
+
 // --- trunk -----------------------------------------------------------------
 
 test('an update presses the update button and answers when the page and main say it is over', async () => {
 	const site = mountedRow();
 	const reply = site.perform('site.trunk.update');
+	await turn();
 	assert.deepEqual(site.pressed, ['startTrunkUpdate']);
 	site.render(row({ busy: true, update: { state: 'fetching' } }));
 	site.render(row({ busy: true, update: { state: 'building' } }));
@@ -478,6 +497,7 @@ test('an update presses the update button and answers when the page and main say
 
 	const current = mountedRow();
 	const nothing = current.perform('site.trunk.update');
+	await turn();
 	current.render(row({ busy: true, update: { state: 'fetching' } }));
 	current.render(row());
 	assert.deepEqual(await nothing, { ok: true, result: { updated: false, upToDate: true } });
@@ -486,17 +506,20 @@ test('an update presses the update button and answers when the page and main say
 test('an update that would reset edits, could not fetch, or did not build is not reported as done', async () => {
 	const dirty = mountedRow();
 	const asked = dirty.perform('site.trunk.update');
+	await turn();
 	dirty.render(row({ update: { dirtyOpen: true } }));
 	assert.equal((await asked).code, 'dirty');
 
 	const offline = mountedRow();
 	const failed = offline.perform('site.trunk.update');
+	await turn();
 	offline.render(row({ busy: true, update: { state: 'fetching' } }));
 	offline.render(row({ update: { failed: true } }));
 	assert.equal((await failed).code, 'update-failed');
 
 	const unbuilt = mountedRow({ statuses: [status({ updateIncomplete: true })] });
 	const half = unbuilt.perform('site.trunk.update');
+	await turn();
 	unbuilt.render(row({ busy: true, update: { state: 'building' } }));
 	unbuilt.render(row());
 	const refused = await half;
@@ -520,7 +543,8 @@ function app({ creating = false, defaultFolder = '/Users/dev/sites', created = {
 				snapshot: { creating, defaultFolder },
 				presses: {
 					startSiteSetup: async (options) => { asked.push(options); return created; },
-					readStatus: async () => (remaining.length > 1 ? remaining.shift() : remaining[0])
+					readStatus: async () => (remaining.length > 1 ? remaining.shift() : remaining[0]),
+					whenSettled: async () => ({ ok: true, result: {} })
 				}
 			}),
 			deps: { sleep: async () => {} }
@@ -566,4 +590,98 @@ test('a new site is ready when it is installed and built, and a setup that faile
 	let clock = 0;
 	const never = await waitForSetup('/sites/demo', { readStatus: async () => ({}), sleep: async () => {}, now: () => { clock += 1000; return clock; }, timeoutMs: 5000 });
 	assert.equal(never.code, 'timed-out');
+});
+
+// --- what the review of this found ------------------------------------------
+
+test('what a row is in the middle of is read from the flags its page is drawn from', () => {
+	const idle = { statusLoading: false, isPending: false, isDeleting: false, isUpdating: false, setupChainState: 'idle', terminalRunning: false, isApplying: false, installing: false, building: false, ticketSaving: false };
+	assert.deepEqual(rowActivity(idle), { loading: false, held: false, busy: false });
+	assert.deepEqual(rowActivity({ ...idle, statusLoading: true }), { loading: true, held: false, busy: false });
+	for (const flag of ['isPending', 'isDeleting']) assert.deepEqual(rowActivity({ ...idle, [flag]: true }), { loading: false, held: true, busy: false }, flag);
+	assert.deepEqual(rowActivity({ ...idle, setupChainState: 'installing' }), { loading: false, held: true, busy: false });
+	for (const flag of ['terminalRunning', 'isApplying', 'installing', 'building', 'ticketSaving']) assert.deepEqual(rowActivity({ ...idle, [flag]: true }), { loading: false, held: false, busy: true }, flag);
+	// An update holds the site and is work that ends: both.
+	assert.deepEqual(rowActivity({ ...idle, isUpdating: true }), { loading: false, held: true, busy: true });
+});
+
+test('a request for a site whose row is still being mounted waits for it, and is refused only if none comes', async () => {
+	const registry = createControlRegistry({ rowWaitMs: 40 });
+	// The window has only just opened: no row yet.
+	const early = registry.handle({ action: 'site.server.start', sitePath: '/sites/wp' });
+	registry.register('/sites/wp', async () => ({ ok: true, result: { url: URL } }));
+	assert.deepEqual(await early, { ok: true, result: { url: URL } });
+
+	assert.equal((await registry.handle({ action: 'site.server.start', sitePath: '/sites/never' })).code, 'site-not-open');
+});
+
+test('a request waits for a row that is still reading its site\'s status, and acts on what it then reads', async () => {
+	const site = mountedRow({ initial: row({ loading: true, canServe: false }) });
+	const reply = site.perform('site.server.start');
+	await turn();
+	assert.deepEqual(site.pressed, [], 'nothing is decided from a status not yet read');
+	site.render(row());
+	await turn();
+	assert.deepEqual(site.pressed, ['toggleDevServer']);
+	site.render(row({ server: { starting: true } }));
+	site.render(row({ server: { running: true, url: URL } }));
+	assert.equal((await reply).result.url, URL);
+});
+
+test('a press the page turned away without a word is answered as busy, not waited on for half an hour', async () => {
+	// The terminal was taken between the check and the press: the page says
+	// so in the terminal, and nothing an answer is read from ever changes.
+	const waiters = createOutcomeWaiters({ startGraceMs: 30 });
+	waiters.settle(row());
+	const presses = { startTrunkUpdate: () => {}, readStatus: async () => status() };
+	const reply = await performSiteControl('site.trunk.update', {}, { latest: () => ({ snapshot: row(), presses }), waiters });
+	assert.equal(reply.code, 'busy');
+
+	// One that did begin is not cut short by the same clock.
+	const began = createOutcomeWaiters({ startGraceMs: 30 });
+	began.settle(row());
+	const running = performSiteControl('site.trunk.update', {}, { latest: () => ({ snapshot: row(), presses }), waiters: began });
+	await turn();
+	began.settle(row({ busy: true, update: { state: 'fetching' } }));
+	await new Promise((resolve) => setTimeout(resolve, 60));
+	began.settle(row({ update: { summary: {} } }));
+	assert.deepEqual(await running, { ok: true, result: { updated: true, upToDate: false } });
+});
+
+test('a new site is not called ready while its row still has its first build running', async () => {
+	// The folder that says "built" appears before the build has ended.
+	let settledAsked = 0;
+	let release;
+	const stillBuilding = new Promise((resolve) => { release = resolve; });
+	const reply = performAppControl('sites.create', { name: 'Demo' }, {
+		latest: () => ({
+			snapshot: { creating: false, defaultFolder: '/Users/dev/sites' },
+			presses: {
+				startSiteSetup: async () => ({ ok: true, path: '/Users/dev/sites/demo' }),
+				readStatus: async () => ({ hasNodeModules: true, hasBuilt: true }),
+				whenSettled: async (sitePath) => { settledAsked += 1; assert.equal(sitePath, '/Users/dev/sites/demo'); await stillBuilding; return { ok: true, result: {} }; }
+			}
+		}),
+		deps: { sleep: async () => {} }
+	});
+	let answered = false;
+	reply.then(() => { answered = true; });
+	await turn();
+	assert.equal(settledAsked, 1);
+	assert.equal(answered, false);
+	release();
+	assert.equal((await reply).ok, true);
+});
+
+test('the window\'s own question to a row is answered once nothing is running there, and is not an action a tool has', async () => {
+	assert.equal(Object.hasOwn(SITE_ACTIONS, SETTLED), false);
+	const site = mountedRow({ initial: row({ held: true }) });
+	const settled = site.perform(SETTLED);
+	let answered = false;
+	settled.then(() => { answered = true; });
+	site.render(row({ busy: true }));
+	await turn();
+	assert.equal(answered, false);
+	site.render(row());
+	assert.deepEqual(await settled, { ok: true, result: {} });
 });
