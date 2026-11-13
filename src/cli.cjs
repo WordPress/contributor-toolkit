@@ -14,6 +14,7 @@
 // first, and `--json` is the form they should ask for.
 
 const net = require('net');
+const path = require('path');
 
 const USAGE = `Usage: toolkit <command> [site] [options]
 
@@ -178,7 +179,7 @@ function formatMail(result) {
 		'',
 		...email.text.trimEnd().split(/\r?\n/).map((line) => `  ${line}`),
 		...(email.textTruncated ? ['  […]'] : [])
-	].join('\n')).join('\n\n') + '\n';
+	].join('\n')).join('\n\n') + '\n' + (result.total > result.emails.length ? `\nThe newest ${result.emails.length} of ${result.total} mails.\n` : '');
 }
 
 const FORMATTERS = {
@@ -214,7 +215,10 @@ async function run(argv, { out = (s) => process.stdout.write(s), err = (s) => pr
 	const { action, site } = COMMANDS[args.command];
 	// A command about one site, run with none named, is about the site the
 	// tool is standing in. The app decides whether that folder is one.
-	const params = site ? { site: args.site || cwd, ...(args.lines === null ? {} : { lines: args.lines }) } : undefined;
+	// `.` and `./src` are folders too, and only this process knows what they
+	// are relative to.
+	const named = args.site && args.site.startsWith('.') ? path.resolve(cwd, args.site) : args.site;
+	const params = site ? { site: named || cwd, ...(args.lines === null ? {} : { lines: args.lines }) } : undefined;
 	const reply = await send(args.endpoint, params ? { action, params } : { action });
 	if (args.json) {
 		// The whole answer, failure included, on stdout: a tool that asked

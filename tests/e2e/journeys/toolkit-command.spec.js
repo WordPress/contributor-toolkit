@@ -103,7 +103,7 @@ test( 'the toolkit command lists the open app\'s sites and reads one\'s log and 
 	// INVARIANT — a site that has sent nothing has no mail, and says so.
 	const mail = toolkit( session, 'mail', 'listed-site', '--json' );
 	expect( mail.status ).toBe( 0 );
-	expect( JSON.parse( mail.stdout ) ).toEqual( { ok: true, site: site.dir, emails: [] } );
+	expect( JSON.parse( mail.stdout ) ).toEqual( { ok: true, site: site.dir, total: 0, emails: [] } );
 
 	// INVARIANT — asking changed nothing: the site is still the one on screen.
 	await expect( ui.siteHeading( page, 'listed-site' ) ).toBeVisible();

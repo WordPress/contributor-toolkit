@@ -65,7 +65,7 @@ const { createProgressThrottle, describeSwitchProgress } = require('./switch-pro
 const { getStore, peekStore } = require('./settings-store');
 const { sitesToResume, readResume } = require('./resume-sites.cjs');
 const { controlEndpoint, cliShimPath, startControlServer, ControlRefusal } = require('./control-channel.cjs');
-const { describeSite, resolveSite, logLineCount, lastLines, describeEmail } = require('./control-sites.cjs');
+const { MAX_MAILS, describeSite, resolveSite, logLineCount, lastLines, describeEmail } = require('./control-sites.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -3201,12 +3201,12 @@ const controlActions = {
 		}
 	},
 	// The mail the site sent and the app caught, newest first, as the Mail
-	// panel lists it.
+	// panel lists it: the newest few, and how many there are in all.
 	'site.mail': async ({ site }) => {
 		const sitePath = await controlSite(site);
 		const emails = await getSiteEmails(sitePath);
 		const newestFirst = [...emails].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0));
-		return { site: sitePath, emails: newestFirst.map(describeEmail) };
+		return { site: sitePath, total: newestFirst.length, emails: newestFirst.slice(0, MAX_MAILS).map(describeEmail) };
 	}
 };
 

@@ -84,6 +84,9 @@ test('what names no site, or more than one, is refused with a code, and the answ
 		assert.ok(!found.ok || POSIX_SITES.includes(found.sitePath), ref);
 	}
 	assert.equal(find('/Users/dev/sites/wp-other').code, 'unknown-site');
+	// `..` is resolved before the folder is compared: this one is not in wp.
+	assert.equal(find('/Users/dev/sites/wp/../../.ssh').code, 'unknown-site');
+	assert.deepEqual(find('/Users/dev/sites/wp/../gb/src'), { ok: true, sitePath: '/Users/dev/sites/gb' });
 	assert.equal(find('/etc').code, 'unknown-site');
 
 	assert.equal(find('wp', ['/a/wp', '/b/wp']).code, 'ambiguous-site');
@@ -106,6 +109,8 @@ test('the end of a log is its last lines, without the half line a read from mid-
 	// No newline at the end: the last line is still a line.
 	assert.deepEqual(lastLines('one\ntwo', 5), ['one', 'two']);
 	assert.deepEqual(lastLines('f of a line\ntwo\nthree\n', 5, { partialFirst: true }), ['two', 'three']);
+	// One line longer than the read: what there is of it, not an empty log.
+	assert.deepEqual(lastLines('the end of one very long line', 5, { partialFirst: true }), ['the end of one very long line']);
 });
 
 test('a mail is answered with who, what and its text, and a long text is cut and said to be', () => {

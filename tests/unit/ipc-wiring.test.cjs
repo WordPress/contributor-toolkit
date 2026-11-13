@@ -9235,14 +9235,20 @@ test('site.log reads a bounded end of a long log, and drops the half line it beg
 	const site = tempDir(t, 'ipc-wiring-control-longlog-');
 	const logDir = path.join(site, 'build', 'wp-content');
 	fs.mkdirSync(logDir, { recursive: true });
-	// Lines of a known length, more of them than one read takes.
-	const line = (n) => `line ${String(n).padStart(8, '0')} ${'x'.repeat(80)}`;
-	const count = Math.ceil((MAX_INITIAL_READ * 2) / (line(0).length + 1));
+	// Lines of a known length, long enough that fewer fit in one read than
+	// a tool may ask for: the answer is then every line the read holds, its
+	// first included, which is the one a read from mid-file cuts in half.
+	const line = (n) => `line ${String(n).padStart(8, '0')} ${'x'.repeat(1500)}`;
+	const length = line(0).length + 1;
+	assert.ok(MAX_INITIAL_READ % length !== 0, 'the read begins inside a line');
+	const count = Math.ceil((MAX_INITIAL_READ * 3) / length);
 	fs.writeFileSync(path.join(logDir, 'debug.log'), Array.from({ length: count }, (_, n) => line(n)).join('\n') + '\n');
 	const { actions } = await controlWiring(t, fakeSettingsStore({ sites: [site] }));
 
-	const { lines } = await actions['site.log']({ site, lines: 100000 });
-	assert.ok(lines.length <= 1000, 'no more than the most a tool may ask for');
+	const { lines } = await actions['site.log']({ site, lines: 1000 });
+	// Whole lines only, and only as many as one read holds: reading the
+	// whole file would answer more, and keeping the half line one more.
+	assert.equal(lines.length, Math.floor(MAX_INITIAL_READ / length));
 	assert.equal(lines[lines.length - 1], line(count - 1));
 	for (const read of lines) assert.equal(read.length, line(0).length, 'every line answered is a whole one');
 });
@@ -9275,6 +9281,7 @@ test('site.mail answers the mail caught for the site named, newest first, withou
 
 	assert.deepEqual(await actions['site.mail']({ site }), {
 		site,
+		total: 2,
 		emails: [
 			{ sentAt: '2026-11-13T10:00:00.000Z', from: 'wordpress@example.test', to: 'admin@example.test', subject: 'Newer', text: 'second', textTruncated: false },
 			{ sentAt: '2026-11-13T09:00:00.000Z', from: 'wordpress@example.test', to: 'admin@example.test', subject: 'Older', text: 'first', textTruncated: false }
@@ -9282,4 +9289,16 @@ test('site.mail answers the mail caught for the site named, newest first, withou
 	});
 	await assert.rejects(actions['site.mail']({ site: '/sites/other' }), (e) => e.code === 'unknown-site');
 	assert.deepEqual(settings.values, before, 'reading the mail writes nothing');
+});
+
+test('site.mail answers the newest few of a site that has sent a great many, and says how many there are', async (t) => {
+	const { MAX_MAILS } = require('../../src/control-sites.cjs');
+	const site = tempDir(t, 'ipc-wiring-control-manymail-');
+	const sent = Array.from({ length: MAX_MAILS + 25 }, (_, n) => ({ id: String(n), sentAt: new Date(Date.UTC(2026, 10, 13, 0, 0, n)).toISOString(), subject: `Mail ${n}`, text: 'x' }));
+	const { actions } = await controlWiring(t, fakeSettingsStore({ sites: [site], [`siteMail:${site}`]: sent }));
+
+	const answer = await actions['site.mail']({ site });
+	assert.equal(answer.total, MAX_MAILS + 25);
+	assert.equal(answer.emails.length, MAX_MAILS);
+	assert.equal(answer.emails[0].subject, `Mail ${MAX_MAILS + 24}`, 'the newest is first');
 });

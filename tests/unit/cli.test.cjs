@@ -142,6 +142,12 @@ test('log and mail ask about the site named, and with none named about the folde
 	assert.deepEqual(here.sent, [{ endpoint: ENDPOINT, request: { action: 'site.mail', params: { site: '/sites/wp/src/wp-includes' } } }]);
 	assert.match(here.out, /No mail from this site has been caught yet/);
 
+	// A folder written relative to where the command was run is resolved
+	// here, since only this process knows what it is relative to. A name is
+	// sent as it is.
+	const relative = await runWith(['--endpoint', ENDPOINT, 'mail', '..'], { ok: true, result: { site: '/sites/wp', total: 0, emails: [] } });
+	assert.equal(relative.sent[0].request.params.site, require('node:path').resolve('/sites/wp/src/wp-includes', '..'));
+
 	const refused = await runWith(['--endpoint', ENDPOINT, 'log', '--json'], { ok: false, code: 'unknown-site', error: 'No such site.' });
 	assert.equal(refused.code, EXIT.FAILED);
 	assert.deepEqual(JSON.parse(refused.out), { ok: false, code: 'unknown-site', error: 'No such site.' });
@@ -154,7 +160,7 @@ test('a log that is not there, or is empty, says so and says where it is', () =>
 });
 
 test('mail is printed newest first as it was answered, with its text, and says when the text was cut', () => {
-	const out = formatMail({ emails: [
+	const out = formatMail({ total: 2, emails: [
 		{ sentAt: '2026-11-13T09:00:00.000Z', from: 'wordpress@example.test', to: 'admin@example.test', subject: 'Password Reset', text: 'Someone asked.\nhttp://127.0.0.1:9400/wp-login.php?action=rp\n', textTruncated: false },
 		{ sentAt: null, from: '', to: '', subject: '', text: 'long', textTruncated: true }
 	] });
@@ -176,4 +182,8 @@ test('mail is printed newest first as it was answered, with its text, and says w
 		'  […]',
 		''
 	].join('\n'));
+
+	// More caught than answered: the count is said, so a tool does not take
+	// the newest few for all there are.
+	assert.match(formatMail({ total: 120, emails: [{ sentAt: null, from: '', to: '', subject: 'One', text: '', textTruncated: false }] }), /The newest 1 of 120 mails\./);
 });

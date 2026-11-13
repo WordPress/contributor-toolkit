@@ -5,6 +5,7 @@
 // interpret. Kept out of main.js so the shape has a test of its own.
 
 const { projectTypeForSite } = require('./project-type.cjs');
+const path = require('path');
 const { pathBasename } = require('./renderer/path-basename.cjs');
 
 /**
@@ -46,9 +47,15 @@ const LOG_LINES = { fallback: 100, max: 1000 };
 // a tool testing a ticket is reading for.
 const MAX_MAIL_TEXT = 20000;
 
-// Windows and macOS file systems do not tell `Sites` from `sites`.
+// How many mails an answer carries, newest first. The store keeps every mail
+// a site ever sent, and an answer is one line of JSON built in the main
+// process and read into a tool's context.
+const MAX_MAILS = 50;
+
+// Windows and macOS file systems do not tell `Sites` from `sites`. `..` is
+// resolved first, so `/sites/wp/../gb` is in gb and not in wp.
 function comparable(p, platform) {
-	const posix = String(p).replace(/\\/g, '/').replace(/\/+$/, '');
+	const posix = path.posix.normalize(String(p).replace(/\\/g, '/')).replace(/\/+$/, '');
 	return platform === 'linux' ? posix : posix.toLowerCase();
 }
 
@@ -121,7 +128,9 @@ function logLineCount(asked) {
 function lastLines(text, count, { partialFirst = false } = {}) {
 	const lines = String(text).split(/\r?\n/);
 	if (lines[lines.length - 1] === '') lines.pop();
-	if (partialFirst) lines.shift();
+	// One line longer than the whole read has no beginning to wait for: what
+	// there is of it is the answer, not an empty log.
+	if (partialFirst && lines.length > 1) lines.shift();
 	return lines.slice(-count);
 }
 
@@ -144,4 +153,4 @@ function describeEmail(email) {
 	};
 }
 
-module.exports = { LOG_LINES, MAX_MAIL_TEXT, describeSite, resolveSite, logLineCount, lastLines, describeEmail };
+module.exports = { LOG_LINES, MAX_MAIL_TEXT, MAX_MAILS, describeSite, resolveSite, logLineCount, lastLines, describeEmail };

@@ -73,13 +73,13 @@ Two commands are about one site. Name the site by its path, by any folder inside
 "/path/from/the/log/bin/toolkit" log "my-site" --lines 20
 ```
 
-`log` prints the end of the site's WordPress `debug.log`, the file the [Logs panel](./logs-and-debugging) shows: the last 100 lines unless `--lines` says otherwise, and never more than 1000. With `--json` the answer also carries the file's `path` and whether it `exists`; WordPress does not write the file until something logs.
+`log` prints the end of the site's WordPress `debug.log`, the file the [Logs panel](./logs-and-debugging) shows: the last 100 lines unless `--lines` says otherwise, and never more than 1000 or the last 256 KB of the file. With `--json` the answer also carries the file's `path` and whether it `exists`; WordPress does not write the file until something logs.
 
 ```
 "/path/from/the/log/bin/toolkit" mail "my-site"
 ```
 
-`mail` prints the mail the site sent and the app caught, newest first, as the [Mail panel](./mail) lists it: when it was sent, from, to, the subject and the text. With `--json` each mail is an entry of `emails`. A text longer than 20,000 characters is cut, and `textTruncated` says so. The HTML part of a mail is left out.
+`mail` prints the mail the site sent and the app caught, newest first, as the [Mail panel](./mail) lists it: when it was sent, from, to, the subject and the text. Only the newest 50 are printed. With `--json` each mail is an entry of `emails`, and `total` says how many the app has. A text longer than 20,000 characters is cut, and `textTruncated` says so. The HTML part of a mail is left out.
 
 A folder or a name that is no site's is refused with the code `unknown-site`, and a name two sites share with `ambiguous-site`.
 
