@@ -83,6 +83,7 @@ export default defineConfig( {
 					{ text: 'Logs and debugging', link: '/guide/logs-and-debugging' },
 					{ text: 'Catching outgoing email', link: '/guide/mail' },
 					{ text: 'Browsing the database', link: '/guide/database' },
+					{ text: 'The toolkit command', link: '/guide/toolkit-command' },
 				],
 			},
 			{
