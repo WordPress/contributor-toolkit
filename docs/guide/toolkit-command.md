@@ -1,91 +1,102 @@
 # The toolkit command
 
 ::: warning Experimental
-This is a first step towards letting scripts and AI tools use the app ([#764](https://github.com/WordPress/contributor-toolkit/issues/764)). It can only read so far, and the command, its output and where it lives may all change.
+This is new ([#764](https://github.com/WordPress/contributor-toolkit/issues/764)). The command, its output and where it lives may all change.
 :::
 
-The app writes a small command, `toolkit`, that asks the running app a question and prints the answer. A script, a Contributor Day facilitator or an AI coding tool with a terminal can use it to find the sites the app has set up, where each one is on disk, and which ticket, branch and dev server it has, so the tool can work in the checkout the app already made instead of building its own. It can also read what a site logged and what mail it sent.
+The app writes a small command, `toolkit`, that a script, a Contributor Day facilitator or an AI coding tool with a terminal can run to work with your sites: find them, create one, link a ticket, apply the latest patch, start the server, and read what the site logged and mailed. A tool then works in the checkout the app made, with the app's own Git, Node and server, instead of building an environment of its own beside it.
 
 It needs nothing installed. Like the app's own `npm`, the command runs on the Node that ships inside the app.
 
-## Where the command is
+![An AI coding tool asked to set up a site for a Trac ticket, running the toolkit command four times](/images/toolkit-ai-tool-example.png)
 
-The app writes the command into its own data folder each time it starts, and names the full path in its log. Choose **Help → Open App Log** and look for the line that names the command:
+*An illustration of an AI coding tool with a terminal using the command. The commands and what they print are the real ones.*
 
-```
-answering at …/control.sock; the command is …/bin/toolkit
-```
+## Giving a tool the command
 
-On Windows the file is `toolkit.cmd`. Run it by that full path, in quotes, since the path usually has a space in it.
+Open **Settings**, choose **Tools**, and press **Copy command**. Paste what it copied to your tool: it is the command's full path, in quotes, since the path has a space in it. On Windows the file is `toolkit.cmd`.
 
-## Listing your sites
+![The Tools tab of the settings, with the command's path, a Copy command button and the switch that lets tools change sites](/screenshots/settings-tools.png)
 
-The app has to be open. With it closed, the command says so and exits with an error.
+If your tool can use [Agent Skills](https://agentskills.io), give it the app's skill as well, which teaches it the commands and the traps: [`SKILL.md`](https://wordpress.github.io/contributor-toolkit/skills/wordpress-contributor-toolkit/SKILL.md).
 
-```
-"/path/from/the/log/bin/toolkit" sites
-```
+## Letting a tool change your sites
 
-```
-my-site (WordPress Core)
-  Path:    /Users/you/WordPress/my-site
-  Work:    Trac ticket #62281 (branch ticket/62281)
-  Server:  running at http://127.0.0.1:9400
-```
+Out of the box the command can only read. To let it change a site, turn on **Let tools on this computer change my sites** in that same tab.
 
-Add `--json` for a form a tool can read:
-
-```json
-{
-  "ok": true,
-  "sites": [
-    {
-      "path": "/Users/you/WordPress/my-site",
-      "label": "my-site",
-      "project": "core",
-      "workItem": { "provider": "trac", "id": 62281 },
-      "branch": "ticket/62281",
-      "pullRequest": null,
-      "initialized": true,
-      "server": { "running": true, "url": "http://127.0.0.1:9400" }
-    }
-  ]
-}
-```
-
-| Field | What it says |
+| Without the switch | With the switch |
 | --- | --- |
-| `path` | The site's folder. |
-| `project` | `core` or `gutenberg`. |
-| `workItem` | The linked Trac ticket (`trac`) or GitHub issue (`github-issue`), or `null`. |
-| `branch` | The branch checked out in the folder. |
-| `pullRequest` | The number of the pull request that is checked out, or `null`. |
-| `initialized` | `false` while the site's setup has not finished. |
-| `server` | Whether the dev server is running, and its address once it has one. |
+| List your sites | Create a site |
+| Read a site's `debug.log` | Link and unlink a ticket or issue |
+| Read a site's caught mail | Apply the latest patch, check out or leave a pull request |
+| | Update to the latest trunk |
+| | Run `npm install` and the site's npm scripts |
+| | Start and stop the dev server |
 
-When something goes wrong the command exits with a status other than zero. With `--json` the reason is still printed as JSON, with `"ok": false`, a `code` such as `not-running`, and an `error` sentence.
+A tool can never delete a site, discard your changes, attach a patch to Trac or open a pull request. Those stay with you, in the window.
 
-## Reading a site's log and mail
+Everything a tool changes is done by the app's window, as if you had pressed the button yourself, so you see it happen: the terminal shows the build, the ticket card shows the ticket. When the app has a question, such as what to do with edits you made on trunk, it asks it in the window, and the command tells the tool so.
 
-Two commands are about one site. Name the site by its path, by any folder inside it, or by its name in the app. Leave the site out and the command uses the site the current folder is in, which is what a tool working in the checkout wants.
+## The commands
+
+Every command takes `--json` for an answer a tool can read, and exits with a status other than zero when it fails. With `--json` a failure is still printed as JSON, with `"ok": false`, a `code` and an `error` sentence.
+
+A site is named by its path, by any folder inside it, or by its name in the app. Leave the site out and the command uses the site the current folder is in, which is what a tool working in the checkout wants.
+
+Each command waits until what it asked for has ended. For a new site, an update or a build that is minutes. If the installed app is closed, the command opens it first.
+
+### Reading
+
+| Command | What it does |
+| --- | --- |
+| `toolkit sites` | Lists your sites: path, project, linked ticket or issue, branch, checked-out pull request, and the dev server's address. |
+| `toolkit log [site] [--lines N]` | Prints the end of the site's WordPress `debug.log`, the file the [Logs panel](./logs-and-debugging) shows: the last 100 lines unless told otherwise, never more than 1000 or the last 256 KB. |
+| `toolkit mail [site]` | Prints the mail the site sent and the app caught, as the [Mail panel](./mail) lists it: the newest 50, text only. |
+
+### Changing a site
+
+| Command | What it does |
+| --- | --- |
+| `toolkit create <name> [--project core\|gutenberg] [--folder <path>]` | Creates a site and waits until it is installed and built. Without `--folder` it goes in the folder for new sites from the settings. |
+| `toolkit ticket link <ticket> [site] [--carry]` | Links a Trac ticket or a GitHub issue, by number or address, and switches to its branch. `--carry` brings edits made on trunk into a new ticket. |
+| `toolkit ticket unlink [site]` | Unlinks the ticket and goes back to trunk. The ticket's work stays on its branch. |
+| `toolkit patch apply [site]` | Applies the latest patch on the linked ticket: its newest attachment, or its newest pull request, whichever the app marks **Latest**. |
+| `toolkit pr checkout <number> [site]` | Checks out a pull request. |
+| `toolkit pr leave [site]` | Leaves the pull request and goes back to where the site was. |
+| `toolkit update [site]` | Updates to the latest trunk, then installs and builds as needed. |
+| `toolkit install [site]` | Runs `npm install`. |
+| `toolkit run <script> [site]` | Runs one of the scripts [the terminal](./terminal) allows, such as `build`, and prints the end of its output. |
+| `toolkit server start [site]` | Starts the dev server and prints its address. |
+| `toolkit server stop [site]` | Stops the dev server. |
+
+`toolkit run` refuses `watch` and `dev`: they never end. Start the server instead, which starts the build watch.
+
+## An example
+
+Setting up a site for a ticket and trying its latest patch, the way an AI tool would:
 
 ```
-"/path/from/the/log/bin/toolkit" log "my-site" --lines 20
+toolkit create "Ticket 65930"
+toolkit ticket link 65930 "Ticket 65930"
+toolkit patch apply "Ticket 65930"
+toolkit server start "Ticket 65930"
 ```
 
-`log` prints the end of the site's WordPress `debug.log`, the file the [Logs panel](./logs-and-debugging) shows: the last 100 lines unless `--lines` says otherwise, and never more than 1000 or the last 256 KB of the file. With `--json` the answer also carries the file's `path` and whether it `exists`; WordPress does not write the file until something logs.
+The last command prints the site's address. From there the tool can edit the files under the site's folder, run `toolkit run build`, and read `toolkit log` to see what PHP said.
 
-```
-"/path/from/the/log/bin/toolkit" mail "my-site"
-```
+## When the app refuses
 
-`mail` prints the mail the site sent and the app caught, newest first, as the [Mail panel](./mail) lists it: when it was sent, from, to, the subject and the text. Only the newest 50 are printed. With `--json` each mail is an entry of `emails`, and `total` says how many the app has. A text longer than 20,000 characters is cut, and `textTruncated` says so. The HTML part of a mail is left out.
+The `code` says why, so a tool can decide what to do next:
 
-A folder or a name that is no site's is refused with the code `unknown-site`, and a name two sites share with `ambiguous-site`.
-
-## What it cannot do
-
-It does not create a site, link a ticket, apply a patch or start the dev server: those are still done in the window. It also does not start the app.
+| Code | What it means |
+| --- | --- |
+| `tools-not-allowed` | The switch in **Settings → Tools** is off. Only you can turn it on. |
+| `unknown-site`, `ambiguous-site` | No site, or more than one, matches what was named. `toolkit sites` lists them. |
+| `busy` | The site is in the middle of something: a build, an update, a switch. Try again when it has finished. |
+| `dirty-trunk`, `dirty` | Edits in the checkout would be left behind or reset. The app is asking what to do with them in its window. |
+| `no-latest-patch` | The ticket has no patch, or two are too close in time for the app to call one the latest. Choose one in the window. |
+| `trac-failed` | Trac could not be read. If it asked for a human check, answer it in the app's window. |
+| `script-failed`, `setup-failed`, `update-failed`, `apply-failed`, `server-failed` | The step ran and failed. The error says which, and the app's terminal has the output. |
 
 ## Who can use it
 

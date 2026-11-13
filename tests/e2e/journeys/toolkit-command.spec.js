@@ -25,7 +25,7 @@ const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
-const { makeSite } = require( '../helpers/git-site.cjs' );
+const { makeSite, addPullRequestToOrigin, advanceOrigin, currentBranch, read, LOGIN } = require( '../helpers/git-site.cjs' );
 
 // Runs the command the app wrote, as a shell would. A `.cmd` cannot be
 // spawned directly, so on Windows it goes through cmd.exe, which is also what
@@ -201,4 +201,82 @@ test( 'a tool can start and stop a site\'s server only once the settings allow i
 	expect( JSON.parse( stopped.stdout ) ).toEqual( { ok: true, site: site.dir, stopped: true } );
 	expect( ( await asked() ).stops ).toEqual( [ site.dir ] );
 	await expect( startButton.first() ).toBeVisible();
+} );
+
+/**
+ * A tool doing a contributor's round on a ticket: link it, build, check out
+ * the pull request on it, leave it, unlink, and update trunk.
+ *
+ * Every one of these is the page's own flow, started from outside, so what
+ * this asserts is the two things only a launch shows: that the page's
+ * function was reached with what the tool sent, and that the command was
+ * answered when the flow had ended and not before. The checkout is read
+ * from the repository after each answer, which is what "ended" means.
+ *
+ * Git is real, against an origin on disk, and so is `npm run build`, which
+ * in the fixture does nothing and exits 0. What is stubbed is what would
+ * leave the machine: the ticket's pull requests and attachments, and the
+ * GitHub account, as in pr-checkout.spec.js.
+ */
+test( 'a tool links a ticket, builds, checks out and leaves a pull request, unlinks, and updates trunk', async ( { session } ) => {
+	test.setTimeout( 240_000 );
+	const PR = 7;
+	const site = await makeSite( session, { label: 'worked-site', origin: true } );
+	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: '<?php // pull request 7\n' } );
+	const { app, page } = await session.start( { ...site.settings, preferences: { toolAccess: true } } );
+	await expect( ui.siteHeading( page, 'worked-site' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect.poll( () => fs.existsSync( shimOf( session ) ), { timeout: 15_000 } ).toBe( true );
+	await app.evaluate( ( { ipcMain } ) => {
+		const replace = ( channel, handler ) => {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, handler );
+		};
+		replace( 'git:list-ticket-patches', () => ( { ok: true, prs: { status: 'ok', items: [] } } ) );
+		replace( 'trac:list-attachments', () => ( { ok: true, status: 'ok', items: [] } ) );
+		replace( 'github:account', () => ( { ok: true, login: 'janedoe', configured: true, testMode: null } ) );
+	} );
+	const json = ( ...args ) => {
+		const result = toolkit( session, ...args, 'worked-site', '--json' );
+		return { status: result.status, ...JSON.parse( result.stdout ) };
+	};
+
+	// INVARIANT — linked, the site is on the ticket's branch by the time the
+	// command answers, and the page names the ticket.
+	const linked = json( 'ticket', 'link', '60001' );
+	expect( linked ).toMatchObject( { status: 0, ok: true, ticket: 60001 } );
+	expect( currentBranch( site.dir ) ).toBe( linked.branch );
+	expect( linked.branch ).not.toBe( 'trunk' );
+	await expect( ui.workItemNumber( page, '60001' ).first() ).toBeVisible();
+
+	// INVARIANT — a script on the terminal's list runs to its end and its
+	// exit is the answer; one that is a watch, or is not on the list, is
+	// refused and runs nothing.
+	expect( json( 'run', 'build' ) ).toMatchObject( { status: 0, ok: true, command: 'npm run build', code: 0 } );
+	expect( json( 'run', 'watch' ) ).toMatchObject( { status: 1, ok: false, code: 'unsupported-script' } );
+	expect( json( 'run', 'postinstall' ) ).toMatchObject( { status: 1, ok: false, code: 'unsupported-script' } );
+
+	// INVARIANT — the pull request is checked out, its file is on disk, and
+	// the build after it has ended, by the time the command answers.
+	expect( json( 'pr', 'checkout', String( PR ) ) ).toMatchObject( { status: 0, ok: true, pullRequest: PR, checkedOut: true } );
+	expect( currentBranch( site.dir ) ).toBe( `pr/${ PR }` );
+	expect( read( site.dir, LOGIN ) ).toBe( '<?php // pull request 7\n' );
+	await expect( page.getByText( `PR #${ PR } is applied.`, { exact: true } ) ).toBeVisible();
+	// Asked again, there is nothing to do.
+	expect( json( 'pr', 'checkout', String( PR ) ) ).toMatchObject( { ok: true, checkedOut: false } );
+
+	// INVARIANT — leaving puts the ticket's branch back, with trunk's file.
+	expect( json( 'pr', 'leave' ) ).toMatchObject( { status: 0, ok: true, left: true, ticket: 60001 } );
+	expect( currentBranch( site.dir ) ).toBe( linked.branch );
+	expect( read( site.dir, LOGIN ) ).toBe( '<?php // trunk\n' );
+
+	// INVARIANT — unlinked, the site is on trunk.
+	expect( json( 'ticket', 'unlink' ) ).toMatchObject( { status: 0, ok: true, ticket: null } );
+	expect( currentBranch( site.dir ) ).toBe( 'trunk' );
+
+	// INVARIANT — an update brings what trunk has now, and is answered once
+	// the build after it has passed; asked again, there is nothing to bring.
+	advanceOrigin( site.origin, { [ LOGIN ]: '<?php // trunk moved on\n' } );
+	expect( json( 'update' ) ).toMatchObject( { status: 0, ok: true, updated: true } );
+	expect( read( site.dir, LOGIN ) ).toBe( '<?php // trunk moved on\n' );
+	expect( json( 'update' ) ).toMatchObject( { status: 0, ok: true, updated: false, upToDate: true } );
 } );

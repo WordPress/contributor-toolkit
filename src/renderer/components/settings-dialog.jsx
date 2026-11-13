@@ -591,7 +591,7 @@ function ToolsTab({ settings, onChange }) {
   return (
     <Stack direction="column" gap="xl">
       <Text variant="heading-lg" render={<h3 />}>{__('Scripts and AI tools')}</Text>
-      <Text variant="body-sm">{__('The app writes a command, toolkit, that a script or an AI coding tool with a terminal can run to ask the app about your sites. Give the tool the command below. The app has to be open.')}</Text>
+      <Text variant="body-sm">{__('The app writes a command, toolkit, that a script or an AI coding tool with a terminal can run to work with your sites. Give the tool the command below. If the app is closed, the command opens it.')}</Text>
       <Stack direction="column" gap="sm">
         <Text variant="body-sm" className="file-field-value toolkit-command">{line.text}</Text>
         <Stack direction="row" gap="sm" align="center">

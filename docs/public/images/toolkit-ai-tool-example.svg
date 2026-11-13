@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="860" viewBox="0 0 1200 860" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect width="1200" height="860" fill="#f4f4f5"/>
+  <rect x="40" y="30" width="1120" height="800" rx="14" fill="#ffffff" stroke="#d4d4d8"/>
+  <rect x="40" y="30" width="1120" height="46" rx="14" fill="#ececef"/>
+  <rect x="40" y="62" width="1120" height="14" fill="#ececef"/>
+  <circle cx="68" cy="53" r="6" fill="#c4c4c8"/><circle cx="90" cy="53" r="6" fill="#c4c4c8"/><circle cx="112" cy="53" r="6" fill="#c4c4c8"/>
+  <text x="600" y="58" font-size="14" fill="#52525b" text-anchor="middle">An AI coding tool with a terminal (illustration)</text>
+
+  <rect x="560" y="100" width="560" height="52" rx="12" fill="#3858e9"/>
+  <text x="582" y="132" font-size="17" fill="#ffffff">Spin up a local environment to test out Trac ticket #65930</text>
+
+  <text x="80" y="192" font-size="16" fill="#18181b">I'll use the WordPress Contributor Toolkit to make a site for the ticket.</text>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">
+    <rect x="80" y="210" width="1040" height="86" rx="8" fill="#18181b"/>
+    <text x="98" y="238" fill="#a1a1aa">$ <tspan fill="#f4f4f5">toolkit create "Ticket 65930"</tspan></text>
+    <text x="98" y="262" fill="#86efac">Created Ticket 65930 at /Users/you/WordPress/ticket-65930.</text>
+    <text x="98" y="282" fill="#86efac">It is installed and built.</text>
+
+    <rect x="80" y="308" width="1040" height="62" rx="8" fill="#18181b"/>
+    <text x="98" y="336" fill="#a1a1aa">$ <tspan fill="#f4f4f5">toolkit ticket link 65930 "Ticket 65930"</tspan></text>
+    <text x="98" y="358" fill="#86efac">Linked #65930, on branch ticket/65930.</text>
+
+    <rect x="80" y="382" width="1040" height="62" rx="8" fill="#18181b"/>
+    <text x="98" y="410" fill="#a1a1aa">$ <tspan fill="#f4f4f5">toolkit patch apply "Ticket 65930"</tspan></text>
+    <text x="98" y="432" fill="#86efac">Applied 65930.2.diff.</text>
+
+    <rect x="80" y="456" width="1040" height="62" rx="8" fill="#18181b"/>
+    <text x="98" y="484" fill="#a1a1aa">$ <tspan fill="#f4f4f5">toolkit server start "Ticket 65930"</tspan></text>
+    <text x="98" y="506" fill="#86efac">The server is running at http://127.0.0.1:9400</text>
+  </g>
+
+  <text x="80" y="562" font-size="16" fill="#18181b">The site for ticket #65930 is ready:</text>
+  <text x="98" y="594" font-size="16" fill="#18181b">•  A new WordPress Core site, on the latest trunk, at /Users/you/WordPress/ticket-65930</text>
+  <text x="98" y="622" font-size="16" fill="#18181b">•  The ticket's latest patch, 65930.2.diff, is applied and built</text>
+  <text x="98" y="650" font-size="16" fill="#18181b">•  It is running at http://127.0.0.1:9400 (log in as admin / password)</text>
+  <text x="80" y="690" font-size="16" fill="#18181b">You can see all of this in the Toolkit's window too. Want me to walk through the</text>
+  <text x="80" y="714" font-size="16" fill="#18181b">testing steps from the ticket, or check debug.log for notices?</text>
+
+  <rect x="80" y="752" width="1040" height="50" rx="12" fill="#ffffff" stroke="#d4d4d8"/>
+  <text x="102" y="783" font-size="15" fill="#a1a1aa">Reply…</text>
+</svg>
