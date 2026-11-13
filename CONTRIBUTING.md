@@ -57,6 +57,10 @@ Worth knowing so you don't wait on them:
 - **Download stats** ([`download-stats.yml`](.github/workflows/download-stats.yml)) is a weekly cron that records release-asset counts to a `metrics` branch. It is not related to PR quality.
 - **Translatable strings** ([`i18n-pot.yml`](.github/workflows/i18n-pot.yml)) runs after a push to trunk and publishes the `.pot` to the `translations` branch for translate.wordpress.org. It never runs on a PR.
 
+## Tracking issues
+
+An issue that groups other issues gets the `tracking-issue` label, and the issues it groups are added to it as [sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues), so GitHub shows their progress on it. It stays open until its sub-issues close, and work happens in the sub-issues, not on the tracking issue. [All open tracking issues](https://github.com/WordPress/contributor-toolkit/issues?q=is%3Aissue%20state%3Aopen%20label%3Atracking-issue).
+
 ## Branch names
 
 Branches follow [Gutenberg's convention](https://github.com/WordPress/gutenberg/blob/trunk/docs/contributors/code/git-workflow.md#branch-naming), `[type]/[change]`: `add/`, `try/`, `update/`, `remove/` or `fix/`, then a short description, with the issue number first when there is one. For example, `fix/736-pr-number-in-issue-field`. Release branches are `release/X.Y.Z`. [AGENTS.md](AGENTS.md#branch-names-follow-gutenbergs-convention) has the full rule.
