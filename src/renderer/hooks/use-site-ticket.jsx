@@ -36,6 +36,10 @@ import { issueToCheck, pullRequestRefusal } from '../github-issue.cjs';
 export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote }) {
   const [ticketInput, setTicketInput] = useState('');
   const [ticketError, setTicketError] = useState('');
+  // The pull-request refusal that named the issues it fixes (#748). Its
+  // buttons show only while its sentence is still the error on screen, so any
+  // later error or a cleared field takes them away without clearing this.
+  const [pullRequestOffer, setPullRequestOffer] = useState(null);
   const [ticketSaving, setTicketSaving] = useState(false);
   // The site's ticket branches (#108): what branches:list reported, so the
   // panel can offer the tickets that already have work here.
@@ -161,13 +165,15 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
       }
       const refusal = pullRequestRefusal(id, answer);
       if (refusal) {
-        setTicketError(refusal);
+        setTicketError(refusal.message);
+        setPullRequestOffer(refusal);
         return;
       }
     }
     return saveTicket(ticketInput);
   }, [saveTicket, ticketInput, workItem, sitePath]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
+  const offeredIssues = pullRequestOffer && pullRequestOffer.message === ticketError ? pullRequestOffer.issues : [];
 
   // The notice's own button (#385): the ticket's work replayed onto the
   // current trunk in main. Same busy flag and progress line as a switch,
@@ -299,6 +305,7 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
     setTicketInput,
     ticketError,
     setTicketError,
+    offeredIssues,
     ticketSaving,
     ticketBranches,
     deletingBranch,

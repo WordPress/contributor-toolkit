@@ -31,10 +31,13 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 			return { ok: true, status: 'ok', items: [], ticket: { summary: 'A CORE TICKET WITH THE SAME NUMBER', keywords: [] } };
 		} );
 		// GitHub stands in too, for whether a number is a pull request: only
-		// the fixture's own pull request is one. On the real repository 71234
-		// is a pull request as well.
+		// the fixture's own pull request is one, and only 4497 names an issue
+		// it fixes. On the real repository 71234 is a pull request as well.
 		ipcMain.removeHandler( 'github:is-pull-request' );
-		ipcMain.handle( 'github:is-pull-request', ( _e, _sitePath, id ) => ( { ok: true, pullRequest: id === pr } ) );
+		ipcMain.handle( 'github:is-pull-request', ( _e, _sitePath, id ) => {
+			if ( id === 4497 ) return { ok: true, pullRequest: true, fixes: [ 71234 ] };
+			return { ok: true, pullRequest: id === pr, fixes: [] };
+		} );
 	}, PR );
 
 	// INVARIANT — the row and the header say which kind of site this is.
@@ -65,11 +68,18 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	await expect( page.getByRole( 'alert' ).filter( { hasText: `#${ PR } is a pull request, not an issue. To test it, use Check out a pull request.` } ) ).toBeVisible();
 	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
 
-	// INVARIANT — linking an issue by URL names it on the card and gives it a
-	// branch under issue/, the noun its upstream uses; the Trac-only pieces
-	// stay off the linked card too.
-	await field.fill( 'https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1' );
+	// INVARIANT — a pull request that names the issue it fixes says which,
+	// and offers to link it in its place (#748). Nothing is written until the
+	// offer is taken.
+	await field.fill( '4497' );
 	await ui.linkIssueButton( page ).click();
+	await expect( page.getByRole( 'alert' ).filter( { hasText: '#4497 is a pull request. It fixes #71234. Link that issue instead' } ) ).toBeVisible();
+	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
+
+	// INVARIANT — taking the offer links the issue: it is named on the card
+	// and gets a branch under issue/, the noun its upstream uses; the
+	// Trac-only pieces stay off the linked card too.
+	await page.getByRole( 'button', { name: 'Link #71234', exact: true } ).click();
 	await expect( ui.workItemNumber( page, 71234 ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( ui.openWorkItemButton( page, 71234 ) ).toHaveAttribute( 'title', 'Open on GitHub' );
 	await expect( ui.readTicketDetailsButton( page ) ).toHaveCount( 0 );

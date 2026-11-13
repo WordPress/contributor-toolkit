@@ -1137,7 +1137,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // switching, moving onto trunk and deleting, with the question a switch
   // asks about trunk's loose edits. The three refs are how it and the apply
   // chain, called further down, reach each other.
-  const { ticketInput, setTicketInput, ticketError, setTicketError, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
+  const { ticketInput, setTicketInput, ticketError, setTicketError, offeredIssues, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
 
   // A ticket arrived from a link and this is the site in front of the
   // contributor (#464). The answer goes through `saveTicket` like any other
@@ -1569,6 +1569,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       {ticketError ? (
         <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
           <Notice.Description>{ticketError}</Notice.Description>
+          {/* The issues a refused pull request fixes, one click from being
+              linked instead of looked up on GitHub (#748). */}
+          {offeredIssues.length ? (
+            <Notice.Actions>
+              {offeredIssues.map((issue) => (
+                <ReasonedUiButton key={issue} variant="outline" tone="neutral" size="compact" reason={ticketActionsReason} onClick={() => saveTicket(String(issue))}>
+                  {
+                    // translators: %d: a GitHub issue number, such as 70001.
+                    sprintf(__('Link #%d'), issue)
+                  }
+                </ReasonedUiButton>
+              ))}
+            </Notice.Actions>
+          ) : null}
         </Notice.Root>
       ) : null}
       {switchProgressLine}

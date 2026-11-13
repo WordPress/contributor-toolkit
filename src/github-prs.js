@@ -23,7 +23,7 @@
  * anything (#281). See resolveCommitDates for how few it settles for.
  */
 
-const { PR_REPO_PATH, parseLinkedPrs, orderByCommitDate, classifyHttpFailure, citesWorkItemFor } = require('./patch-sources.cjs');
+const { PR_REPO_PATH, parseLinkedPrs, orderByCommitDate, classifyHttpFailure, citesWorkItemFor, issuesClosedBy } = require('./patch-sources.cjs');
 const { httpGet } = require('./github-http.cjs');
 
 // The repository every request goes to when the caller names none: a Core
@@ -316,11 +316,15 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
  * quota or a missing number must not stop someone linking the issue they
  * meant, and a check that quietly stopped working must still leave a trace.
  *
+ * A pull request's answer carries its description, so the issues it closes
+ * come with it at no extra cost (#748): `fixes` lists them, empty when it
+ * names none or the number is an issue.
+ *
  * @param {number}   number         Already parsed by the site's work-item provider.
  * @param {Object}   [deps]
  * @param {Function} [deps.httpGet]
  * @param {string}   [deps.repo]    `owner/repo`
- * @return {Promise<{known: true, pullRequest: boolean}|{known: false, reason: string}>}
+ * @return {Promise<{known: true, pullRequest: boolean, fixes: number[]}|{known: false, reason: string}>}
  */
 async function isPullRequest(number, deps = {}) {
 	const get = deps.httpGet || httpGet;
@@ -334,7 +338,8 @@ async function isPullRequest(number, deps = {}) {
 	if (res.status !== 200) return { known: false, reason: `${classifyHttpFailure(res.status, res.headers)} (GitHub returned ${res.status})` };
 	let json;
 	try { json = JSON.parse(res.body); } catch { return { known: false, reason: 'unreadable response from GitHub' }; }
-	return { known: true, pullRequest: Boolean(json && json.pull_request) };
+	const pullRequest = Boolean(json && json.pull_request);
+	return { known: true, pullRequest, fixes: pullRequest ? issuesClosedBy(json.body, repo) : [] };
 }
 
 module.exports = { MAX_COMMIT_LOOKUPS, fetchLinkedPrs, isPullRequest, httpGet };

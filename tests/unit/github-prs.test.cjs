@@ -397,12 +397,22 @@ test('fetchLinkedPrs without a repository is a Core site\'s, unchanged (#251)', 
 test('isPullRequest asks the repository for the number and reads pull_request off the answer', async () => {
 	const urls = [];
 	const get = (body) => async (url) => { urls.push(url); return { status: 200, headers: {}, body: JSON.stringify(body) }; };
-	assert.deepStrictEqual(await isPullRequest(71234, { repo: 'WordPress/gutenberg', httpGet: get({ number: 71234, pull_request: { url: 'x' } }) }), { known: true, pullRequest: true });
-	assert.deepStrictEqual(await isPullRequest(4496, { repo: 'WordPress/gutenberg', httpGet: get({ number: 4496 }) }), { known: true, pullRequest: false });
+	assert.deepStrictEqual(await isPullRequest(71234, { repo: 'WordPress/gutenberg', httpGet: get({ number: 71234, pull_request: { url: 'x' } }) }), { known: true, pullRequest: true, fixes: [] });
+	assert.deepStrictEqual(await isPullRequest(4496, { repo: 'WordPress/gutenberg', httpGet: get({ number: 4496 }) }), { known: true, pullRequest: false, fixes: [] });
 	assert.deepStrictEqual(urls, [
 		'https://api.github.com/repos/WordPress/gutenberg/issues/71234',
 		'https://api.github.com/repos/WordPress/gutenberg/issues/4496'
 	]);
+});
+
+test('isPullRequest reads the issues a pull request closes off the same answer, and none off an issue (#748)', async () => {
+	let calls = 0;
+	const get = (body) => async () => { calls++; return { status: 200, headers: {}, body: JSON.stringify(body) }; };
+	const pr = { number: 71234, pull_request: { url: 'x' }, body: 'Fixes #70001\r\nCloses WordPress/wordpress-develop#9 and resolves #70002' };
+	assert.deepStrictEqual(await isPullRequest(71234, { repo: 'WordPress/gutenberg', httpGet: get(pr) }), { known: true, pullRequest: true, fixes: [70001, 70002] });
+	assert.deepStrictEqual(await isPullRequest(71234, { repo: 'WordPress/gutenberg', httpGet: get({ ...pr, body: null }) }), { known: true, pullRequest: true, fixes: [] });
+	assert.deepStrictEqual(await isPullRequest(4496, { repo: 'WordPress/gutenberg', httpGet: get({ number: 4496, body: 'Fixes #70001' }) }), { known: true, pullRequest: false, fixes: [] });
+	assert.strictEqual(calls, 3, 'one request each');
 });
 
 test('isPullRequest says it could not tell, and why, for anything short of a clear answer', async () => {

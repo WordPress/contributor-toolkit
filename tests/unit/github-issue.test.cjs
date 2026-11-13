@@ -136,11 +136,23 @@ test('issueToCheck asks about what a GitHub-issue site would link, and nothing e
 });
 
 test('pullRequestRefusal refuses only on a clear pull-request answer, and says where a pull request goes', () => {
-	assert.strictEqual(
-		pullRequestRefusal(71234, { ok: true, pullRequest: true }),
-		'#71234 is a pull request, not an issue. To test it, use Check out a pull request. To work on it, link the issue it fixes.'
-	);
+	const told = { message: '#71234 is a pull request, not an issue. To test it, use Check out a pull request. To work on it, link the issue it fixes.', issues: [] };
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true }), told);
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [] }), told);
 	for (const answer of [{ ok: true, pullRequest: false }, { ok: false, error: 'Site is not registered' }, null, undefined]) {
 		assert.strictEqual(pullRequestRefusal(71234, answer), null);
 	}
+});
+
+test('pullRequestRefusal names the issues a pull request fixes and offers each (#748)', () => {
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [70001] }), {
+		message: '#71234 is a pull request. It fixes #70001. Link that issue instead, or use Check out a pull request to test it.',
+		issues: [70001]
+	});
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [70001, 70002, 70003] }), {
+		message: '#71234 is a pull request. It fixes #70001, #70002 and #70003. Link one of those issues instead, or use Check out a pull request to test it.',
+		issues: [70001, 70002, 70003]
+	});
+	// Only whole numbers cross into a button.
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: ['70001', 0, null] }).issues, []);
 });
