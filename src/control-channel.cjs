@@ -36,24 +36,26 @@ const REFUSAL_CODES = {
 };
 
 /**
- * Where the app listens, derived from the profile directory alone so a client
- * told that directory, or handed this address by the shim the app writes,
- * needs no file to look it up in.
+ * Where the app listens. The shim the app writes hands this address to the
+ * command, which has no other way to find it.
  *
- * A named pipe has no directory of its own, so on Windows the profile is
- * hashed into the name: two profiles (the installed app and `npm start`, or
- * two e2e journeys) must not answer each other's clients.
+ * On macOS and Linux it is a file in the profile directory, which is the
+ * user's own, so nobody else can put a socket there first.
+ *
+ * A named pipe has no directory. Its name is in a namespace every account on
+ * the machine shares, so a name that could be worked out from the profile
+ * path could be taken by another account before the app starts, and the
+ * command would then be answered by that account. The name is random at every
+ * start instead, and is only written where the shim is, in the profile.
  *
  * @param {Object} root0
  * @param {string} root0.userData   What `app.getPath('userData')` answered.
  * @param {string} [root0.platform] `process.platform`.
+ * @param {string} [root0.nonce]    The random part of a pipe's name; a new one unless given.
  * @return {string} A socket path, or a pipe name on Windows.
  */
-function controlEndpoint({ userData, platform = process.platform }) {
-	if (platform === 'win32') {
-		const id = crypto.createHash('sha256').update(userData).digest('hex').slice(0, 16);
-		return `\\\\.\\pipe\\wpct-control-${id}`;
-	}
+function controlEndpoint({ userData, platform = process.platform, nonce = crypto.randomBytes(16).toString('hex') }) {
+	if (platform === 'win32') return `\\\\.\\pipe\\wpct-control-${nonce}`;
 	// path.posix, like nodeExecPath in node-shims.cjs: the platform is
 	// injected, so the suite runs this branch on Windows too.
 	return path.posix.join(userData, 'control.sock');

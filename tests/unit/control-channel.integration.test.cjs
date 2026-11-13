@@ -51,18 +51,21 @@ function sendRaw(endpoint, bytes) {
 	});
 }
 
-test('the endpoint is a socket in the profile, and on Windows a pipe named after it', () => {
+test('the endpoint is a socket in the profile, and on Windows a pipe nobody can name ahead of the app', () => {
 	assert.equal(
 		controlEndpoint({ userData: '/Users/dev/Library/Application Support/Toolkit', platform: 'darwin' }),
 		'/Users/dev/Library/Application Support/Toolkit/control.sock'
 	);
 
-	const installed = controlEndpoint({ userData: 'C:\\Users\\dev\\AppData\\Roaming\\Toolkit', platform: 'win32' });
-	const fromSource = controlEndpoint({ userData: 'C:\\Users\\dev\\AppData\\Roaming\\toolkit-dev', platform: 'win32' });
-	assert.match(installed, /^\\\\\.\\pipe\\wpct-control-[0-9a-f]{16}$/);
-	// Two profiles must not answer each other's clients.
-	assert.notEqual(installed, fromSource);
-	assert.equal(installed, controlEndpoint({ userData: 'C:\\Users\\dev\\AppData\\Roaming\\Toolkit', platform: 'win32' }));
+	// A pipe's name is shared by every account on the machine. One derived
+	// from the profile path could be taken first by another account, which
+	// would then answer the command; so no two starts have the same name.
+	const userData = 'C:\\Users\\dev\\AppData\\Roaming\\Toolkit';
+	const first = controlEndpoint({ userData, platform: 'win32' });
+	const second = controlEndpoint({ userData, platform: 'win32' });
+	assert.match(first, /^\\\\\.\\pipe\\wpct-control-[0-9a-f]{32}$/);
+	assert.notEqual(first, second);
+	assert.equal(controlEndpoint({ userData, platform: 'win32', nonce: 'abc' }), '\\\\.\\pipe\\wpct-control-abc');
 });
 
 test('the command is written into the profile, with the extension Windows needs', () => {
