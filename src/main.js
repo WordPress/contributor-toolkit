@@ -2411,20 +2411,39 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // untouched, and dropping the only copy of the patch text there
             // would strand a patch that is still applied.
             if (stage === 'checkout') {
-                // The flag at site level, like the success path's (#475).
-                try { await mergeSiteMeta(sitePath, { updateIncomplete: true }); } catch {}
-                // The record through writeWorkMeta, which reads HEAD — and here
-                // that is the right question, because both failures that reach
-                // this line end where HEAD already is. The update's own checkout
-                // failed on trunk, and the recovery below leaves the contributor
-                // there, unlinked. A park whose checkout died arrives here too —
+                // The flag at site level, like the success path's (#475). The
+                // record in the scope HEAD names, which here is the right
+                // question, because both failures that reach this line end
+                // where HEAD already is. The update's own checkout failed on
+                // trunk, and the recovery below leaves the contributor there,
+                // unlinked. A park whose checkout died arrives here too —
                 // `switchToBranch` tags that `stage: 'checkout'` as well — with
                 // HEAD still on the ticket, because Git moves it only once every
                 // file operation has succeeded; that record belongs to the
                 // ticket, and HEAD says so.
-                if (e && e.worktreeReset) {
-                    try { await writeWorkMeta(sitePath, { appliedPatch: null }); } catch {}
+                //
+                // Both in one write (#474): split, a quit between them keeps a
+                // record for a patch the reset already took off disk. The scope
+                // is resolved first, since it needs Git; if that fails, the flag
+                // is still written and the record is left alone.
+                let clearPatch = Boolean(e && e.worktreeReset);
+                let scope = null;
+                if (clearPatch) {
+                    try { scope = await workMetaScope(sitePath, (await activeBranch(sitePath)).ref); } catch { clearPatch = false; }
                 }
+                try {
+                    await changeSiteMeta(sitePath, (m) => {
+                        const next = { ...m, updateIncomplete: true };
+                        if (!clearPatch) return next;
+                        if (!scope) return { ...next, appliedPatch: null };
+                        const branches = m.branches || {};
+                        // Deleted since the scope was resolved: nothing to clear,
+                        // and re-creating the entry would leave one with no
+                        // branch point (as in changeWorkMetaOn).
+                        if (!branches[scope]) return next;
+                        return { ...next, branches: { ...branches, [scope]: { ...branches[scope], appliedPatch: null } } };
+                    });
+                } catch {}
             }
             // One sentence per stage, which is a code: the fetch, or the
             // checkout that follows it.

@@ -1685,6 +1685,39 @@ test('git:update-trunk drops the applied-patch record when it fails after the ch
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
+// The flag and the clear are one change, so one write (#474). Split, a quit
+// between them stores the flag beside a record for a patch the reset already
+// took off disk.
+test('git:update-trunk stores the incomplete flag and the cleared record in one write', async () => {
+	const updateToLatestTrunk = spy(async () => {
+		const e = new Error('worktree write failed');
+		e.stage = 'checkout';
+		e.worktreeReset = true;
+		throw e;
+	});
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const stored = [];
+	const store = await settings.stubs['./settings-store'].getStore();
+	const set = store.set;
+	store.set = (key, value) => {
+		if (key === 'siteMeta') stored.push(structuredClone(value['/sites/wp']));
+		set(key, value);
+	};
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	const split = stored.filter((m) => m.updateIncomplete && m.appliedPatch);
+	assert.deepEqual(split, [], 'no stored state has the flag beside the old record');
+	assert.equal(stored.at(-1).updateIncomplete, true);
+	assert.equal(stored.at(-1).appliedPatch, null);
+});
+
 // The stage is coarser than the reset: it is set before the index walk and the
 // ref write, either of which can fail with every file still in place. Reading
 // it as "the tree was reset" would discard the only copy of a patch that is
