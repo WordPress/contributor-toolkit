@@ -60,9 +60,9 @@ If the start fails:
 
 Two different logs, two different problems:
 
-- **The site's PHP log** — the **debug.log** tab in the site view. PHP notices, warnings, and fatals from WordPress and your code. See [Logs and debugging](./logs-and-debugging).
+- **The site's PHP log** — the **debug.log** tab in **Logs**, at the bottom of the window. PHP notices, warnings, and fatals from WordPress and your code. See [Logs and debugging](./logs-and-debugging).
 - **The app's own log** — menu **Help → Open App Log**, or **Help → Show Logs Folder** to reveal the directory. Server starts, installs, git operations, and app errors. When reporting a bug in the app, attach this file.
 
 ## Reporting a problem
 
-The **Share feedback** button at the top of the sidebar opens a short form. Responses go into a shared form the team reviews regularly, and submissions are anonymous unless you add your email. For bugs, the [GitHub issue tracker](https://github.com/WordPress/contributor-toolkit/issues) works too — include the app log and, for site problems, the debug.log contents (the **Copy** button under the pane exists for exactly this).
+**Give feedback**, at the bottom right of the window, links to a short form. Responses go into a shared form the team reviews regularly, and submissions are anonymous unless you add your email. For bugs, the [GitHub issue tracker](https://github.com/WordPress/contributor-toolkit/issues) works too — include the app log and, for site problems, the debug.log contents (the **Copy** button under the pane exists for exactly this).

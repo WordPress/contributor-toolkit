@@ -1,31 +1,37 @@
 # Running the site
 
-Once the [setup wizard](./setup-wizard) is complete, the site view shows a **Start dev server** button. This starts a local WordPress that runs your site's code, so you can see your changes running: for a WordPress Core site, the WordPress built into its `build/` directory; for a Gutenberg site, a stock WordPress with your checkout as its Gutenberg plugin.
+Once the [setup wizard](./setup-wizard) is complete, you can start the site's development server. It starts a local WordPress that runs your site's code, so you can see your changes running: for a WordPress Core site, the WordPress built into its `build/` directory; for a Gutenberg site, a stock WordPress with your checkout as its Gutenberg plugin.
 
 ![The site view, with the server's and the build watch's menus and Review & submit changes in the page's header, and a Start button beside Server and beside Build watch in the details](/screenshots/site-view.png)
 
 ## Start and stop
 
-Click **Start dev server**. The button cycles through three states:
+There are two places to start the server:
 
-- **Start dev server** — nothing is running.
-- **Starting dev server...** — the server is booting. A "Dev server is starting…" line below the button shows the elapsed time.
-- **Stop dev server** — the server is up. The button shows a red dot; clicking it stops the server.
+- In the site's details, click **Start** next to **Server**.
+- In the header, open the server's menu (the first dot with a chevron) and choose **Start development server**.
 
-When the server is ready, its URL appears below the button, for example `http://127.0.0.1:<port>/`, with a **wp-admin** link beside it. Click either to open the site in your default browser.
+The server's dot shows its state, in the header and next to the site in the sidebar:
+
+- Grey: **Server stopped**.
+- Amber: **Server starting…**. The details show how long it has been starting, and **Cancel** stops the start.
+- Green: **Server running**. **Stop** in the details, or **Stop development server** in the menu, stops it.
+- Red: the server stopped by itself or could not start. Its last lines are in the **Server** tab of the [Logs](./logs-and-debugging).
+
+When the server is running, the details list **View site**, **wp-admin** and **Database** under **Server**, with the admin username and password. The header's server menu has **View site** and **wp-admin** too. Each opens in your default browser.
 
 ![The site view with the dev server running: in the details, under Server, a Stop button, the View site, wp-admin and Database links, and the admin credentials with the password hidden](/screenshots/dev-server-running.png)
 
-The button is disabled while a trunk update is running, and while `npm run build` is running, whether you typed it in the terminal or a patch, a pull request or a trunk update started it: the server would serve a `build/` that is still being written. A site set to start its server or watch when opened waits for that build to end. The reverse is no longer true: an update can run with the server up, because it pauses the build watch for the rebuild and leaves the server serving — see [Applying patches and PRs](./applying-patches) and [Staying up to date with trunk](./trunk-updates).
+**Start** is disabled while a trunk update is running, and while `npm run build` is running, whether you typed it in the terminal or a patch, a pull request or a trunk update started it: the server would serve a `build/` that is still being written. A site set to start its server or watch when opened waits for that build to end. The reverse is no longer true: an update can run with the server up, because it pauses the build watch for the rebuild and leaves the server serving — see [Applying patches and PRs](./applying-patches) and [Staying up to date with trunk](./trunk-updates).
 
 ## Logging in
 
-Every site uses the same credentials, shown next to the URL:
+Every site uses the same credentials, shown under **Server** in the details:
 
 - Username: `admin`
 - Password: `password`
 
-The **wp-admin** link next to the site URL opens the dashboard directly. It appears in both places the URL does: the [setup checklist](./setup-wizard) step and the site page.
+The **wp-admin** link opens the dashboard directly.
 
 ## What the dev server actually runs
 
@@ -39,7 +45,7 @@ The dev server is not a stub — it is WordPress Playground running your checkou
 
 ## The build watch
 
-The build watcher compiles what you edit into what the server actually serves: `src/` into `build/` on a WordPress Core site, the packages into their `build/` directories on a Gutenberg site, where the watcher is Gutenberg's own `npm run dev` and rebuilds everything once before it starts watching. It has its own **Start build watch** button next to the dev-server button, and its own status dot:
+The build watcher compiles what you edit into what the server actually serves: `src/` into `build/` on a WordPress Core site, the packages into their `build/` directories on a Gutenberg site, where the watcher is Gutenberg's own `npm run dev` and rebuilds everything once before it starts watching. It has its own **Start** button under **Build watch** in the details, its own menu in the header with **Start build watch**, and its own status dot:
 
 | Dot | State |
 | --- | --- |
@@ -60,9 +66,9 @@ While the watch is running, applying a patch, switching work items or updating t
 
 Its output goes to its own **Build watcher** log tab, not to the terminal, and it no longer holds the terminal's "running" lock — so the terminal and one-shot actions stay available while it runs.
 
-## DB inspect (Adminer)
+## The database
 
-While the server is running, a **DB inspect (Adminer)** link joins the site URL and **wp-admin** on the same row. It opens Adminer, a database browser, against the site's SQLite database — useful for inspecting what a code change wrote. See [Database](./database) for details.
+While the server is running, a **Database** link joins **View site** and **wp-admin**. It opens Adminer, a database browser, against the site's SQLite database — useful for inspecting what a code change wrote. See [Database](./database) for details.
 
 The link disappears when the server stops, because there is no database to connect to.
 
