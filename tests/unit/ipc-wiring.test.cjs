@@ -9152,7 +9152,7 @@ test('the control channel offers reads only, and sites.list answers from the sto
 	// The whole door. A second action is a second thing a process other than
 	// the app can ask for, and belongs in the review of the change that adds
 	// it rather than arriving unnoticed.
-	assert.deepEqual(Object.keys(actions), ['sites.list']);
+	assert.deepEqual(Object.keys(actions), ['sites.list', 'site.log', 'site.mail']);
 
 	assert.deepEqual(await actions['sites.list']({}), {
 		sites: [
@@ -9197,4 +9197,89 @@ test('the app writes the toolkit command for its own profile, and stops answerin
 	assert.equal(close.calls.length, 0);
 	await main.emitAppEvent('before-quit');
 	assert.equal(close.calls.length, 1);
+});
+
+test('site.log answers the end of the debug.log of the site named, and only of a site the app has', async (t) => {
+	const site = tempDir(t, 'ipc-wiring-control-log-');
+	const logDir = path.join(site, 'build', 'wp-content');
+	const logPath = path.join(logDir, 'debug.log');
+	const settings = fakeSettingsStore({ sites: [site], siteMeta: { [site]: { label: 'Login fix' } } });
+	const { actions } = await controlWiring(t, settings);
+
+	// Nothing has logged yet: the usual state, and not a failure.
+	assert.deepEqual(await actions['site.log']({ site }), { site, path: logPath, exists: false, lines: [] });
+
+	fs.mkdirSync(logDir, { recursive: true });
+	fs.writeFileSync(logPath, '');
+	assert.deepEqual(await actions['site.log']({ site }), { site, path: logPath, exists: true, lines: [] });
+
+	fs.writeFileSync(logPath, ['one', 'two', 'three', 'four'].map((n) => `[13-Nov-2026 09:00:00 UTC] PHP Notice:  ${n}`).join('\n') + '\n');
+	const byName = await actions['site.log']({ site: 'login fix', lines: 2 });
+	assert.deepEqual(byName.lines, ['[13-Nov-2026 09:00:00 UTC] PHP Notice:  three', '[13-Nov-2026 09:00:00 UTC] PHP Notice:  four']);
+	// A folder inside the site, which is what a tool working there sends.
+	assert.equal((await actions['site.log']({ site: path.join(site, 'src', 'wp-includes') })).lines.length, 4);
+
+	// A folder that is not a site's is refused before anything is read, with
+	// a code a tool can branch on. The log is found from the registry's own
+	// path, so there is no path of the tool's to read from.
+	const outside = tempDir(t, 'ipc-wiring-control-outside-');
+	fs.mkdirSync(path.join(outside, 'build', 'wp-content'), { recursive: true });
+	fs.writeFileSync(path.join(outside, 'build', 'wp-content', 'debug.log'), 'not yours\n');
+	for (const ref of [outside, path.dirname(site), undefined, '']) {
+		await assert.rejects(actions['site.log']({ site: ref }), (e) => e.code === 'unknown-site', String(ref));
+	}
+});
+
+test('site.log reads a bounded end of a long log, and drops the half line it begins with', async (t) => {
+	const { MAX_INITIAL_READ } = require('../../src/log-tail');
+	const site = tempDir(t, 'ipc-wiring-control-longlog-');
+	const logDir = path.join(site, 'build', 'wp-content');
+	fs.mkdirSync(logDir, { recursive: true });
+	// Lines of a known length, more of them than one read takes.
+	const line = (n) => `line ${String(n).padStart(8, '0')} ${'x'.repeat(80)}`;
+	const count = Math.ceil((MAX_INITIAL_READ * 2) / (line(0).length + 1));
+	fs.writeFileSync(path.join(logDir, 'debug.log'), Array.from({ length: count }, (_, n) => line(n)).join('\n') + '\n');
+	const { actions } = await controlWiring(t, fakeSettingsStore({ sites: [site] }));
+
+	const { lines } = await actions['site.log']({ site, lines: 100000 });
+	assert.ok(lines.length <= 1000, 'no more than the most a tool may ask for');
+	assert.equal(lines[lines.length - 1], line(count - 1));
+	for (const read of lines) assert.equal(read.length, line(0).length, 'every line answered is a whole one');
+});
+
+test('site.log finds a site by the name the OS has for a folder the app knows by another', async (t) => {
+	const site = tempDir(t, 'ipc-wiring-control-real-');
+	const link = path.join(tempDir(t, 'ipc-wiring-control-link-'), 'site');
+	// A junction on Windows, which needs no privilege; a symlink elsewhere.
+	fs.symlinkSync(site, link, 'junction');
+	fs.mkdirSync(path.join(site, 'src'));
+	// The app has the site under the link's name; the tool is in the real folder.
+	const { actions } = await controlWiring(t, fakeSettingsStore({ sites: [link] }));
+
+	assert.equal((await actions['site.log']({ site: path.join(fs.realpathSync(site), 'src') })).site, link);
+});
+
+test('site.mail answers the mail caught for the site named, newest first, without its HTML', async (t) => {
+	const site = tempDir(t, 'ipc-wiring-control-mail-');
+	const settings = fakeSettingsStore({
+		sites: [site],
+		[`siteMail:${site}`]: [
+			{ id: '1', sentAt: '2026-11-13T09:00:00.000Z', from: 'wordpress@example.test', to: 'admin@example.test', subject: 'Older', text: 'first', html: '<p>first</p>' },
+			{ id: '2', sentAt: '2026-11-13T10:00:00.000Z', from: 'wordpress@example.test', to: 'admin@example.test', subject: 'Newer', text: 'second', html: '<p>second</p>' }
+		],
+		// Another site's mail is not this one's.
+		'siteMail:/sites/other': [{ id: '3', sentAt: '2026-11-13T11:00:00.000Z', subject: 'Not yours', text: 'third' }]
+	});
+	const before = structuredClone(settings.values);
+	const { actions } = await controlWiring(t, settings);
+
+	assert.deepEqual(await actions['site.mail']({ site }), {
+		site,
+		emails: [
+			{ sentAt: '2026-11-13T10:00:00.000Z', from: 'wordpress@example.test', to: 'admin@example.test', subject: 'Newer', text: 'second', textTruncated: false },
+			{ sentAt: '2026-11-13T09:00:00.000Z', from: 'wordpress@example.test', to: 'admin@example.test', subject: 'Older', text: 'first', textTruncated: false }
+		]
+	});
+	await assert.rejects(actions['site.mail']({ site: '/sites/other' }), (e) => e.code === 'unknown-site');
+	assert.deepEqual(settings.values, before, 'reading the mail writes nothing');
 });

@@ -15,21 +15,29 @@
 
 const net = require('net');
 
-const USAGE = `Usage: toolkit <command> [--json]
+const USAGE = `Usage: toolkit <command> [site] [options]
 
 Commands:
-  sites    List the sites in the WordPress Contributor Toolkit and what each one is doing
-  help     Show this message
+  sites          List the sites in the WordPress Contributor Toolkit and what each one is doing
+  log [site]     Print the end of a site's WordPress debug.log
+  mail [site]    Print the mail a site sent, which the app caught
+  help           Show this message
+
+A site is named by its path, by a folder inside it, or by its name in the app.
+Left out, it is the site the current folder is in.
 
 Options:
-  --json   Print the answer as JSON
+  --json         Print the answer as JSON
+  --lines <n>    With log: how many lines to print (100 unless given)
 
 The WordPress Contributor Toolkit has to be open: this command asks the running app.
 `;
 
-// What each command asks the app for.
+// What each command asks the app for, and whether it is about one site.
 const COMMANDS = {
-	sites: 'sites.list'
+	sites: { action: 'sites.list', site: false },
+	log: { action: 'site.log', site: true },
+	mail: { action: 'site.mail', site: true }
 };
 
 const EXIT = { OK: 0, FAILED: 1, USAGE: 2 };
@@ -39,25 +47,32 @@ const ANSWER_TIMEOUT_MS = 30000;
 
 /**
  * @param {string[]} argv The arguments after the script.
- * @return {{command: string, json: boolean, endpoint: string|null}|{usageError: string}}
+ * @return {{command: string, json: boolean, endpoint: string|null, site: string|null, lines: number|null}|{usageError: string}}
  */
 function parseArgs(argv) {
 	let command = null;
 	let json = false;
 	let endpoint = null;
+	let site = null;
+	let lines = null;
 	for (let i = 0; i < argv.length; i += 1) {
 		const arg = argv[i];
 		if (arg === '--json') json = true;
 		else if (arg === '--help' || arg === '-h') command = command || 'help';
 		// Written by the shim, which knows which profile's app it belongs to.
 		else if (arg === '--endpoint') endpoint = argv[i += 1] || null;
-		else if (arg.startsWith('-')) return { usageError: `Unknown option: ${arg}` };
-		else if (command) return { usageError: `Unexpected argument: ${arg}` };
-		else command = arg;
+		else if (arg === '--lines') {
+			lines = Number(argv[i += 1]);
+			if (!Number.isInteger(lines) || lines < 1) return { usageError: '--lines takes a whole number, 1 or more' };
+		} else if (arg.startsWith('-')) return { usageError: `Unknown option: ${arg}` };
+		else if (!command) command = arg;
+		else if (site === null && Object.hasOwn(COMMANDS, command) && COMMANDS[command].site) site = arg;
+		else return { usageError: `Unexpected argument: ${arg}` };
 	}
 	if (!command) command = 'help';
 	if (command !== 'help' && !Object.hasOwn(COMMANDS, command)) return { usageError: `Unknown command: ${command}` };
-	return { command, json, endpoint };
+	if (lines !== null && command !== 'log') return { usageError: '--lines only goes with log' };
+	return { command, json, endpoint, site, lines };
 }
 
 /**
@@ -136,14 +151,52 @@ function formatSites(sites) {
 }
 
 /**
+ * The end of a debug.log as a person reads it: the lines, as they are.
+ *
+ * @param {Object} result A `site.log` answer.
+ * @return {string}
+ */
+function formatLog(result) {
+	if (!result.exists) return `WordPress has not written a debug.log for this site yet.\nIt would be at ${result.path}\n`;
+	if (result.lines.length === 0) return `The debug.log is empty: ${result.path}\n`;
+	return `${result.lines.join('\n')}\n`;
+}
+
+/**
+ * The caught mail as a person reads it, newest first.
+ *
+ * @param {Object} result A `site.mail` answer.
+ * @return {string}
+ */
+function formatMail(result) {
+	if (result.emails.length === 0) return 'No mail from this site has been caught yet.\n';
+	return result.emails.map((email) => [
+		`${email.subject || '(no subject)'}`,
+		`  Sent:  ${email.sentAt || 'unknown'}`,
+		`  From:  ${email.from}`,
+		`  To:    ${email.to}`,
+		'',
+		...email.text.trimEnd().split(/\r?\n/).map((line) => `  ${line}`),
+		...(email.textTruncated ? ['  […]'] : [])
+	].join('\n')).join('\n\n') + '\n';
+}
+
+const FORMATTERS = {
+	sites: (result) => formatSites(result.sites),
+	log: formatLog,
+	mail: formatMail
+};
+
+/**
  * @param {string[]} argv
  * @param {Object}   [io]
  * @param {Function} [io.out]  Writes to stdout.
  * @param {Function} [io.err]  Writes to stderr.
  * @param {Function} [io.send] `ask`, replaced in tests.
+ * @param {string}   [io.cwd]  The folder the command was run in.
  * @return {Promise<number>} The exit code.
  */
-async function run(argv, { out = (s) => process.stdout.write(s), err = (s) => process.stderr.write(s), send = ask } = {}) {
+async function run(argv, { out = (s) => process.stdout.write(s), err = (s) => process.stderr.write(s), send = ask, cwd = process.cwd() } = {}) {
 	const args = parseArgs(argv);
 	if (args.usageError) {
 		err(`${args.usageError}\n\n${USAGE}`);
@@ -158,7 +211,11 @@ async function run(argv, { out = (s) => process.stdout.write(s), err = (s) => pr
 		return EXIT.USAGE;
 	}
 
-	const reply = await send(args.endpoint, { action: COMMANDS[args.command] });
+	const { action, site } = COMMANDS[args.command];
+	// A command about one site, run with none named, is about the site the
+	// tool is standing in. The app decides whether that folder is one.
+	const params = site ? { site: args.site || cwd, ...(args.lines === null ? {} : { lines: args.lines }) } : undefined;
+	const reply = await send(args.endpoint, params ? { action, params } : { action });
 	if (args.json) {
 		// The whole answer, failure included, on stdout: a tool that asked
 		// for JSON reads one stream.
@@ -169,7 +226,7 @@ async function run(argv, { out = (s) => process.stdout.write(s), err = (s) => pr
 		err(`${reply.error}\n`);
 		return EXIT.FAILED;
 	}
-	out(formatSites(reply.result.sites));
+	out(FORMATTERS[args.command](reply.result));
 	return EXIT.OK;
 }
 
@@ -177,4 +234,4 @@ if (require.main === module) {
 	run(process.argv.slice(2)).then((code) => { process.exitCode = code; });
 }
 
-module.exports = { parseArgs, ask, formatSites, run, EXIT, USAGE };
+module.exports = { parseArgs, ask, formatSites, formatLog, formatMail, run, EXIT, USAGE };

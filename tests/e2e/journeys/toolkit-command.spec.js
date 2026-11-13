@@ -1,6 +1,6 @@
 /**
  * The `toolkit` command (#764): a tool outside the window asking the app that
- * is open what sites it has.
+ * is open what sites it has, and what one of them logged and mailed.
  *
  * The unit suite proves each half: the socket and its refusals, the command's
  * arguments and output, the list main.js answers with. What it cannot see is
@@ -34,14 +34,19 @@ const WINDOWS = process.platform === 'win32';
 const shimOf = ( session ) => path.join( session.userDataDir, 'bin', WINDOWS ? 'toolkit.cmd' : 'toolkit' );
 
 function toolkit( session, ...args ) {
+	return toolkitIn( undefined, session, ...args );
+}
+
+// The same, run in a folder, as a tool working in a checkout runs it.
+function toolkitIn( cwd, session, ...args ) {
 	const shim = shimOf( session );
 	const result = WINDOWS
-		? spawnSync( 'cmd.exe', [ '/d', '/s', '/c', `""${ shim }" ${ args.join( ' ' ) }"` ], { encoding: 'utf8', windowsVerbatimArguments: true, windowsHide: true } )
-		: spawnSync( shim, args, { encoding: 'utf8' } );
+		? spawnSync( 'cmd.exe', [ '/d', '/s', '/c', `""${ shim }" ${ args.join( ' ' ) }"` ], { cwd, encoding: 'utf8', windowsVerbatimArguments: true, windowsHide: true } )
+		: spawnSync( shim, args, { cwd, encoding: 'utf8' } );
 	return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
-test( 'the toolkit command lists the open app\'s sites, and says so when the app is closed', async ( { session } ) => {
+test( 'the toolkit command lists the open app\'s sites and reads one\'s log and mail, and says so when the app is closed', async ( { session } ) => {
 	const site = await makeSite( session, { label: 'listed-site' } );
 	const { page } = await session.start( site.settings );
 	await expect( ui.siteHeading( page, 'listed-site' ) ).toBeVisible( { timeout: 30_000 } );
@@ -76,6 +81,29 @@ test( 'the toolkit command lists the open app\'s sites, and says so when the app
 	expect( text.stdout ).toContain( `Path:    ${ site.dir }` );
 	expect( text.stdout ).toContain( 'Work:    none (branch trunk)' );
 	expect( text.stdout ).toContain( 'Server:  stopped' );
+
+	// INVARIANT — run inside the checkout with no site named, the command is
+	// about that site: it prints the end of the debug.log WordPress wrote
+	// there. The folder is one the test's own process and the app may know by
+	// two names (`/var` and `/private/var` on macOS), which is the case a tool
+	// in a real checkout behind a symlink is in.
+	const logDir = path.join( site.dir, 'build', 'wp-content' );
+	fs.mkdirSync( logDir, { recursive: true } );
+	fs.writeFileSync( path.join( logDir, 'debug.log' ), '[13-Nov-2026 09:00:00 UTC] PHP Notice:  first\n[13-Nov-2026 09:00:01 UTC] PHP Warning:  second\n' );
+	const log = toolkitIn( path.join( site.dir, 'src' ), session, 'log', '--lines', '1' );
+	expect( log.stderr ).toBe( '' );
+	expect( log.status ).toBe( 0 );
+	expect( log.stdout.trim() ).toBe( '[13-Nov-2026 09:00:01 UTC] PHP Warning:  second' );
+
+	// INVARIANT — run in a folder that is no site's, it is refused, by name.
+	const elsewhere = toolkitIn( session.userDataDir, session, 'log', '--json' );
+	expect( elsewhere.status ).toBe( 1 );
+	expect( JSON.parse( elsewhere.stdout ) ).toMatchObject( { ok: false, code: 'unknown-site' } );
+
+	// INVARIANT — a site that has sent nothing has no mail, and says so.
+	const mail = toolkit( session, 'mail', 'listed-site', '--json' );
+	expect( mail.status ).toBe( 0 );
+	expect( JSON.parse( mail.stdout ) ).toEqual( { ok: true, site: site.dir, emails: [] } );
 
 	// INVARIANT — asking changed nothing: the site is still the one on screen.
 	await expect( ui.siteHeading( page, 'listed-site' ) ).toBeVisible();

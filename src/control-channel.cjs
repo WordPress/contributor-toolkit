@@ -75,6 +75,22 @@ function cliShimPath({ userData, platform = process.platform }) {
 	return join(userData, 'bin', platform === 'win32' ? 'toolkit.cmd' : 'toolkit');
 }
 
+/**
+ * What an action throws to refuse with a code of its own, so a tool can tell
+ * "there is no such site" from an action that broke. Anything else thrown is
+ * answered as `failed`.
+ */
+class ControlRefusal extends Error {
+	/**
+	 * @param {string} code    Read by tools.
+	 * @param {string} message Read by people.
+	 */
+	constructor(code, message) {
+		super(message);
+		this.code = code;
+	}
+}
+
 function refusal(code, error) {
 	return { ok: false, code, error };
 }
@@ -107,6 +123,7 @@ async function answerRequest(line, actions) {
 	try {
 		return { ok: true, result: await actions[request.action](params || {}) };
 	} catch (e) {
+		if (e instanceof ControlRefusal) return refusal(e.code, e.message);
 		return refusal(REFUSAL_CODES.FAILED, String(e && e.message ? e.message : e));
 	}
 }
@@ -189,6 +206,7 @@ async function startControlServer({ endpoint, actions, platform = process.platfo
 module.exports = {
 	MAX_REQUEST_BYTES,
 	REFUSAL_CODES,
+	ControlRefusal,
 	controlEndpoint,
 	cliShimPath,
 	answerRequest,

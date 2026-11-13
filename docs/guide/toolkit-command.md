@@ -4,7 +4,7 @@
 This is a first step towards letting scripts and AI tools use the app ([#764](https://github.com/WordPress/contributor-toolkit/issues/764)). It can only read so far, and the command, its output and where it lives may all change.
 :::
 
-The app writes a small command, `toolkit`, that asks the running app a question and prints the answer. A script, a Contributor Day facilitator or an AI coding tool with a terminal can use it to find the sites the app has set up, where each one is on disk, and which ticket, branch and dev server it has, so the tool can work in the checkout the app already made instead of building its own.
+The app writes a small command, `toolkit`, that asks the running app a question and prints the answer. A script, a Contributor Day facilitator or an AI coding tool with a terminal can use it to find the sites the app has set up, where each one is on disk, and which ticket, branch and dev server it has, so the tool can work in the checkout the app already made instead of building its own. It can also read what a site logged and what mail it sent.
 
 It needs nothing installed. Like the app's own `npm`, the command runs on the Node that ships inside the app.
 
@@ -64,6 +64,24 @@ Add `--json` for a form a tool can read:
 | `server` | Whether the dev server is running, and its address once it has one. |
 
 When something goes wrong the command exits with a status other than zero. With `--json` the reason is still printed as JSON, with `"ok": false`, a `code` such as `not-running`, and an `error` sentence.
+
+## Reading a site's log and mail
+
+Two commands are about one site. Name the site by its path, by any folder inside it, or by its name in the app. Leave the site out and the command uses the site the current folder is in, which is what a tool working in the checkout wants.
+
+```
+"/path/from/the/log/bin/toolkit" log "my-site" --lines 20
+```
+
+`log` prints the end of the site's WordPress `debug.log`, the file the [Logs panel](./logs-and-debugging) shows: the last 100 lines unless `--lines` says otherwise, and never more than 1000. With `--json` the answer also carries the file's `path` and whether it `exists`; WordPress does not write the file until something logs.
+
+```
+"/path/from/the/log/bin/toolkit" mail "my-site"
+```
+
+`mail` prints the mail the site sent and the app caught, newest first, as the [Mail panel](./mail) lists it: when it was sent, from, to, the subject and the text. With `--json` each mail is an entry of `emails`. A text longer than 20,000 characters is cut, and `textTruncated` says so. The HTML part of a mail is left out.
+
+A folder or a name that is no site's is refused with the code `unknown-site`, and a name two sites share with `ambiguous-site`.
 
 ## What it cannot do
 

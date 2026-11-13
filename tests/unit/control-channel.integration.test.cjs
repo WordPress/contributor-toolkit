@@ -16,6 +16,7 @@ const path = require('node:path');
 const {
 	MAX_REQUEST_BYTES,
 	REFUSAL_CODES,
+	ControlRefusal,
 	controlEndpoint,
 	cliShimPath,
 	startControlServer
@@ -122,13 +123,19 @@ test('only the first request on a connection is answered', async (t) => {
 	assert.equal(reached, 1);
 });
 
-test('an action that throws is an answer, and the next request is still served', async (t) => {
+test('an action that throws is an answer, with its own code when it refused, and the next request is still served', async (t) => {
 	const { endpoint } = await serve(t, {
 		broken: async () => { throw new Error('settings.json is not JSON'); },
+		missing: async () => { throw Object.assign(new Error('no such file'), { code: 'ENOENT' }); },
+		refuses: async () => { throw new ControlRefusal('unknown-site', 'No such site.'); },
 		'sites.list': async () => ({ sites: [] })
 	});
 
 	assert.deepEqual(await ask(endpoint, { action: 'broken' }), { ok: false, code: REFUSAL_CODES.FAILED, error: 'settings.json is not JSON' });
+	// A code on any other error is not the action's refusal: a failed read
+	// carries `ENOENT`, and that is not something to hand a tool as a reason.
+	assert.equal((await ask(endpoint, { action: 'missing' })).code, REFUSAL_CODES.FAILED);
+	assert.deepEqual(await ask(endpoint, { action: 'refuses' }), { ok: false, code: 'unknown-site', error: 'No such site.' });
 	assert.equal((await ask(endpoint, { action: 'sites.list' })).ok, true);
 });
 

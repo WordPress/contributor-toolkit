@@ -7,7 +7,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseArgs, formatSites, run, EXIT, USAGE } = require('../../src/cli.cjs');
+const { parseArgs, formatSites, formatLog, formatMail, run, EXIT, USAGE } = require('../../src/cli.cjs');
 
 const ENDPOINT = '/profile/control.sock';
 
@@ -28,15 +28,19 @@ async function runWith(argv, reply) {
 	const code = await run(argv, {
 		out: (s) => { io.out += s; },
 		err: (s) => { io.err += s; },
-		send: async (endpoint, request) => { io.sent.push({ endpoint, request }); return reply; }
+		send: async (endpoint, request) => { io.sent.push({ endpoint, request }); return reply; },
+		cwd: '/sites/wp/src/wp-includes'
 	});
 	return { code, ...io };
 }
 
 test('the arguments name one command, in any order with its options', () => {
-	assert.deepEqual(parseArgs(['sites']), { command: 'sites', json: false, endpoint: null });
-	assert.deepEqual(parseArgs(['--endpoint', ENDPOINT, 'sites', '--json']), { command: 'sites', json: true, endpoint: ENDPOINT });
-	assert.deepEqual(parseArgs(['--json', 'sites', '--endpoint', ENDPOINT]), { command: 'sites', json: true, endpoint: ENDPOINT });
+	assert.deepEqual(parseArgs(['sites']), { command: 'sites', json: false, endpoint: null, site: null, lines: null });
+	assert.deepEqual(parseArgs(['--endpoint', ENDPOINT, 'sites', '--json']), { command: 'sites', json: true, endpoint: ENDPOINT, site: null, lines: null });
+	assert.deepEqual(parseArgs(['--json', 'sites', '--endpoint', ENDPOINT]), { command: 'sites', json: true, endpoint: ENDPOINT, site: null, lines: null });
+	// A site's name can have a space in it; it is one argument.
+	assert.deepEqual(parseArgs(['log', 'My site', '--lines', '20']), { command: 'log', json: false, endpoint: null, site: 'My site', lines: 20 });
+	assert.deepEqual(parseArgs(['mail']), { command: 'mail', json: false, endpoint: null, site: null, lines: null });
 	assert.equal(parseArgs([]).command, 'help');
 	assert.equal(parseArgs(['--endpoint', ENDPOINT]).command, 'help');
 	assert.equal(parseArgs(['sites', '--help']).command, 'sites');
@@ -48,6 +52,12 @@ test('what is not a command or an option is a usage error, not a request', async
 	assert.match(parseArgs(['constructor']).usageError, /Unknown command/);
 	assert.match(parseArgs(['sites', '--force']).usageError, /Unknown option: --force/);
 	assert.match(parseArgs(['sites', 'extra']).usageError, /Unexpected argument: extra/);
+	assert.match(parseArgs(['log', 'one', 'two']).usageError, /Unexpected argument: two/);
+	for (const lines of ['0', '-3', '1.5', 'many']) {
+		assert.match(parseArgs(['log', '--lines', lines]).usageError || '', /--lines|Unknown option/, lines);
+	}
+	assert.match(parseArgs(['log', '--lines']).usageError, /--lines takes a whole number/);
+	assert.match(parseArgs(['mail', '--lines', '5']).usageError, /--lines only goes with log/);
 
 	const result = await runWith(['--endpoint', ENDPOINT, 'delete'], { ok: true, result: {} });
 	assert.equal(result.code, EXIT.USAGE);
@@ -118,4 +128,52 @@ test('a failure exits non-zero: on stderr as a sentence, and with --json on stdo
 	assert.equal(json.code, EXIT.FAILED);
 	assert.deepEqual(JSON.parse(json.out), failure);
 	assert.equal(json.err, '');
+});
+
+test('log and mail ask about the site named, and with none named about the folder the command was run in', async () => {
+	const log = { ok: true, result: { site: '/sites/wp', path: '/sites/wp/build/wp-content/debug.log', exists: true, lines: ['[13-Nov-2026 09:00:00 UTC] PHP Notice:  one', '[13-Nov-2026 09:00:01 UTC] PHP Warning:  two'] } };
+
+	const named = await runWith(['--endpoint', ENDPOINT, 'log', 'My site', '--lines', '2'], log);
+	assert.deepEqual(named.sent, [{ endpoint: ENDPOINT, request: { action: 'site.log', params: { site: 'My site', lines: 2 } } }]);
+	assert.equal(named.out, '[13-Nov-2026 09:00:00 UTC] PHP Notice:  one\n[13-Nov-2026 09:00:01 UTC] PHP Warning:  two\n');
+
+	// The folder is sent as it is. Whether it is in a site is the app's to say.
+	const here = await runWith(['--endpoint', ENDPOINT, 'mail'], { ok: true, result: { site: '/sites/wp', emails: [] } });
+	assert.deepEqual(here.sent, [{ endpoint: ENDPOINT, request: { action: 'site.mail', params: { site: '/sites/wp/src/wp-includes' } } }]);
+	assert.match(here.out, /No mail from this site has been caught yet/);
+
+	const refused = await runWith(['--endpoint', ENDPOINT, 'log', '--json'], { ok: false, code: 'unknown-site', error: 'No such site.' });
+	assert.equal(refused.code, EXIT.FAILED);
+	assert.deepEqual(JSON.parse(refused.out), { ok: false, code: 'unknown-site', error: 'No such site.' });
+});
+
+test('a log that is not there, or is empty, says so and says where it is', () => {
+	const path = '/sites/wp/build/wp-content/debug.log';
+	assert.match(formatLog({ exists: false, path, lines: [] }), /has not written a debug\.log.*\n.*\/sites\/wp\/build\/wp-content\/debug\.log/);
+	assert.match(formatLog({ exists: true, path, lines: [] }), /is empty: \/sites\/wp/);
+});
+
+test('mail is printed newest first as it was answered, with its text, and says when the text was cut', () => {
+	const out = formatMail({ emails: [
+		{ sentAt: '2026-11-13T09:00:00.000Z', from: 'wordpress@example.test', to: 'admin@example.test', subject: 'Password Reset', text: 'Someone asked.\nhttp://127.0.0.1:9400/wp-login.php?action=rp\n', textTruncated: false },
+		{ sentAt: null, from: '', to: '', subject: '', text: 'long', textTruncated: true }
+	] });
+	assert.equal(out, [
+		'Password Reset',
+		'  Sent:  2026-11-13T09:00:00.000Z',
+		'  From:  wordpress@example.test',
+		'  To:    admin@example.test',
+		'',
+		'  Someone asked.',
+		'  http://127.0.0.1:9400/wp-login.php?action=rp',
+		'',
+		'(no subject)',
+		'  Sent:  unknown',
+		'  From:  ',
+		'  To:    ',
+		'',
+		'  long',
+		'  […]',
+		''
+	].join('\n'));
 });

@@ -64,8 +64,8 @@ const { prSubmissionRefusal, prCheckoutRefusal } = require('./renderer/pr-checko
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
 const { getStore, peekStore } = require('./settings-store');
 const { sitesToResume, readResume } = require('./resume-sites.cjs');
-const { controlEndpoint, cliShimPath, startControlServer } = require('./control-channel.cjs');
-const { describeSite } = require('./control-sites.cjs');
+const { controlEndpoint, cliShimPath, startControlServer, ControlRefusal } = require('./control-channel.cjs');
+const { describeSite, resolveSite, logLineCount, lastLines, describeEmail } = require('./control-sites.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -3134,11 +3134,30 @@ app.on('before-quit', () => {
 // What a tool outside the window may ask for (#764), by name. This map is the
 // whole of it: the channel in control-channel.cjs refuses any name that is not
 // a key here. Reads only, so far. Each one answers what the settings file in
-// the same directory already says to anything that can open the socket, plus
-// what is checked out and what is running. An action that changes a site is a
+// the same directory, or a site's own folder, already says to anything that
+// can open the socket, plus what is checked out and what is running. An action that changes a site is a
 // different decision from a read: it wants the gates the IPC handler for the
 // same change has (`legacySiteBlock`, `mergeInProgressBlock`), and an answer
 // to whether the person is asked first.
+// The site a tool named, as a path out of the registry, or a refusal.
+async function controlSite(ref) {
+	const s = await getStore();
+	const sites = s.get('sites') || [];
+	const found = resolveSite(ref, { sites, siteMeta: s.get('siteMeta') || {} });
+	if (found.ok) return found.sitePath;
+	// The same folder under another name: a tool that passes the folder it
+	// is in passes what the OS calls it, which on macOS is `/private/var/…`
+	// for a site registered as `/var/…`, and the far side of any symlink.
+	// Only looked up for a path nothing matched as written.
+	if (found.code === 'unknown-site' && typeof ref === 'string' && path.isAbsolute(ref)) {
+		const real = (p) => fs.promises.realpath(p).catch(() => null);
+		const [realRef, ...realSites] = await Promise.all([real(ref), ...sites.map(real)]);
+		const again = realRef ? resolveSite(realRef, { sites: realSites.filter(Boolean) }) : found;
+		if (again.ok) return sites[realSites.indexOf(again.sitePath)];
+	}
+	throw new ControlRefusal(found.code, found.error);
+}
+
 const controlActions = {
 	'sites.list': async () => {
 		const s = await getStore();
@@ -3155,6 +3174,39 @@ const controlActions = {
 			return describeSite({ sitePath, meta, branch, pullRequest: prNumberFromRef(branch), server: playgroundServers[sitePath] });
 		}));
 		return { sites };
+	},
+	// The end of the site's debug.log, the file the Logs panel tails. Read
+	// when asked, with the same ceiling the panel's first read has, so a log
+	// of any size costs one bounded read.
+	'site.log': async ({ site, lines }) => {
+		const sitePath = await controlSite(site);
+		const filePath = wpDebugLogPath(sitePath);
+		let handle;
+		try {
+			handle = await fs.promises.open(filePath, 'r');
+		} catch (e) {
+			// Nothing has logged yet, which is the usual state of a site.
+			if (e && e.code === 'ENOENT') return { site: sitePath, path: filePath, exists: false, lines: [] };
+			throw e;
+		}
+		try {
+			const { read } = planInitialRead((await handle.stat()).size);
+			if (!read) return { site: sitePath, path: filePath, exists: true, lines: [] };
+			const buffer = Buffer.alloc(read.end - read.start + 1);
+			const { bytesRead } = await handle.read(buffer, 0, buffer.length, read.start);
+			const text = buffer.subarray(0, bytesRead).toString('utf8');
+			return { site: sitePath, path: filePath, exists: true, lines: lastLines(text, logLineCount(lines), { partialFirst: read.start > 0 }) };
+		} finally {
+			await handle.close();
+		}
+	},
+	// The mail the site sent and the app caught, newest first, as the Mail
+	// panel lists it.
+	'site.mail': async ({ site }) => {
+		const sitePath = await controlSite(site);
+		const emails = await getSiteEmails(sitePath);
+		const newestFirst = [...emails].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0));
+		return { site: sitePath, emails: newestFirst.map(describeEmail) };
 	}
 };
 
