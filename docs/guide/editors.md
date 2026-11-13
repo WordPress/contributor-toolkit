@@ -36,7 +36,7 @@ Folders that editors create for their own settings are not listed: `.idea`, `.vs
 
 ## How detection works
 
-Detection looks in the standard install locations for a short list of common editors: VS Code, Cursor, PhpStorm, Sublime Text, and Zed. It runs again each time you open a menu, so an editor you install while the app is running appears the next time. While it is still looking, the menu shows **Looking for applications…**.
+Detection looks in the standard install locations for a short list of common editors: VS Code, Cursor, PhpStorm, Sublime Text, and Zed. It runs when you open a site, open the **Site actions** menu, click a changed file, or open Settings, so an editor you install while the app is running appears the next time you do one of those. While it is still looking, the menu shows **Looking for applications…**.
 
 The list is a shortcut, not a limit. Detection checks fixed install paths rather than your shell's `PATH` (a packaged desktop app does not inherit it), so it can miss editors installed somewhere unusual: JetBrains standalone installers with version-numbered folders, for instance, or most Linux packaging variants. An editor the list misses is not one the app refuses to use: that is what **Other application…** is for.
 
