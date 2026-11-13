@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-11-13T16:43:28+00:00\n"
+"POT-Creation-Date: 2026-11-13T18:11:16+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -146,211 +146,211 @@ msgstr[1] ""
 msgid "Could not read the base commit"
 msgstr ""
 
-#: src/main.js:1205
+#: src/main.js:1211
 msgid "Save Patch for Handoff"
 msgstr ""
 
-#: src/main.js:1205
+#: src/main.js:1211
 msgid "Save Diff File"
 msgstr ""
 
-#: src/main.js:1325
+#: src/main.js:1331
 msgid "Sign in to GitHub first."
 msgstr ""
 
-#: src/main.js:1813
+#: src/main.js:1819
 #. %s: the name of the patch or pull request, such as 60001.diff or PR #6717.
 msgid "%s is applied. Revert it before submitting this checkout as your own work."
 msgstr ""
 
-#: src/main.js:1816
+#: src/main.js:1822
 msgid ""
 "The patch you applied is applied. Revert it before submitting this checkout "
 "as your own work."
 msgstr ""
 
-#: src/main.js:2215
+#: src/main.js:2221
 #. %s: the path of a file in the site.
 msgid ""
 "The patch renames %s, so it can only go back with the whole patch. Use "
 "Discard your changes instead."
 msgstr ""
 
-#: src/main.js:2221
+#: src/main.js:2227
 #. %s: the path of a file in the site.
 msgid "%s is as the patch left it, so there is nothing of yours to revert."
 msgstr ""
 
-#: src/main.js:2225
+#: src/main.js:2231
 #. %s: the path of a file in the site.
 msgid ""
 "The app did not keep a copy of the patch, so it cannot put %s back as the "
 "patch left it."
 msgstr ""
 
-#: src/main.js:2229
+#: src/main.js:2235
 #. %s: the path of a file in the site.
 msgid "%s has no changes to revert."
 msgstr ""
 
-#: src/main.js:2248
+#: src/main.js:2254
 #. 1: the path of a file in the site. 2: why it could not be reverted. 3: why it could not be put back as it was.
 msgid ""
 "Could not revert %1$s (%2$s), and could not put it back as it was, so your "
 "changes to it may be lost: %3$s"
 msgstr ""
 
-#: src/main.js:2252
+#: src/main.js:2258
 #. 1: the path of a file in the site. 2: why it could not be reverted.
 msgid "Could not revert %1$s, so it was left as it was: %2$s"
 msgstr ""
 
-#: src/main.js:2341
+#: src/main.js:2347
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Parking your work on %s before updating…"
 msgstr ""
 
-#: src/main.js:2427
+#: src/main.js:2433
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Returning to your work on %s…"
 msgstr ""
 
-#: src/main.js:2472
+#: src/main.js:2478
 #. %s: the error the checkout failed with.
 msgid "Update failed during checkout: %s"
 msgstr ""
 
-#: src/main.js:2475
+#: src/main.js:2481
 #. %s: the error the fetch failed with.
 msgid "Update failed during fetch: %s"
 msgstr ""
 
-#: src/main.js:2490
+#: src/main.js:2496
 #. 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
 msgid ""
 "Your work on #%1$s is safe — it is committed on %2$s. Link that ticket "
 "again to return to it."
 msgstr ""
 
-#: src/main.js:2493
+#: src/main.js:2499
 #. %s: the branch the work is committed on, such as pr/7701.
 msgid ""
 "Your work is safe — it is committed on %s. Apply that pull request again to "
 "return to it."
 msgstr ""
 
-#: src/main.js:2641
+#: src/main.js:2647
 msgid "Returning to your saved copy of the pull request…"
 msgstr ""
 
-#: src/main.js:2641
+#: src/main.js:2647
 msgid "Downloading the pull request's files and switching to its branch…"
 msgstr ""
 
-#: src/main.js:2656
+#: src/main.js:2662
 #. %s: the error Git gave.
 msgid "Could not remove the unused branch: %s"
 msgstr ""
 
-#: src/main.js:2677
+#: src/main.js:2683
 msgid "Restoring the files of your previous branch…"
 msgstr ""
 
-#: src/main.js:2853
+#: src/main.js:2859
 msgid "Could not check your work for conflicts, so the preview was not shown."
 msgstr ""
 
-#: src/main.js:2864
+#: src/main.js:2870
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2867
+#: src/main.js:2873
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2868
+#: src/main.js:2874
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:2912
+#: src/main.js:2918
 msgid "There is no stored patch to revert."
 msgstr ""
 
-#: src/main.js:2923
+#: src/main.js:2929
 #. %s: the name of the applied patch, such as a file name.
 msgid "%s is already applied. Revert it before applying another patch."
 msgstr ""
 
-#: src/main.js:2929
+#: src/main.js:2935
 #. %s: the name of the patch, such as a file name.
 msgid "Reverting %s…"
 msgstr ""
 
-#: src/main.js:2932
+#: src/main.js:2938
 #. %s: the name of the patch, such as a file name.
 msgid "Applying %s…"
 msgstr ""
 
-#: src/main.js:2962
+#: src/main.js:2968
 msgid "This patch is too large to keep for an undo, so Revert will not be offered."
 msgstr ""
 
-#: src/main.js:2988
+#: src/main.js:2994
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved, so it was "
 "undone. %s"
 msgstr ""
 
-#: src/main.js:2991
+#: src/main.js:2997
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved and it could not "
 "be undone — the checkout has the patch and the app cannot revert it. %s"
 msgstr ""
 
-#: src/main.js:3000
+#: src/main.js:3006
 #. %s: what went wrong, as the system said it.
 msgid "Applying the patch failed: %s"
 msgstr ""
 
-#: src/main.js:3612
+#: src/main.js:3618
 msgid ""
 "There is uncommitted work on trunk — decide what happens to it before "
 "starting the ticket"
 msgstr ""
 
-#: src/main.js:3712
+#: src/main.js:3718
 msgid ""
 "Link a ticket first: trunk is what tickets are measured against, not a "
 "ticket."
 msgstr ""
 
-#: src/main.js:3714
+#: src/main.js:3720
 #: src/renderer/ticket-trunk-notice.cjs:147
 msgid "Only a ticket branch can be moved onto the current trunk."
 msgstr ""
 
-#: src/main.js:3716
+#: src/main.js:3722
 msgid ""
 "This ticket has no recorded starting point, so the app cannot move its work "
 "onto the current trunk."
 msgstr ""
 
-#: src/main.js:3876
+#: src/main.js:3882
 #: src/renderer/components/settings-dialog.jsx:364
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3877
+#: src/main.js:3883
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3883
+#: src/main.js:3889
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/main.js:4046
+#: src/main.js:4052
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
@@ -358,7 +358,7 @@ msgid ""
 "finishes on its own."
 msgstr ""
 
-#: src/main.js:4049
+#: src/main.js:4055
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
@@ -366,60 +366,60 @@ msgid ""
 "its own."
 msgstr ""
 
-#: src/main.js:4053
+#: src/main.js:4059
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
 "running and holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:4056
+#: src/main.js:4062
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
 "holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:4060
+#: src/main.js:4066
 msgid "This site requires a newer Node.js than this app bundles."
 msgstr ""
 
-#: src/main.js:4060
+#: src/main.js:4066
 msgid "Retrying with engine checks relaxed…"
 msgstr ""
 
-#: src/main.js:4147
+#: src/main.js:4153
 #. %s: why npm could not be started.
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4467
+#: src/main.js:4506
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4470
+#: src/main.js:4509
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4500
+#: src/main.js:4544
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.js:4562
+#: src/main.js:4610
 #. %s: the name of the folder the web server serves, local-playground-web.
 msgid "%s directory not found."
 msgstr ""
 
-#: src/main.js:4610
+#: src/main.js:4658
 msgid "Server exited before becoming ready"
 msgstr ""
 
-#: src/main.js:4642
+#: src/main.js:4690
 msgid "Timed out starting web server"
 msgstr ""
 
@@ -481,7 +481,7 @@ msgid "Help"
 msgstr ""
 
 #: src/menu.js:143
-#: src/renderer/hooks/use-dev-server.jsx:138
+#: src/renderer/hooks/use-dev-server.jsx:162
 msgid "Open App Log"
 msgstr ""
 
@@ -557,7 +557,8 @@ msgid "Cut"
 msgstr ""
 
 #: src/menu.js:78
-#: src/renderer/components/site-details.jsx:381
+#: src/renderer/components/site-details.jsx:422
+#: src/renderer/components/xdebug-setup-dialog.jsx:21
 #: src/renderer/confirmations.cjs:185
 msgid "Copy"
 msgstr ""
@@ -1014,7 +1015,7 @@ msgstr ""
 #: src/renderer/affected-files.cjs:131
 #: src/renderer/changes-note.cjs:295
 #: src/renderer/hooks/use-trunk-update.jsx:291
-#: src/renderer/index.jsx:1965
+#: src/renderer/index.jsx:2002
 msgid "Unknown error"
 msgstr ""
 
@@ -1796,7 +1797,7 @@ msgid "There are no changes on top of PR #%d."
 msgstr ""
 
 #: src/renderer/changes-note.cjs:423
-#: src/renderer/components/site-details.jsx:282
+#: src/renderer/components/site-details.jsx:286
 msgid "Your changes"
 msgstr ""
 
@@ -1859,7 +1860,7 @@ msgid "Open the feedback form ↗"
 msgstr ""
 
 #: src/renderer/components/app-footer.jsx:129
-#: src/renderer/components/settings-dialog.jsx:613
+#: src/renderer/components/settings-dialog.jsx:620
 msgid "Settings"
 msgstr ""
 
@@ -1875,6 +1876,7 @@ msgstr ""
 #: src/renderer/components/confirm-dialog.jsx:43
 #: src/renderer/components/dirty-tree-modal.jsx:82
 #: src/renderer/components/pull-request-destination.jsx:156
+#: src/renderer/site-processes.cjs:48
 #: src/renderer/ticket-actions.cjs:165
 msgid "Cancel"
 msgstr ""
@@ -1902,7 +1904,7 @@ msgid "Resize tray"
 msgstr ""
 
 #: src/renderer/components/create-site-dialog.jsx:136
-#: src/renderer/index.jsx:2298
+#: src/renderer/index.jsx:2335
 msgid "Create site"
 msgstr ""
 
@@ -2067,7 +2069,7 @@ msgid "WordPress.org username, e.g. janedoe"
 msgstr ""
 
 #: src/renderer/components/mentor-handoff.jsx:109
-#: src/renderer/components/settings-dialog.jsx:518
+#: src/renderer/components/settings-dialog.jsx:525
 msgid "WordPress.org username"
 msgstr ""
 
@@ -2084,12 +2086,12 @@ msgid "Remember this"
 msgstr ""
 
 #: src/renderer/components/mentor-handoff.jsx:40
-#: src/renderer/components/settings-dialog.jsx:481
+#: src/renderer/components/settings-dialog.jsx:488
 msgid "Could not save that username."
 msgstr ""
 
 #: src/renderer/components/mentor-handoff.jsx:45
-#: src/renderer/components/settings-dialog.jsx:486
+#: src/renderer/components/settings-dialog.jsx:493
 msgid "Could not save that event."
 msgstr ""
 
@@ -2163,7 +2165,7 @@ msgid "Discard your changes"
 msgstr ""
 
 #: src/renderer/components/patch-diff-pane.jsx:75
-#: src/renderer/components/settings-dialog.jsx:542
+#: src/renderer/components/settings-dialog.jsx:549
 msgid "Save"
 msgstr ""
 
@@ -2270,7 +2272,7 @@ msgid "Signed in as <login /> — the fork and branch go to <fork />."
 msgstr ""
 
 #: src/renderer/components/pull-request-destination.jsx:271
-#: src/renderer/components/settings-dialog.jsx:551
+#: src/renderer/components/settings-dialog.jsx:558
 msgid "Sign out"
 msgstr ""
 
@@ -2298,7 +2300,7 @@ msgid "Sign in with GitHub"
 msgstr ""
 
 #: src/renderer/components/pull-request-destination.jsx:305
-#: src/renderer/index.jsx:2416
+#: src/renderer/index.jsx:2453
 msgid "Not now"
 msgstr ""
 
@@ -2569,6 +2571,16 @@ msgid ""
 "stepped through in the browser."
 msgstr ""
 
+#: src/renderer/components/settings-dialog.jsx:441
+msgid "Step debugging (Xdebug)"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:442
+msgid ""
+"Stop on breakpoints in VS Code. Slows every request, so leave it off unless "
+"you are debugging. The site’s details show how to connect."
+msgstr ""
+
 #: src/renderer/components/settings-dialog.jsx:46
 msgid "Could not keep that language."
 msgstr ""
@@ -2577,53 +2589,53 @@ msgstr ""
 msgid "The app could not relaunch. Quit it and open it again."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:516
+#: src/renderer/components/settings-dialog.jsx:523
 msgid "How you contribute"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:519
+#: src/renderer/components/settings-dialog.jsx:526
 msgid "Goes on a patch you hand to a mentor, so the props land on you."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:525
+#: src/renderer/components/settings-dialog.jsx:532
 msgid "Event"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:526
+#: src/renderer/components/settings-dialog.jsx:533
 msgid ""
 "Where you are contributing from, if you are at an event. Leave it empty "
 "otherwise."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:538
+#: src/renderer/components/settings-dialog.jsx:545
 msgid "Saved."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:542
+#: src/renderer/components/settings-dialog.jsx:549
 msgid "Saving"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:547
-msgid "GitHub"
 msgstr ""
 
 #: src/renderer/components/settings-dialog.jsx:55
 msgid "Language"
 msgstr ""
 
+#: src/renderer/components/settings-dialog.jsx:554
+msgid "GitHub"
+msgstr ""
+
 #: src/renderer/components/settings-dialog.jsx:56
 msgid "Which language the app is shown in. A change applies after a relaunch."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:569
+#: src/renderer/components/settings-dialog.jsx:576
 msgid "General"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:570
+#: src/renderer/components/settings-dialog.jsx:577
 msgid "Sites"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:571
+#: src/renderer/components/settings-dialog.jsx:578
 msgid "Account"
 msgstr ""
 
@@ -2661,72 +2673,76 @@ msgstr ""
 msgid "Skip initialization wizard"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:107
+#: src/renderer/components/site-details.jsx:111
 msgid "Development server offline"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:117
+#: src/renderer/components/site-details.jsx:121
 #: src/renderer/dev-server-command.cjs:171
 msgid "Build watch"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:119
+#: src/renderer/components/site-details.jsx:123
 msgid "Build watch offline"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:133
+#: src/renderer/components/site-details.jsx:137
 #. %s: the path of a file in the site.
 msgid "Revert %s"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:258
+#: src/renderer/components/site-details.jsx:262
 msgid "You edited this file"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:259
+#: src/renderer/components/site-details.jsx:263
 msgid "You created this file"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:262
+#: src/renderer/components/site-details.jsx:266
 msgid "Changed files"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:357
+#: src/renderer/components/site-details.jsx:363
 #. %s: the name of a site.
 msgid "Details of %s"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:361
+#: src/renderer/components/site-details.jsx:367
 msgid "Details"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:383
+#: src/renderer/components/site-details.jsx:395
+msgid "Set up Xdebug for your editor"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:424
 #: src/renderer/confirmations.cjs:183
 msgid "Copied"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:76
-#: src/renderer/index.jsx:1328
+#: src/renderer/components/site-details.jsx:80
+#: src/renderer/index.jsx:1334
 msgid "Server"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:85
+#: src/renderer/components/site-details.jsx:89
 msgid "Admin credentials"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:87
+#: src/renderer/components/site-details.jsx:91
 msgid "Username"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:89
+#: src/renderer/components/site-details.jsx:93
 msgid "Password"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:94
+#: src/renderer/components/site-details.jsx:98
 msgid "Hide password"
 msgstr ""
 
-#: src/renderer/components/site-details.jsx:94
+#: src/renderer/components/site-details.jsx:98
 msgid "Show password"
 msgstr ""
 
@@ -2860,7 +2876,7 @@ msgid "Checking GitHub…"
 msgstr ""
 
 #: src/renderer/components/toast-stack.jsx:47
-#: src/renderer/index.jsx:2655
+#: src/renderer/index.jsx:2698
 msgid "Notifications"
 msgstr ""
 
@@ -2901,6 +2917,93 @@ msgstr ""
 
 #: src/renderer/components/trunk-update-card.jsx:25
 msgid "Updating to latest trunk"
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:102
+msgid ""
+"Run <b>debugger: start</b> from the command palette, choose “Listen for "
+"Xdebug”, set a breakpoint, and load the site."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:106
+msgid "If Zed says no debug tasks were found, the PHP extension is not installed."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:133
+#. %d: the port Xdebug connects to. <b> marks the name of a settings page.
+msgid ""
+"In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and "
+"turn off both “Force break at first line” options."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:137
+msgid ""
+"In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its "
+"debugger, turn on “Use path mappings”, and enter:"
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:142
+msgid ""
+"Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a "
+"breakpoint, and load the site."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:181
+#. %s: an editor's name, such as VS Code or PhpStorm.
+msgid "Set up %s"
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:191
+msgid ""
+"If the site starts on another port, PhpStorm asks which server it is; "
+"update the Host above."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:28
+msgid "Copied to clipboard"
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:28
+msgid "Couldn’t copy to clipboard."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:60
+#. %d: the port Xdebug connects to.
+msgid ""
+"Every site’s server sends Xdebug to port %d, so only one running site has "
+"Xdebug at a time: the first one started with it."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:73
+msgid "Install the <b>PHP Debug</b> extension by Xdebug."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:74
+msgid "Open the site’s folder, and put this in <code>.vscode/launch.json</code>:"
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:78
+msgid "Copy launch.json"
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:82
+msgid ""
+"In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and "
+"load the site."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:93
+msgid ""
+"Run <b>zed: extensions</b> from the command palette, and install "
+"<b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:94
+msgid "Open the site’s folder, and put this in <code>.zed/debug.json</code>:"
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:98
+msgid "Copy debug.json"
 msgstr ""
 
 #: src/renderer/confirmations.cjs:101
@@ -3116,7 +3219,7 @@ msgstr ""
 #: src/renderer/hooks/use-build-watch.jsx:144
 #: src/renderer/hooks/use-site-terminal.jsx:256
 #: src/renderer/hooks/use-trunk-update.jsx:99
-#: src/renderer/index.jsx:1708
+#: src/renderer/index.jsx:1745
 #. %s: the command being run, such as npm run build.
 msgid "Running %s…"
 msgstr ""
@@ -3164,7 +3267,7 @@ msgstr ""
 
 #: src/renderer/hooks/use-build-watch.jsx:179
 #: src/renderer/hooks/use-site-terminal.jsx:261
-#: src/renderer/index.jsx:1293
+#: src/renderer/index.jsx:1299
 #. 1: the command that ended, such as npm run build. 2: the code it exited with, a number.
 msgid "%1$s exited with code %2$s"
 msgstr ""
@@ -3198,41 +3301,45 @@ msgstr ""
 msgid "Resumed."
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:137
+#: src/renderer/hooks/use-dev-server.jsx:161
 #. %s: the item in the Help menu that opens the app's log, "Open App Log".
 msgid "Dev server stopped unexpectedly (see Help → %s for details)."
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:150
+#: src/renderer/hooks/use-dev-server.jsx:175
 #. %s: why the server did not start.
 msgid "Dev server failed to start: %s"
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:150
+#: src/renderer/hooks/use-dev-server.jsx:175
 #: src/renderer/hooks/use-site-logs.jsx:192
 #: src/renderer/open-failure.cjs:30
 msgid "unknown error"
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:158
+#: src/renderer/hooks/use-dev-server.jsx:184
 #. %s: why the server did not start.
 msgid "Failed to start PHP server: %s"
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:179
+#: src/renderer/hooks/use-dev-server.jsx:207
+msgid "Dev server start cancelled."
+msgstr ""
+
+#: src/renderer/hooks/use-dev-server.jsx:211
 msgid ""
 "Please complete the full build before starting the dev server. You can also "
 "skip the wizard."
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:196
+#: src/renderer/hooks/use-dev-server.jsx:233
 #. %s: the folder the site is served from, build/.
 msgid ""
 "%s is complete: starting the server without the build watch. Start build "
 "watch to compile edits on save."
 msgstr ""
 
-#: src/renderer/hooks/use-dev-server.jsx:212
+#: src/renderer/hooks/use-dev-server.jsx:251
 #. %s: the folder the site is served from, build/.
 msgid ""
 "Dev server start cancelled: the build watch stopped before %s was complete. "
@@ -3316,7 +3423,7 @@ msgid "Try \"%s\" for the list of supported commands."
 msgstr ""
 
 #: src/renderer/hooks/use-site-terminal.jsx:34
-#: src/renderer/index.jsx:1263
+#: src/renderer/index.jsx:1269
 #. %s: the keys that stop a command, Ctrl+C.
 msgid "A command is already running. Press %s to stop it."
 msgstr ""
@@ -3391,7 +3498,7 @@ msgid "Saved your changes to %s and reset the working tree."
 msgstr ""
 
 #: src/renderer/hooks/use-trunk-update.jsx:298
-#: src/renderer/index.jsx:1869
+#: src/renderer/index.jsx:1906
 msgid "Discarded local changes."
 msgstr ""
 
@@ -3403,21 +3510,21 @@ msgstr ""
 msgid "Updated to the latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:1331
+#: src/renderer/index.jsx:1337
 #. %d: how many lines have arrived in WordPress's debug.log since it was last looked at.
 msgid "Debug.log (%d)"
 msgstr ""
 
-#: src/renderer/index.jsx:1331
+#: src/renderer/index.jsx:1337
 #. %d: how many lines have arrived in WordPress's debug.log since it was last looked at.
 msgid "Debug.log"
 msgstr ""
 
-#: src/renderer/index.jsx:1423
+#: src/renderer/index.jsx:1460
 msgid "Copied the path"
 msgstr ""
 
-#: src/renderer/index.jsx:1465
+#: src/renderer/index.jsx:1502
 #. 1: how many files had uncommitted changes. 2: the number of the ticket or issue they went into.
 msgid ""
 "Your %1$d uncommitted change came along into #%2$s, and will go into its "
@@ -3428,254 +3535,253 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:1486
+#: src/renderer/index.jsx:1523
 #. %s: the path of the patch file the edits were saved to.
 msgid "Your edits were saved to %s and are no longer in the working tree."
 msgstr ""
 
-#: src/renderer/index.jsx:1524
+#: src/renderer/index.jsx:1561
 #. %s: the path of the patch file the edits were saved to.
 msgid "Saved to %s. The edits are still in the working tree."
 msgstr ""
 
-#: src/renderer/index.jsx:1669
+#: src/renderer/index.jsx:1706
 msgid "This site is ready to work on"
 msgstr ""
 
-#: src/renderer/index.jsx:1674
+#: src/renderer/index.jsx:1711
 msgid "Stopping setup…"
 msgstr ""
 
-#: src/renderer/index.jsx:1687
+#: src/renderer/index.jsx:1724
 #. %s: the command that installs dependencies, npm install.
 msgid "Setting this site up — running %s…"
 msgstr ""
 
-#: src/renderer/index.jsx:2012
+#: src/renderer/index.jsx:2049
 msgid ""
 "Cloning the repository… install and build start on their own when it "
 "finishes."
 msgstr ""
 
-#: src/renderer/index.jsx:2019
+#: src/renderer/index.jsx:2056
 #: src/renderer/setup-steps.cjs:205
 msgid "Install npm dependencies"
 msgstr ""
 
-#: src/renderer/index.jsx:2035
+#: src/renderer/index.jsx:2072
 #: src/renderer/setup-steps.cjs:228
 #: src/renderer/update-plan.cjs:187
 msgid "Run full build"
 msgstr ""
 
-#: src/renderer/index.jsx:2051
+#: src/renderer/index.jsx:2088
 msgid "Start dev server & finish wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:2066
+#: src/renderer/index.jsx:2103
 msgid "Stop dev server"
 msgstr ""
 
-#: src/renderer/index.jsx:2066
+#: src/renderer/index.jsx:2103
 msgid "Start dev server and finish the wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:2071
+#: src/renderer/index.jsx:2108
 #. %s: how long the server has been starting, such as 12s.
 msgid "Starting… (%s)"
 msgstr ""
 
-#: src/renderer/index.jsx:2177
+#: src/renderer/index.jsx:2214
 #. %s: what to do next, a sentence.
 msgid "Next step: %s"
 msgstr ""
 
-#: src/renderer/index.jsx:2197
+#: src/renderer/index.jsx:2234
 #. <folder /> is the folder the project's source is in, such as src/. <command /> is the command that builds it, npm run build, which types it into the terminal when clicked.
 msgid ""
 "Edited files in <code><folder /></code>? Run <command /> so the site picks "
 "them up."
 msgstr ""
 
-#: src/renderer/index.jsx:2202
+#: src/renderer/index.jsx:2239
 #. <file /> is the file dependencies are listed in, package.json. <command /> is the command that installs them, npm install, which types it into the terminal when clicked.
 msgid "Added a dependency to <code><file /></code>? Run <command />."
 msgstr ""
 
-#: src/renderer/index.jsx:2210
+#: src/renderer/index.jsx:2247
 #. <command /> is the command that lists the others, help. <keys /> is the keys that stop a command, Ctrl+C.
 msgid ""
 "Type <code><command /></code> to list supported commands. Press <code><keys "
 "/></code> to stop the current command."
 msgstr ""
 
-#: src/renderer/index.jsx:2288
+#: src/renderer/index.jsx:2325
 msgid "Choose application…"
 msgstr ""
 
-#: src/renderer/index.jsx:2310
+#: src/renderer/index.jsx:2347
 msgid "Update incomplete"
 msgstr ""
 
-#: src/renderer/index.jsx:2311
+#: src/renderer/index.jsx:2348
 msgid ""
 "The code is new but the built assets are old. The site may not run "
 "correctly until install and build succeed."
 msgstr ""
 
-#: src/renderer/index.jsx:2313
+#: src/renderer/index.jsx:2350
 msgid "Retry install & build"
 msgstr ""
 
-#: src/renderer/index.jsx:2321
+#: src/renderer/index.jsx:2358
 #. %d: how many days old the site's copy of WordPress is.
 msgid "This site's WordPress code is %d day old"
 msgid_plural "This site's WordPress code is %d days old"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:2324
+#: src/renderer/index.jsx:2361
 msgid "Patches you create now may not apply on Trac. Updating takes a few minutes."
 msgstr ""
 
-#: src/renderer/index.jsx:2326
+#: src/renderer/index.jsx:2363
 #: src/renderer/site-menu.cjs:134
 msgid "Update to latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:2335
+#: src/renderer/index.jsx:2372
 #. 1: the step the update is on. 2: how many steps it has.
 msgid "step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2336
+#: src/renderer/index.jsx:2373
 msgid ""
 "Most packages are already cached, so this is a download of the difference — "
 "not the whole tree."
 msgstr ""
 
-#: src/renderer/index.jsx:2341
+#: src/renderer/index.jsx:2378
 msgid "Up to date with trunk as of today."
 msgstr ""
 
-#: src/renderer/index.jsx:2353
+#: src/renderer/index.jsx:2390
 #. %s: the path of the patch file the changes were saved to.
 msgid "Your changes were saved to %s before the reset."
 msgstr ""
 
-#: src/renderer/index.jsx:2370
+#: src/renderer/index.jsx:2407
 #. 1: the step setup is on. 2: how many steps it has.
 msgid "Setting this site up for you — step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2375
+#: src/renderer/index.jsx:2412
 msgid ""
 "Installing dependencies. You can leave this running — the build follows on "
 "its own."
 msgstr ""
 
-#: src/renderer/index.jsx:2376
+#: src/renderer/index.jsx:2413
 msgid ""
 "Running the full build. This can take up to half an hour on Windows; the "
 "Terminal shows what it is doing."
 msgstr ""
 
-#: src/renderer/index.jsx:2398
+#: src/renderer/index.jsx:2435
 msgid "Hide"
 msgstr ""
 
-#: src/renderer/index.jsx:2414
+#: src/renderer/index.jsx:2451
 msgid "Finish setting this site up first."
 msgstr ""
 
-#: src/renderer/index.jsx:2650
+#: src/renderer/index.jsx:2693
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
-#: src/renderer/index.jsx:312
+#: src/renderer/index.jsx:314
 msgid "Setup finished."
 msgstr ""
 
-#: src/renderer/index.jsx:314
+#: src/renderer/index.jsx:316
 msgid "Cloning repository…"
 msgstr ""
 
-#: src/renderer/index.jsx:403
+#: src/renderer/index.jsx:405
 msgid "Starting site setup…"
 msgstr ""
 
-#: src/renderer/index.jsx:421
+#: src/renderer/index.jsx:423
 msgid "Site setup request completed."
 msgstr ""
 
-#: src/renderer/index.jsx:432
+#: src/renderer/index.jsx:434
 #. %s: the error setup failed with.
 msgid "Setup failed: %s"
 msgstr ""
 
-#: src/renderer/index.jsx:456
+#: src/renderer/index.jsx:458
 #. %d: the code the server exited with, a number.
 msgid "Server exited with code %d"
 msgstr ""
 
-#: src/renderer/index.jsx:571
+#: src/renderer/index.jsx:576
 msgid "Starting the Playground web server"
 msgstr ""
 
-#: src/renderer/index.jsx:575
+#: src/renderer/index.jsx:580
 msgid "Stop Playground web server"
 msgstr ""
 
-#: src/renderer/index.jsx:575
+#: src/renderer/index.jsx:580
 msgid "Start Playground web server"
 msgstr ""
 
-#: src/renderer/index.jsx:591
+#: src/renderer/index.jsx:596
 msgid "Playground web server"
 msgstr ""
 
-#: src/renderer/index.jsx:593
-#: src/renderer/site-processes.cjs:46
+#: src/renderer/index.jsx:598
 msgid "Starting…"
 msgstr ""
 
-#: src/renderer/index.jsx:597
+#: src/renderer/index.jsx:602
 msgid "Stopped"
 msgstr ""
 
-#: src/renderer/index.jsx:609
+#: src/renderer/index.jsx:614
 msgid "Setting up new site…"
 msgstr ""
 
-#: src/renderer/index.jsx:630
+#: src/renderer/index.jsx:635
 msgid "Dismiss"
 msgstr ""
 
-#: src/renderer/index.jsx:652
+#: src/renderer/index.jsx:657
 msgid "No sites"
 msgstr ""
 
-#: src/renderer/index.jsx:653
+#: src/renderer/index.jsx:658
 msgid "Create your first site to begin contributing"
 msgstr ""
 
-#: src/renderer/index.jsx:685
+#: src/renderer/index.jsx:690
 msgid "Site"
 msgstr ""
 
-#: src/renderer/index.jsx:694
+#: src/renderer/index.jsx:699
 msgid "Hide sites list"
 msgstr ""
 
-#: src/renderer/index.jsx:694
+#: src/renderer/index.jsx:699
 msgid "Show sites list"
 msgstr ""
 
-#: src/renderer/index.jsx:893
+#: src/renderer/index.jsx:899
 msgid "Clipboard access is not available in this environment"
 msgstr ""
 
-#: src/renderer/index.jsx:900
+#: src/renderer/index.jsx:906
 #. %s: why the path could not be copied, a sentence.
 msgid "Unable to copy path: %s"
 msgstr ""
@@ -4147,51 +4253,51 @@ msgid ""
 "have read it."
 msgstr ""
 
-#: src/renderer/site-details.cjs:31
+#: src/renderer/site-details.cjs:35
 msgid "Setup"
 msgstr ""
 
-#: src/renderer/site-details.cjs:31
+#: src/renderer/site-details.cjs:35
 msgid "Initialized"
 msgstr ""
 
-#: src/renderer/site-details.cjs:31
+#: src/renderer/site-details.cjs:35
 msgid "Uninitialized"
 msgstr ""
 
-#: src/renderer/site-details.cjs:33
+#: src/renderer/site-details.cjs:37
 msgid "Created"
 msgstr ""
 
-#: src/renderer/site-details.cjs:35
+#: src/renderer/site-details.cjs:39
 msgid "Trunk as of"
 msgstr ""
 
-#: src/renderer/site-details.cjs:38
+#: src/renderer/site-details.cjs:42
 #. %d: how many days old the site's copy of the WordPress code is.
 msgid "%d day old"
 msgid_plural "%d days old"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/site-details.cjs:42
+#: src/renderer/site-details.cjs:46
 msgid "Local path"
 msgstr ""
 
-#: src/renderer/site-details.cjs:49
+#: src/renderer/site-details.cjs:53
 msgid "Checkout"
 msgstr ""
 
-#: src/renderer/site-details.cjs:51
+#: src/renderer/site-details.cjs:55
 #. %1$s: the project a site is a checkout of; %2$s: a PHP version.
 msgid "%1$s · PHP %2$s"
 msgstr ""
 
-#: src/renderer/site-details.cjs:55
+#: src/renderer/site-details.cjs:59
 msgid "Debugging"
 msgstr ""
 
-#: src/renderer/site-details.cjs:55
+#: src/renderer/site-details.cjs:59
 msgid "Off"
 msgstr ""
 
@@ -4282,129 +4388,129 @@ msgstr ""
 msgid "Wait for the installation to finish."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:102
+#: src/renderer/site-processes.cjs:101
+#. %s: a folder of the checkout, such as src/.
+msgid "Edits in %s are compiled as they are saved."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:104
 msgid "Build compiling"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:103
+#: src/renderer/site-processes.cjs:105
 msgid "Build watching"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:106
+#: src/renderer/site-processes.cjs:108
 msgid "Build building"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:106
+#: src/renderer/site-processes.cjs:108
 msgid "Building the site before watching it."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:109
+#: src/renderer/site-processes.cjs:111
 msgid "Build paused"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:109
+#: src/renderer/site-processes.cjs:111
 msgid "Paused while another operation builds the site. It comes back by itself."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:116
+#: src/renderer/site-processes.cjs:118
 msgid "The build watch ended by itself. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:119
+#: src/renderer/site-processes.cjs:121
 #. %d: the exit code of a process, a number.
 msgid ""
 "The build that has to finish before the watch can start failed, with exit "
 "code %d, so the watch was not started. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:121
+#: src/renderer/site-processes.cjs:123
 msgid ""
 "The build that has to finish before the watch can start failed, so the "
 "watch was not started. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:124
+#: src/renderer/site-processes.cjs:126
 #. %d: the exit code of a process, a number.
 msgid ""
 "The build watch ended by itself, with exit code %d. Its last lines are in "
 "the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:128
+#: src/renderer/site-processes.cjs:130
 msgid "Build stopped"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:165
+#: src/renderer/site-processes.cjs:167
 msgid "View site"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:166
+#: src/renderer/site-processes.cjs:168
 msgid "wp-admin"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:168
+#: src/renderer/site-processes.cjs:170
 msgid "Database"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:199
+#: src/renderer/site-processes.cjs:201
 #. %s: how long, such as "12s" or "1m 05s".
 msgid "Dev server is starting… (%s)"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:46
+#: src/renderer/site-processes.cjs:48
 msgid "Server starting…"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:46
-msgid "Starting development server…"
+#: src/renderer/site-processes.cjs:48
+msgid "Cancel the development server start"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:49
+#: src/renderer/site-processes.cjs:51
 msgid "Server running"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:49
+#: src/renderer/site-processes.cjs:51
 msgid "Stop development server"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:51
+#: src/renderer/site-processes.cjs:53
 msgid "Server stopped"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:51
+#: src/renderer/site-processes.cjs:53
 msgid "Start development server"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:53
+#: src/renderer/site-processes.cjs:55
 msgid "The development server stopped by itself. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:56
+#: src/renderer/site-processes.cjs:58
 msgid "The development server could not start. Its last lines are in the Logs."
 msgstr ""
 
-#: src/renderer/site-processes.cjs:95
+#: src/renderer/site-processes.cjs:97
 msgid "Stop"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:95
+#: src/renderer/site-processes.cjs:97
 msgid "Stop build watch"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:96
+#: src/renderer/site-processes.cjs:98
 msgid "Start"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:96
+#: src/renderer/site-processes.cjs:98
 msgid "Start build watch"
 msgstr ""
 
-#: src/renderer/site-processes.cjs:99
-#. %s: a folder of the checkout, such as src/.
-msgid "Edits in %s are compiled as they are saved."
-msgstr ""
-
-#: src/renderer/sites-list.cjs:139
+#: src/renderer/sites-list.cjs:152
 msgid "Deleting site…"
 msgstr ""
 
@@ -5372,27 +5478,82 @@ msgid ""
 "again before trying the site."
 msgstr ""
 
-#: src/settings.cjs:100
+#: src/renderer/xdebug.cjs:107
+msgid "Host"
+msgstr ""
+
+#: src/renderer/xdebug.cjs:108
+msgid "Port"
+msgstr ""
+
+#: src/renderer/xdebug.cjs:109
+msgid "File/Directory"
+msgstr ""
+
+#: src/renderer/xdebug.cjs:110
+msgid "Absolute path on the server"
+msgstr ""
+
+#: src/renderer/xdebug.cjs:131
+msgid "Xdebug is still on for this site until you restart the server."
+msgstr ""
+
+#: src/renderer/xdebug.cjs:137
+#. %s: the name of the site whose server has Xdebug.
+msgid ""
+"Xdebug is on for %s. Stop that site’s server, then restart this one to use "
+"it here."
+msgstr ""
+
+#: src/renderer/xdebug.cjs:142
+msgid ""
+"This site started without Xdebug because another site’s server had it. "
+"Restart the server to use it."
+msgstr ""
+
+#: src/renderer/xdebug.cjs:143
+msgid ""
+"Xdebug is turned on, but this site started before that. Restart the server "
+"to use it."
+msgstr ""
+
+#: src/renderer/xdebug.cjs:205
+msgid "VS Code"
+msgstr ""
+
+#: src/renderer/xdebug.cjs:206
+msgid "Cursor"
+msgstr ""
+
+#: src/renderer/xdebug.cjs:207
+msgid "PhpStorm"
+msgstr ""
+
+#: src/renderer/xdebug.cjs:208
+msgid "Zed"
+msgstr ""
+
+#: src/settings.cjs:104
 msgid "Choose light, dark, your system’s theme, or custom."
 msgstr ""
 
-#: src/settings.cjs:117
+#: src/settings.cjs:121
 msgid "Choose a folder."
 msgstr ""
 
-#: src/settings.cjs:119
+#: src/settings.cjs:123
 msgid "Choose a folder by its full path."
 msgstr ""
 
-#: src/settings.cjs:120
+#: src/settings.cjs:124
 msgid "That folder does not exist."
 msgstr ""
 
-#: src/settings.cjs:132
+#: src/settings.cjs:136
 msgid "Choose one of the editors the app found."
 msgstr ""
 
-#: src/settings.cjs:186
+#: src/settings.cjs:191
 msgid "There is no such setting."
 msgstr ""
 
@@ -5416,7 +5577,7 @@ msgstr ""
 msgid "The app does not have that PHP version."
 msgstr ""
 
-#: src/settings.cjs:88
+#: src/settings.cjs:92
 msgid "Choose what happens when the app quits."
 msgstr ""
 
