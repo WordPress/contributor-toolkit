@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, zedDebugConfig } = require('../../src/renderer/xdebug.cjs');
+const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, xdebugSetupEditor, zedDebugConfig } = require('../../src/renderer/xdebug.cjs');
 
 const mappings = (text) => JSON.parse(text).configurations[0].pathMappings;
 
@@ -185,6 +185,23 @@ test('with no detected editor that has a setup, the menu offers nothing', () => 
 	assert.deepEqual(xdebugEditors([]), []);
 	assert.deepEqual(xdebugEditors(found('sublime')), []);
 	assert.deepEqual(xdebugEditors(undefined), []);
+});
+
+// With the editor chosen in Settings among those with a setup (#767), the
+// button opens that editor's setup and nothing else, as "Open in" opens that
+// editor; otherwise it is the menu.
+test('the setup opens the editor chosen in Settings directly when it has a setup and was found', () => {
+	const editors = xdebugEditors(found('vscode', 'zed'));
+	assert.deepEqual(xdebugSetupEditor({ editors, preferred: 'zed' }), { id: 'zed', name: 'Zed', setup: 'zed', label: 'Set up Xdebug for Zed' });
+	assert.deepEqual(xdebugSetupEditor({ editors: xdebugEditors(found('cursor')), preferred: 'cursor' }), { id: 'cursor', name: 'Cursor', setup: 'vscode', label: 'Set up Xdebug for Cursor' });
+});
+
+test('the setup is the menu with no editor chosen, one with no setup, or one no longer found', () => {
+	const editors = xdebugEditors(found('vscode', 'sublime'));
+	assert.equal(xdebugSetupEditor({ editors, preferred: null }), null);
+	assert.equal(xdebugSetupEditor({ editors, preferred: 'sublime' }), null);
+	assert.equal(xdebugSetupEditor({ editors, preferred: 'zed' }), null);
+	assert.equal(xdebugSetupEditor({ editors: undefined, preferred: 'vscode' }), null);
 });
 
 // Zed reads its debug setup from .zed/debug.json, a list of scenarios, and

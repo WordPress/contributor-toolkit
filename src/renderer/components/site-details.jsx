@@ -346,12 +346,13 @@ function useStickyWhileItFits(active) {
  * @param {boolean}  props.pathCopied          The path has just been copied with the button here.
  * @param {Function} props.onCopyPath
  * @param {Array}    [props.xdebugEditors]     The editors the Debugging row's setup menu offers, from `xdebugEditors`.
+ * @param {?Object}  [props.xdebugSetupEditor] The editor chosen in Settings, from `xdebugSetupEditor`, whose setup the button opens instead of the menu; or null.
  * @param {Function} [props.onOpenXdebugSetup] Opens an editor's setup, given its id, for the Debugging row while the server has Xdebug.
  * @param {Object}   [props.server]            The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]             The build watch's section, or null likewise: `{ process, onToggle }`.
  * @param {Object}   [props.changed]           The changed files, from `changedFileGroups`, with what the rows do: `{ change, yours, onOpenFile, onRevertFile, revertReason, revertError }`. No files, no section.
  */
-export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, xdebugEditors = [], onOpenXdebugSetup = null, server = null, watch = null, changed = null }) {
+export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, xdebugEditors = [], xdebugSetupEditor = null, onOpenXdebugSetup = null, server = null, watch = null, changed = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);
   return (
     <div id={id} className="dashboard-sidebar-slot" inert={open ? undefined : ''}>
@@ -387,7 +388,14 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
                           <Notice.Description>{notice.text}</Notice.Description>
                         </Notice.Root>
                       ))}
-                      {row.setup && xdebugEditors.length ? (
+                      {row.setup && xdebugSetupEditor ? (
+                        // The editor chosen in Settings opens its setup
+                        // directly, as "Open in" opens that editor (#767).
+                        <Button variant="outline" tone="neutral" size="compact" onClick={() => onOpenXdebugSetup(xdebugSetupEditor.id)}>
+                          {xdebugSetupEditor.label}
+                        </Button>
+                      ) : null}
+                      {row.setup && !xdebugSetupEditor && xdebugEditors.length ? (
                         <Menu.Root>
                           <Menu.Trigger
                             render={

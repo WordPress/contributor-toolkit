@@ -211,4 +211,22 @@ function xdebugEditors(detected) {
 	return editors.filter((editor) => ids.has(editor.id));
 }
 
-module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, zedDebugConfig };
+/**
+ * The editor whose setup the button opens directly (#767): the one chosen in
+ * Settings, when it is among those the menu offers. "Open in" is that editor
+ * and nothing else, and so is this. With none chosen, one that has no setup,
+ * or one no longer found, there is none, and the button is the menu.
+ *
+ * @param {Object}  root0
+ * @param {Array}   [root0.editors]   From `xdebugEditors`.
+ * @param {?string} [root0.preferred] The id of the editor chosen in Settings, or null for none.
+ * @return {?{id: string, name: string, setup: string, label: string}} The editor, with the button's label.
+ */
+function xdebugSetupEditor({ editors = [], preferred = null } = {}) {
+	const chosen = preferred ? (editors || []).find((editor) => editor.id === preferred) : null;
+	if (!chosen) return null;
+	// translators: %s: the name of an editor, for example "VS Code".
+	return { ...chosen, label: sprintf(__('Set up Xdebug for %s'), chosen.name) };
+}
+
+module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, xdebugSetupEditor, zedDebugConfig };

@@ -372,3 +372,44 @@ test( 'the setup menu offers the detected editors that have a setup, and no setu
 	await page.evaluate( () => window.api.listEditors() );
 	await expect( setup ).toHaveCount( 0 );
 } );
+
+// With an editor chosen in Settings that has a setup and is found, the button
+// names it and opens its setup without the menu, as "Open in" opens that
+// editor (#767). Once detection no longer finds it, the button is the menu
+// again.
+test( 'the editor chosen in Settings opens its setup directly, and the menu returns once it is not found', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( { ...site.settings, preferences: { editor: 'zed' } } );
+	const followSetting = await stubServer( app, session, [ 'vscode', 'zed' ] );
+	const direct = page.getByRole( 'button', { name: 'Set up Xdebug for Zed', exact: true } );
+	const menu = page.getByRole( 'button', { name: 'Set up Xdebug for your editor', exact: true } );
+
+	await setXdebug( page, true );
+	await expect.poll( () => session.readSettings().preferences?.xdebug ).toBe( true );
+	await followSetting();
+	await ui.startDevServerButton( page ).click();
+
+	// INVARIANT — the button names the chosen editor, and opens its setup
+	// with no menu in between.
+	await expect( direct ).toBeVisible( { timeout: 30_000 } );
+	await expect( menu ).toHaveCount( 0 );
+	await direct.click();
+	await expect( page.getByRole( 'menuitem' ) ).toHaveCount( 0 );
+	const zed = page.getByRole( 'dialog', { name: 'Set up Zed', exact: true } );
+	await expect( zed ).toBeVisible();
+	await expect( zed.getByText( '.zed/debug.json', { exact: true } ) ).toBeVisible();
+	await page.keyboard.press( 'Escape' );
+	await expect( zed ).toHaveCount( 0 );
+
+	// INVARIANT — once the chosen editor is not found, the button is the menu
+	// of those that are, and the setting is left as it was.
+	await app.evaluate( () => { global.e2eEditors = [ 'vscode' ]; } );
+	await ui.stopDevServerButton( page ).click();
+	await followSetting();
+	await ui.startDevServerButton( page ).click();
+	await expect( menu ).toBeVisible( { timeout: 30_000 } );
+	await expect( direct ).toHaveCount( 0 );
+	await menu.click();
+	await expect.poll( () => page.getByRole( 'menuitem' ).allTextContents() ).toEqual( [ 'VS Code' ] );
+	expect( session.readSettings().preferences?.editor ).toBe( 'zed' );
+} );
