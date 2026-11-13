@@ -153,7 +153,7 @@ function pullRequestRefusal(id, answer) {
 		return {
 			message: sprintf(
 				// translators: %d: a pull request number, such as 71234.
-				__('#%d is a pull request, not an issue, and its description names no issue it fixes. To test it, use Check out a pull request.'),
+				__('#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.'),
 				id
 			),
 			issues

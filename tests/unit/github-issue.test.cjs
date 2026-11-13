@@ -136,7 +136,7 @@ test('issueToCheck asks about what a GitHub-issue site would link, and nothing e
 });
 
 test('pullRequestRefusal refuses only on a clear pull-request answer, and says where a pull request goes', () => {
-	const told = { message: '#71234 is a pull request, not an issue, and its description names no issue it fixes. To test it, use Check out a pull request.', issues: [] };
+	const told = { message: '#71234 is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.', issues: [] };
 	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true }), told);
 	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [] }), told);
 	for (const answer of [{ ok: true, pullRequest: false }, { ok: false, error: 'Site is not registered' }, null, undefined]) {
@@ -162,6 +162,6 @@ test('issuesOnOffer keeps the offer only while its own sentence is the error sho
 	const offer = pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [70001] });
 	assert.deepStrictEqual(issuesOnOffer(offer, offer.message), [70001]);
 	assert.deepStrictEqual(issuesOnOffer(offer, ''), [], 'cleared by typing or by a link under way');
-	assert.deepStrictEqual(issuesOnOffer(offer, '#70001 is a pull request, not an issue.'), [], 'replaced by a later refusal');
+	assert.deepStrictEqual(issuesOnOffer(offer, '#70001 is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.'), [], 'replaced by a later refusal');
 	assert.deepStrictEqual(issuesOnOffer(null, offer.message), []);
 });
