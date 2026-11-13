@@ -128,6 +128,7 @@ test('an action that throws is an answer, with its own code when it refused, and
 		broken: async () => { throw new Error('settings.json is not JSON'); },
 		missing: async () => { throw Object.assign(new Error('no such file'), { code: 'ENOENT' }); },
 		refuses: async () => { throw new ControlRefusal('unknown-site', 'No such site.'); },
+		detailed: async () => { throw Object.assign(new ControlRefusal('script-failed', 'npm run build exited with code 1.'), { detail: { output: 'Error: boom', ok: true, code: 'ok' } }); },
 		'sites.list': async () => ({ sites: [] })
 	});
 
@@ -136,6 +137,9 @@ test('an action that throws is an answer, with its own code when it refused, and
 	// carries `ENOENT`, and that is not something to hand a tool as a reason.
 	assert.equal((await ask(endpoint, { action: 'missing' })).code, REFUSAL_CODES.FAILED);
 	assert.deepEqual(await ask(endpoint, { action: 'refuses' }), { ok: false, code: 'unknown-site', error: 'No such site.' });
+	// What a refusal carries beside its sentence travels with it, and cannot
+	// replace the three fields every refusal has.
+	assert.deepEqual(await ask(endpoint, { action: 'detailed' }), { output: 'Error: boom', ok: false, code: 'script-failed', error: 'npm run build exited with code 1.' });
 	assert.equal((await ask(endpoint, { action: 'sites.list' })).ok, true);
 });
 

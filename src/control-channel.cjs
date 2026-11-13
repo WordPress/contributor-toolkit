@@ -123,7 +123,10 @@ async function answerRequest(line, actions) {
 	try {
 		return { ok: true, result: await actions[request.action](params || {}) };
 	} catch (e) {
-		if (e instanceof ControlRefusal) return refusal(e.code, e.message);
+		// `detail` is what a refusal carries beside its sentence, such as the
+		// end of a failed command's output; it never replaces the three
+		// fields every refusal has.
+		if (e instanceof ControlRefusal) return { ...(e.detail || {}), ...refusal(e.code, e.message) };
 		return refusal(REFUSAL_CODES.FAILED, String(e && e.message ? e.message : e));
 	}
 }

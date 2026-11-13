@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { __, sprintf } from '@wordpress/i18n';
 import { terminalFont, terminalTheme, tokenName, TERMINAL_READABILITY } from '../terminal-theme.cjs';
 import { terminalGrid } from '../tray.cjs';
+import { tailOfOutput } from '../control-requests.cjs';
 import { useThemeKey } from '../components/app-theme.jsx';
 
 // What the terminal is painted with, read off the design system's tokens
@@ -195,7 +196,10 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     writeToTerminal(`${__('Run them here whenever you change files or add a dependency afterwards.')}\n`);
   }, [writeToTerminal]);
 
-  const executeTerminalCommand = useCallback((rawCommand) => {
+  // `report` is for a command that was not typed (#764): it is told how the
+  // command ended, `{ code }`, or that it never ran, `{ refused }`, and
+  // `onChunk` is handed its output as it comes. Typed commands pass neither.
+  const executeTerminalCommand = useCallback((rawCommand, report = null, onChunk = null) => {
     const command = rawCommand.trim();
     const state = terminalStateRef.current;
     if (!command) {
@@ -207,6 +211,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
 
     if (state.running) {
       writeToTerminal(alreadyRunningLine());
+      if (report) report({ refused: 'busy' });
       return;
     }
 
@@ -223,13 +228,14 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
       // translators: %s: the command being run, such as npm install.
       writeToTerminal(`${sprintf(__('Running %s…'), 'npm install')}\n`);
       runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
+        onLog: (chunk) => { writeToTerminal(chunk); if (onChunk) onChunk(chunk); },
         onDone: ({ code }) => {
           // translators: 1: the command that ended, such as npm install. 2: the code it exited with, a number.
           writeToTerminal(`${sprintf(__('%1$s exited with code %2$s'), 'npm install', code)}\n`);
           markTerminalRunning(false);
           terminalKillRef.current = null;
           showPrompt(false);
+          if (report) report({ code });
         }
       });
       return;
@@ -248,6 +254,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
         // translators: 1: the script asked for. 2: the names of the scripts that can be run, separated by commas.
         writeToTerminal(`${sprintf(__('Unsupported script "%1$s". Allowed scripts: %2$s'), script, allowed.join(', '))}\n`);
         showPrompt(false);
+        if (report) report({ refused: 'unsupported' });
         return;
       }
       markTerminalRunning(true);
@@ -255,13 +262,14 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
       // translators: %s: the command being run, such as npm run build.
       writeToTerminal(`${sprintf(__('Running %s…'), `npm run ${script}`)}\n`);
       runScript(script, {
-        onLog: (chunk) => writeToTerminal(chunk),
+        onLog: (chunk) => { writeToTerminal(chunk); if (onChunk) onChunk(chunk); },
         onDone: ({ code }) => {
           // translators: 1: the command that ended, such as npm run build. 2: the code it exited with, a number.
           writeToTerminal(`${sprintf(__('%1$s exited with code %2$s'), `npm run ${script}`, code)}\n`);
           markTerminalRunning(false);
           terminalKillRef.current = null;
           showPrompt(false);
+          if (report) report({ code });
         }
       });
       return;
@@ -272,6 +280,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     // translators: %s: the command that lists the others, help.
     writeToTerminal(`${sprintf(__('Try "%s" for the list of supported commands.'), 'help')}\n`);
     showPrompt(false);
+    if (report) report({ refused: 'unsupported' });
   }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
 
   const handleTerminalData = useCallback((data) => {
@@ -441,7 +450,21 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     return () => observer.disconnect();
   }, [container, fitTerminal]);
 
+  // A command the `toolkit` command asked for (#764), run as if it had been
+  // typed: shown on a line of its own first, through the same allow-list and
+  // the same lock, and resolved with how it ended and the end of its output.
+  const runTerminalCommand = useCallback((command) => new Promise((resolve) => {
+    let output = '';
+    writeToTerminal(`${command}\n`);
+    executeTerminalCommand(
+      command,
+      (end) => resolve({ ...end, output }),
+      (chunk) => { output = tailOfOutput(output + chunk); }
+    );
+  }), [executeTerminalCommand, writeToTerminal]);
+
   return {
+    runTerminalCommand,
     terminalContainerRef: setContainer,
     terminalStateRef,
     terminalKillRef,

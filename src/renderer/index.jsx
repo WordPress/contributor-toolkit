@@ -23,7 +23,7 @@ import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStart
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
-import { createControlRegistry, createOutcomeWaiters, performSiteControl } from './control-requests.cjs';
+import { createControlRegistry, createOutcomeWaiters, performSiteControl, performAppControl } from './control-requests.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
@@ -408,6 +408,9 @@ function App({ settingsState }) {
     setActiveSite(targetDir);
     setCreateModalOpen(false);
     const chosenType = createSiteType;
+    // How the setup ended, for a caller that is not the dialog (#764). The
+    // page reads none of it: what it shows is the state set below.
+    let outcome = null;
 
     try {
       setCreateSubmitting(true);
@@ -432,7 +435,9 @@ function App({ settingsState }) {
       await refresh();
       setActiveSite(finalSitePath);
       appendSetupLog(finalSitePath, `${__('Site setup request completed.')}\n`);
+      outcome = { ok: true, path: finalSitePath };
     } catch (e) {
+      outcome = { ok: false, error: String(e && e.message ? e.message : e) };
       // Whatever the row is *now*, which is not necessarily what it started as:
       // once the clone reports its directory the guess no longer exists, and
       // discarding the guess here would strand a row for a setup that failed.
@@ -452,7 +457,21 @@ function App({ settingsState }) {
       clearPendingSites();
       setCreateSubmitting(false);
     }
+    return outcome;
   }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, confirm, moveSetupLog, refresh]);
+
+  // A site a tool asked for (#764) is made by the function the dialog calls,
+  // so the row, its setup log and the one-setup-at-a-time rule are the
+  // dialog's. What a tool may ask for and when its site is ready are
+  // control-requests.cjs's.
+  const appControl = useRef(null);
+  useEffect(() => {
+    appControl.current = {
+      snapshot: { creating: createSubmitting, defaultFolder: settings ? settings.newSiteLocation : null },
+      presses: { startSiteSetup, readStatus: (sitePath) => window.api.getSiteStatus(sitePath) }
+    };
+  });
+  useEffect(() => controlRegistry.registerApp((action, params) => performAppControl(action, params, { latest: () => appControl.current })), [controlRegistry]);
 
   const closeCreateModal = useCallback(() => setCreateModalOpen(false), []);
 
@@ -1151,7 +1170,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // switching, moving onto trunk and deleting, with the question a switch
   // asks about trunk's loose edits. The three refs are how it and the apply
   // chain, called further down, reach each other.
-  const { ticketInput, setTicketInput, ticketError, setTicketError, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
+  const { ticketInput, setTicketInput, ticketError, setTicketError, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, linkRef, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
 
   // A ticket arrived from a link and this is the site in front of the
   // contributor (#464). The answer goes through `saveTicket` like any other
@@ -1268,7 +1287,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // the commands it runs through the three runners above. The lock, the kill
   // handler and the writer are taken out by name because every chain below
   // holds the lock and writes its progress there, as it always has.
-  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, shown: isActive && tray === 'terminal' });
+  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand, runTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, shown: isActive && tray === 'terminal' });
   // What a chain says when it is asked to start while a command holds the
   // terminal. The line is printed there and nowhere else, so the terminal is
   // brought up with it: a refusal nobody sees is a button that did nothing.
@@ -1365,7 +1384,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // about edits in the tree, and the retry. Called here because it runs
   // through everything above, and because what follows reads whether an
   // update is under way.
-  const { updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, askFirst, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  const { updateFetchFailed, updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, askFirst, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
   // What opening the site starts (#559): the server, the watch, as the
   // settings say, and what the last quit left for this site to start again.
   // Which edge to consume and what to start is auto-start.cjs's; what is
@@ -1460,15 +1479,47 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   useEffect(() => {
     const snapshot = {
       held: statusLoading || isPending || isDeleting || isUpdating || setupChainState !== 'idle',
+      busy: terminalRunning || isApplying || isUpdating || installing || building || ticketSaving,
       canServe: skipInit || hasBuilt,
-      server: { running, starting: isServerStarting, url: serverUrl, failure: serverFailure }
+      scripts: projectBuild.allowedScripts,
+      server: { running, starting: isServerStarting, url: serverUrl, failure: serverFailure },
+      ticket: { blocked: blockedByTrunkWork ? { files: blockedByTrunkWork.files } : null },
+      apply: {
+        fetching: fetchingPr ?? fetchingAttachment ?? null,
+        preview: applyPreview ? { kind: applyPreview.kind || 'patch', number: applyPreview.number ?? null, label: applyPreview.label } : null,
+        error: applyError,
+        conflict: ''
+      },
+      patches: {
+        isTrac: showTracCards,
+        prs: ticketPatches?.items || [],
+        prRankComplete: ticketPatches?.rankComplete,
+        prsLoading: ticketPatchesLoading,
+        attachments: tracAttachments?.items || [],
+        attachmentsStatus: tracAttachments?.status || null,
+        attachmentsLoading: tracAttachmentsLoading
+      },
+      update: { state: updateState, dirtyOpen: dirtyModalOpen, failed: updateFetchFailed, summary: lastUpdateSummary }
     };
-    controlState.current = { snapshot, presses: { toggleDevServer } };
+    const presses = {
+      toggleDevServer,
+      runTerminalCommand,
+      linkRef,
+      unlinkTicket,
+      previewPullRequest: (number) => previewPr({ number, url: `https://github.com/${project.upstream.owner}/${project.upstream.repo}/pull/${number}` }),
+      previewAttachment,
+      loadTracAttachments,
+      applyPreview: () => runApply(),
+      leavePullRequest: () => runPrSwitch({ leaving: true }),
+      startTrunkUpdate,
+      readStatus: () => window.api.getSiteStatus(sitePath)
+    };
+    controlState.current = { snapshot, presses };
     controlWaiters.settle(snapshot);
   });
   useEffect(() => {
     if (!controlRegistry) return undefined;
-    const unregister = controlRegistry.register(sitePath, (action) => performSiteControl(action, { ...controlState.current, waiters: controlWaiters }));
+    const unregister = controlRegistry.register(sitePath, (action, params) => performSiteControl(action, params, { latest: () => controlState.current, waiters: controlWaiters, deps: { pickLatest } }));
     return () => {
       unregister();
       controlWaiters.abandon();

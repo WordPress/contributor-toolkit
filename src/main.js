@@ -3160,18 +3160,31 @@ ipcMain.handle('control:reply', (_e, id, reply) => windowRequests.answer(id, rep
 // on in the settings, about a site the app has, and carried out by the
 // window. With no window, as on macOS after its close, one is opened: what a
 // tool does to a site is done where the person can see it.
-function windowAction(action) {
+function windowAction(action, about = 'site') {
 	return async (params) => {
 		const s = await getStore();
 		if (!readSettings(s.get('preferences')).toolAccess) {
 			throw new ControlRefusal('tools-not-allowed', 'Changing a site from a tool is turned off. In the WordPress Contributor Toolkit, open Settings, choose Tools, and turn on "Let tools on this computer change my sites".');
 		}
-		const sitePath = await controlSite(params.site);
+		// `about: 'app'` is for what is about no site yet: making one. The
+		// folder a tool names for it is a full path or nothing, as the
+		// settings' own is.
+		if (about === 'app' && params.folder !== undefined && !(typeof params.folder === 'string' && path.isAbsolute(params.folder))) {
+			throw new ControlRefusal('invalid-request', 'Name the folder for the new site by its full path.');
+		}
+		const sitePath = about === 'app' ? null : await controlSite(params.site);
 		if (!mainWindow || mainWindow.isDestroyed?.()) createWindow();
 		const { site: _site, ...rest } = params;
 		const reply = await windowRequests.ask({ action, sitePath, params: rest });
-		if (!reply.ok) throw new ControlRefusal(reply.code, String(reply.error || ''));
-		return { site: sitePath, ...reply.result };
+		if (!reply.ok) {
+			const refused = new ControlRefusal(reply.code, String(reply.error || ''));
+			// What a refusal carries beside its sentence: the end of a failed
+			// command's output, the site a failed setup did create.
+			const { ok: _ok, code: _code, error: _error, ...detail } = reply;
+			refused.detail = detail;
+			throw refused;
+		}
+		return sitePath === null ? { ...reply.result } : { site: sitePath, ...reply.result };
 	};
 }
 
@@ -3256,7 +3269,15 @@ const controlActions = {
 	// From here down, actions that change a site. Each is a press of a button
 	// the window already has; `windowAction` says who may ask and how.
 	'site.server.start': windowAction('site.server.start'),
-	'site.server.stop': windowAction('site.server.stop')
+	'site.server.stop': windowAction('site.server.stop'),
+	'site.script.run': windowAction('site.script.run'),
+	'site.ticket.link': windowAction('site.ticket.link'),
+	'site.ticket.unlink': windowAction('site.ticket.unlink'),
+	'site.pr.checkout': windowAction('site.pr.checkout'),
+	'site.pr.leave': windowAction('site.pr.leave'),
+	'site.patch.apply-latest': windowAction('site.patch.apply-latest'),
+	'site.trunk.update': windowAction('site.trunk.update'),
+	'sites.create': windowAction('sites.create', 'app')
 };
 
 let controlServer = null;
@@ -3280,7 +3301,11 @@ async function startControlChannel() {
 		// two paths the shim names. The CLI is run from where it ships, like
 		// the npm CLI the other shims name.
 		const shimPath = cliShimPath({ userData });
-		const shim = cliShim({ execPath: nodeExecPath(), compatPath: null, cliPath: path.join(__dirname, 'cli.cjs'), cliArgs: ['--endpoint', endpoint] });
+		// The command opens the app when it is closed, and is told how only by
+		// an installed app: from source, or under a test's throwaway profile,
+		// the copy it would open is not the one it belongs to.
+		const reopen = app.isPackaged ? ['--shim', shimPath, '--app', process.execPath] : [];
+		const shim = cliShim({ execPath: nodeExecPath(), compatPath: null, cliPath: path.join(__dirname, 'cli.cjs'), cliArgs: ['--endpoint', endpoint, ...reopen] });
 		await fs.promises.mkdir(path.dirname(shimPath), { recursive: true });
 		await fs.promises.writeFile(shimPath, shim, { mode: 0o755 });
 		toolkitCommandPath = shimPath;

@@ -9155,7 +9155,9 @@ test('the control channel offers reads only, and sites.list answers from the sto
 	// The whole door. A second action is a second thing a process other than
 	// the app can ask for, and belongs in the review of the change that adds
 	// it rather than arriving unnoticed.
-	assert.deepEqual(Object.keys(actions), ['sites.list', 'site.log', 'site.mail', 'site.server.start', 'site.server.stop']);
+	assert.deepEqual(Object.keys(actions), ['sites.list', 'site.log', 'site.mail', 'site.server.start', 'site.server.stop', 'site.script.run', 'site.ticket.link', 'site.ticket.unlink', 'site.pr.checkout', 'site.pr.leave', 'site.patch.apply-latest', 'site.trunk.update', 'sites.create']);
+	// Nothing that loses work, and nothing that sends it anywhere.
+	for (const name of Object.keys(actions)) assert.doesNotMatch(name, /delete|discard|revert|submit|open-pr/);
 
 	assert.deepEqual(await actions['sites.list']({}), {
 		sites: [
@@ -9326,8 +9328,11 @@ test('an action that changes a site is refused until the person turns it on, and
 	const [win] = main.windows;
 	await main.invoke('control:ready');
 
-	for (const action of ['site.server.start', 'site.server.stop']) {
-		await assert.rejects(actions[action]({ site }), (e) => e.code === 'tools-not-allowed' && /Settings/.test(e.message), action);
+	// Every action but the three reads.
+	const changes = Object.keys(actions).filter((name) => !['sites.list', 'site.log', 'site.mail'].includes(name));
+	assert.equal(changes.length, 10);
+	for (const action of changes) {
+		await assert.rejects(actions[action]({ site, name: 'Demo' }), (e) => e.code === 'tools-not-allowed' && /Settings/.test(e.message), action);
 	}
 	// Only a real `true` turns it on.
 	settings.values.preferences = { toolAccess: 'true' };
@@ -9367,4 +9372,36 @@ test('turned on, an action is handed to the window for a site the app has, and t
 	for (let waited = 0; waited < 50 && controlRequests(win).length === 2; waited++) await new Promise((resolve) => setImmediate(resolve));
 	win.emitNavigation('did-start-loading', win.url);
 	await assert.rejects(interrupted, (e) => e.code === 'window-closed');
+});
+
+test('what an action was sent beside the site reaches the window, and what a refusal carries beside its sentence reaches the tool', async (t) => {
+	const site = tempDir(t, 'ipc-wiring-control-params-');
+	const settings = fakeSettingsStore({ sites: [site], preferences: { toolAccess: true } });
+	const { main, actions } = await controlWiring(t, settings);
+	const [win] = main.windows;
+	await main.invoke('control:ready');
+	const next = async (count) => {
+		for (let waited = 0; waited < 50 && controlRequests(win).length < count; waited++) await new Promise((resolve) => setImmediate(resolve));
+		return controlRequests(win)[count - 1];
+	};
+
+	const ran = actions['site.script.run']({ site, script: 'build' });
+	const request = await next(1);
+	assert.deepEqual({ ...request, id: null }, { id: null, action: 'site.script.run', sitePath: site, params: { script: 'build' } });
+	await main.invoke('control:reply', request.id, { ok: false, code: 'script-failed', error: 'npm run build exited with code 1.', output: 'Error: boom' });
+	await assert.rejects(ran, (e) => e.code === 'script-failed' && e.detail.output === 'Error: boom');
+
+	// A new site is about no site: the window is asked with none, and the
+	// answer names the one it made.
+	const made = actions['sites.create']({ name: 'Demo', project: 'gutenberg', folder: path.join(os.tmpdir(), 'sites') });
+	const creation = await next(2);
+	assert.deepEqual({ ...creation, id: null }, { id: null, action: 'sites.create', sitePath: null, params: { name: 'Demo', project: 'gutenberg', folder: path.join(os.tmpdir(), 'sites') } });
+	await main.invoke('control:reply', creation.id, { ok: true, result: { site: '/sites/demo', name: 'Demo', project: 'gutenberg' } });
+	assert.deepEqual(await made, { site: '/sites/demo', name: 'Demo', project: 'gutenberg' });
+
+	// A folder that is not a full path is refused before the window is asked.
+	for (const folder of ['sites', '', 7, null]) {
+		await assert.rejects(actions['sites.create']({ name: 'Demo', folder }), (e) => e.code === 'invalid-request', String(folder));
+	}
+	assert.equal(controlRequests(win).length, 2);
 });
