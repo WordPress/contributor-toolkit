@@ -6,7 +6,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { parseIssueRef, issueUrl, issueToCheck, pullRequestRefusal } = require('../../src/renderer/github-issue.cjs');
+const { MAX_ISSUE_ID, parseIssueRef, issueUrl, issueToCheck, issuesOnOffer, pullRequestRefusal } = require('../../src/renderer/github-issue.cjs');
 const { workItemProvider } = require('../../src/work-item.cjs');
 const { addFilter, removeFilter } = require('@wordpress/hooks');
 const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
@@ -136,11 +136,32 @@ test('issueToCheck asks about what a GitHub-issue site would link, and nothing e
 });
 
 test('pullRequestRefusal refuses only on a clear pull-request answer, and says where a pull request goes', () => {
-	assert.strictEqual(
-		pullRequestRefusal(71234, { ok: true, pullRequest: true }),
-		'#71234 is a pull request, not an issue. To test it, use Check out a pull request. To work on it, link the issue it fixes.'
-	);
+	const told = { message: '#71234 is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.', issues: [] };
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true }), told);
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [] }), told);
 	for (const answer of [{ ok: true, pullRequest: false }, { ok: false, error: 'Site is not registered' }, null, undefined]) {
 		assert.strictEqual(pullRequestRefusal(71234, answer), null);
 	}
+});
+
+test('pullRequestRefusal names the issues a pull request fixes and offers each (#748)', () => {
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [70001] }), {
+		message: '#71234 is a pull request. It fixes #70001. Link that issue instead, or use Check out a pull request to test it.',
+		issues: [70001]
+	});
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [70001, 70002, 70003] }), {
+		message: '#71234 is a pull request. It fixes #70001, #70002 and #70003. Link one of those issues instead, or use Check out a pull request to test it.',
+		issues: [70001, 70002, 70003]
+	});
+	// Only numbers the field itself would link cross into a button.
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: ['70001', 0, null, 1.5, MAX_ISSUE_ID + 1, 1e21] }).issues, []);
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [1, MAX_ISSUE_ID] }).issues, [1, MAX_ISSUE_ID]);
+});
+
+test('issuesOnOffer keeps the offer only while its own sentence is the error shown (#748)', () => {
+	const offer = pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [70001] });
+	assert.deepStrictEqual(issuesOnOffer(offer, offer.message), [70001]);
+	assert.deepStrictEqual(issuesOnOffer(offer, ''), [], 'cleared by typing or by a link under way');
+	assert.deepStrictEqual(issuesOnOffer(offer, '#70001 is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.'), [], 'replaced by a later refusal');
+	assert.deepStrictEqual(issuesOnOffer(null, offer.message), []);
 });

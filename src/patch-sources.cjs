@@ -109,13 +109,36 @@ function bodyCitesIssue(body, issueId, repoPath = PR_REPO_PATH) {
 	if (typeof body !== 'string') return false;
 	const id = String(issueId).replace(/[^0-9]/g, '');
 	if (!id) return false;
+	return closingReference(repoPath, id, 'i').test(body);
+}
+
+/**
+ * Every issue on this repository a PR body closes, in the order it names them
+ * (#748): the same closing-keyword forms `bodyCitesIssue` accepts, built from
+ * the same pattern so the two cannot come to disagree.
+ *
+ * @param {string} body
+ * @param {string} [repoPath]
+ * @return {number[]}
+ */
+function issuesClosedBy(body, repoPath = PR_REPO_PATH) {
+	if (typeof body !== 'string') return [];
+	const found = [];
+	for (const match of body.matchAll(closingReference(repoPath, '[0-9]+', 'gi'))) {
+		const id = Number(match[1] || match[2]);
+		if (!found.includes(id)) found.push(id);
+	}
+	return found;
+}
+
+// GitHub's closing keywords, each in its three forms, then an optional colon,
+// then the reference in any of its three shapes, with the number captured in
+// group 1 (`#N`, `owner/repo#N`) or 2 (the URL). `(?<![0-9])` is not needed on
+// the left: the keyword is what precedes the digits.
+function closingReference(repoPath, id, flags) {
 	const repo = String(repoPath).replace(/[.\\/]/g, '\\$&');
-	// GitHub's closing keywords, each in its three forms, then an optional
-	// colon, then the reference in any of its three shapes. `(?<![0-9])` is
-	// not needed on the left: the keyword is what precedes the digits.
-	const reference = `(?:(?:${repo})?#${id}|https?://github\\.com/${repo}/issues/${id})(?![0-9])`;
-	const closing = new RegExp(`\\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s*:?\\s*${reference}`, 'i');
-	return closing.test(body);
+	const reference = `(?:(?:${repo})?#(${id})|https?://github\\.com/${repo}/issues/(${id}))(?![0-9])`;
+	return new RegExp(`\\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s*:?\\s*${reference}`, flags);
 }
 
 /**
@@ -252,6 +275,7 @@ module.exports = {
 	PR_REPO_PATH,
 	bodyCitesTicket,
 	bodyCitesIssue,
+	issuesClosedBy,
 	citesWorkItemFor,
 	parseLinkedPrs,
 	orderByCommitDate,

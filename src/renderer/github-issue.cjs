@@ -14,7 +14,8 @@
  * imports it and `node --test` requires it directly.
  */
 
-const { __, sprintf } = require('@wordpress/i18n');
+const { __, _n, sprintf } = require('@wordpress/i18n');
+const { listOf } = require('./applied-layer.cjs');
 
 const GITHUB_HOST = 'github.com';
 
@@ -134,17 +135,58 @@ function issueToCheck(workItem, input) {
  * links: not being able to reach GitHub is no reason to stop someone linking
  * the issue they meant, and main logs why it could not tell.
  *
+ * When the pull request's description closes issues, the sentence names them
+ * and `issues` lists them, so the field can offer to link each one (#748).
+ * Most pull requests name none, and the sentence says so, rather than sending
+ * the contributor to look for an issue the description does not name.
+ *
  * @param {number}  id
  * @param {?Object} answer What `github:is-pull-request` returned, if anything.
- * @return {string|null}
+ * @return {{message: string, issues: number[]}|null}
  */
 function pullRequestRefusal(id, answer) {
 	if (!answer || answer.ok !== true || answer.pullRequest !== true) return null;
-	return sprintf(
-		// translators: %d: a pull request number, such as 71234.
-		__('#%d is a pull request, not an issue. To test it, use Check out a pull request. To work on it, link the issue it fixes.'),
-		id
-	);
+	// The same bound the field holds a typed number to: a description can say
+	// anything, and a button must not offer what the link would refuse.
+	const issues = Array.isArray(answer.fixes) ? answer.fixes.filter((n) => Number.isSafeInteger(n) && n >= 1 && n <= MAX_ISSUE_ID) : [];
+	if (!issues.length) {
+		return {
+			message: sprintf(
+				// translators: %d: a pull request number, such as 71234.
+				__('#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.'),
+				id
+			),
+			issues
+		};
+	}
+	return {
+		message: sprintf(
+			// translators: 1: a pull request number, such as 71234. 2: the issues it fixes, such as "#70001" or "#70001 and #70002".
+			_n(
+				'#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use Check out a pull request to test it.',
+				'#%1$d is a pull request. It fixes %2$s. Link one of those issues instead, or use Check out a pull request to test it.',
+				issues.length
+			),
+			id,
+			listOf(issues.map((n) => `#${n}`))
+		),
+		issues
+	};
+}
+
+/**
+ * The issues to offer as links under the issue field (#748): those of the
+ * pull-request refusal, while its sentence is still the error shown. Any later
+ * error, a cleared field or a link under way replaces that sentence, and the
+ * offer goes with it.
+ *
+ * @param {?{message: string, issues: number[]}} offer      What pullRequestRefusal last returned.
+ * @param {string}                               errorShown The issue field's error now.
+ * @return {number[]}
+ */
+function issuesOnOffer(offer, errorShown) {
+	if (!offer || !errorShown || offer.message !== errorShown) return [];
+	return offer.issues;
 }
 
 module.exports = {
@@ -152,6 +194,7 @@ module.exports = {
 	MAX_ISSUE_ID,
 	issueUrl,
 	issueToCheck,
+	issuesOnOffer,
 	parseIssueRef,
 	pullRequestRefusal
 };

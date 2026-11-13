@@ -3499,7 +3499,7 @@ ipcMain.handle('github:is-pull-request', async (_e, sitePath, id) => withRegiste
 		logEvent('github', `could not tell whether #${parsed.id} on ${owner}/${repo} is a pull request, so linking it: ${answer.reason}`);
 		return { ok: true, pullRequest: false };
 	}
-	return { ok: true, pullRequest: answer.pullRequest };
+	return { ok: true, pullRequest: answer.pullRequest, fixes: answer.fixes || [] };
 }));
 
 ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => withRegisteredSite(sitePath, async () => {

@@ -205,6 +205,11 @@ async function standInForTheOutside(app) {
 		replace('github:account', () => ({ ok: true, login: null, configured: true, testMode: null }));
 		replace('github:sign-in', () => ({ ok: true, userCode: 'WDJB-MJHT', verificationUri: 'https://github.com/login/device' }));
 		replace('github:sign-in-cancel', () => ({ ok: true }));
+		// Whether a number typed into the issue field is a pull request (#736):
+		// 86733 is one, and its description fixes #47401 (#748), as on GitHub.
+		replace('github:is-pull-request', (_e, _sitePath, id) => (Number(id) === 86733
+			? { ok: true, pullRequest: true, fixes: [47401] }
+			: { ok: true, pullRequest: false, fixes: [] }));
 		// An install is "started" and never ends, like the script.
 		replace('npm:install', async () => ({ installId: 'docs-fixture' }));
 		replace('npm:run-script', async () => ({ runId: 'docs-fixture' }));
