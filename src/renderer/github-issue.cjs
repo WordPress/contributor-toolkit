@@ -137,7 +137,8 @@ function issueToCheck(workItem, input) {
  *
  * When the pull request's description closes issues, the sentence names them
  * and `issues` lists them, so the field can offer to link each one (#748).
- * Most pull requests name none, and then the contributor is told to find it.
+ * Most pull requests name none, and the sentence says so, rather than sending
+ * the contributor to look for an issue the description does not name.
  *
  * @param {number}  id
  * @param {?Object} answer What `github:is-pull-request` returned, if anything.
@@ -150,7 +151,7 @@ function pullRequestRefusal(id, answer) {
 		return {
 			message: sprintf(
 				// translators: %d: a pull request number, such as 71234.
-				__('#%d is a pull request, not an issue. To test it, use Check out a pull request. To work on it, link the issue it fixes.'),
+				__('#%d is a pull request, not an issue, and its description names no issue it fixes. To test it, use Check out a pull request.'),
 				id
 			),
 			issues

@@ -66,7 +66,7 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	// goes instead (#736).
 	await field.fill( String( PR ) );
 	await ui.linkIssueButton( page ).click();
-	await expect( page.getByRole( 'alert' ).filter( { hasText: `#${ PR } is a pull request, not an issue. To test it, use Check out a pull request.` } ) ).toBeVisible();
+	await expect( page.getByRole( 'alert' ).filter( { hasText: `#${ PR } is a pull request, not an issue, and its description names no issue it fixes. To test it, use Check out a pull request.` } ) ).toBeVisible();
 	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
 
 	// INVARIANT — a pull request that names the issues it fixes says which,
@@ -84,7 +84,7 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	// pull request is refused, and its button goes with the sentence it
 	// belonged to.
 	await page.getByRole( 'button', { name: 'Link #4498', exact: true } ).click();
-	await expect( page.getByRole( 'alert' ).filter( { hasText: '#4498 is a pull request, not an issue.' } ) ).toBeVisible();
+	await expect( page.getByRole( 'alert' ).filter( { hasText: '#4498 is a pull request, not an issue, and its description names no issue it fixes.' } ) ).toBeVisible();
 	await expect( page.getByRole( 'button', { name: 'Link #70001', exact: true } ) ).toHaveCount( 0 );
 	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
 

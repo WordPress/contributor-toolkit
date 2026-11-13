@@ -136,7 +136,7 @@ test('issueToCheck asks about what a GitHub-issue site would link, and nothing e
 });
 
 test('pullRequestRefusal refuses only on a clear pull-request answer, and says where a pull request goes', () => {
-	const told = { message: '#71234 is a pull request, not an issue. To test it, use Check out a pull request. To work on it, link the issue it fixes.', issues: [] };
+	const told = { message: '#71234 is a pull request, not an issue, and its description names no issue it fixes. To test it, use Check out a pull request.', issues: [] };
 	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true }), told);
 	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [] }), told);
 	for (const answer of [{ ok: true, pullRequest: false }, { ok: false, error: 'Site is not registered' }, null, undefined]) {
