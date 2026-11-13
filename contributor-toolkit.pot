@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-11-13T19:45:52+00:00\n"
+"POT-Creation-Date: 2026-11-13T19:49:38+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -1015,7 +1015,7 @@ msgstr ""
 #: src/renderer/affected-files.cjs:131
 #: src/renderer/changes-note.cjs:295
 #: src/renderer/hooks/use-trunk-update.jsx:291
-#: src/renderer/index.jsx:2004
+#: src/renderer/index.jsx:2018
 msgid "Unknown error"
 msgstr ""
 
@@ -1904,7 +1904,7 @@ msgid "Resize tray"
 msgstr ""
 
 #: src/renderer/components/create-site-dialog.jsx:136
-#: src/renderer/index.jsx:2337
+#: src/renderer/index.jsx:2351
 msgid "Create site"
 msgstr ""
 
@@ -2300,7 +2300,7 @@ msgid "Sign in with GitHub"
 msgstr ""
 
 #: src/renderer/components/pull-request-destination.jsx:305
-#: src/renderer/index.jsx:2455
+#: src/renderer/index.jsx:2469
 msgid "Not now"
 msgstr ""
 
@@ -2877,7 +2877,7 @@ msgid "Checking GitHub…"
 msgstr ""
 
 #: src/renderer/components/toast-stack.jsx:47
-#: src/renderer/index.jsx:2701
+#: src/renderer/index.jsx:2715
 msgid "Notifications"
 msgstr ""
 
@@ -3186,32 +3186,43 @@ msgstr ""
 msgid "Build watch (exited %d)"
 msgstr ""
 
-#: src/renderer/github-issue.cjs:101
+#: src/renderer/github-issue.cjs:102
 msgid "That is a pull request. Link the issue it fixes instead."
 msgstr ""
 
-#: src/renderer/github-issue.cjs:105
+#: src/renderer/github-issue.cjs:106
 #. %s: a GitHub repository, such as WordPress/gutenberg.
 msgid "Only %s issues can be linked here."
 msgstr ""
 
-#: src/renderer/github-issue.cjs:145
+#: src/renderer/github-issue.cjs:156
 #. %d: a pull request number, such as 71234.
 msgid ""
-"#%d is a pull request, not an issue. To test it, use Check out a pull "
-"request. To work on it, link the issue it fixes."
+"#%d is a pull request, not an issue, and its description does not say which "
+"issue here it fixes. To test it, use Check out a pull request."
 msgstr ""
 
-#: src/renderer/github-issue.cjs:53
+#: src/renderer/github-issue.cjs:165
+#. 1: a pull request number, such as 71234. 2: the issues it fixes, such as "#70001" or "#70001 and #70002".
+msgid ""
+"#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use "
+"Check out a pull request to test it."
+msgid_plural ""
+"#%1$d is a pull request. It fixes %2$s. Link one of those issues instead, "
+"or use Check out a pull request to test it."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/github-issue.cjs:54
 #. %s: a GitHub repository, such as WordPress/gutenberg.
 msgid "Enter an issue number like 1234, or a %s issue URL."
 msgstr ""
 
-#: src/renderer/github-issue.cjs:57
+#: src/renderer/github-issue.cjs:58
 msgid "Enter an issue number or URL."
 msgstr ""
 
-#: src/renderer/github-issue.cjs:94
+#: src/renderer/github-issue.cjs:95
 #. %s: GitHub's host name, github.com.
 msgid "Only %s issues are supported."
 msgstr ""
@@ -3220,7 +3231,7 @@ msgstr ""
 #: src/renderer/hooks/use-build-watch.jsx:144
 #: src/renderer/hooks/use-site-terminal.jsx:256
 #: src/renderer/hooks/use-trunk-update.jsx:99
-#: src/renderer/index.jsx:1747
+#: src/renderer/index.jsx:1761
 #. %s: the command being run, such as npm run build.
 msgid "Running %s…"
 msgstr ""
@@ -3441,19 +3452,19 @@ msgstr ""
 msgid "WordPress npm helper terminal."
 msgstr ""
 
-#: src/renderer/hooks/use-site-ticket.jsx:116
+#: src/renderer/hooks/use-site-ticket.jsx:120
 msgid "Could not save the ticket."
 msgstr ""
 
-#: src/renderer/hooks/use-site-ticket.jsx:205
+#: src/renderer/hooks/use-site-ticket.jsx:216
 msgid "Could not discard the changes."
 msgstr ""
 
-#: src/renderer/hooks/use-site-ticket.jsx:244
+#: src/renderer/hooks/use-site-ticket.jsx:255
 msgid "Could not save the patch."
 msgstr ""
 
-#: src/renderer/hooks/use-site-ticket.jsx:272
+#: src/renderer/hooks/use-site-ticket.jsx:283
 msgid "Could not delete the branch."
 msgstr ""
 
@@ -3499,7 +3510,7 @@ msgid "Saved your changes to %s and reset the working tree."
 msgstr ""
 
 #: src/renderer/hooks/use-trunk-update.jsx:298
-#: src/renderer/index.jsx:1908
+#: src/renderer/index.jsx:1922
 msgid "Discarded local changes."
 msgstr ""
 
@@ -3546,157 +3557,162 @@ msgstr ""
 msgid "Saved to %s. The edits are still in the working tree."
 msgstr ""
 
-#: src/renderer/index.jsx:1708
+#: src/renderer/index.jsx:1619
+#. %d: a GitHub issue number, such as 70001.
+msgid "Link #%d"
+msgstr ""
+
+#: src/renderer/index.jsx:1722
 msgid "This site is ready to work on"
 msgstr ""
 
-#: src/renderer/index.jsx:1713
+#: src/renderer/index.jsx:1727
 msgid "Stopping setup…"
 msgstr ""
 
-#: src/renderer/index.jsx:1726
+#: src/renderer/index.jsx:1740
 #. %s: the command that installs dependencies, npm install.
 msgid "Setting this site up — running %s…"
 msgstr ""
 
-#: src/renderer/index.jsx:2051
+#: src/renderer/index.jsx:2065
 msgid ""
 "Cloning the repository… install and build start on their own when it "
 "finishes."
 msgstr ""
 
-#: src/renderer/index.jsx:2058
+#: src/renderer/index.jsx:2072
 #: src/renderer/setup-steps.cjs:205
 msgid "Install npm dependencies"
 msgstr ""
 
-#: src/renderer/index.jsx:2074
+#: src/renderer/index.jsx:2088
 #: src/renderer/setup-steps.cjs:228
 #: src/renderer/update-plan.cjs:187
 msgid "Run full build"
 msgstr ""
 
-#: src/renderer/index.jsx:2090
+#: src/renderer/index.jsx:2104
 msgid "Start dev server & finish wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:2105
+#: src/renderer/index.jsx:2119
 msgid "Stop dev server"
 msgstr ""
 
-#: src/renderer/index.jsx:2105
+#: src/renderer/index.jsx:2119
 msgid "Start dev server and finish the wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:2110
+#: src/renderer/index.jsx:2124
 #. %s: how long the server has been starting, such as 12s.
 msgid "Starting… (%s)"
 msgstr ""
 
-#: src/renderer/index.jsx:2216
+#: src/renderer/index.jsx:2230
 #. %s: what to do next, a sentence.
 msgid "Next step: %s"
 msgstr ""
 
-#: src/renderer/index.jsx:2236
+#: src/renderer/index.jsx:2250
 #. <folder /> is the folder the project's source is in, such as src/. <command /> is the command that builds it, npm run build, which types it into the terminal when clicked.
 msgid ""
 "Edited files in <code><folder /></code>? Run <command /> so the site picks "
 "them up."
 msgstr ""
 
-#: src/renderer/index.jsx:2241
+#: src/renderer/index.jsx:2255
 #. <file /> is the file dependencies are listed in, package.json. <command /> is the command that installs them, npm install, which types it into the terminal when clicked.
 msgid "Added a dependency to <code><file /></code>? Run <command />."
 msgstr ""
 
-#: src/renderer/index.jsx:2249
+#: src/renderer/index.jsx:2263
 #. <command /> is the command that lists the others, help. <keys /> is the keys that stop a command, Ctrl+C.
 msgid ""
 "Type <code><command /></code> to list supported commands. Press <code><keys "
 "/></code> to stop the current command."
 msgstr ""
 
-#: src/renderer/index.jsx:2327
+#: src/renderer/index.jsx:2341
 msgid "Choose application…"
 msgstr ""
 
-#: src/renderer/index.jsx:2349
+#: src/renderer/index.jsx:2363
 msgid "Update incomplete"
 msgstr ""
 
-#: src/renderer/index.jsx:2350
+#: src/renderer/index.jsx:2364
 msgid ""
 "The code is new but the built assets are old. The site may not run "
 "correctly until install and build succeed."
 msgstr ""
 
-#: src/renderer/index.jsx:2352
+#: src/renderer/index.jsx:2366
 msgid "Retry install & build"
 msgstr ""
 
-#: src/renderer/index.jsx:2360
+#: src/renderer/index.jsx:2374
 #. %d: how many days old the site's copy of WordPress is.
 msgid "This site's WordPress code is %d day old"
 msgid_plural "This site's WordPress code is %d days old"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:2363
+#: src/renderer/index.jsx:2377
 msgid "Patches you create now may not apply on Trac. Updating takes a few minutes."
 msgstr ""
 
-#: src/renderer/index.jsx:2365
+#: src/renderer/index.jsx:2379
 #: src/renderer/site-menu.cjs:134
 msgid "Update to latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:2374
+#: src/renderer/index.jsx:2388
 #. 1: the step the update is on. 2: how many steps it has.
 msgid "step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2375
+#: src/renderer/index.jsx:2389
 msgid ""
 "Most packages are already cached, so this is a download of the difference — "
 "not the whole tree."
 msgstr ""
 
-#: src/renderer/index.jsx:2380
+#: src/renderer/index.jsx:2394
 msgid "Up to date with trunk as of today."
 msgstr ""
 
-#: src/renderer/index.jsx:2392
+#: src/renderer/index.jsx:2406
 #. %s: the path of the patch file the changes were saved to.
 msgid "Your changes were saved to %s before the reset."
 msgstr ""
 
-#: src/renderer/index.jsx:2409
+#: src/renderer/index.jsx:2423
 #. 1: the step setup is on. 2: how many steps it has.
 msgid "Setting this site up for you — step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2414
+#: src/renderer/index.jsx:2428
 msgid ""
 "Installing dependencies. You can leave this running — the build follows on "
 "its own."
 msgstr ""
 
-#: src/renderer/index.jsx:2415
+#: src/renderer/index.jsx:2429
 msgid ""
 "Running the full build. This can take up to half an hour on Windows; the "
 "Terminal shows what it is doing."
 msgstr ""
 
-#: src/renderer/index.jsx:2437
+#: src/renderer/index.jsx:2451
 msgid "Hide"
 msgstr ""
 
-#: src/renderer/index.jsx:2453
+#: src/renderer/index.jsx:2467
 msgid "Finish setting this site up first."
 msgstr ""
 
-#: src/renderer/index.jsx:2696
+#: src/renderer/index.jsx:2710
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
