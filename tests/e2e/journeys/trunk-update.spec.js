@@ -72,13 +72,14 @@ test( 'an update fetches from the site\'s origin, resets the checkout, rebuilds,
  * The update run from a linked ticket, all the way back to trunk (#419).
  *
  * The journey above runs the same chain from trunk, where the flag that says
- * "the code is new but the built assets are old" is written and cleared in the
- * same place and nothing can disagree. From a ticket it is written after the
- * park, while the app is on trunk, and cleared after the return, while it is on
- * the ticket — two scopes, and the bug was that only one of them was ever
- * cleared. Nothing below trunk's own level can see it: the layer-3 test proves
- * the handlers write where they should, and this proves the contributor is not
- * looking at a red banner after a build that succeeded.
+ * "the code is new but the built assets are old" is written and cleared on the
+ * same branch. From a ticket it is written after the park, while the app is on
+ * trunk, and cleared after the return, while it is on the ticket. The flag
+ * used to be kept per branch, and the bug was that only one of the two copies
+ * was ever cleared; it is kept on the site now (#475), so both ends of the
+ * chain reach the same one. The layer-3 tests prove the handlers write where
+ * they should, and this proves the contributor is not looking at a red banner
+ * after a build that succeeded.
  *
  * The step that reveals it is the last one. Everything is quiet until Unlink
  * puts the site back on trunk, which is where the stale flag is read from.
@@ -122,11 +123,10 @@ test( 'an update run from a linked ticket leaves no incomplete marker behind on 
 	await expect( ui.retryInstallButton( page ) ).toHaveCount( 0 );
 
 	// CHARACTERISATION — the store's side of the same thing: the snapshot moved,
-	// and neither scope is left claiming the site is mid-update.
+	// and the site is not left claiming it is mid-update.
 	const meta = session.readSettings().siteMeta[ site.dir ];
 	expect( meta.trunkOid ).toBe( newTip );
 	expect( meta.updateIncomplete ).toBeFalsy();
-	expect( meta.branches[ 'ticket/60002' ].updateIncomplete ).toBeFalsy();
 } );
 
 /**

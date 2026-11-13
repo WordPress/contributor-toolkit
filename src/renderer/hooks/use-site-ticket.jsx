@@ -127,7 +127,7 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
       setPatchSavedTo('');
       if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
       // Both, and awaited: the branch list decides which rows show, and
-      // appliedPatch/updateIncomplete are per-branch (#108) — without the
+      // appliedPatch is per-branch (#108) — without the
       // status reload, switching tickets would keep showing the other
       // ticket's "patch applied · Revert" banner over this branch's tree.
       await Promise.all([loadBranches(), loadStatus()]);

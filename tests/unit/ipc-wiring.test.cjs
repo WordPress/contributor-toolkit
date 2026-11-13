@@ -4666,11 +4666,9 @@ test('git:update-trunk parks the ticket, updates, and returns to it (issue #108)
 	assert.equal(meta.currentBranch, 'ticket/59234');
 	assert.equal(meta.tracTicket, 59234, 'the panel and the worktree must agree on the ticket');
 	assert.equal(meta.trunkOid, 'new');
-	// The incomplete flag describes the ticket's tree, not the site's.
-	assert.equal(meta.branches['ticket/59234'].updateIncomplete, true);
-	// Site level holds no fresh `true` any more: what is there is the explicit
-	// clear of the copy earlier versions wrote (#419).
-	assert.equal(meta.updateIncomplete, false, 'the live flag is the branch\'s, and this is the cleared copy');
+	// The incomplete flag describes the build every branch shares (#475).
+	assert.equal(meta.updateIncomplete, true);
+	assert.equal(meta.branches['ticket/59234'].updateIncomplete, undefined, 'and is not kept per branch');
 });
 
 // The same lost write, one scope up. `sites:set-ticket` used to read the
@@ -5003,9 +5001,8 @@ test('git:update-trunk leaves no incomplete flag on trunk after the build finish
 	assert.equal(status.updateIncomplete, false, 'the build ran and succeeded; nothing is incomplete');
 });
 
-// The other half of #419's correction: an update started from trunk has no
-// branch to write to, and its flag has to stay where `site:status` reads it on
-// trunk. Naming the branch explicitly must not have moved that.
+// The plain case: an update started from trunk records its flag at site
+// level, where `site:status` reads it.
 test('git:update-trunk still records the incomplete flag at site level with no ticket linked (issue #419)', async () => {
 	const currentBranchName = spy(async () => 'trunk');
 	const switchToBranch = spy(async () => ({ switched: true }));
@@ -5034,84 +5031,10 @@ test('git:update-trunk still records the incomplete flag at site level with no t
 	assert.equal((await main.invoke('site:status', '/sites/wp')).updateIncomplete, true);
 });
 
-// The stale copy the correction above has to clear: a site that already went
-// through the bug carries `updateIncomplete: true` at site level, and nothing
-// in the normal flow ever reaches it again. Without this one-time clear the
-// false banner outlives the fix on every machine that already met it.
-test('git:update-trunk clears the stale site-level flag an earlier version left (issue #419)', async () => {
-	let head = 'ticket/60002';
-	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
-	const currentBranchName = spy(async () => head);
-	const updateToLatestTrunk = spy(async () => ({
-		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
-	}));
-	const settings = fakeSettingsStore({
-		sites: ['/sites/wp'],
-		siteMeta: {
-			'/sites/wp': {
-				tracTicket: 60002,
-				currentBranch: 'ticket/60002',
-				updateIncomplete: true, // what the bug left behind
-				branches: { 'ticket/60002': { tracTicket: 60002, baseOid: 'abc' } }
-			}
-		}
-	});
-	const main = loadMain({
-		stubs: {
-			...silentLogging(),
-			...settings.stubs,
-			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
-			'./ticket-branches': { switchToBranch, currentBranchName }
-		}
-	});
-
-	const event = createIpcEvent();
-	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
-	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
-
-	const meta = settings.values.siteMeta['/sites/wp'];
-	assert.equal(meta.updateIncomplete, false, 'the copy nothing else would ever reach');
-	assert.equal(meta.branches['ticket/60002'].updateIncomplete, true, 'the live flag, on the branch the build ends on');
-});
-
-// The clear is not unconditional, and this is why. A branch with no entry of
-// its own — a site whose migration could not run, a branch the contributor's
-// own git client checked out — has just written its flag at site level, so
-// clearing it there would drop the only copy of a genuine incomplete state and
-// leave new code over old assets with nothing saying so.
-test('git:update-trunk keeps the flag when the branch has no meta of its own (issue #419)', async () => {
-	let head = 'ticket/60002';
-	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
-	const currentBranchName = spy(async () => head);
-	const updateToLatestTrunk = spy(async () => ({
-		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
-	}));
-	const settings = fakeSettingsStore({
-		sites: ['/sites/wp'],
-		// `branches` present, so the migration does not run; the checked-out
-		// branch simply is not in it.
-		siteMeta: { '/sites/wp': { tracTicket: 60002, currentBranch: 'ticket/60002', branches: {} } }
-	});
-	const main = loadMain({
-		stubs: {
-			...silentLogging(),
-			...settings.stubs,
-			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
-			'./ticket-branches': { switchToBranch, currentBranchName }
-		}
-	});
-
-	const event = createIpcEvent();
-	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
-	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
-
-	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true, 'the only copy there is');
-});
-
 // An update that finds nothing to fetch rebuilds nothing, so it writes no flag
-// — and must not erase one. The site-level flag it would have cleared can be a
-// real one: the failure path records it on trunk and leaves the contributor
-// there, and this is the run they make next.
+// — and must not erase one. The flag can be a real one: the failure path
+// records it and leaves the contributor on trunk, and this is the run they make
+// next.
 test('git:update-trunk that is already up to date does not erase a real incomplete flag (issue #419)', async () => {
 	let head = 'ticket/60002';
 	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
@@ -5144,6 +5067,49 @@ test('git:update-trunk that is already up to date does not erase a real incomple
 	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
 
 	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true, 'nothing was rebuilt, so nothing is resolved');
+});
+
+// The failure path's flag goes to the site too (#475). A park whose checkout
+// dies leaves HEAD on the ticket, so the old write followed HEAD onto the
+// branch, and trunk said nothing about a tree that was half rewritten.
+test('git:update-trunk records the incomplete flag at site level when the park fails part-way (issue #475)', async () => {
+	let head = 'ticket/60002';
+	const switchToBranch = spy(async () => {
+		const e = new Error('EPERM');
+		e.stage = 'checkout';
+		throw e;
+	});
+	const currentBranchName = spy(async () => head);
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 60002,
+				currentBranch: 'ticket/60002',
+				branches: { 'ticket/60002': { tracTicket: 60002, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk: async () => { throw new Error('the update must not run after a failed park'); }, readTrunkInfo: async () => ({ trunkOid: 'old', trunkDate: 'd' }) },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	const done = await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+	assert.equal(done.stage, 'checkout');
+
+	const meta = settings.values.siteMeta['/sites/wp'];
+	assert.equal(meta.updateIncomplete, true);
+	assert.equal(meta.branches['ticket/60002'].updateIncomplete, undefined, 'and is not kept per branch');
+	assert.equal((await main.invoke('site:status', '/sites/wp')).updateIncomplete, true, 'on the ticket');
+	head = 'trunk';
+	assert.equal((await main.invoke('site:status', '/sites/wp')).updateIncomplete, true, 'and on trunk, which shares the build');
 });
 
 // The flag and the applied-patch record move in opposite directions, and this
@@ -5244,8 +5210,9 @@ test('git:update-trunk keeps the applied-patch record of a branch with no meta o
 // patch is generated against the wrong trunk: not empty, not refused, wrong.
 //
 // The overlap the issue names is a ticket started while a trunk update is
-// finishing. The update's last writes put the incomplete flag on the branch it
-// returns to; the link records the new branch's base. Whichever of the
+// finishing. The update's last writes record the incomplete flag and move
+// the site back to the branch it returns to; the link records the new branch's
+// base. Whichever of the
 // update's store accesses the link lands in, the base must be there afterwards.
 //
 // So the link is staged inside each store access the finishing update makes,
@@ -5328,7 +5295,7 @@ test('a ticket started while a trunk update is finishing keeps its recorded base
 		await t.test(`the link lands in store access ${holdAt} of ${accesses}`, async () => {
 			const { link, meta } = await run(holdAt);
 			assert.equal(link && link.ok, true, 'the link itself succeeded');
-			assert.equal(meta.branches['ticket/59234'].updateIncomplete, true,
+			assert.equal(meta.updateIncomplete, true,
 				'the update still wrote its own record after the hold, so this run staged a real overlap');
 			assert.equal(meta.branches['ticket/60002'] && meta.branches['ticket/60002'].baseOid, 'fresh',
 				'the new branch\'s base is what every patch for it is measured against');
@@ -6593,6 +6560,28 @@ test('declining the carry leaves the applied-patch record on trunk (issue #236)'
 
 	assert.equal(result.code, 'dirty-trunk', 'the gesture asks rather than moving anything');
 	assert.deepEqual(settings.values.siteMeta[dir].appliedPatch, applied, 'nothing moved, so the record did not either');
+});
+
+// The incomplete-update flag is the field that does not follow the work, and
+// that is the point (#475). It describes the one node_modules and build/ every
+// branch shares, so a carry neither takes it to the ticket nor leaves it
+// behind on trunk: the ticket still shows the banner its stale build earns,
+// and the build that finishes there clears it for trunk too.
+test('the carry leaves the incomplete-update flag on the site the build belongs to (issue #475)', async (t) => {
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-incomplete-');
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { updateIncomplete: true } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	assert.equal((await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true })).ok, true);
+	assert.ok(await carriedWork(event), 'the carry finished and said so — see the note in the #236 test above');
+	assert.equal((await main.invoke('site:status', dir)).updateIncomplete, true, 'the build is still stale on the ticket');
+
+	// What the renderer does when the retried build succeeds, on the ticket.
+	await main.invoke('sites:mark-update-complete', dir);
+	assert.equal((await main.invoke('branches:switch', dir, 'trunk')).ok, true);
+
+	assert.equal((await main.invoke('site:status', dir)).updateIncomplete, false, 'the build trunk uses is the one that just finished');
 });
 
 test('nothing loose means nothing is claimed (issue #108)', async (t) => {
@@ -8631,11 +8620,9 @@ test('git:update-trunk returns to a checked-out PR and keeps its linked ticket (
 	assert.equal(meta.currentBranch, 'pr/7');
 	assert.equal(meta.tracTicket, 59234, 'the panel and the worktree must agree on the ticket');
 	assert.equal(meta.trunkOid, 'new');
-	// The incomplete flag describes the ticket's tree, not the site's.
-	assert.equal(meta.branches['pr/7'].updateIncomplete, true);
-	// Site level holds no fresh `true` any more: what is there is the explicit
-	// clear of the copy earlier versions wrote (#419).
-	assert.equal(meta.updateIncomplete, false, 'the live flag is the branch\'s, and this is the cleared copy');
+	// The incomplete flag describes the build every branch shares (#475).
+	assert.equal(meta.updateIncomplete, true);
+	assert.equal(meta.branches['pr/7'].updateIncomplete, undefined, 'and is not kept per branch');
 });
 
 // PR checkout is layer 2's job; here the observable contract is the stream,
