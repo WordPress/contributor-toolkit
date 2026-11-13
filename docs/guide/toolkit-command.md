@@ -71,4 +71,4 @@ It does not create a site, link a ticket, apply a patch or start the dev server:
 
 ## Who can use it
 
-Only programs running as you, on this computer. The command talks to the app over a local socket in the app's data folder (a named pipe on Windows), not over the network, so a web page or another computer cannot reach it.
+Programs on this computer that can read the app's data folder, which is yours. The command talks to the app over a local socket in that folder, not over the network, so a web page or another computer cannot reach it. On Windows it is a named pipe whose name changes each time the app starts and is only written into that folder.

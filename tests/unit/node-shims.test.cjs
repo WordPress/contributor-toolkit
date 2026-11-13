@@ -92,6 +92,9 @@ test('a CLI shim puts the app\'s own arguments between the CLI and the caller\'s
 		cliArgs: ['--endpoint', '\\\\.\\pipe\\wpct-control-0123456789abcdef'],
 		platform: 'win32'
 	});
+	// Run from a person's own cmd.exe, the shim must not leave Electron's
+	// run-as-Node switch set in that window once it has finished.
+	assert.ok(win.includes('setlocal') && win.indexOf('setlocal') < win.indexOf('set ELECTRON_RUN_AS_NODE=1'));
 	assert.ok(win.includes('"C:\\app\\src\\cli.cjs" "--endpoint" "\\\\.\\pipe\\wpct-control-0123456789abcdef" %*'));
 
 	// A shim given none is byte for byte what it was.

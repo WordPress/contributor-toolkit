@@ -6,9 +6,10 @@
 // macOS and Linux, a named pipe on Windows. Not a TCP port, on purpose. A port
 // on loopback is reachable from any page the contributor has open, which is
 // the same exposure `wpct://` has and the reason deep-link.cjs keeps that
-// scheme to one verb. A socket file and a named pipe can only be opened by a
-// process running as the same user, which can already read the settings file
-// beside them.
+// scheme to one verb. The socket file is the user's alone (mode 0600, in their
+// own profile directory), and a process that can open it can already read the
+// settings file beside it. A pipe's name is random at every start and written
+// only into that same directory; see `controlEndpoint`.
 //
 // One request per connection: a line of JSON in, a line of JSON out, and the
 // connection ends. The actions are handed in by main.js, so this module has no
@@ -110,7 +111,7 @@ async function answerRequest(line, actions) {
 	}
 }
 
-function serveConnection(socket, actions) {
+function serveConnection(socket, actions, requestTimeoutMs) {
 	let buffered = '';
 	let answered = false;
 
@@ -120,7 +121,7 @@ function serveConnection(socket, actions) {
 		socket.end(`${JSON.stringify(payload)}\n`);
 	};
 	// A client that connects and says nothing is let go, not kept.
-	const timer = setTimeout(() => socket.destroy(), REQUEST_TIMEOUT_MS);
+	const timer = setTimeout(() => socket.destroy(), requestTimeoutMs);
 
 	socket.setEncoding('utf8');
 	// A client that went away mid-reply has nobody left to tell.
@@ -138,6 +139,9 @@ function serveConnection(socket, actions) {
 			return;
 		}
 		answered = true;
+		// The client has said what it wants. How long the answer takes is
+		// the action's business, and the client keeps its own limit.
+		clearTimeout(timer);
 		answerRequest(buffered.slice(0, end), actions).then(reply);
 	});
 }
@@ -152,17 +156,18 @@ function serveConnection(socket, actions) {
  * profile directory the socket is in.
  *
  * @param {Object}                   root0
- * @param {string}                   root0.endpoint   From `controlEndpoint`.
- * @param {Object<string, Function>} root0.actions    The actions offered, by name.
+ * @param {string}                   root0.endpoint           From `controlEndpoint`.
+ * @param {Object<string, Function>} root0.actions            The actions offered, by name.
  * @param {string}                   [root0.platform]
- * @param {(error: Error) => void}   [root0.onError]  A failure after the listen began.
+ * @param {(error: Error) => void}   [root0.onError]          A failure after the listen began.
+ * @param {number}                   [root0.requestTimeoutMs] How long a client has to send its request.
  * @return {Promise<{close: () => Promise<void>}>} Rejects when the listen fails.
  */
-async function startControlServer({ endpoint, actions, platform = process.platform, onError = () => {} }) {
+async function startControlServer({ endpoint, actions, platform = process.platform, onError = () => {}, requestTimeoutMs = REQUEST_TIMEOUT_MS }) {
 	const posix = platform !== 'win32';
 	if (posix) await fs.promises.rm(endpoint, { force: true });
 
-	const server = net.createServer((socket) => serveConnection(socket, actions));
+	const server = net.createServer((socket) => serveConnection(socket, actions, requestTimeoutMs));
 	await new Promise((resolve, reject) => {
 		server.once('error', reject);
 		server.listen(endpoint, () => {

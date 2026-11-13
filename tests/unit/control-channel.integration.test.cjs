@@ -30,9 +30,9 @@ function profile(t) {
 	return dir;
 }
 
-async function serve(t, actions, userData = profile(t)) {
+async function serve(t, actions, userData = profile(t), options = {}) {
 	const endpoint = controlEndpoint({ userData });
-	const server = await startControlServer({ endpoint, actions });
+	const server = await startControlServer({ endpoint, actions, ...options });
 	t.after(() => server.close());
 	return { endpoint, server };
 }
@@ -148,6 +148,18 @@ test('a client is told when the app takes too long to answer', async (t) => {
 	const { endpoint } = await serve(t, { slow: () => new Promise(() => {}) });
 
 	assert.equal((await ask(endpoint, { action: 'slow' }, { timeoutMs: 50 })).code, 'timeout');
+});
+
+// The limit on a client is on how long it takes to ask, not on how long the
+// app takes to answer: an action slower than that limit is still answered.
+test('a client that says nothing is let go, and one that asked is answered however long that takes', async (t) => {
+	const { endpoint } = await serve(t, {
+		slow: () => new Promise((resolve) => setTimeout(() => resolve({ done: true }), 150))
+	}, profile(t), { requestTimeoutMs: 40 });
+
+	assert.deepEqual(await ask(endpoint, { action: 'slow' }), { ok: true, result: { done: true } });
+	// Connected, and never sent a line: the server hangs up with no reply.
+	assert.equal(await sendRaw(endpoint, ''), '');
 });
 
 // A named pipe leaves no file behind and has no mode to set, so these two are

@@ -101,10 +101,16 @@ function posixShim({ execPath, compatPath, cliPath = null, cliArgs = [], forward
 // Windows shims are .cmd/.bat. Backslashes inside a quoted command-line argument
 // are literal — the escaping problem that forces forward slashes in NODE_OPTIONS
 // does not exist here, so the path goes in as the OS spells it.
+//
+// `setlocal` keeps the two variables to this script. The node and npm shims
+// are only run by the app's own children, but the `toolkit` shim (#764) is
+// run from a person's own cmd.exe, where a variable set by a script outlives
+// it, and every Electron app started from that window afterwards would run as
+// plain Node.
 function windowsShim({ execPath, compatPath, cliPath = null, cliArgs = [] }) {
 	const flag = compatPath ? `set ${COMPAT_FLAG}=1\r\n` : '';
 	const cli = cliPath ? `"${cliPath}" ${quotedArgs(cliArgs)}` : '';
-	return `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n${flag}"${execPath}" ${requireArgs(compatPath)}${cli}%*\r\n`;
+	return `@echo off\r\nsetlocal\r\nset ELECTRON_RUN_AS_NODE=1\r\n${flag}"${execPath}" ${requireArgs(compatPath)}${cli}%*\r\n`;
 }
 
 // Which binary the shims, and the runner spawns in main.js, should exec (#518).
