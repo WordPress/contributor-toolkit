@@ -146,7 +146,9 @@ function issueToCheck(workItem, input) {
  */
 function pullRequestRefusal(id, answer) {
 	if (!answer || answer.ok !== true || answer.pullRequest !== true) return null;
-	const issues = Array.isArray(answer.fixes) ? answer.fixes.filter((n) => Number.isInteger(n) && n > 0) : [];
+	// The same bound the field holds a typed number to: a description can say
+	// anything, and a button must not offer what the link would refuse.
+	const issues = Array.isArray(answer.fixes) ? answer.fixes.filter((n) => Number.isSafeInteger(n) && n >= 1 && n <= MAX_ISSUE_ID) : [];
 	if (!issues.length) {
 		return {
 			message: sprintf(

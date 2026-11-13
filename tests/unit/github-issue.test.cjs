@@ -6,7 +6,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { parseIssueRef, issueUrl, issueToCheck, issuesOnOffer, pullRequestRefusal } = require('../../src/renderer/github-issue.cjs');
+const { MAX_ISSUE_ID, parseIssueRef, issueUrl, issueToCheck, issuesOnOffer, pullRequestRefusal } = require('../../src/renderer/github-issue.cjs');
 const { workItemProvider } = require('../../src/work-item.cjs');
 const { addFilter, removeFilter } = require('@wordpress/hooks');
 const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
@@ -153,8 +153,9 @@ test('pullRequestRefusal names the issues a pull request fixes and offers each (
 		message: '#71234 is a pull request. It fixes #70001, #70002 and #70003. Link one of those issues instead, or use Check out a pull request to test it.',
 		issues: [70001, 70002, 70003]
 	});
-	// Only whole numbers cross into a button.
-	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: ['70001', 0, null] }).issues, []);
+	// Only numbers the field itself would link cross into a button.
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: ['70001', 0, null, 1.5, MAX_ISSUE_ID + 1, 1e21] }).issues, []);
+	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [1, MAX_ISSUE_ID] }).issues, [1, MAX_ISSUE_ID]);
 });
 
 test('issuesOnOffer keeps the offer only while its own sentence is the error shown (#748)', () => {
