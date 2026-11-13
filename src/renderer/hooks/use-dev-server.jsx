@@ -81,8 +81,10 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
     serverStartRequestedRef.current = false;
-    setStarting(false);
     try { await window.api.stopServer(sitePath); } catch {}
+    // Said only now: until main has answered, a start asked for would find
+    // this stop still going and never run (#723).
+    setStarting(false);
     stopDebugTail();
     stopListeningForMail();
     setRunning(false);
@@ -196,6 +198,8 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
   }, [appendRuntime, ensureStick, listenForMail, loadMail, revealServerLog, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDebugTail, stopDevServer, stopListeningForMail]);
 
   const toggleDevServer = async ()=>{
+    // A stop is going, a cancel's included: the press waits for it to end.
+    if (stoppingRef.current) return;
     if (!running) {
       // A start is already queued behind the watch (or in flight): a press
       // now cancels it (#723), and never queues a second server start (#488).

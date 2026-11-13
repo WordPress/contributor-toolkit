@@ -372,6 +372,50 @@ test( 'starts cancelled during the first build ask for one server when it is don
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 } );
 
+// A cancel asks main to stop the start and waits for its answer. Until that
+// comes there is no start to offer: one asked for then would find the stop
+// still going and never run.
+test( 'a cancelled start offers to start again only once the stop is done, and that start comes up', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	await ui.openTray( page, 'Terminal' );
+	const server = await standIn( app, page, site.dir );
+	await app.evaluate( ( { ipcMain } ) => {
+		const asked = global.__e2eServer;
+		ipcMain.removeHandler( 'playground:stop' );
+		ipcMain.handle( 'playground:stop', async ( event, dir ) => {
+			asked.stops.push( dir );
+			await new Promise( ( open ) => {
+				global.__e2eLetStop = open;
+			} );
+			return { ok: true };
+		} );
+	} );
+	const starting = page.getByRole( 'button', { name: 'Cancel the development server start', exact: true } );
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
+	await starting.click();
+	await expect.poll( async () => ( await server.asked() ).stops ).toEqual( [ site.dir ] );
+
+	// INVARIANT — while the stop is going, Start is not offered.
+	await server.heard();
+	await expect( ui.startDevServerButton( page ) ).toHaveCount( 0 );
+
+	// INVARIANT — once it is done, Start is offered, and that start asks for
+	// a server and comes up.
+	await app.evaluate( () => global.__e2eLetStop() );
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await app.evaluate( () => {
+		global.__e2eLetStop = null;
+	} );
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir, site.dir ] );
+	await server.serverHasAddress();
+	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
+} );
+
 // A start first reads afresh whether the site is built. A cancel that comes
 // while it reads is the start's end: it does not go on to start the build.
 test( 'a start cancelled while it reads whether the site is built starts no build', async ( { session } ) => {
