@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { __ } from '@wordpress/i18n';
 import { discardOutcome } from '../changes-note.cjs';
 import { rebaseRefusal } from '../ticket-trunk-notice.cjs';
-import { issueToCheck, pullRequestRefusal } from '../github-issue.cjs';
+import { issueToCheck, issuesOnOffer, pullRequestRefusal } from '../github-issue.cjs';
 
 // The ticket or issue a site is working on (#109, #108, #554): linking one,
 // leaving it, switching between the ones that already have work here, moving
@@ -36,9 +36,9 @@ import { issueToCheck, pullRequestRefusal } from '../github-issue.cjs';
 export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote }) {
   const [ticketInput, setTicketInput] = useState('');
   const [ticketError, setTicketError] = useState('');
-  // The pull-request refusal that named the issues it fixes (#748). Its
-  // buttons show only while its sentence is still the error on screen, so any
-  // later error or a cleared field takes them away without clearing this.
+  // The pull-request refusal that named the issues it fixes (#748). Whether
+  // its buttons still show is issuesOnOffer's call, against the error on
+  // screen, so nothing that clears or replaces the error has to clear this.
   const [pullRequestOffer, setPullRequestOffer] = useState(null);
   const [ticketSaving, setTicketSaving] = useState(false);
   // The site's ticket branches (#108): what branches:list reported, so the
@@ -148,9 +148,11 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
   // A bare number on a GitHub site may be a pull request: both share one
   // sequence, and linking one leaves the site on a branch no pull request
   // cites, with nothing to say why (#736). The decision and its sentence live
-  // in github-issue.cjs; this holds the state and the call.
-  const linkTicket = useCallback(async () => {
-    const id = issueToCheck(workItem, ticketInput);
+  // in github-issue.cjs; this holds the state and the call. The field and the
+  // issues a refusal offers both come through here, because a pull request's
+  // "Fixes #N" can name another pull request (#748).
+  const linkChecked = useCallback(async (ref) => {
+    const id = issueToCheck(workItem, ref);
     if (id !== null) {
       setTicketSaving(true);
       setTicketError('');
@@ -170,10 +172,13 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
         return;
       }
     }
-    return saveTicket(ticketInput);
-  }, [saveTicket, ticketInput, workItem, sitePath]);
+    return saveTicket(ref);
+  }, [saveTicket, workItem, sitePath]);
+  // Called from a button's onClick too, so the event it passes is ignored.
+  const linkTicket = useCallback(() => linkChecked(ticketInput), [linkChecked, ticketInput]);
+  const linkOfferedIssue = useCallback((issue) => linkChecked(String(issue)), [linkChecked]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
-  const offeredIssues = pullRequestOffer && pullRequestOffer.message === ticketError ? pullRequestOffer.issues : [];
+  const offeredIssues = issuesOnOffer(pullRequestOffer, ticketError);
 
   // The notice's own button (#385): the ticket's work replayed onto the
   // current trunk in main. Same busy flag and progress line as a switch,
@@ -306,6 +311,7 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
     ticketError,
     setTicketError,
     offeredIssues,
+    linkOfferedIssue,
     ticketSaving,
     ticketBranches,
     deletingBranch,

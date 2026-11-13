@@ -30,13 +30,14 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 			global.__tracScrapes = ( global.__tracScrapes || 0 ) + 1;
 			return { ok: true, status: 'ok', items: [], ticket: { summary: 'A CORE TICKET WITH THE SAME NUMBER', keywords: [] } };
 		} );
-		// GitHub stands in too, for whether a number is a pull request: only
-		// the fixture's own pull request is one, and only 4497 names an issue
-		// it fixes. On the real repository 71234 is a pull request as well.
+		// GitHub stands in too, for whether a number is a pull request: the
+		// fixture's own pull request is one, and so are 4497, whose
+		// description closes 4498 and issue 70001, and 4498, which closes
+		// nothing. On the real repository 71234 is a pull request as well.
 		ipcMain.removeHandler( 'github:is-pull-request' );
 		ipcMain.handle( 'github:is-pull-request', ( _e, _sitePath, id ) => {
-			if ( id === 4497 ) return { ok: true, pullRequest: true, fixes: [ 71234 ] };
-			return { ok: true, pullRequest: id === pr, fixes: [] };
+			if ( id === 4497 ) return { ok: true, pullRequest: true, fixes: [ 4498, 70001 ] };
+			return { ok: true, pullRequest: id === pr || id === 4498, fixes: [] };
 		} );
 	}, PR );
 
@@ -68,18 +69,38 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	await expect( page.getByRole( 'alert' ).filter( { hasText: `#${ PR } is a pull request, not an issue. To test it, use Check out a pull request.` } ) ).toBeVisible();
 	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
 
-	// INVARIANT — a pull request that names the issue it fixes says which,
-	// and offers to link it in its place (#748). Nothing is written until the
-	// offer is taken.
-	await field.fill( '4497' );
-	await ui.linkIssueButton( page ).click();
-	await expect( page.getByRole( 'alert' ).filter( { hasText: '#4497 is a pull request. It fixes #71234. Link that issue instead' } ) ).toBeVisible();
+	// INVARIANT — a pull request that names the issues it fixes says which,
+	// and offers to link each in its place (#748). Nothing is written until
+	// an offer is taken.
+	const offerFrom4497 = async () => {
+		await field.fill( '4497' );
+		await ui.linkIssueButton( page ).click();
+		await expect( page.getByRole( 'alert' ).filter( { hasText: '#4497 is a pull request. It fixes #4498 and #70001. Link one of those issues instead' } ) ).toBeVisible();
+	};
+	await offerFrom4497();
 	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
 
-	// INVARIANT — taking the offer links the issue: it is named on the card
-	// and gets a branch under issue/, the noun its upstream uses; the
-	// Trac-only pieces stay off the linked card too.
-	await page.getByRole( 'button', { name: 'Link #71234', exact: true } ).click();
+	// INVARIANT — an offer is checked like the field: one that names another
+	// pull request is refused, and its button goes with the sentence it
+	// belonged to.
+	await page.getByRole( 'button', { name: 'Link #4498', exact: true } ).click();
+	await expect( page.getByRole( 'alert' ).filter( { hasText: '#4498 is a pull request, not an issue.' } ) ).toBeVisible();
+	await expect( page.getByRole( 'button', { name: 'Link #70001', exact: true } ) ).toHaveCount( 0 );
+	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
+
+	// INVARIANT — taking an offer that is an issue links it.
+	await offerFrom4497();
+	await page.getByRole( 'button', { name: 'Link #70001', exact: true } ).click();
+	await expect( ui.workItemNumber( page, 70001 ) ).toBeVisible( { timeout: 30_000 } );
+	expect( branches( site.dir ) ).toContain( 'issue/70001' );
+	await ui.unlinkButton( page ).click();
+	await expect( ui.issueField( page ) ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — linking an issue by URL names it on the card and gives it a
+	// branch under issue/, the noun its upstream uses; the Trac-only pieces
+	// stay off the linked card too.
+	await field.fill( 'https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1' );
+	await ui.linkIssueButton( page ).click();
 	await expect( ui.workItemNumber( page, 71234 ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( ui.openWorkItemButton( page, 71234 ) ).toHaveAttribute( 'title', 'Open on GitHub' );
 	await expect( ui.readTicketDetailsButton( page ) ).toHaveCount( 0 );

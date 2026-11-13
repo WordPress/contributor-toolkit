@@ -171,11 +171,27 @@ function pullRequestRefusal(id, answer) {
 	};
 }
 
+/**
+ * The issues to offer as links under the issue field (#748): those of the
+ * pull-request refusal, while its sentence is still the error shown. Any later
+ * error, a cleared field or a link under way replaces that sentence, and the
+ * offer goes with it.
+ *
+ * @param {?{message: string, issues: number[]}} offer      What pullRequestRefusal last returned.
+ * @param {string}                               errorShown The issue field's error now.
+ * @return {number[]}
+ */
+function issuesOnOffer(offer, errorShown) {
+	if (!offer || !errorShown || offer.message !== errorShown) return [];
+	return offer.issues;
+}
+
 module.exports = {
 	GITHUB_HOST,
 	MAX_ISSUE_ID,
 	issueUrl,
 	issueToCheck,
+	issuesOnOffer,
 	parseIssueRef,
 	pullRequestRefusal
 };

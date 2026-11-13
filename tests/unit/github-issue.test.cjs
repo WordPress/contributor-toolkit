@@ -6,7 +6,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { parseIssueRef, issueUrl, issueToCheck, pullRequestRefusal } = require('../../src/renderer/github-issue.cjs');
+const { parseIssueRef, issueUrl, issueToCheck, issuesOnOffer, pullRequestRefusal } = require('../../src/renderer/github-issue.cjs');
 const { workItemProvider } = require('../../src/work-item.cjs');
 const { addFilter, removeFilter } = require('@wordpress/hooks');
 const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
@@ -155,4 +155,12 @@ test('pullRequestRefusal names the issues a pull request fixes and offers each (
 	});
 	// Only whole numbers cross into a button.
 	assert.deepStrictEqual(pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: ['70001', 0, null] }).issues, []);
+});
+
+test('issuesOnOffer keeps the offer only while its own sentence is the error shown (#748)', () => {
+	const offer = pullRequestRefusal(71234, { ok: true, pullRequest: true, fixes: [70001] });
+	assert.deepStrictEqual(issuesOnOffer(offer, offer.message), [70001]);
+	assert.deepStrictEqual(issuesOnOffer(offer, ''), [], 'cleared by typing or by a link under way');
+	assert.deepStrictEqual(issuesOnOffer(offer, '#70001 is a pull request, not an issue.'), [], 'replaced by a later refusal');
+	assert.deepStrictEqual(issuesOnOffer(null, offer.message), []);
 });
