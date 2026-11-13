@@ -379,7 +379,12 @@ function loadMain({ stubs = {}, ready = false } = {}) {
 	try {
 		// Inside the hook, deliberately: building the stubs requires the real
 		// modules, and src/logging.js requires `electron`.
-		resolveStubs(stubs, stubbed);
+		// The control channel (#764) starts with the app, and a `ready` load
+		// would otherwise listen on a real socket in the temporary directory
+		// the electron stub answers `getPath` with, and write a command beside
+		// it. A start that never settles does neither; the tests about the
+		// channel pass their own.
+		resolveStubs({ './control-channel.cjs': { startControlServer: () => new Promise(() => {}) }, ...stubs }, stubbed);
 		require(MAIN_PATH);
 	} finally {
 		Module._load = originalLoad;
@@ -2610,7 +2615,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder, editor: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder, toolAccess: false, editor: null } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -8216,10 +8221,10 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
 	});
 
-	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, toolAccess: false, editor: null } });
 	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
 	assert.equal(settings.values.preferences.locale, 'de');
-	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, toolAccess: false, editor: null } });
 });
 
 test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
@@ -8329,6 +8334,9 @@ const WIRED = new Set([
 	'provenance:set-event',
 	'settings:get',
 	'settings:set',
+	'control:command',
+	'control:ready',
+	'control:reply',
 	'sites:resume',
 	'i18n:languages',
 	'github:account',

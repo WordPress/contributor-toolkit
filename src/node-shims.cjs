@@ -40,6 +40,13 @@ function requireArgs(compatPath) {
 	return compatPath ? `--require "${compatPath}" ` : '';
 }
 
+// Arguments the app itself puts between a CLI and the caller's own, each one
+// quoted the way the paths beside it are. The `toolkit` shim (#764) is the one
+// user: it tells the CLI where this profile's app listens.
+function quotedArgs(args) {
+	return args.map((arg) => `"${arg}" `).join('');
+}
+
 // On macOS, a signed Electron removes NODE_OPTIONS from a process that
 // something outside the app started, and every shim is a bash script: a build
 // that sets `NODE_OPTIONS=--import=…` for a child lost it, and the child failed
@@ -82,9 +89,9 @@ const NODE_OPTIONS_ARGS = [
 
 // POSIX shims are bash scripts. The compat path is interpolated into a quoted
 // argument, so spaces are safe; unlike NODE_OPTIONS, nothing re-tokenises it.
-function posixShim({ execPath, compatPath, cliPath = null, forwardNodeOptions = false }) {
+function posixShim({ execPath, compatPath, cliPath = null, cliArgs = [], forwardNodeOptions = false }) {
 	const flag = compatPath ? `${COMPAT_FLAG}=1 ` : '';
-	const cli = cliPath ? `"${cliPath}" ` : '';
+	const cli = cliPath ? `"${cliPath}" ${quotedArgs(cliArgs)}` : '';
 	const prelude = forwardNodeOptions ? NODE_OPTIONS_ARGS : '';
 	// Guarded, since bash before 4.4 calls an empty array unbound under `set -u`.
 	const options = forwardNodeOptions ? '${wptk_opts[@]+"${wptk_opts[@]}"} ' : '';
@@ -94,10 +101,16 @@ function posixShim({ execPath, compatPath, cliPath = null, forwardNodeOptions = 
 // Windows shims are .cmd/.bat. Backslashes inside a quoted command-line argument
 // are literal — the escaping problem that forces forward slashes in NODE_OPTIONS
 // does not exist here, so the path goes in as the OS spells it.
-function windowsShim({ execPath, compatPath, cliPath = null }) {
+//
+// `setlocal` keeps the two variables to this script. The node and npm shims
+// are only run by the app's own children, but the `toolkit` shim (#764) is
+// run from a person's own cmd.exe, where a variable set by a script outlives
+// it, and every Electron app started from that window afterwards would run as
+// plain Node.
+function windowsShim({ execPath, compatPath, cliPath = null, cliArgs = [] }) {
 	const flag = compatPath ? `set ${COMPAT_FLAG}=1\r\n` : '';
-	const cli = cliPath ? `"${cliPath}" ` : '';
-	return `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n${flag}"${execPath}" ${requireArgs(compatPath)}${cli}%*\r\n`;
+	const cli = cliPath ? `"${cliPath}" ${quotedArgs(cliArgs)}` : '';
+	return `@echo off\r\nsetlocal\r\nset ELECTRON_RUN_AS_NODE=1\r\n${flag}"${execPath}" ${requireArgs(compatPath)}${cli}%*\r\n`;
 }
 
 // Which binary the shims, and the runner spawns in main.js, should exec (#518).
@@ -150,9 +163,9 @@ function nodeShim({ execPath, compatPath, platform = process.platform }) {
 	return build({ execPath, compatPath, forwardNodeOptions: platform === 'darwin' });
 }
 
-function cliShim({ execPath, compatPath, cliPath, platform = process.platform }) {
+function cliShim({ execPath, compatPath, cliPath, cliArgs = [], platform = process.platform }) {
 	const build = platform === 'win32' ? windowsShim : posixShim;
-	return build({ execPath, compatPath, cliPath, forwardNodeOptions: platform === 'darwin' });
+	return build({ execPath, compatPath, cliPath, cliArgs, forwardNodeOptions: platform === 'darwin' });
 }
 
 module.exports = { nodeShim, cliShim, nodeExecPath, COMPAT_FLAG };

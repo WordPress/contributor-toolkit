@@ -221,6 +221,9 @@ async function standInForTheOutside(app) {
 			return { ok: true, url: serverUrl };
 		});
 		replace('url:open', () => true);
+		// Where the `toolkit` command is, as an installed app on macOS would
+		// say it: the real answer is under this run's throwaway profile.
+		replace('control:command', () => ({ ok: true, path: '/Users/you/Library/Application Support/WordPress Contributor Toolkit/bin/toolkit' }));
 	}, [LINKED_TICKET, LINKED_PULL_REQUESTS, TICKET_FROM_TRAC, SMTP_PORT, SERVER_URL, TICKET_PATCH]);
 }
 

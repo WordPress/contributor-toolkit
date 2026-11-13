@@ -93,9 +93,12 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
     if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
     let rebuilding = false;
     let ownsTerminal = false;
+    // What this resolves to is for a caller that is not the page (#764): how
+    // the switch ended, in the page's own words where it has any. The page
+    // itself reads none of it; everything it shows is state set below.
     try {
       ownsTerminal = await ticketSwitchLifecycleRef.current.begin(ref);
-      if (!ownsTerminal) return;
+      if (!ownsTerminal) return { ok: false, code: 'busy' };
       const res = await window.api.setSiteTicket(sitePath, ref, options);
       if (!res?.ok) {
         // `dirty-trunk` is a question, not a failure (#234): main refuses it
@@ -116,10 +119,10 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
             files: typeof res.files === 'number' ? res.files : null,
             ticket: res.ticket || (parsedRef.ok ? parsedRef.id : null)
           });
-        } else {
-          setTicketError(res?.error || __('Could not save the ticket.'));
+          return { ok: false, code: 'dirty-trunk', canCarry: Boolean(res.canCarry), files: typeof res.files === 'number' ? res.files : null };
         }
-        return;
+        setTicketError(res?.error || __('Could not save the ticket.'));
+        return { ok: false, code: res?.code || 'failed', error: res?.error || '' };
       }
       // The status belongs to the branch we just left. Clear it in the same
       // render that names the new ticket; loadStatus will restore the new
@@ -138,8 +141,10 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
       // The tree under the note is a different branch's now (#239).
       reprobeAfterBranchChange();
       rebuilding = await ticketSwitchLifecycleRef.current.complete(res);
+      return { ok: true, ticket: res.ticket || null, branch: res.branch || null, rebuilding };
     } catch (e) {
       setTicketError(String(e));
+      return { ok: false, code: 'failed', error: String(e) };
     } finally {
       if (ownsTerminal && !rebuilding) ticketSwitchLifecycleRef.current.finish();
       setTicketSaving(false);
@@ -148,10 +153,10 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
   // A bare number on a GitHub site may be a pull request: both share one
   // sequence, and linking one leaves the site on a branch no pull request
   // cites, with nothing to say why (#736). The decision and its sentence live
-  // in github-issue.cjs; this holds the state and the call. The field and the
-  // issues a refusal offers both come through here, because a pull request's
-  // "Fixes #N" can name another pull request (#748).
-  const linkChecked = useCallback(async (ref) => {
+  // in github-issue.cjs; this holds the state and the call. The field, the
+  // issues a refusal offers and a tool's request (#764) all come through here,
+  // because a pull request's "Fixes #N" can name another pull request (#748).
+  const linkRef = useCallback(async (ref, options = undefined) => {
     const id = issueToCheck(workItem, ref);
     if (id !== null) {
       setTicketSaving(true);
@@ -169,14 +174,14 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
       if (refusal) {
         setTicketError(refusal.message);
         setPullRequestOffer(refusal);
-        return;
+        return { ok: false, code: 'is-pull-request', error: refusal.message };
       }
     }
-    return saveTicket(ref);
+    return saveTicket(ref, options);
   }, [saveTicket, workItem, sitePath]);
-  // Called from a button's onClick too, so the event it passes is ignored.
-  const linkTicket = useCallback(() => linkChecked(ticketInput), [linkChecked, ticketInput]);
-  const linkOfferedIssue = useCallback((issue) => linkChecked(String(issue)), [linkChecked]);
+  // The card's own button: what is in the field.
+  const linkTicket = useCallback(() => linkRef(ticketInput), [linkRef, ticketInput]);
+  const linkOfferedIssue = useCallback((issue) => linkRef(String(issue)), [linkRef]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
   const offeredIssues = issuesOnOffer(pullRequestOffer, ticketError);
 
@@ -322,6 +327,7 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
     setPatchSavedTo,
     saveTicket,
     linkTicket,
+    linkRef,
     unlinkTicket,
     rebaseTicket,
     discardTrunkWorkAndSwitch,

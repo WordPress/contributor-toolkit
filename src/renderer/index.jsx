@@ -23,6 +23,7 @@ import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStart
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
+import { createControlRegistry, createOutcomeWaiters, performSiteControl, performAppControl, rowActivity, SETTLED } from './control-requests.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
@@ -146,6 +147,18 @@ function App({ settingsState }) {
       .catch(() => { if (!cancelled) setResume({ servers: [], watches: [] }); });
     return () => { cancelled = true; };
   }, []);
+  // What a tool asked the app to do to a site (#764). Main hands each request
+  // to the window, which carries it out in the row of the site it is for, as
+  // a press of that row's own button, and answers when it has ended. Which
+  // row, and what a row with no such site answers, is control-requests.cjs's.
+  const [controlRegistry] = useState(createControlRegistry);
+  useEffect(() => {
+    const unsub = window.api.subscribeControlRequests(async (request) => {
+      const reply = await controlRegistry.handle(request);
+      window.api.replyToControlRequest(request?.id, reply);
+    });
+    return () => { if (unsub) unsub(); };
+  }, [controlRegistry]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -397,6 +410,9 @@ function App({ settingsState }) {
     setActiveSite(targetDir);
     setCreateModalOpen(false);
     const chosenType = createSiteType;
+    // How the setup ended, for a caller that is not the dialog (#764). The
+    // page reads none of it: what it shows is the state set below.
+    let outcome = null;
 
     try {
       setCreateSubmitting(true);
@@ -421,7 +437,9 @@ function App({ settingsState }) {
       await refresh();
       setActiveSite(finalSitePath);
       appendSetupLog(finalSitePath, `${__('Site setup request completed.')}\n`);
+      outcome = { ok: true, path: finalSitePath };
     } catch (e) {
+      outcome = { ok: false, error: String(e && e.message ? e.message : e) };
       // Whatever the row is *now*, which is not necessarily what it started as:
       // once the clone reports its directory the guess no longer exists, and
       // discarding the guess here would strand a row for a setup that failed.
@@ -441,7 +459,25 @@ function App({ settingsState }) {
       clearPendingSites();
       setCreateSubmitting(false);
     }
+    return outcome;
   }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, confirm, moveSetupLog, refresh]);
+
+  // A site a tool asked for (#764) is made by the function the dialog calls,
+  // so the row, its setup log and the one-setup-at-a-time rule are the
+  // dialog's. What a tool may ask for and when its site is ready are
+  // control-requests.cjs's.
+  const appControl = useRef(null);
+  useEffect(() => {
+    appControl.current = {
+      snapshot: { creating: createSubmitting, defaultFolder: settings ? settings.newSiteLocation : null },
+      presses: {
+        startSiteSetup,
+        readStatus: (sitePath) => window.api.getSiteStatus(sitePath),
+        whenSettled: (sitePath) => controlRegistry.handle({ sitePath, action: SETTLED })
+      }
+    };
+  });
+  useEffect(() => controlRegistry.registerApp((action, params) => performAppControl(action, params, { latest: () => appControl.current })), [controlRegistry]);
 
   const closeCreateModal = useCallback(() => setCreateModalOpen(false), []);
 
@@ -729,6 +765,7 @@ function App({ settingsState }) {
                         siteNameFor={siteNameFor}
                         serverReports={serverReports}
                         resume={resumeFor(resume, s)}
+                        controlRegistry={controlRegistry}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
                         onServerStatus={onServerStatus}
@@ -788,7 +825,7 @@ function App({ settingsState }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, siteNameFor = pathBasename, serverReports = {}, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, onActivate = null, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, siteNameFor = pathBasename, serverReports = {}, resume = null, controlRegistry = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, onActivate = null, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1143,7 +1180,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // switching, moving onto trunk and deleting, with the question a switch
   // asks about trunk's loose edits. The three refs are how it and the apply
   // chain, called further down, reach each other.
-  const { ticketInput, setTicketInput, ticketError, setTicketError, offeredIssues, linkOfferedIssue, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
+  const { ticketInput, setTicketInput, ticketError, setTicketError, offeredIssues, linkOfferedIssue, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, linkRef, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
 
   // A ticket arrived from a link and this is the site in front of the
   // contributor (#464). The answer goes through `saveTicket` like any other
@@ -1260,7 +1297,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // the commands it runs through the three runners above. The lock, the kill
   // handler and the writer are taken out by name because every chain below
   // holds the lock and writes its progress there, as it always has.
-  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, shown: isActive && tray === 'terminal' });
+  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand, runTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, shown: isActive && tray === 'terminal' });
   // What a chain says when it is asked to start while a command holds the
   // terminal. The line is printed there and nowhere else, so the terminal is
   // brought up with it: a refusal nobody sees is a button that did nothing.
@@ -1357,7 +1394,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // about edits in the tree, and the retry. Called here because it runs
   // through everything above, and because what follows reads whether an
   // update is under way.
-  const { updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, askFirst, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  const { updateFetchFailed, updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, askFirst, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
   // What opening the site starts (#559): the server, the watch, as the
   // settings say, and what the last quit left for this site to start again.
   // Which edge to consume and what to start is auto-start.cjs's; what is
@@ -1474,6 +1511,63 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // through everything above, and because what follows reads whether an
   // apply is under way.
   const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, forgetChangedFiles, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
+
+  // What a tool asked for, carried out here (#764). The row offers its own
+  // functions as the presses and its own state as what an answer is read
+  // from; what to press and how an action ended are control-requests.cjs's.
+  // The state is handed over after every render, which is when an answer
+  // that was waiting on it can be given.
+  const [controlWaiters] = useState(createOutcomeWaiters);
+  const controlState = useRef(null);
+  useEffect(() => {
+    const snapshot = {
+      ...rowActivity({ statusLoading, isPending, isDeleting, isUpdating, setupChainState, terminalRunning, isApplying, installing, building, ticketSaving }),
+      canServe: skipInit || hasBuilt,
+      scripts: projectBuild.allowedScripts,
+      server: { running, starting: isServerStarting, url: serverUrl, failure: serverFailure },
+      ticket: { blocked: blockedByTrunkWork ? { files: blockedByTrunkWork.files } : null },
+      apply: {
+        fetching: fetchingPr ?? fetchingAttachment ?? null,
+        preview: applyPreview ? { kind: applyPreview.kind || 'patch', number: applyPreview.number ?? null, label: applyPreview.label } : null,
+        error: applyError
+      },
+      patches: {
+        isTrac: showTracCards,
+        prs: ticketPatches?.items || [],
+        prsStatus: ticketPatches?.status || null,
+        prRankComplete: ticketPatches?.rankComplete,
+        prsLoading: ticketPatchesLoading,
+        attachments: tracAttachments?.items || [],
+        attachmentsStatus: tracAttachments?.status || null,
+        attachmentsLoading: tracAttachmentsLoading
+      },
+      update: { state: updateState, dirtyOpen: dirtyModalOpen, failed: updateFetchFailed, summary: lastUpdateSummary }
+    };
+    const presses = {
+      toggleDevServer,
+      runTerminalCommand,
+      linkRef,
+      unlinkTicket,
+      previewPullRequest: (number) => previewPr({ number, url: `https://github.com/${project.upstream.owner}/${project.upstream.repo}/pull/${number}` }),
+      previewAttachment,
+      loadTracAttachments,
+      loadTicketPatches,
+      applyPreview: () => runApply(),
+      leavePullRequest: () => runPrSwitch({ leaving: true }),
+      startTrunkUpdate,
+      readStatus: () => window.api.getSiteStatus(sitePath)
+    };
+    controlState.current = { snapshot, presses };
+    controlWaiters.settle(snapshot);
+  });
+  useEffect(() => {
+    if (!controlRegistry) return undefined;
+    const unregister = controlRegistry.register(sitePath, (action, params) => performSiteControl(action, params, { latest: () => controlState.current, waiters: controlWaiters, deps: { pickLatest } }));
+    return () => {
+      unregister();
+      controlWaiters.abandon();
+    };
+  }, [controlRegistry, controlWaiters, sitePath]);
 
   // The tickets with work on this site (#108), in a card of their own (#240)
   // below the Trac ticket card and the patch one — which ticket am I on, what

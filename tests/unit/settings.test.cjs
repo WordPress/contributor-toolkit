@@ -12,19 +12,19 @@ const languages = (tags) => ({ isLanguage: (tag) => tags.includes(tag) });
 const php = (versions) => ({ isPhpVersion: (version) => versions.includes(version) });
 
 test('readSettings falls back for a store with nothing in it, and for values of the wrong kind', () => {
-	const fallbacks = { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null };
+	const fallbacks = { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, toolAccess: false, editor: null };
 	assert.deepEqual(readSettings(), fallbacks);
 	assert.deepEqual(readSettings(undefined), fallbacks);
 	assert.deepEqual(readSettings({}), fallbacks);
-	assert.deepEqual(readSettings({ newSiteLocation: 42, locale: ['de'], phpVersion: 8.4, wpDebug: 'false', scriptDebug: 0, xdebug: 'yes', autoStartServer: 'yes', autoStartWatch: 1, quitBehavior: 'leave', theme: 'blue', customBackground: '#ABC', customPrimary: 'red', editor: 7 }), fallbacks);
+	assert.deepEqual(readSettings({ newSiteLocation: 42, locale: ['de'], phpVersion: 8.4, wpDebug: 'false', scriptDebug: 0, xdebug: 'yes', autoStartServer: 'yes', autoStartWatch: 1, quitBehavior: 'leave', theme: 'blue', customBackground: '#ABC', customPrimary: 'red', toolAccess: 'true', editor: 7 }), fallbacks);
 	assert.deepEqual(readSettings({ newSiteLocation: '', locale: '', phpVersion: '', wpDebug: null, scriptDebug: null }), fallbacks);
 	assert.deepEqual(readSettings('not an object'), fallbacks);
 });
 
 test('readSettings gives back a stored folder without asking the disk about it', () => {
 	assert.deepEqual(
-		readSettings({ newSiteLocation: '/Users/jane/sites', locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, xdebug: true, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'custom', customBackground: '#102030', customPrimary: '#ff8800', editor: 'cursor' }),
-		{ locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, xdebug: true, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'custom', customBackground: '#102030', customPrimary: '#ff8800', newSiteLocation: '/Users/jane/sites', editor: 'cursor' }
+		readSettings({ newSiteLocation: '/Users/jane/sites', locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, xdebug: true, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'custom', customBackground: '#102030', customPrimary: '#ff8800', toolAccess: true, editor: 'cursor' }),
+		{ locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, xdebug: true, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'custom', customBackground: '#102030', customPrimary: '#ff8800', newSiteLocation: '/Users/jane/sites', toolAccess: true, editor: 'cursor' }
 	);
 });
 

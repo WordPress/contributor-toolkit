@@ -64,6 +64,9 @@ const { prSubmissionRefusal, prCheckoutRefusal } = require('./renderer/pr-checko
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
 const { getStore, peekStore } = require('./settings-store');
 const { sitesToResume, readResume } = require('./resume-sites.cjs');
+const { controlEndpoint, cliShimPath, startControlServer, ControlRefusal } = require('./control-channel.cjs');
+const { MAX_MAILS, describeSite, resolveSite, logLineCount, lastLines, describeEmail } = require('./control-sites.cjs');
+const { createWindowRequests } = require('./control-window.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -612,6 +615,11 @@ function createWindow() {
 	// a ticket waiting when one starts keeps waiting for the page that follows
 	// rather than being flushed into one that is still loading.
 	mainWindow.webContents.on('did-start-loading', () => deepLinkQueue.reset());
+	// The same for what a tool asked the window to do (#764): the page that
+	// was asked is gone, and the one that follows has not subscribed. A
+	// window that is closed is a page that is gone too.
+	mainWindow.webContents.on('did-start-loading', () => windowRequests.reset());
+	mainWindow.on('closed', () => windowRequests.reset());
 
 	// This is the window with the preload bridge, so it stays on the app's own
 	// page and opens no other (window-navigation.js). Nothing awaits the events
@@ -3038,6 +3046,8 @@ app.whenReady().then(async () => {
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
 	initLogging();
+	// Not awaited: the window does not wait for a tool that may never ask.
+	startControlChannel();
 	// Before the window: it is made in the theme, and kept in it when the
 	// system's theme changes under 'system'.
 	nativeTheme.on('updated', paintWindowForTheme);
@@ -3129,7 +3139,194 @@ app.on('before-quit', () => {
 		...(playgroundWebServer?.child ? [playgroundWebServer.child] : [])
 	];
 	for (const child of children) killChildTree(child);
+	// Closing it removes the socket file. Not awaited, like the sweep above.
+	if (controlServer) controlServer.close();
 });
+
+// What a tool asked the window to do, and is waiting to hear about; see
+// control-window.cjs for why the window is asked at all.
+const windowRequests = createWindowRequests({
+	send: (request) => {
+		if (!mainWindow || mainWindow.isDestroyed?.()) throw new Error('no window');
+		mainWindow.webContents.send('control:request', request);
+	},
+	newId: () => crypto.randomUUID()
+});
+
+// The page is listening for requests. Its own mount calls this.
+ipcMain.handle('control:ready', () => {
+	windowRequests.markReady();
+	return true;
+});
+
+// The page's answer to one request.
+ipcMain.handle('control:reply', (_e, id, reply) => windowRequests.answer(id, reply));
+
+// An action that changes a site: allowed only once the person has turned it
+// on in the settings, about a site the app has, and carried out by the
+// window. With no window, as on macOS after its close, one is opened: what a
+// tool does to a site is done where the person can see it.
+function windowAction(action, about = 'site') {
+	return async (params) => {
+		const s = await getStore();
+		if (!readSettings(s.get('preferences')).toolAccess) {
+			throw new ControlRefusal('tools-not-allowed', 'Changing a site from a tool is turned off. In the WordPress Contributor Toolkit, open Settings, choose Tools, and turn on "Let tools on this computer change my sites".');
+		}
+		// `about: 'app'` is for what is about no site yet: making one. The
+		// folder a tool names for it is a full path or nothing, as the
+		// settings' own is.
+		if (about === 'app' && params.folder !== undefined && !(typeof params.folder === 'string' && path.isAbsolute(params.folder))) {
+			throw new ControlRefusal('invalid-request', 'Name the folder for the new site by its full path.');
+		}
+		const sitePath = about === 'app' ? null : await controlSite(params.site);
+		if (!mainWindow || mainWindow.isDestroyed?.()) createWindow();
+		const { site: _site, ...rest } = params;
+		const reply = await windowRequests.ask({ action, sitePath, params: rest });
+		if (!reply.ok) {
+			const refused = new ControlRefusal(reply.code, String(reply.error || ''));
+			// What a refusal carries beside its sentence: the end of a failed
+			// command's output, the site a failed setup did create.
+			const { ok: _ok, code: _code, error: _error, ...detail } = reply;
+			refused.detail = detail;
+			throw refused;
+		}
+		return sitePath === null ? { ...reply.result } : { site: sitePath, ...reply.result };
+	};
+}
+
+// The site a tool named, as a path out of the registry, or a refusal.
+async function controlSite(ref) {
+	const s = await getStore();
+	const sites = s.get('sites') || [];
+	const found = resolveSite(ref, { sites, siteMeta: s.get('siteMeta') || {} });
+	if (found.ok) return found.sitePath;
+	// The same folder under another name: a tool that passes the folder it
+	// is in passes what the OS calls it, which on macOS is `/private/var/…`
+	// for a site registered as `/var/…`, and the far side of any symlink.
+	// Only looked up for a path nothing matched as written.
+	if (found.code === 'unknown-site' && typeof ref === 'string' && path.isAbsolute(ref)) {
+		const real = (p) => fs.promises.realpath(p).catch(() => null);
+		const [realRef, ...realSites] = await Promise.all([real(ref), ...sites.map(real)]);
+		const again = realRef ? resolveSite(realRef, { sites: realSites.filter(Boolean) }) : found;
+		if (again.ok) return sites[realSites.indexOf(again.sitePath)];
+	}
+	throw new ControlRefusal(found.code, found.error);
+}
+
+// What a tool outside the window may ask for (#764), by name. This map is the
+// whole of it: the channel in control-channel.cjs refuses any name that is not
+// a key here. The reads answer what the settings file in the same directory,
+// or a site's own folder, already says to anything that can open the socket,
+// plus what is checked out and what is running. An action that changes a
+// site is a different decision: it goes through `windowAction`, which
+// refuses unless the person turned it on in the settings, and hands the work
+// to the window, so every gate a button has (`legacySiteBlock`,
+// `mergeInProgressBlock`, the terminal's lock) is the one that applies.
+const controlActions = {
+	'sites.list': async () => {
+		const s = await getStore();
+		const siteMeta = s.get('siteMeta') || {};
+		// One branch read per site, at once: this runs when a tool asks, not
+		// on a timer or a render.
+		const sites = await Promise.all((s.get('sites') || []).map(async (sitePath) => {
+			const meta = siteMeta[sitePath] || {};
+			// Git says what is checked out; the stored name is only for a
+			// checkout Git cannot read, the rule `activeBranch` follows.
+			let branch = null;
+			try { branch = await currentBranchName(sitePath); } catch {}
+			if (!branch) branch = meta.currentBranch || TRUNK;
+			return describeSite({ sitePath, meta, branch, pullRequest: prNumberFromRef(branch), server: playgroundServers[sitePath] });
+		}));
+		return { sites };
+	},
+	// The end of the site's debug.log, the file the Logs panel tails. Read
+	// when asked, with the same ceiling the panel's first read has, so a log
+	// of any size costs one bounded read.
+	'site.log': async ({ site, lines }) => {
+		const sitePath = await controlSite(site);
+		const filePath = wpDebugLogPath(sitePath);
+		let handle;
+		try {
+			handle = await fs.promises.open(filePath, 'r');
+		} catch (e) {
+			// Nothing has logged yet, which is the usual state of a site.
+			if (e && e.code === 'ENOENT') return { site: sitePath, path: filePath, exists: false, lines: [] };
+			throw e;
+		}
+		try {
+			const { read } = planInitialRead((await handle.stat()).size);
+			if (!read) return { site: sitePath, path: filePath, exists: true, lines: [] };
+			const buffer = Buffer.alloc(read.end - read.start + 1);
+			const { bytesRead } = await handle.read(buffer, 0, buffer.length, read.start);
+			const text = buffer.subarray(0, bytesRead).toString('utf8');
+			return { site: sitePath, path: filePath, exists: true, lines: lastLines(text, logLineCount(lines), { partialFirst: read.start > 0 }) };
+		} finally {
+			await handle.close();
+		}
+	},
+	// The mail the site sent and the app caught, newest first, as the Mail
+	// panel lists it: the newest few, and how many there are in all.
+	'site.mail': async ({ site }) => {
+		const sitePath = await controlSite(site);
+		const emails = await getSiteEmails(sitePath);
+		const newestFirst = [...emails].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0));
+		return { site: sitePath, total: newestFirst.length, emails: newestFirst.slice(0, MAX_MAILS).map(describeEmail) };
+	},
+	// From here down, actions that change a site. Each is a press of a button
+	// the window already has; `windowAction` says who may ask and how.
+	'site.server.start': windowAction('site.server.start'),
+	'site.server.stop': windowAction('site.server.stop'),
+	'site.script.run': windowAction('site.script.run'),
+	'site.ticket.link': windowAction('site.ticket.link'),
+	'site.ticket.unlink': windowAction('site.ticket.unlink'),
+	'site.pr.checkout': windowAction('site.pr.checkout'),
+	'site.pr.leave': windowAction('site.pr.leave'),
+	'site.patch.apply-latest': windowAction('site.patch.apply-latest'),
+	'site.trunk.update': windowAction('site.trunk.update'),
+	'sites.create': windowAction('sites.create', 'app')
+};
+
+let controlServer = null;
+// Where the `toolkit` command was written, once it has been.
+let toolkitCommandPath = null;
+
+// Starts answering tools outside the window, and writes the `toolkit` command
+// they ask through. Both live in the profile directory, so the installed app,
+// `npm start` and each e2e journey have their own. A failure costs the command
+// and nothing else: it is logged and the app opens as it always did.
+async function startControlChannel() {
+	try {
+		const userData = app.getPath('userData');
+		const endpoint = controlEndpoint({ userData });
+		controlServer = await startControlServer({
+			endpoint,
+			actions: controlActions,
+			onError: (e) => logError('control', `the control channel failed: ${String(e && e.message ? e.message : e)}`)
+		});
+		// Written at every start: an update moves the app, and with it the
+		// two paths the shim names. The CLI is run from where it ships, like
+		// the npm CLI the other shims name.
+		const shimPath = cliShimPath({ userData });
+		// The command opens the app when it is closed, and is told how only by
+		// an installed app: from source, or under a test's throwaway profile,
+		// the copy it would open is not the one it belongs to.
+		// An AppImage runs from a mount that is gone once it quits; the file
+		// to open again is the image itself.
+		const reopen = app.isPackaged ? ['--shim', shimPath, '--app', process.env.APPIMAGE || process.execPath] : [];
+		const shim = cliShim({ execPath: nodeExecPath(), compatPath: null, cliPath: path.join(__dirname, 'cli.cjs'), cliArgs: ['--endpoint', endpoint, ...reopen] });
+		await fs.promises.mkdir(path.dirname(shimPath), { recursive: true });
+		await fs.promises.writeFile(shimPath, shim, { mode: 0o755 });
+		toolkitCommandPath = shimPath;
+		logEvent('control', `answering at ${endpoint}; the command is ${shimPath}`);
+	} catch (e) {
+		logError('control', `could not start the control channel: ${String(e && e.message ? e.message : e)}`);
+	}
+}
+
+// For the settings, which show the command's path and copy it. The command is
+// written after the window is made, so a dialog opened in the first moments
+// may be told there is none yet; it asks again each time it opens.
+ipcMain.handle('control:command', () => (toolkitCommandPath ? { ok: true, path: toolkitCommandPath } : { ok: false }));
 
 ipcMain.handle('sites:get', async () => {
 	const s = await getStore();
