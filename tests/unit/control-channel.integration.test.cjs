@@ -1,0 +1,169 @@
+'use strict';
+
+// The control channel (#764) over a real socket: the server from
+// src/control-channel.cjs and the client the `toolkit` command uses, `ask` in
+// src/cli.cjs, talking to each other in a temporary directory. A named pipe on
+// Windows, a socket file elsewhere, which is the endpoint `controlEndpoint`
+// answers for the machine the suite runs on.
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const net = require('node:net');
+const os = require('node:os');
+const path = require('node:path');
+
+const {
+	MAX_REQUEST_BYTES,
+	REFUSAL_CODES,
+	controlEndpoint,
+	cliShimPath,
+	startControlServer
+} = require('../../src/control-channel.cjs');
+const { ask } = require('../../src/cli.cjs');
+
+const POSIX = process.platform !== 'win32';
+
+function profile(t) {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-control-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	return dir;
+}
+
+async function serve(t, actions, userData = profile(t)) {
+	const endpoint = controlEndpoint({ userData });
+	const server = await startControlServer({ endpoint, actions });
+	t.after(() => server.close());
+	return { endpoint, server };
+}
+
+// What a client that is not the CLI can send: bytes of its choosing.
+function sendRaw(endpoint, bytes) {
+	return new Promise((resolve) => {
+		let received = '';
+		const socket = net.createConnection(endpoint, () => socket.write(bytes));
+		socket.setEncoding('utf8');
+		socket.on('data', (chunk) => { received += chunk; });
+		// A server that answers and hangs up while this is still writing is
+		// one of the cases under test; what it said is the result either way.
+		socket.on('error', () => {});
+		socket.on('close', () => resolve(received));
+	});
+}
+
+test('the endpoint is a socket in the profile, and on Windows a pipe named after it', () => {
+	assert.equal(
+		controlEndpoint({ userData: '/Users/dev/Library/Application Support/Toolkit', platform: 'darwin' }),
+		'/Users/dev/Library/Application Support/Toolkit/control.sock'
+	);
+
+	const installed = controlEndpoint({ userData: 'C:\\Users\\dev\\AppData\\Roaming\\Toolkit', platform: 'win32' });
+	const fromSource = controlEndpoint({ userData: 'C:\\Users\\dev\\AppData\\Roaming\\toolkit-dev', platform: 'win32' });
+	assert.match(installed, /^\\\\\.\\pipe\\wpct-control-[0-9a-f]{16}$/);
+	// Two profiles must not answer each other's clients.
+	assert.notEqual(installed, fromSource);
+	assert.equal(installed, controlEndpoint({ userData: 'C:\\Users\\dev\\AppData\\Roaming\\Toolkit', platform: 'win32' }));
+});
+
+test('the command is written into the profile, with the extension Windows needs', () => {
+	assert.equal(cliShimPath({ userData: '/Users/dev/Toolkit', platform: 'darwin' }), '/Users/dev/Toolkit/bin/toolkit');
+	assert.equal(cliShimPath({ userData: 'C:\\Users\\dev\\Toolkit', platform: 'win32' }), 'C:\\Users\\dev\\Toolkit\\bin\\toolkit.cmd');
+});
+
+test('a request is answered by the action it names, with the parameters it sent', async (t) => {
+	const asked = [];
+	const { endpoint } = await serve(t, {
+		'sites.list': async (params) => { asked.push(params); return { sites: [{ path: '/sites/wp' }] }; }
+	});
+
+	assert.deepEqual(await ask(endpoint, { action: 'sites.list' }), { ok: true, result: { sites: [{ path: '/sites/wp' }] } });
+	assert.deepEqual(await ask(endpoint, { action: 'sites.list', params: { a: 1 } }), { ok: true, result: { sites: [{ path: '/sites/wp' }] } });
+	assert.deepEqual(asked, [{}, { a: 1 }]);
+});
+
+test('a name that is not an action is refused, and so is one the object only inherits', async (t) => {
+	const { endpoint } = await serve(t, { 'sites.list': async () => ({}) });
+
+	for (const action of ['sites.delete', 'constructor', 'toString', '__proto__']) {
+		const reply = await ask(endpoint, { action });
+		assert.equal(reply.ok, false, action);
+		assert.equal(reply.code, REFUSAL_CODES.UNKNOWN_ACTION, action);
+	}
+});
+
+test('a request that is not one is refused without reaching an action', async (t) => {
+	let reached = 0;
+	const { endpoint } = await serve(t, { 'sites.list': async () => { reached += 1; return {}; } });
+
+	const refused = async (bytes) => JSON.parse(await sendRaw(endpoint, bytes));
+	assert.equal((await refused('not json\n')).code, REFUSAL_CODES.INVALID_REQUEST);
+	assert.equal((await refused('["sites.list"]\n')).code, REFUSAL_CODES.INVALID_REQUEST);
+	assert.equal((await refused('{"action":7}\n')).code, REFUSAL_CODES.INVALID_REQUEST);
+	assert.equal((await refused('{"action":"sites.list","params":"all"}\n')).code, REFUSAL_CODES.INVALID_REQUEST);
+	assert.equal(reached, 0);
+});
+
+test('a request with no end is refused once it is too long to be one', async (t) => {
+	const { endpoint } = await serve(t, { 'sites.list': async () => ({}) });
+
+	const reply = JSON.parse(await sendRaw(endpoint, 'x'.repeat(MAX_REQUEST_BYTES + 1)));
+	assert.deepEqual({ ok: reply.ok, code: reply.code }, { ok: false, code: REFUSAL_CODES.TOO_LARGE });
+});
+
+test('only the first request on a connection is answered', async (t) => {
+	let reached = 0;
+	const { endpoint } = await serve(t, { 'sites.list': async () => { reached += 1; return {}; } });
+
+	const received = await sendRaw(endpoint, '{"action":"sites.list"}\n{"action":"sites.list"}\n');
+	assert.equal(received.trim().split('\n').length, 1);
+	assert.equal(reached, 1);
+});
+
+test('an action that throws is an answer, and the next request is still served', async (t) => {
+	const { endpoint } = await serve(t, {
+		broken: async () => { throw new Error('settings.json is not JSON'); },
+		'sites.list': async () => ({ sites: [] })
+	});
+
+	assert.deepEqual(await ask(endpoint, { action: 'broken' }), { ok: false, code: REFUSAL_CODES.FAILED, error: 'settings.json is not JSON' });
+	assert.equal((await ask(endpoint, { action: 'sites.list' })).ok, true);
+});
+
+test('with no app listening, the client says the app is not running', async (t) => {
+	const userData = profile(t);
+	const endpoint = controlEndpoint({ userData });
+	assert.equal((await ask(endpoint, { action: 'sites.list' })).code, 'not-running');
+
+	// And again once an app that was listening has closed.
+	const server = await startControlServer({ endpoint, actions: { 'sites.list': async () => ({}) } });
+	assert.equal((await ask(endpoint, { action: 'sites.list' })).ok, true);
+	await server.close();
+	assert.equal((await ask(endpoint, { action: 'sites.list' })).code, 'not-running');
+});
+
+test('a client is told when the app takes too long to answer', async (t) => {
+	const { endpoint } = await serve(t, { slow: () => new Promise(() => {}) });
+
+	assert.equal((await ask(endpoint, { action: 'slow' }, { timeoutMs: 50 })).code, 'timeout');
+});
+
+// A named pipe leaves no file behind and has no mode to set, so these two are
+// about the socket file only.
+test('a socket file left by a run that did not end cleanly does not refuse the next one', { skip: !POSIX && 'named pipes leave no file' }, async (t) => {
+	const userData = profile(t);
+	fs.writeFileSync(controlEndpoint({ userData }), '');
+
+	const { endpoint } = await serve(t, { 'sites.list': async () => ({ sites: [] }) }, userData);
+	assert.equal((await ask(endpoint, { action: 'sites.list' })).ok, true);
+});
+
+test('the socket file is the user\'s alone, and is gone once the server closes', { skip: !POSIX && 'named pipes have no mode' }, async (t) => {
+	const userData = profile(t);
+	const endpoint = controlEndpoint({ userData });
+	const server = await startControlServer({ endpoint, actions: {} });
+
+	// The permission bits, without the file type above them.
+	assert.equal(fs.statSync(endpoint).mode % 0o1000, 0o600);
+	await server.close();
+	assert.equal(fs.existsSync(endpoint), false);
+});
