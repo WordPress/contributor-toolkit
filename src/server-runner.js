@@ -24,7 +24,7 @@ async function main() {
 	// options, and says which extra constants the strategy needs; the debug and
 	// SMTP constants are added here because they come from this process's
 	// environment, and the PHP version and the two debug flags the settings
-	// hold (#559) ride in the config.
+	// hold (#559), and Xdebug (#723), ride in the config.
 	const raw = process.argv[2];
 	// The `return`s after each exit are for the test harness, which replaces
 	// process.exit with a recorder: without them main() would carry on into
@@ -75,6 +75,10 @@ async function main() {
 			// The PHP the site runs on, from the settings; the CLI's own default
 			// when the config names none, as it did before there was a setting.
 			...(serveConfig.phpVersion ? { php: serveConfig.phpVersion } : {}),
+			// Xdebug for step debugging, when the settings turn it on (#723). It
+			// connects to an editor on 127.0.0.1:9003 at every request; with
+			// nothing listening there the request carries on.
+			...(serveConfig.xdebug ? { xdebug: true } : {}),
 			verbosity: 'debug',
 			blueprint: {
 				constants: {

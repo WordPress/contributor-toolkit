@@ -144,6 +144,7 @@
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@playwright/test": "^1.62.1",
+    "@wordpress/a11y": "^4.56.0",
     "@wordpress/admin-ui": "^2.11.0",
     "@wordpress/babel-plugin-makepot": "^6.56.0",
     "@wordpress/components": "^41.0.0",

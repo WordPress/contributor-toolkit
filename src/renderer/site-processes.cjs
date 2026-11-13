@@ -18,12 +18,14 @@ const { formatElapsed } = require('./dev-server-command.cjs');
  * words, for the header. `action` is what pressing does, as the name of the
  * button and of the menu's item; `short` is the word the button shows.
  *
- * While the server starts there is nothing to press: a second start would be
- * a second server (#488), and there is no stop to offer before there is a
- * server. The button says it is starting, and `pending` asks for it to be
- * drawn as busy. An update of trunk holds everything (`disabled`), and a
- * build running on its own holds the start: the server would serve the
- * build/ it is still writing (#503).
+ * While the server starts, the button cancels the start (#723). With Xdebug
+ * a start can be paused on a breakpoint in the editor, and the time limit
+ * would otherwise be the only way out (#507). It is named apart from Stop:
+ * a press is never a second start (#488), and nothing that waits for a
+ * running server's Stop takes a starting one for it. `pending` asks for a
+ * button to be drawn as busy. An update of trunk holds everything
+ * (`disabled`), and a build running on its own holds the start: the server
+ * would serve the build/ it is still writing (#503).
  *
  * A server that went by itself, or could not start, is `failed` until it is
  * started again, and `detail` is the sentence the details say of it: what
@@ -43,7 +45,7 @@ const { formatElapsed } = require('./dev-server-command.cjs');
  */
 function serverProcess({ active = false, starting = false, isUpdating = false, building = false, failure = '' } = {}) {
 	if (starting) {
-		return { status: 'busy', label: __('Server starting…'), action: __('Starting development server…'), short: __('Starting…'), pending: true, disabled: true, detail: '' };
+		return { status: 'busy', label: __('Server starting…'), action: __('Cancel the development server start'), short: __('Cancel'), pending: false, disabled: isUpdating, detail: '' };
 	}
 	if (active) {
 		return { status: 'online', label: __('Server running'), action: __('Stop development server'), short: __('Stop'), pending: false, disabled: isUpdating, detail: '' };

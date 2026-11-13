@@ -24,18 +24,24 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // there (#558), and `startDebugTail` and `stopDebugTail` are its debug.log
 // tail.
 // `listenForMail`, `stopListeningForMail` and `loadMail` are the site's mail.
-// `terminalKillRef`, `markTerminalRunning` and `currentRunIdRef` are the
-// terminal's lock and the script runner's current run, which a stop clears.
 // `hasBuilt`, `setHasBuilt` and `skipInit` are what the site's status says,
 // and `projectBuild` is the project's build plan. `confirm` says, in the
 // window's notices, that a start was refused for want of a build.
 //
-// `toggleDevServer` is what each of them does. `isServerStarting`,
+// `toggleDevServer` is what each of them does. `serverXdebug` is whether the
+// running server started with Xdebug, and `serverXdebugHeldBy` the site whose
+// server had it when this one started without it. `isServerStarting`,
 // `isDevProcessActive` and `serverFailure` are what the page's words about
 // the server are decided from, in site-processes.cjs, and `startElapsed` is
 // how long a start has been going.
-export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
+export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef }) {
   const [serverUrl, setServerUrl] = useState('');
+  // Whether the running server started with Xdebug (#723), which is what the
+  // page shows: the setting applies only at the next start.
+  const [serverXdebug, setServerXdebug] = useState(false);
+  // One running server has Xdebug at a time, so a server started while
+  // another site's had it started without it: that site's path, or null.
+  const [serverXdebugHeldBy, setServerXdebugHeldBy] = useState(null);
   const [starting, setStarting] = useState(false);
   const [running, setRunning] = useState(false);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
@@ -57,6 +63,11 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
   // as this signal, but the watcher no longer holds that lock (#247), so
   // startPhpServer needs its own flag to know the boot was not aborted.
   const devServerActiveRef = useRef(false);
+  // Moves on at each stop, so that a start that was stopped while it started
+  // (#723) is told apart by what it hears back afterwards: its address, its
+  // exit and its failed reply are of a start that is over, and are not a
+  // running server, a crash or a start that failed.
+  const startGenerationRef = useRef(0);
 
   useEffect(() => { runningRef.current = running; }, [running]);
   useEffect(() => { waitingForWatchRef.current = waitingForWatch; }, [waitingForWatch]);
@@ -64,27 +75,32 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
   const stopDevServer = useCallback(async () => {
     if (stoppingRef.current) return;
     stoppingRef.current = true;
+    startGenerationRef.current += 1;
     if (runningRef.current) serverStopRequestedRef.current = true;
     devServerActiveRef.current = false;
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
     serverStartRequestedRef.current = false;
-    setStarting(false);
     try { await window.api.stopServer(sitePath); } catch {}
+    // Said only now: until main has answered, a start asked for would find
+    // this stop still going and never run (#723).
+    setStarting(false);
     stopDebugTail();
     stopListeningForMail();
     setRunning(false);
     runningRef.current = false;
     setServerUrl('');
+    setServerXdebug(false);
+    setServerXdebugHeldBy(null);
     stoppingRef.current = false;
     waitingForWatchRef.current = false;
-    terminalKillRef.current = null;
-    markTerminalRunning(false);
-    currentRunIdRef.current = null;
     // The watcher is independent now (#247): stopping the dev server leaves it
     // running, so a contributor can keep compiling on save without serving the
-    // site. Stopping it is its own control's business.
-  }, [currentRunIdRef, markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail, terminalKillRef]);
+    // site. Stopping it is its own control's business. The server holds
+    // neither the terminal nor a script run, so a stop leaves those alone:
+    // a start cancelled during the build before the watch leaves that build
+    // the terminal's, for Ctrl+C to stop (#723).
+  }, [setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail]);
 
   const startPhpServer = useCallback(async () => {
     if (serverStartRequestedRef.current || stoppingRef.current || !devServerActiveRef.current) {
@@ -93,6 +109,8 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
     }
     serverStartRequestedRef.current = true;
     serverStopRequestedRef.current = false;
+    const generation = startGenerationRef.current;
+    const over = () => generation !== startGenerationRef.current;
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
     ensureStick('runtime');
@@ -105,17 +123,22 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
     // after the server was up, the tail took whatever WordPress had logged
     // while it booted for an earlier run's as well.
     await startDebugTail();
+    // Cancelled while the tail came up: main had no start to cancel then, so
+    // asking now would spawn a server nothing in the window can stop.
+    if (over()) return;
     try {
       const res = await window.api.startServer(
         sitePath,
         (p)=>appendRuntime(p.data || ''),
-        (url)=>{
-          if (stoppingRef.current) {
+        (url, xdebug, xdebugHeldBy)=>{
+          if (stoppingRef.current || over()) {
             serverStartRequestedRef.current = false;
             return;
           }
           const u = url.replace(/\/$/,'/');
           setServerUrl(u);
+          setServerXdebug(xdebug);
+          setServerXdebugHeldBy(xdebugHeldBy);
           window.api.openExternal(u);
           setRunning(true);
           runningRef.current = true;
@@ -123,9 +146,10 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
           serverStartRequestedRef.current = false;
         },
         ()=>{
+          if (over()) return;
           const requested = serverStopRequestedRef.current;
           serverStopRequestedRef.current = false;
-          setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
+          setRunning(false); runningRef.current = false; setServerUrl(''); setServerXdebug(false); setServerXdebugHeldBy(null); serverStartRequestedRef.current = false;
           // A stop the user did not ask for is a crash: say so, and tear the
           // server session down instead of leaving its controls at
           // "Starting development server…" forever (issue #73). The watcher
@@ -145,6 +169,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       );
       // A failed start reports through the return value, not an exception.
       // This also covers spawn failures that never produce a "stopped" event.
+      if (over()) return;
       if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
         // translators: %s: why the server did not start.
         appendRuntime(`${sprintf(__('Dev server failed to start: %s'), res.error || __('unknown error'))}\n`);
@@ -154,6 +179,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
         return;
       }
     } catch (error) {
+      if (over()) return;
       // translators: %s: why the server did not start.
       appendRuntime(`${sprintf(__('Failed to start PHP server: %s'), error && error.message ? error.message : String(error))}\n`);
       setServerFailure('start');
@@ -172,15 +198,25 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
   }, [appendRuntime, ensureStick, listenForMail, loadMail, revealServerLog, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDebugTail, stopDevServer, stopListeningForMail]);
 
   const toggleDevServer = async ()=>{
+    // A stop is going, a cancel's included: the press waits for it to end.
+    if (stoppingRef.current) return;
     if (!running) {
-      // A start is already queued behind the watch (or in flight): a second
-      // click must not queue a second server start (#488).
-      if (devServerActiveRef.current) return;
+      // A start is already queued behind the watch (or in flight): a press
+      // now cancels it (#723), and never queues a second server start (#488).
+      if (devServerActiveRef.current) {
+        appendRuntime(`${__('Dev server start cancelled.')}\n`);
+        await stopDevServer();
+        return;
+      }
       if (!skipInit && !hasBuilt) { confirm(__('Please complete the full build before starting the dev server. You can also skip the wizard.'), { tone: 'error' }); return; }
       serverStartRequestedRef.current = false;
       devServerActiveRef.current = true;
       setServerFailure('');
       setStarting(true);
+      // This start's generation, which a cancel moves on: taken before the
+      // read below, so a cancel during it ends the start there (#723).
+      const generation = startGenerationRef.current;
+      const current = () => generation === startGenerationRef.current;
       // A built site whose watch would first remove build/ (Gutenberg's npm run
       // dev, #488) has nothing to wait for: the server starts on the build/ it
       // has, in seconds instead of the watch's rebuild (#499). The watch stays
@@ -191,6 +227,7 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       // have gone since (a watch rebuild, a clean by hand).
       let builtNow = hasBuilt;
       try { const fresh = await window.api.getSiteStatus(sitePath); builtNow = Boolean(fresh?.hasBuilt); setHasBuilt(builtNow); } catch {}
+      if (!current()) return;
       if (serveWithoutWatch({ hasBuilt: builtNow, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild)) {
         // translators: %s: the folder the site is served from, build/.
         appendRuntime(`${sprintf(__('%s is complete: starting the server without the build watch. Start build watch to compile edits on save.'), 'build/')}\n`);
@@ -200,12 +237,14 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
       // The server needs build/ on disk, which the build watch guarantees. Start
       // the watch first (automatically, if it is not already running) and hang
       // the server start off its readiness — the watch stays independent after.
+      // The watch keeps every start's wait, a cancelled one's too, so each
+      // answers only while its own start is the one going (#723).
       startBuildWatch({
-        onReady: () => { startPhpServer().catch(() => {}); },
+        onReady: () => { if (current()) startPhpServer().catch(() => {}); },
         // The watch never got to a complete build/: nothing to serve, so the
         // server goes back to offering a start instead of starting forever.
         onFail: () => {
-          if (serverStartRequestedRef.current) return;
+          if (!current() || serverStartRequestedRef.current) return;
           devServerActiveRef.current = false;
           setStarting(false);
           // translators: %s: the folder the site is served from, build/.
@@ -237,6 +276,8 @@ export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHas
 
   return {
     serverUrl,
+    serverXdebug,
+    serverXdebugHeldBy,
     starting,
     running,
     isServerStarting,

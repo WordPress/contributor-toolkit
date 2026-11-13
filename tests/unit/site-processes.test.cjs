@@ -12,13 +12,17 @@ test('a running server offers to stop', () => {
 	assert.deepEqual(serverProcess({ active: true }), { status: 'online', label: 'Server running', action: 'Stop development server', short: 'Stop', pending: false, disabled: false, detail: '' });
 });
 
-test('a server that is starting cannot be pressed, and says what it is doing', () => {
-	// A second start would be a second server (#488), and there is nothing
-	// to stop yet.
+// A server that is starting can be cancelled (#723): with Xdebug a start can
+// be paused on a breakpoint, and the time limit would otherwise be the only
+// way out (#507). It is named apart from Stop, so nothing that waits for a
+// running server's Stop takes a starting one for it.
+test('a server that is starting offers to cancel the start, and says what it is doing', () => {
 	const starting = serverProcess({ active: true, starting: true });
-	assert.deepEqual(starting, { status: 'busy', label: 'Server starting…', action: 'Starting development server…', short: 'Starting…', pending: true, disabled: true, detail: '' });
+	assert.deepEqual(starting, { status: 'busy', label: 'Server starting…', action: 'Cancel the development server start', short: 'Cancel', pending: false, disabled: false, detail: '' });
 	// Starting is what is said even when "active" has not caught up.
 	assert.deepEqual(serverProcess({ active: false, starting: true }), starting);
+	// An update of trunk holds this too.
+	assert.equal(serverProcess({ starting: true, isUpdating: true }).disabled, true);
 });
 
 test('a server that went by itself, or could not start, says so and where its last lines are, and offers to start', () => {

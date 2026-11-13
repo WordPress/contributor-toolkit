@@ -17,6 +17,7 @@ What every site's development server runs with. A change applies the next time a
 - **PHP version** — the PHP the site runs on, from the versions the bundled WordPress Playground has. 8.3 unless you choose another.
 - **Report notices and deprecations (WP_DEBUG)** — on, notices and deprecations are reported along with warnings and errors, written to `debug.log` and shown in the browser; see [Logs and debugging](./logs-and-debugging). Off, notices and deprecations are not reported; warnings and errors still reach `debug.log` and the browser, and `error_log()` calls still reach `debug.log`: the app's PHP keeps logging and display on whatever WP_DEBUG says.
 - **Use unminified scripts (SCRIPT_DEBUG)** — on, Core serves its JavaScript and CSS unminified.
+- **Step debugging (Xdebug)** — on, the site's PHP runs with Xdebug, so VS Code can stop on breakpoints; see [Step debugging with Xdebug](./step-debugging). Off unless you turn it on, because it slows every request.
 
 ## Account
 

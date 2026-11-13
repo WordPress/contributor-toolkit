@@ -153,6 +153,12 @@ async function ensureLocalExcludes(dir) {
 	// Older PRs predate WordPress's /gutenberg ignore. Keep this generated
 	// download out of WIP commits even when their .gitignore is checked out.
 	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit generated Gutenberg', ['/gutenberg/'], { once: true });
+	// What step debugging leaves in a checkout (#723). With Xdebug on, the
+	// Playground CLI links its VFS root into the folder the server runs from,
+	// which for a plugin-mount site is the checkout, and leaves the link behind
+	// when the server stops. The launch.json and debug.json the editor setups
+	// ask for are under the editor folders excluded below.
+	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit Xdebug', ['/.playground-xdebug-root'], { once: true });
 	const agents = await appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
 	const editors = await appendExcludeBlock(dir, EDITOR_EXCLUDES_MARKER, EDITOR_EXCLUDES, { once: true });
 	return agents || editors;
@@ -4371,11 +4377,21 @@ function playgroundLogScope(sitePath) {
 	return `playground:${path.basename(sitePath)}#${suffix}`;
 }
 
+// Starts that have not spawned their server yet, by site, so that a stop
+// that comes while one still reads the store can cancel it (#723): nothing
+// else would, and the server would start with nothing in the window to stop
+// it.
+const playgroundStarts = {};
+
 ipcMain.handle('playground:start', async (event, sitePath) => {
+	const start = { cancelled: false };
+	playgroundStarts[sitePath] = start;
 	// Ensure a per-site SMTP server is running alongside the dev server and get its port
 	const smtp = await ensureSmtpServerForSite(sitePath).catch(() => null);
 	if (playgroundServers[sitePath]?.child) {
-		return { ok: true, url: playgroundServers[sitePath].url };
+		delete playgroundStarts[sitePath];
+		const { url, xdebug, xdebugHeldBy } = playgroundServers[sitePath];
+		return { ok: true, url, xdebug, ...(xdebugHeldBy ? { xdebugHeldBy } : {}) };
 	}
 	// How the site is served is the target's (#251). Core's build/ is a whole
 	// WordPress, mounted as the docroot; a Gutenberg checkout is a plugin,
@@ -4384,27 +4400,48 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	// read here, once, and the map below keys on sitePath as before, so
 	// playground:stop and the quit sweep are untouched.
 	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
-	const isPluginMount = serve.strategy === 'plugin-mount';
-	const buildDir = path.join(sitePath, 'build');
 	// The PHP version and the debug flags the settings hold (#559), read at
 	// each start so a change applies to the next. A version the bundled
 	// Playground no longer has, after a bump, is passed over for the fallback.
 	const logScope = playgroundLogScope(sitePath);
+	// eslint-disable-next-line @wordpress/no-unused-vars-before-return -- this read is the start's last await, and the cancel check below has to come after it.
 	const settings = readSettings((await getStore()).get('preferences'));
+	// Stopped before it got here: nothing to spawn.
+	if (playgroundStarts[sitePath] === start) delete playgroundStarts[sitePath];
+	if (start.cancelled) {
+		logEvent(logScope, 'start cancelled before the server was spawned');
+		await stopSmtpServerForSite(sitePath).catch(() => {});
+		return { ok: false, cancelled: true };
+	}
+	const isPluginMount = serve.strategy === 'plugin-mount';
+	const buildDir = path.join(sitePath, 'build');
 	const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
 	if (phpVersion !== settings.phpVersion) {
 		logEvent(logScope, `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
 	}
+	// Every server sends Xdebug to the same port, and an editor cannot tell
+	// two apart, so one running server has it at a time (#723): a site started
+	// while another's server has it, even one still starting, starts without
+	// it, and the window is told whose it is. Read after the last await here,
+	// so two starts at once cannot both take it.
+	const xdebugHeldBy = settings.xdebug
+		? Object.keys(playgroundServers).find((other) => other !== sitePath && playgroundServers[other]?.child && playgroundServers[other].xdebug) || null
+		: null;
 	const serveConfig = {
 		...(isPluginMount
 			? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
 			: { strategy: 'docroot', docroot: buildDir }),
 		phpVersion,
-		debug: { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug }
+		debug: { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug },
+		xdebug: settings.xdebug && !xdebugHeldBy
 	};
+	if (xdebugHeldBy) logEvent(logScope, `Xdebug is set, but the server for ${xdebugHeldBy} has it; starting without it`);
+	// What the window is told of Xdebug: whether this server has it, and whose
+	// server has it when the setting is on and this one does not.
+	const xdebugReport = { xdebug: serveConfig.xdebug, ...(xdebugHeldBy ? { xdebugHeldBy } : {}) };
 	const serveCwd = isPluginMount ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
-	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
+	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'}, Xdebug ${serveConfig.xdebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
 	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
 		cwd: serveCwd,
 		extraEnv: {
@@ -4417,7 +4454,9 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 			WP_MAIL_SMTP_PASS: ''
 		}
 	});
-	playgroundServers[sitePath] = { child };
+	// What the server started with, which the window shows rather than the
+	// setting: a change to the setting applies at the next start (#723).
+	playgroundServers[sitePath] = { child, ...xdebugReport };
 	let resolved = false;
 	let pendingResolve = null;
 	let timeoutId = null;
@@ -4432,10 +4471,10 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 			resolved = true;
 			playgroundServers[sitePath].url = match[1].trim();
 			logEvent(logScope, `server ready at ${playgroundServers[sitePath].url}`);
-			event.sender.send('playground:url', { sitePath, url: playgroundServers[sitePath].url });
+			event.sender.send('playground:url', { sitePath, url: playgroundServers[sitePath].url, ...xdebugReport });
 			if (typeof pendingResolve === 'function') {
 				clearTimeout(timeoutId);
-				pendingResolve({ ok: true, url: playgroundServers[sitePath].url });
+				pendingResolve({ ok: true, url: playgroundServers[sitePath].url, ...xdebugReport });
 				pendingResolve = null;
 			}
 		}
@@ -4486,7 +4525,12 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	// into "fails loudly" (issue #73): on expiry the child is killed — which
 	// fires the close handler and the playground:stopped event — and the
 	// renderer surfaces the returned error.
-	const START_TIMEOUT_MS = 120000;
+	//
+	// With Xdebug, Playground's own requests while the server starts connect
+	// to the editor as well, so a contributor paused on a breakpoint there has
+	// a server that is waiting, not hung (#723), so it has longer. The window
+	// can cancel a start, so the limit is only for a start nobody cancels.
+	const START_TIMEOUT_MS = serveConfig.xdebug ? 15 * 60 * 1000 : 120000;
 	return new Promise((resolve) => {
 		pendingResolve = resolve;
 		timeoutId = setTimeout(() => {
@@ -4506,7 +4550,11 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 
 ipcMain.handle('playground:stop', async (_event, sitePath) => {
 	const server = playgroundServers[sitePath];
-	if (!server?.child) return { ok: true };
+	if (!server?.child) {
+		// A start that has not spawned yet stops itself when it gets there.
+		if (playgroundStarts[sitePath]) playgroundStarts[sitePath].cancelled = true;
+		return { ok: true };
+	}
 	try {
 		// The runner spawns the PHP-WASM server under it, so the same tree kill the
 		// quit sweep uses (#83) is what actually stops the site (#146).

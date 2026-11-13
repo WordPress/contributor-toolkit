@@ -514,6 +514,42 @@ test('startServer leaves no listener behind when the start throws, and the next 
 	assert.deepEqual(next.seen, { logs: ['booting\n'], urls: ['http://127.0.0.1:9400/'], stopped: 0 });
 });
 
+// A start cancelled before main spawned its server (#723) answers that it was
+// cancelled, and no server exists to announce a stop, so the answer is what
+// takes the listeners off.
+test('startServer leaves no listener behind when the start was cancelled before its server was spawned', async () => {
+	let cancelNext = true;
+	const { api, ipcRenderer } = loadPreload({ invokeResults: { 'playground:start': () => {
+		if (cancelNext) { cancelNext = false; return { ok: false, cancelled: true }; }
+		return { ok: true };
+	} } });
+	const cancelled = startServerCallbacks();
+	const next = startServerCallbacks();
+
+	assert.deepEqual(await api.startServer('/sites/wp', cancelled.onLog, cancelled.onUrl, cancelled.onStopped), { ok: false, cancelled: true });
+	for (const channel of SERVER_CHANNELS) assert.equal(ipcRenderer.listenerCount(channel), 0, `${channel} outlived a cancelled start`);
+
+	await api.startServer('/sites/wp', next.onLog, next.onUrl, next.onStopped);
+	ipcRenderer.emit('playground:log', { sitePath: '/sites/wp', type: 'stdout', data: 'booting\n' });
+
+	assert.deepEqual(cancelled.seen, { logs: [], urls: [], stopped: 0 });
+	assert.deepEqual(next.seen.logs, ['booting\n']);
+});
+
+// The window shows what the running server has, so the URL comes with
+// whether it started with Xdebug (#723), and whose server has it when this
+// one started without it.
+test('startServer hands the URL on with whether the server has Xdebug, and whose server has it otherwise', async () => {
+	const { api, ipcRenderer } = loadPreload({ invokeResults: { 'playground:start': () => ({ ok: true }) } });
+	const heard = [];
+
+	await api.startServer('/sites/wp', null, (url, xdebug, xdebugHeldBy) => heard.push([url, xdebug, xdebugHeldBy]), null);
+	ipcRenderer.emit('playground:url', { sitePath: '/sites/wp', url: 'http://127.0.0.1:9400/', xdebug: true });
+	ipcRenderer.emit('playground:url', { sitePath: '/sites/wp', url: 'http://127.0.0.1:9400/', xdebug: false, xdebugHeldBy: '/sites/gb' });
+
+	assert.deepEqual(heard, [['http://127.0.0.1:9400/', true, null], ['http://127.0.0.1:9400/', false, '/sites/gb']]);
+});
+
 // The guard for the paragraph above isElectronPackage: if the stub ever stops
 // covering a path, this fails here rather than as a mystery download in another
 // file's test on a cold checkout.

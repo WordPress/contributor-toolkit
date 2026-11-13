@@ -2610,7 +2610,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder, editor: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder, editor: null } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -3718,7 +3718,7 @@ test('playground:start spawns the server runner with the environment npm-runner 
 	// build/ as the docroot, run from that directory as before (#251), and
 	// what the settings hold for a server, at their fallbacks here (#559).
 	const serve = JSON.parse(cp.spawned[0].args[1]);
-	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build'), phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true } });
+	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build'), phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true }, xdebug: false });
 	assert.equal(cp.spawned[0].options.cwd, path.join('/sites/wp', 'build'));
 });
 
@@ -3739,7 +3739,7 @@ test('playground:start serves a Gutenberg site as a plugin mounted from the chec
 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
 	const serve = JSON.parse(cp.spawned[0].args[1]);
-	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg', phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true } });
+	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg', phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true }, xdebug: false });
 	// There is no build/ docroot to run from: the checkout is the plugin.
 	assert.equal(cp.spawned[0].options.cwd, '/sites/gb');
 });
@@ -3759,6 +3759,140 @@ test('playground:start hands the runner the PHP version and the debug flags from
 	const serve = JSON.parse(cp.spawned[0].args[1]);
 	assert.equal(serve.phpVersion, '8.4');
 	assert.deepEqual(serve.debug, { wpDebug: false, scriptDebug: true });
+});
+
+// Xdebug is a setting like the others (#723), read at each start; the URL the
+// window is told of says whether the server has it, since a server keeps what
+// it started with and the window shows that, not the setting.
+test('playground:start hands the runner the Xdebug setting, and the URL it reports says the server has it', async (t) => {
+	const settings = fakeSettingsStore({ preferences: { xdebug: true } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+	const event = createIpcEvent();
+
+	const pending = main.invokeWith('playground:start', event, '/sites/wp');
+	await reachSpawn(t, cp, pending);
+
+	assert.equal(JSON.parse(cp.spawned[0].args[1]).xdebug, true);
+	cp.children[0].stdout.emit('data', 'SERVER_URL:http://127.0.0.1:9400/\n');
+	assert.deepEqual(await pending, { ok: true, url: 'http://127.0.0.1:9400/', xdebug: true });
+	assert.deepEqual(event.sent.find((m) => m.channel === 'playground:url').payload, { sitePath: '/sites/wp', url: 'http://127.0.0.1:9400/', xdebug: true });
+});
+
+// Every server sends Xdebug to the same port, and an editor cannot tell two
+// apart, so only one running server has it (#723): a site started while
+// another's server has it starts without it, and is told whose it is. The
+// server that had it stopping frees it for the next start.
+test('playground:start gives Xdebug to one running server at a time, and says whose it is to the others', async (t) => {
+	const settings = fakeSettingsStore({ preferences: { xdebug: true } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+	const spawnedCount = async (count) => {
+		for (let turn = 0; turn < 100 && cp.spawned.length < count; turn++) await new Promise(setImmediate);
+		assert.equal(cp.spawned.length, count, 'the handler never reached its spawn');
+	};
+	const pendings = [];
+	t.after(async () => {
+		for (const child of cp.children) child.emit('close', 0, null);
+		await Promise.all(pendings);
+	});
+	const start = (sitePath) => {
+		const event = createIpcEvent();
+		const pending = main.invokeWith('playground:start', event, sitePath);
+		pendings.push(pending);
+		return { event, pending };
+	};
+
+	const first = start('/sites/wp');
+	await spawnedCount(1);
+	assert.equal(JSON.parse(cp.spawned[0].args[1]).xdebug, true);
+
+	// Started while the first is still starting: it will connect as soon as it
+	// is up, so it holds Xdebug already.
+	const second = start('/sites/gb');
+	await spawnedCount(2);
+	assert.equal(JSON.parse(cp.spawned[1].args[1]).xdebug, false);
+	cp.children[1].stdout.emit('data', 'SERVER_URL:http://127.0.0.1:9401/\n');
+	assert.deepEqual(await second.pending, { ok: true, url: 'http://127.0.0.1:9401/', xdebug: false, xdebugHeldBy: '/sites/wp' });
+	assert.deepEqual(second.event.sent.find((m) => m.channel === 'playground:url').payload, { sitePath: '/sites/gb', url: 'http://127.0.0.1:9401/', xdebug: false, xdebugHeldBy: '/sites/wp' });
+
+	cp.children[0].stdout.emit('data', 'SERVER_URL:http://127.0.0.1:9400/\n');
+	assert.deepEqual(await first.pending, { ok: true, url: 'http://127.0.0.1:9400/', xdebug: true });
+
+	// The first stops: the next site to start has it.
+	cp.children[0].emit('close', 0, null);
+	start('/sites/other');
+	await spawnedCount(3);
+	assert.equal(JSON.parse(cp.spawned[2].args[1]).xdebug, true);
+});
+
+// A server that has not reported its address in time is killed and its
+// start reported failed (#73). With Xdebug, Playground's own requests while
+// it starts connect to the editor too, and a contributor paused on a
+// breakpoint there has a server that is waiting, not hung (#723), so it has
+// longer. The window can cancel a start; the limit is for one nobody does.
+for (const [xdebug, limitMs] of [[false, 120_000], [true, 15 * 60_000]]) {
+	test(`playground:start gives a server ${xdebug ? 'with' : 'without'} Xdebug ${limitMs / 60_000} minutes to report its address before it is killed`, async (t) => {
+		t.mock.timers.enable({ apis: ['setTimeout'] });
+		const settings = fakeSettingsStore({ preferences: { xdebug } });
+		const cp = stubbedSpawn();
+		const killChildTree = spy();
+		const main = loadMain({
+			stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) }, './kill-tree': { killChildTree } }
+		});
+
+		const pending = main.invokeWith('playground:start', createIpcEvent(), '/sites/wp');
+		await reachSpawn(t, cp, pending);
+
+		t.mock.timers.tick(limitMs - 1);
+		assert.equal(killChildTree.calls.length, 0, 'killed before its time was up');
+		t.mock.timers.tick(1);
+		assert.equal(killChildTree.calls.length, 1);
+		const result = await pending;
+		assert.equal(result.ok, false);
+		assert.match(result.error, new RegExp(`within ${limitMs / 1000} seconds`));
+	});
+}
+
+// A start can be stopped while it starts (#723): with Xdebug a contributor
+// can be paused on a breakpoint before the server has an address. A stop
+// that comes before the server is spawned, while the start is still reading
+// the store, cancels it: nothing is spawned, and the start says it was
+// cancelled rather than failed.
+test('playground:stop before the server is spawned cancels the start, and nothing is spawned', async () => {
+	const settings = fakeSettingsStore();
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+
+	const pending = main.invokeWith('playground:start', createIpcEvent(), '/sites/wp');
+	assert.deepEqual(await main.invoke('playground:stop', '/sites/wp'), { ok: true });
+
+	assert.deepEqual(await pending, { ok: false, cancelled: true });
+	assert.equal(cp.spawned.length, 0);
+});
+
+// Once spawned, a start is stopped as a running server is: its process tree
+// is killed, and the start's reply says it did not start.
+test('playground:stop while the spawned server has no address yet kills it', async (t) => {
+	const settings = fakeSettingsStore();
+	const cp = stubbedSpawn();
+	const killChildTree = spy((child) => child.emit('close', null, 'SIGTERM'));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) }, './kill-tree': { killChildTree } }
+	});
+
+	const pending = main.invokeWith('playground:start', createIpcEvent(), '/sites/wp');
+	await reachSpawn(t, cp, pending);
+	assert.deepEqual(await main.invoke('playground:stop', '/sites/wp'), { ok: true });
+
+	assert.equal(killChildTree.calls.length, 1);
+	assert.equal((await pending).ok, false);
 });
 
 test('playground:start passes over a stored PHP version the bundled Playground no longer has', async (t) => {
@@ -8082,10 +8216,10 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
 	});
 
-	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
 	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
 	assert.equal(settings.values.preferences.locale, 'de');
-	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, xdebug: false, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null, editor: null } });
 });
 
 test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
@@ -9044,6 +9178,51 @@ test('old PRs do not count generated Gutenberg files, including a previously par
 	assert.match(result.patch, /my edit/);
 	assert.doesNotMatch(result.patch, /gutenberg/);
 });
+
+// What step debugging leaves in a checkout (#723) is kept out of the work and
+// the patch, on a site whose local excludes were written before it existed
+// too: the link the Playground CLI makes to its VFS root in the folder the
+// server runs from, which on a Gutenberg site is the checkout, and the
+// .vscode/launch.json and .zed/debug.json the editor setups ask for, which
+// the editor-folder excludes cover. Gutenberg tracks other files in .vscode/,
+// and a change to one of them is still work.
+for (const shape of ['core', 'gutenberg']) {
+	test(`what Xdebug leaves in a ${shape} checkout is not counted as work or put in the patch`, async (t) => {
+		const dir = adoptedRepo(t, `ipc-xdebug-${shape}-`);
+		const tracked = ['README.md'];
+		fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
+		if (shape === 'gutenberg') {
+			fs.mkdirSync(path.join(dir, '.vscode'));
+			fs.writeFileSync(path.join(dir, '.vscode', 'launch-example.json'), '{}\n');
+			tracked.push('.vscode/launch-example.json');
+		}
+		commitFiles(dir, tracked, 'base');
+		gitOk(['update-ref', 'refs/remotes/origin/trunk', revParse(dir, 'HEAD')], dir);
+		fs.mkdirSync(path.join(dir, '.git', 'info'), { recursive: true });
+		fs.writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '# WordPress Contributor Toolkit local excludes\n/.claude/\n');
+		const target = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-xdebug-vfs-'));
+		t.after(() => fs.rmSync(target, { recursive: true, force: true }));
+		fs.symlinkSync(target, path.join(dir, '.playground-xdebug-root'), 'junction');
+		fs.mkdirSync(path.join(dir, '.vscode'), { recursive: true });
+		fs.writeFileSync(path.join(dir, '.vscode', 'launch.json'), '{ "version": "0.2.0" }\n');
+		fs.mkdirSync(path.join(dir, '.zed'));
+		fs.writeFileSync(path.join(dir, '.zed', 'debug.json'), '[]\n');
+		const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
+		const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+		await main.invoke('site:status', dir);
+		assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 0);
+		fs.appendFileSync(path.join(dir, 'README.md'), 'my edit\n');
+		if (shape === 'gutenberg') fs.writeFileSync(path.join(dir, '.vscode', 'launch-example.json'), '{ "edited": true }\n');
+		const result = await main.invoke('git:get-patch', dir);
+		assert.equal(result.ok, true, result.error);
+		assert.match(result.patch, /my edit/);
+		assert.doesNotMatch(result.patch, /playground-xdebug-root/);
+		assert.doesNotMatch(result.patch, /launch\.json/);
+		assert.doesNotMatch(result.patch, /debug\.json/);
+		if (shape === 'gutenberg') assert.match(result.patch, /launch-example\.json/);
+	});
+}
 
 test('the patch panel can render a large added text file without overflowing the stack', async (t) => {
 	const dir = adoptedRepo(t, 'ipc-large-patch-');

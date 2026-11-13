@@ -26,11 +26,12 @@ import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { serverReport, sitesListRows, siteToOpen, withServerReport } from './sites-list.cjs';
+import { serverReport, siteDisplayName, sitesListRows, siteToOpen, withServerReport } from './sites-list.cjs';
 import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, buildHoldsStarts, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
+import { xdebugEditors, xdebugSection } from './xdebug.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -76,6 +77,7 @@ import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
 import { OpenFileInMenu, SiteContextMenu, SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
+import { XdebugSetupDialog } from './components/xdebug-setup-dialog.jsx';
 import { changedFileGroups, fileOpenTarget, revertFileQuestion, revertOutcome, unsubmittedFromReply } from './affected-files.cjs';
 import { openInEditorPath } from './site-menu.cjs';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
@@ -493,6 +495,9 @@ function App({ settingsState }) {
   const onServerStatus = useCallback((sitePath, report) => {
     setServerReports((current) => withServerReport(current, sitePath, report));
   }, []);
+  // Another site by the name the list shows, for a site to say whose server
+  // has Xdebug (#723).
+  const siteNameFor = useCallback((sitePath) => siteDisplayName(sitePath, siteMeta?.[sitePath]?.label), [siteMeta]);
 
   const onDelete = useCallback(async (sitePath) => {
     if (deletingSitesRef.current.has(sitePath)) return;
@@ -721,6 +726,8 @@ function App({ settingsState }) {
                         projectType={siteMeta?.[s]?.projectType}
                         settings={settings}
                         startingPhp={startingPhp}
+                        siteNameFor={siteNameFor}
+                        serverReports={serverReports}
                         resume={resumeFor(resume, s)}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
@@ -781,7 +788,7 @@ function App({ settingsState }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, onActivate = null, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, siteNameFor = pathBasename, serverReports = {}, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, onActivate = null, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null, contextMenu = null, onCloseContextMenu = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -869,8 +876,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const applyCardRef = useRef(null);
   const setupLogsRef = useRef('');
 
-  const siteName = pathBasename(sitePath);
-  const displayName = (label && label.trim()) || siteName;
+  const displayName = siteDisplayName(sitePath, label);
   // Whether the rename dialog is up. Everything else about it, the value being
   // typed, the refusal, the busy flag, is the dialog's own (#553).
   const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -1248,7 +1254,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
   // `loadStatus` above; the terminal and the build watch below run through it.
-  const { installing, building, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
+  const { installing, building, buildInterrupted, buildInterruptedRef, markBuildInterrupted, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
 
   // The site's terminal (#554): the xterm instance, what is typed in it and
   // the commands it runs through the three runners above. The lock, the kill
@@ -1334,7 +1340,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The dev server (#554): its state, its guards and its one button. It is
   // called here because starting it needs everything above: the build watch,
   // the logs, the mail, the terminal's lock and the script runner.
-  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
+  const { serverUrl, serverXdebug, serverXdebugHeldBy, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -1400,12 +1406,43 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // taken back when the view goes: the report before a change is taken back
   // in the same commit as the new one is made, so the list sees one change,
   // not a grey dot in between.
+  // The report also says whether the server has Xdebug (#723), for the other
+  // sites' details to say whose server has it.
   const { status: serverDotStatus, text: serverDotText } = serverReport(serverState);
+  const reportsXdebug = running && serverXdebug;
   useEffect(() => {
     if (!onServerStatus) return undefined;
-    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText });
+    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText, xdebug: reportsXdebug });
     return () => onServerStatus(sitePath, null);
-  }, [onServerStatus, sitePath, serverDotStatus, serverDotText]);
+  }, [onServerStatus, sitePath, serverDotStatus, serverDotText, reportsXdebug]);
+  // Step debugging (#723): what the running server has, whose server has it
+  // when this one does not, and what each editor needs.
+  const xdebug = xdebugSection({ setting: Boolean(settings && settings.xdebug), running, startedWith: serverXdebug, heldAtStart: Boolean(serverXdebugHeldBy), sitePath, servers: serverReports, nameFor: siteNameFor, serve: project.serve, url: serverUrl });
+  // Which editor's setup is open, by its id in `xdebugEditors`, or null.
+  const [xdebugEditor, setXdebugEditor] = useState(null);
+  // The dialog shows only while the server has Xdebug. A server that goes
+  // closes it, and the choice goes with it, or the next start would open
+  // the dialog unasked.
+  const xdebugOn = Boolean(xdebug && xdebug.on);
+  useEffect(() => { if (!xdebugOn) setXdebugEditor(null); }, [xdebugOn]);
+  // The setup menu offers the editors found on this machine, looked for
+  // again each time the server has Xdebug.
+  useEffect(() => { if (xdebugOn) loadDetected(); }, [xdebugOn, loadDetected]);
+  const setupEditors = useMemo(() => xdebugEditors(detectedEditors), [detectedEditors]);
+  // A copy that failed says so on its button, and why in the log.
+  const copyXdebugConfig = useCallback(async (text) => {
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Clipboard access is not available in this environment');
+      }
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole.
+      console.error('Could not copy a value for the editor:', err);
+      return false;
+    }
+  }, []);
   // A link to the running site is opened in the browser by the main process.
   const openSiteLink = (url) => window.api.openExternal(url);
 
@@ -2536,10 +2573,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           // What every site's server starts with (#559), from the settings:
           // the PHP it will start on, which is not always the one set.
           phpVersion: startingPhp,
-          debug: settings ? { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug } : null
+          debug: settings ? { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug, xdebug: settings.xdebug } : null,
+          // What the running server says of Xdebug (#723), which keeps what
+          // it started with.
+          xdebug
         }}
         pathCopied={pathCopied}
         onCopyPath={copyPath}
+        xdebugEditors={setupEditors}
+        onOpenXdebugSetup={setXdebugEditor}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
         changed={{ ...changedGroups, onOpenFile: openAffectedFile, onRevertFile: revertFile, revertReason, revertError }}
@@ -2555,6 +2597,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onClose={() => setDirtyModalOpen(false)}
         />
       ) : null}
+      <XdebugSetupDialog editor={xdebugOn ? setupEditors.find((entry) => entry.id === xdebugEditor) || null : null} config={xdebug ? xdebug.config : ''} zed={xdebug ? xdebug.zed : ''} phpStorm={xdebug ? xdebug.phpStorm : []} onCopy={copyXdebugConfig} onClose={() => setXdebugEditor(null)} />
       <RenameSiteDialog open={renameModalOpen} sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
       <ConfirmDialog question={asking ? asking.question : null} onConfirm={() => asking.action()} onClose={() => setAsking(null)} />
       {isPatchOpen && (
