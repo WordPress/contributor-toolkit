@@ -379,7 +379,12 @@ function loadMain({ stubs = {}, ready = false } = {}) {
 	try {
 		// Inside the hook, deliberately: building the stubs requires the real
 		// modules, and src/logging.js requires `electron`.
-		resolveStubs(stubs, stubbed);
+		// The control channel (#764) starts with the app, and a `ready` load
+		// would otherwise listen on a real socket in the temporary directory
+		// the electron stub answers `getPath` with, and write a command beside
+		// it. A start that never settles does neither; the tests about the
+		// channel pass their own.
+		resolveStubs({ './control-channel.cjs': { startControlServer: () => new Promise(() => {}) }, ...stubs }, stubbed);
 		require(MAIN_PATH);
 	} finally {
 		Module._load = originalLoad;
@@ -9091,4 +9096,105 @@ test('linking a new ticket from a PR measures trunk before the new branch exists
 	assert.equal(result.ok, true, result.error);
 	assert.equal(result.branch, 'ticket/60003');
 	assert.equal(result.prTransition, true);
+});
+
+// --- the control channel (#764) -------------------------------------------
+//
+// Not an IPC channel, and the same question: what something other than the
+// app's own page can ask the main process for. The socket and its refusals
+// are control-channel.integration.test.cjs; this is main.js's half, which is
+// the list of actions it hands the channel and what each one answers.
+
+// Loads main.js through its ready path with the channel recorded in place of
+// listening: the actions main.js offered, and the command it wrote.
+async function controlWiring(t, settings) {
+	const profile = tempDir(t, 'ipc-wiring-control-');
+	const shimPath = path.join(profile, 'bin', process.platform === 'win32' ? 'toolkit.cmd' : 'toolkit');
+	const close = spy(async () => {});
+	const startControlServer = spy(async () => ({ close }));
+	const logEvent = spy();
+	const main = loadMain({
+		ready: true,
+		stubs: {
+			'./logging': { ...silentLogging()['./logging'], logEvent },
+			...settings.stubs,
+			'./i18n.cjs': { resolveCatalog: async () => null },
+			'./control-channel.cjs': { controlEndpoint: () => '/profile/control.sock', cliShimPath: () => shimPath, startControlServer }
+		}
+	});
+	// The start is not awaited by the ready path; its last step is the log
+	// line that names the command.
+	const started = () => logEvent.calls.some(([scope]) => scope === 'control');
+	for (let waited = 0; waited < 200 && !started(); waited++) {
+		await new Promise((resolve) => setImmediate(resolve));
+	}
+	assert.ok(started(), 'the ready path started the control channel');
+	return { main, shimPath, close, actions: startControlServer.calls[0][0].actions, endpoint: startControlServer.calls[0][0].endpoint };
+}
+
+test('the control channel offers reads only, and sites.list answers from the store and from Git', async (t) => {
+	// One site Git can read, on a branch the store does not name, and one
+	// whose folder is gone, where the stored branch is all there is.
+	const onTicket = initRepo(tempDir(t, 'ipc-wiring-control-site-'), { branch: 'ticket/62281' });
+	const gone = path.join(os.tmpdir(), 'ipc-wiring-control-gone', 'gb');
+	const settings = fakeSettingsStore({
+		sites: [onTicket, gone],
+		siteMeta: {
+			[onTicket]: { label: 'Login fix', tracTicket: 62281, currentBranch: 'trunk', initialized: true },
+			[gone]: { projectType: 'gutenberg', currentBranch: 'pr/7' },
+			// A record with no entry in `sites` is not a site.
+			'/sites/forgotten': { label: 'Forgotten' }
+		}
+	});
+	const before = structuredClone(settings.values);
+	const { actions } = await controlWiring(t, settings);
+
+	// The whole door. A second action is a second thing a process other than
+	// the app can ask for, and belongs in the review of the change that adds
+	// it rather than arriving unnoticed.
+	assert.deepEqual(Object.keys(actions), ['sites.list']);
+
+	assert.deepEqual(await actions['sites.list']({}), {
+		sites: [
+			{
+				path: onTicket,
+				label: 'Login fix',
+				project: 'core',
+				workItem: { provider: 'trac', id: 62281 },
+				branch: 'ticket/62281',
+				pullRequest: null,
+				initialized: true,
+				server: { running: false, url: null }
+			},
+			{
+				path: gone,
+				label: 'gb',
+				project: 'gutenberg',
+				workItem: null,
+				branch: 'pr/7',
+				pullRequest: 7,
+				initialized: false,
+				server: { running: false, url: null }
+			}
+		]
+	});
+	assert.deepEqual(settings.values, before, 'a listing writes nothing');
+});
+
+test('the app writes the toolkit command for its own profile, and stops answering when it quits', async (t) => {
+	const { main, shimPath, close, endpoint } = await controlWiring(t, fakeSettingsStore());
+
+	assert.equal(endpoint, '/profile/control.sock');
+	const shim = fs.readFileSync(shimPath, 'utf8');
+	// Electron's own Node, the app's own CLI, and this profile's address:
+	// nothing on the host is asked for.
+	assert.ok(shim.includes('ELECTRON_RUN_AS_NODE=1'));
+	assert.ok(shim.includes(`"${path.join(SRC_DIR, 'cli.cjs')}" "--endpoint" "/profile/control.sock" `));
+	if (process.platform !== 'win32') {
+		assert.doesNotThrow(() => fs.accessSync(shimPath, fs.constants.X_OK), 'the command can be run');
+	}
+
+	assert.equal(close.calls.length, 0);
+	await main.emitAppEvent('before-quit');
+	assert.equal(close.calls.length, 1);
 });

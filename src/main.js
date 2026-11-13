@@ -64,6 +64,8 @@ const { prSubmissionRefusal, prCheckoutRefusal } = require('./renderer/pr-checko
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
 const { getStore, peekStore } = require('./settings-store');
 const { sitesToResume, readResume } = require('./resume-sites.cjs');
+const { controlEndpoint, cliShimPath, startControlServer } = require('./control-channel.cjs');
+const { describeSite } = require('./control-sites.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -3032,6 +3034,8 @@ app.whenReady().then(async () => {
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
 	initLogging();
+	// Not awaited: the window does not wait for a tool that may never ask.
+	startControlChannel();
 	// Before the window: it is made in the theme, and kept in it when the
 	// system's theme changes under 'system'.
 	nativeTheme.on('updated', paintWindowForTheme);
@@ -3123,7 +3127,64 @@ app.on('before-quit', () => {
 		...(playgroundWebServer?.child ? [playgroundWebServer.child] : [])
 	];
 	for (const child of children) killChildTree(child);
+	// Closing it removes the socket file. Not awaited, like the sweep above.
+	if (controlServer) controlServer.close();
 });
+
+// What a tool outside the window may ask for (#764), by name. This map is the
+// whole of it: the channel in control-channel.cjs refuses any name that is not
+// a key here. Reads only, so far. Each one answers what the settings file in
+// the same directory already says to anything that can open the socket, plus
+// what is checked out and what is running. An action that changes a site is a
+// different decision from a read: it wants the gates the IPC handler for the
+// same change has (`legacySiteBlock`, `mergeInProgressBlock`), and an answer
+// to whether the person is asked first.
+const controlActions = {
+	'sites.list': async () => {
+		const s = await getStore();
+		const siteMeta = s.get('siteMeta') || {};
+		// One branch read per site, at once: this runs when a tool asks, not
+		// on a timer or a render.
+		const sites = await Promise.all((s.get('sites') || []).map(async (sitePath) => {
+			const meta = siteMeta[sitePath] || {};
+			// Git says what is checked out; the stored name is only for a
+			// checkout Git cannot read, the rule `activeBranch` follows.
+			let branch = null;
+			try { branch = await currentBranchName(sitePath); } catch {}
+			if (!branch) branch = meta.currentBranch || TRUNK;
+			return describeSite({ sitePath, meta, branch, pullRequest: prNumberFromRef(branch), server: playgroundServers[sitePath] });
+		}));
+		return { sites };
+	}
+};
+
+let controlServer = null;
+
+// Starts answering tools outside the window, and writes the `toolkit` command
+// they ask through. Both live in the profile directory, so the installed app,
+// `npm start` and each e2e journey have their own. A failure costs the command
+// and nothing else: it is logged and the app opens as it always did.
+async function startControlChannel() {
+	try {
+		const userData = app.getPath('userData');
+		const endpoint = controlEndpoint({ userData });
+		controlServer = await startControlServer({
+			endpoint,
+			actions: controlActions,
+			onError: (e) => logError('control', `the control channel failed: ${String(e && e.message ? e.message : e)}`)
+		});
+		// Written at every start: an update moves the app, and with it the
+		// two paths the shim names. The CLI is run from where it ships, like
+		// the npm CLI the other shims name.
+		const shimPath = cliShimPath({ userData });
+		const shim = cliShim({ execPath: nodeExecPath(), compatPath: null, cliPath: path.join(__dirname, 'cli.cjs'), cliArgs: ['--endpoint', endpoint] });
+		await fs.promises.mkdir(path.dirname(shimPath), { recursive: true });
+		await fs.promises.writeFile(shimPath, shim, { mode: 0o755 });
+		logEvent('control', `answering at ${endpoint}; the command is ${shimPath}`);
+	} catch (e) {
+		logError('control', `could not start the control channel: ${String(e && e.message ? e.message : e)}`);
+	}
+}
 
 ipcMain.handle('sites:get', async () => {
 	const s = await getStore();
