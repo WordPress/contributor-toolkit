@@ -14,27 +14,30 @@ The clone of the project's repository that started when you created the site. It
 
 `npm install`, run on the Node.js runtime bundled with the app — no system Node or npm is needed. It starts by itself when the clone ends, and the terminal says so: *Setting this site up — running npm install…*
 
-If it fails, the chain stops there and the button changes to **Retry npm install**; a leftover `node_modules` folder from a failed run does not count as completed. Once installed, the button reads **Dependencies installed** and stays disabled. If you later add a dependency to `package.json`, run `npm install` yourself in the [Terminal](./terminal).
+If it fails, the chain stops there, the step reads **Failed**, and the button changes to **Retry npm install**; a leftover `node_modules` folder from a failed run does not count as completed. Once installed, the button reads **Dependencies installed** and stays disabled. If you later add a dependency to `package.json`, run `npm install` yourself in the [Terminal](./terminal).
 
 ### 3. Run full build
 
 Runs the project's full build and generates the files the dev server serves. A Core site compiles `src/` into `build/`; a Gutenberg site builds the plugin's packages. This is the longest step after the clone, and it follows the install without asking.
 
+If it fails, the step reads **Failed** and the button changes to **Retry the build**. The app remembers a failed build, so the step still reads **Failed** after you quit and reopen the app, and **Start dev server and finish the wizard** stays disabled until a build succeeds.
+
 You never run it manually unless something failed: [trunk updates](./trunk-updates) and [applied patches or pull requests](./applying-patches) rebuild on their own, and while the [build watch](./running-the-site#the-build-watch) is running your edits are compiled as you save them.
 
 ### 4. Start dev server & finish wizard
 
-Click **Start dev server and finish the wizard** to launch the WordPress dev server for the first time. This completes the checklist and permanently replaces it with the compact action bar described below. The server URL, and a **wp-admin** link beside it, appear next to the button once it is up — see [Running the site](./running-the-site). On a Gutenberg site the server starts on the build step 3 just produced, without the [build watch](./running-the-site#the-build-watch); start that yourself when you want your edits compiled on save.
+Click **Start dev server and finish the wizard** to launch the WordPress dev server for the first time. This completes the checklist and replaces it, for good, with the site's usual page: the server and build watch controls in the header and in the site's details, and **Review & submit changes**. Once it is up, **View site** and **wp-admin** links appear under **Server** in the site's details. See [Running the site](./running-the-site). On a Gutenberg site the server starts on the build step 3 just produced, without the [build watch](./running-the-site#the-build-watch); start that yourself when you want your edits compiled on save.
 
 ## Stopping the chain
 
-Press **Ctrl+C** in the [Terminal](./terminal) to stop setup, including a running `npm install`. The terminal says where you stand — *Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready* — and the checklist buttons take over from there. The chain names its other endings too: setup complete, the install failed, or the build failed with dependencies already installed.
+While setup runs by itself, a banner above the steps reads *Setting this site up for you — step N of 3*. Click **Stop setup** in the banner, or press **Ctrl+C** in the [Terminal](./terminal), to stop setup, including a running `npm install`. The terminal says where you stand — *Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready* — and the checklist buttons take over from there. The chain names its other endings too: setup complete, the install failed, or the build failed with dependencies already installed.
 
 ## Step states
 
 Each step carries a state label:
 
 - **Completed** — done, marked with a green check.
+- **Failed**: the step ran and did not finish. Its output is in the Terminal, and its button retries it.
 - **In progress** — this step is running right now.
 - **Ready** — the next step to do, waiting on you rather than working. The distinction matters: a step that said "In progress" while nothing was installing invited you to wait instead of to click.
 - **Pending** — ready but waiting for you to reach it.
@@ -46,6 +49,6 @@ Steps also lock temporarily while a [trunk update](./trunk-updates) is running, 
 
 ## Skipping the wizard
 
-Below the checklist is a **Skip initialization wizard** link. Clicking it hides the checklist for this site, for good, and shows the compact action bar instead: the dev server start/stop button, the [build watch](./running-the-site#the-build-watch) button, and **Review & submit changes**. While the server is running, the site URL, **wp-admin** and **DB inspect (Adminer)** appear on a row below it.
+Below the checklist is a **Skip initialization wizard** link. Clicking it hides the checklist for this site, for good, and shows the site's usual page instead: the dev server and [build watch](./running-the-site#the-build-watch) controls, and **Review & submit changes**. While the server is running, **View site**, **wp-admin** and **Database** appear under **Server** in the site's details.
 
-Skipping does not run any of the steps for you. If the dependencies were never installed or the build never ran, the dev server will not have anything to serve, so only skip on a site you know is already set up (for example, a `wordpress-develop` or `gutenberg` checkout you prepared outside the app). For everything else, finishing step 4 gets you to the same action bar with the work actually done.
+Skipping does not run any of the steps for you. If the dependencies were never installed or the build never ran, the dev server will not have anything to serve, so only skip on a site you know is already set up (for example, a `wordpress-develop` or `gutenberg` checkout you prepared outside the app). For everything else, finishing step 4 gets you to the same page with the work actually done.

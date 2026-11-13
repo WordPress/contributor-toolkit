@@ -6,9 +6,9 @@ The header of each site shows which snapshot it currently holds — for example 
 
 ## Update to latest trunk
 
-**Update to latest trunk** lives in the ☰ **More** menu at the top right of any site. It brings an existing site up to the current trunk: it fetches the newest commits, reinstalls dependencies if `package-lock.json` moved, and rebuilds.
+**Update to latest trunk** is in the **Site actions** menu (⋮) at the right end of any site's header, and in the menu you get by right-clicking a site in the sidebar. It brings an existing site up to the current trunk: it fetches the newest commits, reinstalls dependencies if `package-lock.json` moved, and rebuilds.
 
-![The More menu with Update to latest trunk](/screenshots/site-menu.png)
+![The Site actions menu open, with Update to latest trunk among its items](/screenshots/site-menu.png)
 
 This option is always there — on every site, at any time, no matter how old or new the snapshot is and whether or not the app has flagged it as stale. If nothing has moved, you simply get "Already up to date." in the terminal.
 
@@ -16,7 +16,7 @@ The update fetches from the site's own `origin` remote. A site the app created p
 
 You no longer have to stop the dev server first. The update pauses the [build watch](./running-the-site#the-build-watch) for the reset and resumes it afterwards, and the PHP server keeps serving throughout.
 
-What it will not run alongside is another update, install or build. While one is running, the ☰ menu entry is greyed out and says which under its name ("Wait for the build to finish."), and it comes back as soon as that ends. The **Update to latest trunk** button in the staleness notice is held the same way during an install or a build, with the same sentence as its tooltip; during an update the notice gives way to the progress card.
+What it will not run alongside is another update, install or build. While one is running, the menu item is greyed out and says which under its name ("Wait for the build to finish."), and it comes back as soon as that ends. The **Update to latest trunk** button in the staleness notice is held the same way during an install or a build, with the same sentence as its tooltip; during an update the notice gives way to the progress card.
 
 ## What an update runs
 

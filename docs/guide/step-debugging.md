@@ -12,6 +12,8 @@ This is a proof of concept. It has setup for VS Code, Cursor, PhpStorm and Zed, 
 
 The **Debugging** row of the site's details then names *Xdebug*, and while the server runs with it, a **Set up Xdebug for your editor** menu sits under the row. If the row says *Restart the server to use it* instead, the server started before you turned the setting on.
 
+![The site's details with the Debugging row reading WP_DEBUG · SCRIPT_DEBUG · Xdebug, and the Set up Xdebug for your editor menu open under it, listing VS Code and PhpStorm](/screenshots/xdebug-setup-menu.png)
+
 The menu lists the editors the app finds on your computer that it has setup for. If it finds none of them, there is no menu. The app looks in each editor's usual install location, so it can miss one installed elsewhere, such as PhpStorm from JetBrains' own installer on Windows. Sublime Text has no setup: its PHP debugger needs Node.js installed on your computer.
 
 If you chose one of these editors as your **Code editor** on the **General** tab of **Settings**, and the app finds it, the button is named for it instead, such as **Set up Xdebug for Zed**, and opens that editor's setup without the menu. In the steps below, select that button where they say to choose your editor from the menu. To set up a different editor, change the **Code editor** setting, or set it to **Ask each time** to have the menu back.

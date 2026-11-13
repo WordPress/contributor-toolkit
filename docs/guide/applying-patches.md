@@ -25,6 +25,8 @@ On a Core site there are two additional patch-file routes: click **or choose a .
 
 When you choose a pull request, the preview lists the files changed by its commits and says whether changing checkout requires `npm install`. Nothing has changed yet.
 
+If the ticket or issue you are on has edits, the preview also says where they go before you continue: *Your edits to 1 file stay with ticket #60001 and come back when you revert this PR.* The count is the same one the ticket card shows. If you first tried this pull request from a different ticket or issue, **Revert this PR** returns to that one, so the sentence says the edits *come back when you return to it* instead. On trunk, with nothing linked, there is no sentence.
+
 Click **Apply and rebuild** to continue. The app parks the work on your current ticket or issue, creates or reuses `pr/NNNN`, and checks out the PR's commits exactly as its author wrote them. In a terminal, `git status` now reports `On branch pr/NNNN` and a clean working tree until you make edits of your own.
 
 This avoids trying to make an old PR's diff fit today's trunk. It also keeps authorship and commit history visible. A closed PR can still be checked out for investigation; its state does not change what Git has stored.

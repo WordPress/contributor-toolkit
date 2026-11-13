@@ -125,11 +125,15 @@ A patch is everything on the current work item's branch since the point it was c
 
 That last point has a consequence worth knowing. A work-item branch keeps the snapshot of trunk it was born on, even after you [update the site to the latest trunk](./trunk-updates). The patch stays correct against that snapshot, which keeps it free of upstream changes you did not write — but a branch you started weeks ago may no longer apply to today's trunk. Use the card's **Update this … to the current trunk** action when you need a fresh base, then follow the guidance for your project above if it cannot proceed; the app does not replay the branch onto it silently.
 
+## Pull requests and your work item
+
+Applying a pull request also moves your edits out of the checkout. They stay with the work item, and the pull request's preview says so before you apply it; see [Preview a pull request](./applying-patches#preview-a-pull-request).
+
+If a PR is applied when you unlink a work item or switch to another one, returning to that item restores the same local PR copy, including your edits. This also survives restarting the app. Use **Revert this PR** to return to your own work and stop reopening that PR automatically.
+
 ## Next steps
 
 - [Working on a Trac ticket](./trac-tickets)
 - [Working on a GitHub issue](./gutenberg-issues)
 - [Submitting your changes](./submitting-changes)
 - [Staying up to date with trunk](./trunk-updates)
-
-If a PR is applied when you unlink a work item or switch to another one, returning to that item restores the same local PR copy, including your edits. This also survives restarting the app. Use **Revert this PR** to return to your own work and stop reopening that PR automatically.

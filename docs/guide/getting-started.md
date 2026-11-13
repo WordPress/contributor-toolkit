@@ -26,10 +26,10 @@ If macOS blocks the app when you first open it, see [Troubleshooting](./troubles
 
 ## Your first contribution
 
-1. Click **Create a site**, choose a destination folder, and pick what to contribute to: **WordPress Core** (the default) or **Gutenberg**.
+1. Click **Create new site** at the top of the sidebar, choose a destination folder, and pick what to contribute to: **WordPress Core** (the default) or **Gutenberg**.
 2. Wait. The app downloads the repository, then installs the dependencies and runs the first build on its own — go and get a coffee. See [The setup wizard](./setup-wizard).
-3. Click **Start dev server**.
-4. A browser window opens automatically. If not, open it by clicking the site URL — or the **wp-admin** link beside it, to go straight to the dashboard.
+3. When the checklist reaches its last step, click **Start dev server and finish the wizard**.
+4. A browser window opens automatically. If not, click **View site** under **Server** in the site's details, or **wp-admin** to go straight to the dashboard.
 5. Give the work a home: link a [Trac ticket](./trac-tickets) on a Core site or a [GitHub issue](./gutenberg-issues) on a Gutenberg site.
 6. Make changes to the code — [open the site in your editor](./editors) straight from the app.
 7. Click **Review & submit changes** to see a diff of everything you changed.
@@ -50,7 +50,7 @@ Every ticket or issue you link gets its own branch inside the site and keeps its
 :::
 
 ::: tip You never need a new site to get newer code
-**Update to latest trunk**, in the ☰ menu at the top right of any site, is available at any time on any site, however old: it fetches the latest trunk, reinstalls dependencies if they changed, and rebuilds. See [Staying up to date with trunk](./trunk-updates).
+**Update to latest trunk**, in the **Site actions** menu (⋮) at the right end of any site's header, is available at any time on any site, however old: it fetches the latest trunk, reinstalls dependencies if they changed, and rebuilds. See [Staying up to date with trunk](./trunk-updates).
 :::
 
 ## How it works under the hood

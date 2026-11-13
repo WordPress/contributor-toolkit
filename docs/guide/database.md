@@ -4,7 +4,7 @@ The dev server runs WordPress on SQLite, and the app bundles [Adminer](https://w
 
 ## Opening Adminer
 
-While the dev server is running, a **DB inspect (Adminer)** link appears beside the server URL in the site view, after **wp-admin**. Clicking it opens Adminer in your browser, already logged into the site's SQLite database — no credentials to enter. From there you can browse tables, inspect rows, and run SQL, the same way you would against a MySQL-backed install.
+While the dev server is running, a **Database** link appears under **Server** in the site's details, after **wp-admin**. Clicking it opens Adminer in your browser, already logged into the site's SQLite database — no credentials to enter. From there you can browse tables, inspect rows, and run SQL, the same way you would against a MySQL-backed install.
 
 Adminer uses the database path recorded by Playground after WordPress initializes, for both Core and Gutenberg sites. This supports randomized storage, legacy fixed paths, and an explicit `DB_PATH`. The path is inside the Playground environment; use Adminer to browse the active database.
 
