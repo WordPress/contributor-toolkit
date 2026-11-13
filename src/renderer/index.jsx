@@ -31,7 +31,7 @@ import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, buildHoldsStarts, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
-import { xdebugEditors, xdebugSection } from './xdebug.cjs';
+import { xdebugEditors, xdebugSection, xdebugSetupEditor } from './xdebug.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -1429,6 +1429,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // again each time the server has Xdebug.
   useEffect(() => { if (xdebugOn) loadDetected(); }, [xdebugOn, loadDetected]);
   const setupEditors = useMemo(() => xdebugEditors(detectedEditors), [detectedEditors]);
+  // The editor chosen in Settings opens its setup without the menu (#767).
+  const setupEditor = xdebugSetupEditor({ editors: setupEditors, preferred: settings?.editor ?? null });
   // A copy that failed says so on its button, and why in the log.
   const copyXdebugConfig = useCallback(async (text) => {
     try {
@@ -2581,6 +2583,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         pathCopied={pathCopied}
         onCopyPath={copyPath}
         xdebugEditors={setupEditors}
+        xdebugSetupEditor={setupEditor}
         onOpenXdebugSetup={setXdebugEditor}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}

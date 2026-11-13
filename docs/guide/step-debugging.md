@@ -14,6 +14,8 @@ The **Debugging** row of the site's details then names *Xdebug*, and while the s
 
 The menu lists the editors the app finds on your computer that it has setup for. If it finds none of them, there is no menu. The app looks in each editor's usual install location, so it can miss one installed elsewhere, such as PhpStorm from JetBrains' own installer on Windows. Sublime Text has no setup: its PHP debugger needs Node.js installed on your computer.
 
+If you chose one of these editors as your **Code editor** on the **General** tab of **Settings**, and the app finds it, the button is named for it instead, such as **Set up Xdebug for Zed**, and opens that editor's setup without the menu. In the steps below, select that button where they say to choose your editor from the menu. To set up a different editor, change the **Code editor** setting, or set it to **Ask each time** to have the menu back.
+
 ## Connect VS Code or Cursor
 
 Cursor uses the same setup as VS Code: choose **Cursor** in the menu, and follow the same steps in Cursor.
@@ -71,7 +73,7 @@ A site you start while another site's server has Xdebug starts without it. Its *
 
 ## If your editor does not stop
 
-- Check that the site's details show **Set up Xdebug for your editor** under **Debugging**. If they do not, restart the server. If they still do not, the app found no editor it has setup for.
+- Check that the site's details show **Set up Xdebug for your editor**, or **Set up Xdebug for** and your code editor's name, under **Debugging**. If they do not, restart the server. If they still do not, the app found no editor it has setup for.
 - Check that **Listen for Xdebug** is running in VS Code, Cursor or Zed, or that PhpStorm is listening for debug connections, and that no other program uses port 9003.
 - On a Core site, check that the breakpoint is in `src/`, not `build/`, and not in one of the three files above.
 - On a Gutenberg site, check that the breakpoint is in one of the checkout's own PHP files.
