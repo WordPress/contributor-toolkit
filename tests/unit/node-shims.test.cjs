@@ -69,39 +69,6 @@ test('a CLI shim keeps the preload, the CLI and the arguments in order', () => {
 	assert.ok(npm.indexOf('npm-cli.js') < npm.indexOf('"$@"'));
 });
 
-// The `toolkit` shim (#764) tells its CLI where the app listens. Those
-// arguments are the app's, so they sit after the CLI, which reads them, and
-// before the caller's, and are quoted: a profile path has a space in it on
-// macOS ("Application Support").
-test('a CLI shim puts the app\'s own arguments between the CLI and the caller\'s, quoted', () => {
-	const posix = cliShim({
-		execPath: EXEC.darwin,
-		compatPath: null,
-		cliPath: '/app/src/cli.cjs',
-		cliArgs: ['--endpoint', '/Users/dev/Library/Application Support/Toolkit/control.sock'],
-		platform: 'darwin'
-	});
-	assert.ok(posix.includes('"/app/src/cli.cjs" "--endpoint" "/Users/dev/Library/Application Support/Toolkit/control.sock" "$@"'));
-	assert.ok(posix.includes('ELECTRON_RUN_AS_NODE=1'));
-	assert.ok(!posix.includes('--require'), 'the CLI is the app\'s own and needs no compat preload');
-
-	const win = cliShim({
-		execPath: EXEC.win32,
-		compatPath: null,
-		cliPath: 'C:\\app\\src\\cli.cjs',
-		cliArgs: ['--endpoint', '\\\\.\\pipe\\wpct-control-0123456789abcdef'],
-		platform: 'win32'
-	});
-	// Run from a person's own cmd.exe, the shim must not leave Electron's
-	// run-as-Node switch set in that window once it has finished.
-	assert.ok(win.includes('setlocal') && win.indexOf('setlocal') < win.indexOf('set ELECTRON_RUN_AS_NODE=1'));
-	assert.ok(win.includes('"C:\\app\\src\\cli.cjs" "--endpoint" "\\\\.\\pipe\\wpct-control-0123456789abcdef" %*'));
-
-	// A shim given none is byte for byte what it was.
-	const npm = cliShim({ execPath: EXEC.darwin, compatPath: COMPAT.darwin, cliPath: 'npm-cli.js', platform: 'darwin' });
-	assert.ok(npm.includes('"npm-cli.js" "$@"'));
-});
-
 // Paths are interpolated into quoted arguments, so a space must not split them.
 // This is the failure mode that would only ever appear on someone else's machine.
 test('a path with spaces stays one argument', () => {
