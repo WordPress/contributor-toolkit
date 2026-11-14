@@ -9,8 +9,15 @@ The WordPress Contributor Toolkit is a desktop app that makes a `wordpress-devel
 
 ## Before you start
 
-1. **Get the command's path from the person.** Ask them to open the app, go to **Settings → Tools**, press **Copy command** and paste it to you. It is a full path in quotes, for example `"/Users/you/Library/Application Support/WordPress Contributor Toolkit/bin/toolkit"`, or `...\bin\toolkit.cmd` on Windows. Keep the quotes: the path has a space in it. Below, `toolkit` stands for that quoted path.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:56d80231580a56174c45cc4ac32300e049605269e2142e71da5eaa788ceeea3b -->
+
+1. **Get the command's path from the person.** Ask them to open the app, go to **Settings → Tools**, press **Copy command** and paste it to you. It is a full path in quotes, for example `"/Users/you/Library/Application Support/WordPress Contributor Toolkit/bin/toolkit"`, or `...\bin\toolkit.cmd` on Windows. Keep the quotes: the path has a space in it. Below, `toolkit` stands for that quoted path. In PowerShell, put the call operator `&` before the quoted path and the arguments after it: `& "<copied executable path>" sites --json`. Use that invocation wherever `toolkit` appears below.
+
 2. **Check what you may do.** Run `toolkit sites --json`. If it works, you can read. Commands that change a site answer `tools-not-allowed` until the person turns on **Let tools on this computer change my sites** in that same tab. That switch is the person's consent: ask them to turn it on, and never change the app's settings file yourself.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 ## Rules
 
@@ -27,11 +34,17 @@ The WordPress Contributor Toolkit is a desktop app that makes a `wordpress-devel
 
 Reading (always allowed):
 
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:dd2ceb877776244c66b7c5b842bf3895053f95fc27e1a2a61fc696eeae14baf3 -->
+
 | Command | Answer |
 | --- | --- |
 | `toolkit sites --json` | `sites[]` with `path`, `label`, `project` (`core` or `gutenberg`), `workItem` (`{provider, id}` or null), `branch`, `pullRequest`, `initialized`, `server` (`{running, url}`) |
 | `toolkit log [site] [--lines N] --json` | `lines[]`, the end of the site's WordPress `debug.log`; `exists` is false until WordPress logs something |
-| `toolkit mail [site] --json` | `emails[]`, newest first, each with `sentAt`, `from`, `to`, `subject`, `text`; `total` |
+| `toolkit mail [site] --json` | `emails[]`, newest first, each with `sentAt`, `from`, `to`, `subject`, `text`, `textTruncated`; `total`. When `textTruncated` is true, report that the email text is truncated; do not present it as complete |
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 Changing a site (needs the switch):
 
@@ -67,18 +80,35 @@ If `patch apply` answers `no-latest-patch`, the ticket has no patch or the app c
 
 **Testing a change**
 
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:02c511c1d7ef208e1dfab094d67f89a9d7c84c93b5a1636b074855ba2251d8d9 -->
+
+First change into the site directory using the path returned by `create` above, or the chosen site's `path` from `toolkit sites --json`: `cd "<site path>"`. Run the following commands from that directory.
+
 Edit files under the site's `src/` (Core) or `packages/` (Gutenberg). On a Core site with the server running, the build watch recompiles as you save. On a Gutenberg site, or with the server stopped, run `toolkit run build` after editing. Then:
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 - `toolkit log --lines 50 --json` to see PHP notices, warnings and errors.
 - `toolkit mail --json` to read mail WordPress sent, such as a password reset.
 - `toolkit run test --json` (Core) or `toolkit run test:unit --json` (Gutenberg) for the tests the app can run. Gutenberg's PHP and end-to-end suites need Docker and are not available.
 
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:3048ed1ef00365a911cc3873f94962505cc5adbe8a45318441694f4ff50f0bcd -->
+
 **A GitHub pull request by number**
 
+Choose the intended site from `toolkit sites --json` and use its `path` below.
+
 ```
+cd "<site path from sites>"
 toolkit pr checkout 9000 --json
 toolkit server start --json
 ```
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 ## Refusal codes
 
