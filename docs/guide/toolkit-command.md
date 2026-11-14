@@ -18,6 +18,8 @@ Open **Settings**, choose **Tools**, and press **Copy command**. Paste what it c
 
 ![The Tools tab of the settings, with the command's path, a Copy command button and the switch that lets tools change sites](/screenshots/settings-tools.png)
 
+If your tool can use [Agent Skills](https://agentskills.io), give it the app's skill as well, which teaches it the commands and the traps: [`SKILL.md`](https://wordpress.github.io/contributor-toolkit/skills/wordpress-contributor-toolkit/SKILL.md).
+
 ## Letting a tool change your sites
 
 Out of the box the command can only read. To let it change a site, turn on **Let tools on this computer change my sites** in that same tab.
