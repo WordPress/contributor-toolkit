@@ -1430,9 +1430,12 @@ async function mergeSiteMeta(sitePath, patch) {
 // what follows is the electron-store half: which branch is active and what
 // context each one carries.
 //
-// `tracTicket`, `appliedPatch` and `updateIncomplete` describe the *work*, not
-// the site, so under this model they live per branch. `label`, `initialized`,
-// `trunkOid` and friends stay on the site — one clone, one substrate.
+// `tracTicket` and `appliedPatch` describe the *work*, not the site, so under
+// this model they live per branch. `label`, `initialized`, `trunkOid` and
+// friends stay on the site — one clone, one substrate. So does
+// `updateIncomplete`: it describes `node_modules` and `build/`, which every
+// branch of a site shares, and kept per branch it was wrong on whichever
+// branch the rebuild did not finish on (#419, #475).
 
 async function readSiteMeta(sitePath) {
     const s = await getStore();
@@ -1470,7 +1473,7 @@ function branchPrefixFor(meta) {
  *
  * A site with a linked ticket gets that ticket's branch created at the current
  * trunk tip, its uncommitted work carried onto it (branch+checkout leaves the
- * files alone), and the three work-shaped fields moved underneath. A site with
+ * files alone), and the work-shaped fields moved underneath. A site with
  * no ticket stays on trunk and simply gains an empty `branches` map, so the
  * migration is a no-op for anyone who never linked one.
  *
@@ -1506,7 +1509,6 @@ async function migrateSiteToBranches(sitePath) {
                     tracTicket: m.tracTicket,
                     baseOid,
                     appliedPatch: m.appliedPatch || null,
-                    updateIncomplete: Boolean(m.updateIncomplete),
                     lastUsedAt: new Date().toISOString()
                 }
             },
@@ -1780,8 +1782,8 @@ function switchProgressReporter(event, sitePath) {
 /**
  * Where the state that describes the *work* lives: per branch once a ticket is
  * being worked on, at site level on trunk and for sites that predate #108. One
- * reader and one writer, so `appliedPatch` and `updateIncomplete` cannot drift
- * between the two shapes.
+ * reader and one writer, so `appliedPatch` cannot drift between the two
+ * shapes.
  *
  * @param {string} sitePath
  */
@@ -1833,10 +1835,10 @@ async function appliedPatchSubmissionRefusal(sitePath) {
  * that read, is the shape that loses whatever another flow wrote in between
  * (#172).
  *
- * Against a named branch, like `writeWorkMetaOn` and for the same reason: the
- * caller that needs this has the ref in hand and has already refused if it is
- * trunk, so re-deriving it from HEAD would spend a Git spawn to ask a question
- * that is already answered and could answer it differently.
+ * Against a named branch rather than HEAD: the caller that needs this has the
+ * ref in hand and has already refused if it is trunk, so re-deriving it from
+ * HEAD would spend a Git spawn to ask a question that is already answered and
+ * could answer it differently.
  *
  * @param {string}                    sitePath
  * @param {string}                    ref
@@ -1901,22 +1903,6 @@ function carryAppliedPatch(m, ref) {
 
 async function writeWorkMeta(sitePath, patch) {
     const { ref } = await activeBranch(sitePath);
-    return writeWorkMetaOn(sitePath, ref, patch);
-}
-
-/**
- * The same write, against a branch named rather than read from HEAD.
- *
- * Every caller but one wants the branch that is checked out. The trunk update
- * is the exception: it parks the ticket before it writes, so by then HEAD says
- * trunk while the work the flag describes is on the branch it is about to
- * return to (#419).
- *
- * @param {string} sitePath
- * @param {string} ref
- * @param {Object} patch
- */
-async function writeWorkMetaOn(sitePath, ref, patch) {
     const scope = await workMetaScope(sitePath, ref);
     return scope ? mergeBranchMeta(sitePath, scope, patch) : mergeSiteMeta(sitePath, patch);
 }
@@ -2366,57 +2352,33 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             }
 
             const result = await updateToLatestTrunk({ dir: sitePath, onLog: sendLog, onChild: trackGitChild(sitePath) });
+            // HEAD has moved but install/build have not run yet: persist the
+            // incomplete flag now so the state survives a crash or quit
+            // mid-chain; the renderer clears it after a successful build. At
+            // site level whichever branch the update returns to, because the
+            // build it describes is the site's (#475). An up-to-date run moved
+            // nothing and writes nothing, so a flag a failed run left stays.
+            await mergeSiteMeta(sitePath, {
+                trunkOid: result.upToDate ? result.oldOid : result.newOid,
+                trunkDate: result.trunkDate,
+                ...(result.upToDate ? {} : { updateIncomplete: true })
+            });
+
             // An update resets the worktree, so any applied patch is gone with
             // it either way — clear the record so the "applied" banner does not
             // outlive the patch. (This is also where a discard's cleanup lands:
             // the dirty-tree modal always discards and then updates.)
-            await mergeSiteMeta(sitePath, {
-                trunkOid: result.upToDate ? result.oldOid : result.newOid,
-                trunkDate: result.trunkDate
-            });
-            // HEAD has moved but install/build have not run yet: persist the
-            // incomplete flag now so the state survives a crash or quit
-            // mid-chain; the renderer clears it after a successful build.
             //
-            // On `branchBefore` rather than on HEAD, which the park has already
-            // moved to trunk: the build the renderer runs next ends after the
-            // return below, so it clears the flag on the ticket branch. Writing
-            // it where HEAD is now put it at site level, where nothing cleared
-            // it and it surfaced as a false "Update incomplete" banner the next
-            // time the contributor was on trunk (#419).
-            //
-            // Asked before the writes because both of the site-level ones below
-            // depend on it: a returning branch with no entry of its own reads
-            // and writes its work meta at site level, so for that one the site
-            // record is the branch's, not trunk's, and neither correction there
-            // is safe.
-            const workScope = await workMetaScope(sitePath, branchBefore);
-            if (!result.upToDate) {
-                await writeWorkMetaOn(sitePath, branchBefore, { updateIncomplete: true });
-            }
-
-            if (branchBefore === TRUNK || workScope) {
-                // Two corrections to trunk's own record, for two reasons.
-                //
-                // The patch: unlike the flag, it belongs to the tree the update
-                // reset, and that tree is trunk's. A ticket's patch went into
-                // its WIP commit when the park committed the worktree and comes
-                // back with the return checkout below, so the branch's record
-                // must survive — `branches:rebase` keeps it for the same
-                // reason, and #328 reads it to refuse publishing another
-                // author's hunks as your own.
-                //
-                // The flag: clear the copy earlier versions left here, so a
-                // site that already carries the false banner is not stuck with
-                // it. Only once the live flag is somewhere else, though: an
-                // up-to-date run wrote none, and what is here may be the
-                // failure path's own, which is real. One boolean per scope
-                // cannot tell that copy from a stale one, so this stays a
-                // one-time correction rather than growing a second field.
-                await mergeSiteMeta(sitePath, {
-                    appliedPatch: null,
-                    ...(workScope && !result.upToDate ? { updateIncomplete: false } : {})
-                });
+            // Only trunk's, though: the tree the update reset is trunk's. A
+            // ticket's patch went into its WIP commit when the park committed
+            // the worktree and comes back with the return checkout below, so
+            // the branch's record must survive — `branches:rebase` keeps it
+            // for the same reason, and #328 reads it to refuse publishing
+            // another author's hunks as your own. A returning branch with no
+            // entry of its own keeps its record at site level, so for that one
+            // the site record is the branch's and is left alone.
+            if (branchBefore === TRUNK || await workMetaScope(sitePath, branchBefore)) {
+                await mergeSiteMeta(sitePath, { appliedPatch: null });
             }
 
             // Put the contributor back where they were. Without this the site
@@ -2455,19 +2417,39 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // untouched, and dropping the only copy of the patch text there
             // would strand a patch that is still applied.
             if (stage === 'checkout') {
-                const patch = { updateIncomplete: true };
-                if (e && e.worktreeReset) patch.appliedPatch = null;
-                // Through writeWorkMeta, which reads HEAD — and here that is the
-                // right question, unlike in the success path above (#419),
-                // because both failures that reach this line end where HEAD
-                // already is. The update's own checkout failed on trunk, and
-                // the recovery below leaves the contributor there, unlinked.
-                // A park whose checkout died arrives here too — `switchToBranch`
-                // tags that `stage: 'checkout'` as well — with HEAD still on the
-                // ticket, because Git moves it only once every file operation
-                // has succeeded; that flag belongs to the ticket, and HEAD says
-                // so. Neither is a case of writing where nobody will read.
-                try { await writeWorkMeta(sitePath, patch); } catch {}
+                // The flag at site level, like the success path's (#475). The
+                // record in the scope HEAD names, which here is the right
+                // question, because both failures that reach this line end
+                // where HEAD already is. The update's own checkout failed on
+                // trunk, and the recovery below leaves the contributor there,
+                // unlinked. A park whose checkout died arrives here too —
+                // `switchToBranch` tags that `stage: 'checkout'` as well — with
+                // HEAD still on the ticket, because Git moves it only once every
+                // file operation has succeeded; that record belongs to the
+                // ticket, and HEAD says so.
+                //
+                // Both in one write (#474): split, a quit between them keeps a
+                // record for a patch the reset already took off disk. The scope
+                // is resolved first, since it needs Git; if that fails, the flag
+                // is still written and the record is left alone.
+                let clearPatch = Boolean(e && e.worktreeReset);
+                let scope = null;
+                if (clearPatch) {
+                    try { scope = await workMetaScope(sitePath, (await activeBranch(sitePath)).ref); } catch { clearPatch = false; }
+                }
+                try {
+                    await changeSiteMeta(sitePath, (m) => {
+                        const next = { ...m, updateIncomplete: true };
+                        if (!clearPatch) return next;
+                        if (!scope) return { ...next, appliedPatch: null };
+                        const branches = m.branches || {};
+                        // Deleted since the scope was resolved: nothing to clear,
+                        // and re-creating the entry would leave one with no
+                        // branch point (as in changeWorkMetaOn).
+                        if (!branches[scope]) return next;
+                        return { ...next, branches: { ...branches, [scope]: { ...branches[scope], appliedPatch: null } } };
+                    });
+                } catch {}
             }
             // One sentence per stage, which is a code: the fetch, or the
             // checkout that follows it.
@@ -3012,7 +2994,9 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
 });
 
 ipcMain.handle('sites:mark-update-complete', async (_e, sitePath) => {
-    await writeWorkMeta(sitePath, { updateIncomplete: false });
+    // At site level, wherever the build finished: it rebuilt the one
+    // node_modules and build/ every branch shares (#475).
+    await mergeSiteMeta(sitePath, { updateIncomplete: false });
     return true;
 });
 
@@ -3170,10 +3154,10 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 		} catch {}
 
-		// The applied patch and the incomplete-update flag belong to the ticket
-		// being worked on, not to the site (#108) — otherwise switching tickets
-		// would carry the other one's "patch applied · Revert" banner over, and
-		// Revert would reverse its hunks against this ticket's tree.
+		// The applied patch belongs to the ticket being worked on, not to the
+		// site (#108) — otherwise switching tickets would carry the other one's
+		// "patch applied · Revert" banner over, and Revert would reverse its
+		// hunks against this ticket's tree.
 		const active = await activeBranch(sitePath);
 		const work = active.ref === TRUNK || !active.meta ? active.site : active.meta;
 		const prNumber = prNumberFromRef(active.ref);
@@ -3217,7 +3201,7 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, projectType: project.id, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), buildFailed: Boolean(m.buildFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
+		return { hasNodeModules, hasBuilt, projectType: project.id, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), buildFailed: Boolean(m.buildFailed), trunkOid, trunkDate, updateIncomplete: Boolean(m.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
 	} catch {
 		return { hasNodeModules: false, hasBuilt: false, projectType: getProjectType().id, skipInitWizard: false, initialized: false, installFailed: false, buildFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, pullRequest: null, legacy: false, mergeInProgress: null };
 	}
