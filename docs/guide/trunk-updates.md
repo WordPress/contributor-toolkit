@@ -53,6 +53,8 @@ The app flags sites that have fallen behind with a coloured dot next to the site
 
 If the fetch succeeds but install or build fails, the site view shows a red banner: **Update incomplete** — the code is new but the built assets are old, and the site may not run correctly until install and build succeed. Click **Retry install & build** to run only the missing steps; the fetch is not repeated. The sidebar dot stays red until this succeeds.
 
+Every branch of a site shares one install and one build, so the banner shows on trunk and on every ticket until the retry succeeds, including after you link a ticket and take your edits into it. One successful retry clears it everywhere.
+
 ![The Update incomplete notice with its Retry install and build button](/screenshots/update-incomplete.png)
 
 ## Staleness is judged locally
