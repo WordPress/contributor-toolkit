@@ -68,22 +68,21 @@ If `patch apply` answers `no-latest-patch`, the ticket has no patch or the app c
 
 **Testing a change**
 
-First change into the site directory using the path returned by `create` above, or the chosen site's `path` from `toolkit sites --json`: `cd "<site path>"`. Run the following commands from that directory.
+Pass the site's path to each command: the one `create` answered above, or the chosen site's `path` from `toolkit sites --json`. Do not rely on `cd` to choose the site: in Windows Command Prompt, `cd` does not change the drive, and the command would then act on another folder.
 
-Edit files under the site's `src/` (Core) or `packages/` (Gutenberg). On a Core site with the server running, the build watch recompiles as you save. On a Gutenberg site, or with the server stopped, run `toolkit run build` after editing. Then:
+Edit files under the site's `src/` (Core) or `packages/` (Gutenberg). On a Core site with the server running, the build watch recompiles as you save. On a Gutenberg site, or with the server stopped, run `toolkit run build "<site path>" --json` after editing. Then:
 
-- `toolkit log --lines 50 --json` to see PHP notices, warnings and errors.
-- `toolkit mail --json` to read mail WordPress sent, such as a password reset.
-- `toolkit run test --json` (Core) or `toolkit run test:unit --json` (Gutenberg) for the tests the app can run. Gutenberg's PHP and end-to-end suites need Docker and are not available.
+- `toolkit log "<site path>" --lines 50 --json` to see PHP notices, warnings and errors.
+- `toolkit mail "<site path>" --json` to read mail WordPress sent, such as a password reset.
+- `toolkit run test "<site path>" --json` (Core) or `toolkit run test:unit "<site path>" --json` (Gutenberg) for the tests the app can run. Gutenberg's PHP and end-to-end suites need Docker and are not available.
 
 **A GitHub pull request by number**
 
 Choose the intended site from `toolkit sites --json` and use its `path` below.
 
 ```
-cd "<site path from sites>"
-toolkit pr checkout 9000 --json
-toolkit server start --json
+toolkit pr checkout 9000 "<site path from sites>" --json
+toolkit server start "<site path from sites>" --json
 ```
 
 ## Refusal codes
