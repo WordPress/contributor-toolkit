@@ -297,6 +297,30 @@ test('a switch that puts a pull request back is not over until its rebuild is, a
 	assert.match(result.result.warning, /build failed/);
 });
 
+test('a switch whose rebuild did not end is answered with why, and not as done', async () => {
+	const site = mountedRow({ initial: row({ busy: true }) });
+	const reply = performSiteControl('site.ticket.link', { ref: '62281' }, {
+		latest: (() => { let asked = 0; return () => ({ snapshot: asked++ === 0 ? row() : row({ busy: true }), presses: { linkRef: async () => ({ ok: true, ticket: 62281, branch: 'pr/9000', rebuilding: true }), readStatus: async () => status({ tracTicket: 62281 }) } }); })(),
+		waiters: site.waiters
+	});
+	await turn();
+	// The site was closed in the app while it rebuilt.
+	site.waiters.abandon();
+	assert.equal((await reply).code, 'site-not-open');
+});
+
+// A discard or a delete is confirmed for the site as it was when asked.
+test('a site whose page is asking a question starts nothing a tool asks for', async () => {
+	const requests = [['site.ticket.link', { ref: '62281' }], ['site.pr.checkout', { number: 9000 }], ['site.pr.leave', {}], ['site.patch.apply-latest', {}], ['site.trunk.update', {}], ['site.script.run', { script: 'build' }]];
+	for (const [action, params] of requests) {
+		const site = mountedRow({ initial: row({ asking: true }), statuses: [status({ tracTicket: 62281, pullRequest: { number: 1 } })] });
+		const reply = await site.perform(action, params);
+		assert.equal(reply.code, 'busy', action);
+		assert.match(reply.error, /asking a question/, action);
+		assert.deepEqual(site.pressed, [], action);
+	}
+});
+
 test('unlinking a site with nothing linked presses nothing', async () => {
 	const none = mountedRow();
 	assert.deepEqual(await none.perform('site.ticket.unlink'), { ok: true, result: { ticket: null, branch: null, rebuilt: false } });
@@ -586,6 +610,13 @@ test('a new site is ready when it is installed and built, and a setup that faile
 
 	const build = await app({ statuses: [{ hasNodeModules: true, buildFailed: true }] }).perform({ name: 'Demo' });
 	assert.match(build.error, /first build failed/);
+
+	// The built folder is there before its build has ended: one that failed
+	// after is only seen once the row has settled.
+	const late = await app({ statuses: [{ hasNodeModules: true, hasBuilt: true }, { hasNodeModules: true, hasBuilt: true, buildFailed: true }] }).perform({ name: 'Demo' });
+	assert.equal(late.code, 'setup-failed');
+	assert.match(late.error, /first build failed/);
+	assert.equal(late.site, '/Users/dev/sites/demo');
 
 	let clock = 0;
 	const never = await waitForSetup('/sites/demo', { readStatus: async () => ({}), sleep: async () => {}, now: () => { clock += 1000; return clock; }, timeoutMs: 5000 });

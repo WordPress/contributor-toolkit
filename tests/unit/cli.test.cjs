@@ -267,6 +267,13 @@ test('with the app closed, an installed app is opened and asked again where it t
 	assert.equal(never.code, EXIT.FAILED);
 	assert.equal(never.launched.length, 1);
 	assert.match(never.err, /did not start answering/);
+
+	// An app that could not be started at all is said at once, with why,
+	// and is not waited a minute for.
+	const unopened = await runWith([...installed, 'sites'], notRunning, { launch: () => ({ error: new Error('spawn EACCES') }) });
+	assert.equal(unopened.code, EXIT.FAILED);
+	assert.equal(unopened.sent.length, 1);
+	assert.match(unopened.err, /could not be opened: spawn EACCES/);
 });
 
 test('the address is read off a shim of either platform, and not off one without it', () => {
@@ -278,6 +285,9 @@ test('the address is read off a shim of either platform, and not off one without
 		const shim = cliShim({ execPath: '/app/Helper', compatPath: null, cliPath: '/app/cli.cjs', cliArgs: ['--endpoint', endpoint, '--shim', '/profile/bin/toolkit', '--app', '/app/Toolkit'], platform });
 		assert.equal(endpointInShim(shim), endpoint, platform);
 	}
+	// What bash would expand is escaped in its shim, and read back as it was.
+	const odd = '/tmp/profile-$USER/a`b\\c"d/control.sock';
+	assert.equal(endpointInShim(cliShim({ execPath: '/app/Helper', compatPath: null, cliPath: '/app/cli.cjs', cliArgs: ['--endpoint', odd], platform: 'linux' })), odd);
 	assert.equal(endpointInShim(''), null);
 	assert.equal(endpointInShim(undefined), null);
 });

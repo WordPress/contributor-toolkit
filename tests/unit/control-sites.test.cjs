@@ -71,6 +71,15 @@ test('a site is named by its path, by a folder inside it, or by its name', () =>
 	);
 });
 
+// A backslash is a character of a folder's name anywhere but on Windows.
+test('off Windows a backslash in a path does not separate folders', () => {
+	const sites = ['/sites/a/b', '/sites/a\\b'];
+	for (const platform of ['darwin', 'linux']) {
+		assert.deepEqual(resolveSite('/sites/a\\b/src', { sites, platform }), { ok: true, sitePath: '/sites/a\\b' }, platform);
+		assert.deepEqual(resolveSite('/sites/a/b/src', { sites, platform }), { ok: true, sitePath: '/sites/a/b' }, platform);
+	}
+});
+
 test('what names no site, or more than one, is refused with a code, and the answer is never the string sent', () => {
 	const find = (ref, sites = POSIX_SITES) => resolveSite(ref, { sites, siteMeta: META, platform: 'darwin' });
 
