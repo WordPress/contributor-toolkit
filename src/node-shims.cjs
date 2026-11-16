@@ -93,15 +93,36 @@ const NODE_OPTIONS_ARGS = [
 	''
 ].join('\n');
 
+// What a shim does when the binary it names is not there, for a shim that
+// outlives it: the `toolkit` command of an AppImage (#764). The image runs
+// from a mount that is gone once the app quits, and the binary and the CLI go
+// with it, so the shim can run nothing and says so itself, in the words and
+// the exit code the CLI has for an app that is closed, and as JSON on stdout
+// for a caller that asked for JSON.
+function goneGuard(execPath, message) {
+	const single = (text) => `'${String(text).replace(/'/g, `'\\''`)}'`;
+	return [
+		`if [ ! -x "${execPath}" ]; then`,
+		'\tcase " $* " in',
+		`\t\t*" --json "*) printf '%s\\n' ${single(JSON.stringify({ ok: false, code: 'not-running', error: message }))} ;;`,
+		`\t\t*) printf '%s\\n' ${single(message)} >&2 ;;`,
+		'\tesac',
+		'\texit 1',
+		'fi',
+		''
+	].join('\n');
+}
+
 // POSIX shims are bash scripts. The compat path is interpolated into a quoted
 // argument, so spaces are safe; unlike NODE_OPTIONS, nothing re-tokenises it.
-function posixShim({ execPath, compatPath, cliPath = null, cliArgs = [], forwardNodeOptions = false }) {
+function posixShim({ execPath, compatPath, cliPath = null, cliArgs = [], forwardNodeOptions = false, goneMessage = null }) {
 	const flag = compatPath ? `${COMPAT_FLAG}=1 ` : '';
 	const cli = cliPath ? `"${cliPath}" ${quotedArgs(cliArgs, bashQuoted)}` : '';
 	const prelude = forwardNodeOptions ? NODE_OPTIONS_ARGS : '';
 	// Guarded, since bash before 4.4 calls an empty array unbound under `set -u`.
 	const options = forwardNodeOptions ? '${wptk_opts[@]+"${wptk_opts[@]}"} ' : '';
-	return `#!/usr/bin/env bash\n${prelude}${flag}ELECTRON_RUN_AS_NODE=1 "${execPath}" ${requireArgs(compatPath)}${options}${cli}"$@"\n`;
+	const guard = goneMessage ? goneGuard(execPath, goneMessage) : '';
+	return `#!/usr/bin/env bash\n${guard}${prelude}${flag}ELECTRON_RUN_AS_NODE=1 "${execPath}" ${requireArgs(compatPath)}${options}${cli}"$@"\n`;
 }
 
 // Windows shims are .cmd/.bat. Backslashes inside a quoted command-line argument
@@ -169,9 +190,11 @@ function nodeShim({ execPath, compatPath, platform = process.platform }) {
 	return build({ execPath, compatPath, forwardNodeOptions: platform === 'darwin' });
 }
 
-function cliShim({ execPath, compatPath, cliPath, cliArgs = [], platform = process.platform }) {
+// `goneMessage` is for a shim that can outlive the binary it names: see
+// goneGuard. Only a bash shim has one.
+function cliShim({ execPath, compatPath, cliPath, cliArgs = [], platform = process.platform, goneMessage = null }) {
 	const build = platform === 'win32' ? windowsShim : posixShim;
-	return build({ execPath, compatPath, cliPath, cliArgs, forwardNodeOptions: platform === 'darwin' });
+	return build({ execPath, compatPath, cliPath, cliArgs, forwardNodeOptions: platform === 'darwin', goneMessage });
 }
 
 module.exports = { nodeShim, cliShim, nodeExecPath, COMPAT_FLAG };
