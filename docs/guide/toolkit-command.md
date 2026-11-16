@@ -43,7 +43,7 @@ Every command takes `--json` for an answer a tool can read, and exits with a sta
 
 A site is named by its path, by any folder inside it, or by its name in the app. Leave the site out and the command uses the site the current folder is in, which is what a tool working in the checkout wants.
 
-Each command waits until what it asked for has ended. For a new site, an update or a build that is minutes. If the installed app is closed, the command opens it first.
+Each command waits until what it asked for has ended. For a new site, an update or a build that is minutes. If the installed app is closed, the command opens it first. On Linux it does not: the app is an AppImage, which the command cannot start, so open the app before running a command.
 
 ### Reading
 
