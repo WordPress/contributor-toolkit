@@ -636,12 +636,19 @@ const SETUP_TIMEOUT_MS = 80 * 60 * 1000;
  * @param {number}   [root0.timeoutMs]
  * @return {Promise<Object>}
  */
+// Which step of a new site's setup failed, from main's status, or null.
+function setupFailure(status) {
+	if (status.installFailed) return refusal('setup-failed', 'The site was created, but npm install failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
+	if (status.buildFailed) return refusal('setup-failed', 'The site was created, but its first build failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
+	return null;
+}
+
 async function waitForSetup(sitePath, { readStatus, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), now = Date.now, timeoutMs = SETUP_TIMEOUT_MS }) {
 	const deadline = now() + timeoutMs;
 	for (;;) {
 		const status = (await readStatus(sitePath)) || {};
-		if (status.installFailed) return refusal('setup-failed', 'The site was created, but npm install failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
-		if (status.buildFailed) return refusal('setup-failed', 'The site was created, but its first build failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
+		const failed = setupFailure(status);
+		if (failed) return failed;
 		if (status.hasNodeModules && status.hasBuilt) return ok({});
 		if (now() >= deadline) return refusal('timed-out', 'The site was created and is still being set up. Its page in the app shows how far it is.');
 		await sleep(SETUP_POLL_MS);
@@ -665,9 +672,12 @@ async function createSite(ctx, params, deps = {}) {
 	const ready = await waitForSetup(created.path, { readStatus: presses.readStatus, ...deps });
 	if (!ready.ok) return { ...ready, site: created.path };
 	// The folder that says "built" is there before the build that makes it
-	// has ended: the site is ready once its row has nothing left running.
+	// has ended: the site is ready once its row has nothing left running,
+	// and that build can still have failed, which only its end says.
 	const settled = await presses.whenSettled(created.path);
 	if (!settled.ok) return { ...settled, site: created.path };
+	const failed = setupFailure((await presses.readStatus(created.path)) || {});
+	if (failed) return { ...failed, site: created.path };
 	return ok({ site: created.path, project, name });
 }
 
