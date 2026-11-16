@@ -628,6 +628,13 @@ async function performSiteControl(action, params, { latest, waiters, deps = {} }
 const SETUP_POLL_MS = 2000;
 const SETUP_TIMEOUT_MS = 80 * 60 * 1000;
 
+// Which step of a new site's setup failed, from main's status, or null.
+function setupFailure(status) {
+	if (status.installFailed) return refusal('setup-failed', 'The site was created, but npm install failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
+	if (status.buildFailed) return refusal('setup-failed', 'The site was created, but its first build failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
+	return null;
+}
+
 /**
  * Waits for a site that was just cloned to be installed and built, which the
  * site's row starts by itself once the clone ends. Read from main's status
@@ -641,13 +648,6 @@ const SETUP_TIMEOUT_MS = 80 * 60 * 1000;
  * @param {number}   [root0.timeoutMs]
  * @return {Promise<Object>}
  */
-// Which step of a new site's setup failed, from main's status, or null.
-function setupFailure(status) {
-	if (status.installFailed) return refusal('setup-failed', 'The site was created, but npm install failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
-	if (status.buildFailed) return refusal('setup-failed', 'The site was created, but its first build failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
-	return null;
-}
-
 async function waitForSetup(sitePath, { readStatus, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), now = Date.now, timeoutMs = SETUP_TIMEOUT_MS }) {
 	const deadline = now() + timeoutMs;
 	for (;;) {
