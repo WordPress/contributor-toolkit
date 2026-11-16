@@ -297,12 +297,18 @@ const START_POLL_MS = 500;
  * Where the app listens now, read off the shim: on Windows the address is
  * new at every start of the app, and the app rewrites the shim with it.
  *
+ * A bash shim escapes what bash would expand inside the quotes (`bashQuoted`
+ * in node-shims.cjs), and that is undone here. A batch file's backslashes
+ * are the pipe name's own.
+ *
  * @param {string} shimText
  * @return {?string}
  */
 function endpointInShim(shimText) {
-	const match = /"--endpoint" "([^"]+)"/.exec(String(shimText));
-	return match ? match[1] : null;
+	const text = String(shimText);
+	const match = /"--endpoint" "((?:[^"\\]|\\.)+)"/.exec(text);
+	if (!match) return null;
+	return text.startsWith('#!') ? match[1].replace(/\\([\\$`"])/g, '$1') : match[1];
 }
 
 /**

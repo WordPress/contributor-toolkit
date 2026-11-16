@@ -41,10 +41,16 @@ function requireArgs(compatPath) {
 }
 
 // Arguments the app itself puts between a CLI and the caller's own, each one
-// quoted the way the paths beside it are. The `toolkit` shim (#764) is the one
-// user: it tells the CLI where this profile's app listens.
-function quotedArgs(args) {
-	return args.map((arg) => `"${arg}" `).join('');
+// quoted. The `toolkit` shim (#764) is the one user: it tells the CLI where
+// this profile's app listens, and a profile's path is the person's to choose.
+// Double quotes keep a space in one argument and still read some characters:
+// bash expands `$` and a backtick, and a batch file expands `%`. Those are
+// escaped, so the argument the CLI gets is the one that was written.
+// endpointInShim in cli.cjs reads the bash form back.
+const bashQuoted = (arg) => `"${String(arg).replace(/[\\$`"]/g, '\\$&')}"`;
+const cmdQuoted = (arg) => `"${String(arg).replace(/%/g, '%%')}"`;
+function quotedArgs(args, quoted) {
+	return args.map((arg) => `${quoted(arg)} `).join('');
 }
 
 // On macOS, a signed Electron removes NODE_OPTIONS from a process that
@@ -91,7 +97,7 @@ const NODE_OPTIONS_ARGS = [
 // argument, so spaces are safe; unlike NODE_OPTIONS, nothing re-tokenises it.
 function posixShim({ execPath, compatPath, cliPath = null, cliArgs = [], forwardNodeOptions = false }) {
 	const flag = compatPath ? `${COMPAT_FLAG}=1 ` : '';
-	const cli = cliPath ? `"${cliPath}" ${quotedArgs(cliArgs)}` : '';
+	const cli = cliPath ? `"${cliPath}" ${quotedArgs(cliArgs, bashQuoted)}` : '';
 	const prelude = forwardNodeOptions ? NODE_OPTIONS_ARGS : '';
 	// Guarded, since bash before 4.4 calls an empty array unbound under `set -u`.
 	const options = forwardNodeOptions ? '${wptk_opts[@]+"${wptk_opts[@]}"} ' : '';
@@ -109,7 +115,7 @@ function posixShim({ execPath, compatPath, cliPath = null, cliArgs = [], forward
 // plain Node.
 function windowsShim({ execPath, compatPath, cliPath = null, cliArgs = [] }) {
 	const flag = compatPath ? `set ${COMPAT_FLAG}=1\r\n` : '';
-	const cli = cliPath ? `"${cliPath}" ${quotedArgs(cliArgs)}` : '';
+	const cli = cliPath ? `"${cliPath}" ${quotedArgs(cliArgs, cmdQuoted)}` : '';
 	return `@echo off\r\nsetlocal\r\nset ELECTRON_RUN_AS_NODE=1\r\n${flag}"${execPath}" ${requireArgs(compatPath)}${cli}%*\r\n`;
 }
 
