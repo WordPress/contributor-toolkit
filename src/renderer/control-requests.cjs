@@ -382,8 +382,12 @@ async function switchTicket(ctx, ref, options) {
 	if (!result) return refusal('failed', 'The app did not make that switch. Its window says why.');
 	if (!result.ok) return switchRefusal(result);
 	// A switch that put a pull request back rebuilds around it, and is not
-	// over until that is.
-	if (result.rebuilding) await ctx.waiters.wait(idleOutcome({ begun: true }));
+	// over until that is. A rebuild that outran the wait, or whose row was
+	// closed, is not one that ended: the wait's own refusal is the answer.
+	if (result.rebuilding) {
+		const rebuilt = await ctx.waiters.wait(idleOutcome({ begun: true }));
+		if (!rebuilt.ok) return rebuilt;
+	}
 	return ok(withBuildNews({ ticket: result.ticket, branch: result.branch, rebuilt: Boolean(result.rebuilding) }, await siteState(ctx)));
 }
 
