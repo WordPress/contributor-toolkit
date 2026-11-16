@@ -3310,10 +3310,19 @@ async function startControlChannel() {
 		// The command opens the app when it is closed, and is told how only by
 		// an installed app: from source, or under a test's throwaway profile,
 		// the copy it would open is not the one it belongs to.
-		// An AppImage runs from a mount that is gone once it quits; the file
-		// to open again is the image itself.
-		const reopen = app.isPackaged ? ['--shim', shimPath, '--app', process.env.APPIMAGE || process.execPath] : [];
-		const shim = cliShim({ execPath: nodeExecPath(), compatPath: null, cliPath: path.join(__dirname, 'cli.cjs'), cliArgs: ['--endpoint', endpoint, ...reopen] });
+		// An AppImage is not one either. It runs from a mount that is gone
+		// once it quits, and the binary and the CLI the shim names are inside
+		// it: with the app closed there is nothing left to run that could
+		// open it, so the shim says the app is closed.
+		const appImage = Boolean(process.env.APPIMAGE);
+		const reopen = app.isPackaged && !appImage ? ['--shim', shimPath, '--app', process.execPath] : [];
+		const shim = cliShim({
+			execPath: nodeExecPath(),
+			compatPath: null,
+			cliPath: path.join(__dirname, 'cli.cjs'),
+			cliArgs: ['--endpoint', endpoint, ...reopen],
+			goneMessage: appImage ? 'The WordPress Contributor Toolkit is not running. Open it and try again.' : null
+		});
 		await fs.promises.mkdir(path.dirname(shimPath), { recursive: true });
 		await fs.promises.writeFile(shimPath, shim, { mode: 0o755 });
 		toolkitCommandPath = shimPath;

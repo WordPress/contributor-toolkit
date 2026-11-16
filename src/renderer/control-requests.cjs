@@ -298,9 +298,14 @@ function scriptRefusal(script, allowed) {
 // A row that something else holds: a command in the terminal, an apply, an
 // update, a ticket switch. The page's own buttons say this in the terminal
 // or stay disabled; a tool is told.
+//
+// A question the page is asking is held too. What it would do when answered,
+// a discard or a delete, was decided for the site as it was when asked: a
+// switch made under it would have the answer discard another ticket's work.
 function busyRefusal(snapshot) {
 	const held = heldBy(snapshot);
 	if (held) return held;
+	if (snapshot.asking) return refusal('busy', 'The app is asking a question about this site in its window. Answer it there, then try again.');
 	if (snapshot.busy) return refusal('busy', 'The site is busy in the app: a command, an update or a switch is still running. Try again when it has finished.');
 	return null;
 }
@@ -382,8 +387,12 @@ async function switchTicket(ctx, ref, options) {
 	if (!result) return refusal('failed', 'The app did not make that switch. Its window says why.');
 	if (!result.ok) return switchRefusal(result);
 	// A switch that put a pull request back rebuilds around it, and is not
-	// over until that is.
-	if (result.rebuilding) await ctx.waiters.wait(idleOutcome({ begun: true }));
+	// over until that is. A rebuild that outran the wait, or whose row was
+	// closed, is not one that ended: the wait's own refusal is the answer.
+	if (result.rebuilding) {
+		const rebuilt = await ctx.waiters.wait(idleOutcome({ begun: true }));
+		if (!rebuilt.ok) return rebuilt;
+	}
 	return ok(withBuildNews({ ticket: result.ticket, branch: result.branch, rebuilt: Boolean(result.rebuilding) }, await siteState(ctx)));
 }
 
@@ -632,12 +641,19 @@ const SETUP_TIMEOUT_MS = 80 * 60 * 1000;
  * @param {number}   [root0.timeoutMs]
  * @return {Promise<Object>}
  */
+// Which step of a new site's setup failed, from main's status, or null.
+function setupFailure(status) {
+	if (status.installFailed) return refusal('setup-failed', 'The site was created, but npm install failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
+	if (status.buildFailed) return refusal('setup-failed', 'The site was created, but its first build failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
+	return null;
+}
+
 async function waitForSetup(sitePath, { readStatus, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), now = Date.now, timeoutMs = SETUP_TIMEOUT_MS }) {
 	const deadline = now() + timeoutMs;
 	for (;;) {
 		const status = (await readStatus(sitePath)) || {};
-		if (status.installFailed) return refusal('setup-failed', 'The site was created, but npm install failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
-		if (status.buildFailed) return refusal('setup-failed', 'The site was created, but its first build failed. Its output is in the app’s terminal; the site’s page offers to run it again.');
+		const failed = setupFailure(status);
+		if (failed) return failed;
 		if (status.hasNodeModules && status.hasBuilt) return ok({});
 		if (now() >= deadline) return refusal('timed-out', 'The site was created and is still being set up. Its page in the app shows how far it is.');
 		await sleep(SETUP_POLL_MS);
@@ -661,9 +677,12 @@ async function createSite(ctx, params, deps = {}) {
 	const ready = await waitForSetup(created.path, { readStatus: presses.readStatus, ...deps });
 	if (!ready.ok) return { ...ready, site: created.path };
 	// The folder that says "built" is there before the build that makes it
-	// has ended: the site is ready once its row has nothing left running.
+	// has ended: the site is ready once its row has nothing left running,
+	// and that build can still have failed, which only its end says.
 	const settled = await presses.whenSettled(created.path);
 	if (!settled.ok) return { ...settled, site: created.path };
+	const failed = setupFailure((await presses.readStatus(created.path)) || {});
+	if (failed) return { ...failed, site: created.path };
 	return ok({ site: created.path, project, name });
 }
 

@@ -53,9 +53,12 @@ const MAX_MAIL_TEXT = 20000;
 const MAX_MAILS = 50;
 
 // Windows and macOS file systems do not tell `Sites` from `sites`. `..` is
-// resolved first, so `/sites/wp/../gb` is in gb and not in wp.
+// resolved first, so `/sites/wp/../gb` is in gb and not in wp. A backslash
+// separates folders on Windows only: anywhere else it is a character of a
+// name, and `/sites/a\b` is not `/sites/a/b`.
 function comparable(p, platform) {
-	const posix = path.posix.normalize(String(p).replace(/\\/g, '/')).replace(/\/+$/, '');
+	const slashed = platform === 'win32' ? String(p).replace(/\\/g, '/') : String(p);
+	const posix = path.posix.normalize(slashed).replace(/\/+$/, '');
 	return platform === 'linux' ? posix : posix.toLowerCase();
 }
 
