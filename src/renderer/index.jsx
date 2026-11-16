@@ -469,7 +469,13 @@ function App({ settingsState }) {
   const appControl = useRef(null);
   useEffect(() => {
     appControl.current = {
-      snapshot: { creating: createSubmitting, defaultFolder: settings ? settings.newSiteLocation : null },
+      snapshot: {
+        // Read when asked, off the ref a setup takes before its first await.
+        // `createSubmitting` says the same a render later, and a second
+        // request can arrive before that render.
+        get creating() { return Boolean(setupRowPathRef.current); },
+        defaultFolder: settings ? settings.newSiteLocation : null
+      },
       presses: {
         startSiteSetup,
         readStatus: (sitePath) => window.api.getSiteStatus(sitePath),
