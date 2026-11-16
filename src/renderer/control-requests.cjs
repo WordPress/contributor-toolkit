@@ -298,9 +298,14 @@ function scriptRefusal(script, allowed) {
 // A row that something else holds: a command in the terminal, an apply, an
 // update, a ticket switch. The page's own buttons say this in the terminal
 // or stay disabled; a tool is told.
+//
+// A question the page is asking is held too. What it would do when answered,
+// a discard or a delete, was decided for the site as it was when asked: a
+// switch made under it would have the answer discard another ticket's work.
 function busyRefusal(snapshot) {
 	const held = heldBy(snapshot);
 	if (held) return held;
+	if (snapshot.asking) return refusal('busy', 'The app is asking a question about this site in its window. Answer it there, then try again.');
 	if (snapshot.busy) return refusal('busy', 'The site is busy in the app: a command, an update or a switch is still running. Try again when it has finished.');
 	return null;
 }

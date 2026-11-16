@@ -1528,6 +1528,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   useEffect(() => {
     const snapshot = {
       ...rowActivity({ statusLoading, isPending, isDeleting, isUpdating, setupChainState, terminalRunning, isApplying, installing, building, ticketSaving }),
+      asking: Boolean(asking),
       canServe: skipInit || hasBuilt,
       scripts: projectBuild.allowedScripts,
       server: { running, starting: isServerStarting, url: serverUrl, failure: serverFailure },
