@@ -329,10 +329,14 @@ async function askOpeningTheApp(args, request, { send, err, timeoutMs, launch, r
 	if (first.ok || first.code !== 'not-running' || !args.app) return first;
 
 	err('Opening the WordPress Contributor Toolkit…\n');
-	launch(args.app);
+	const launched = launch(args.app) || {};
 	const deadline = now() + START_TIMEOUT_MS;
 	while (now() < deadline) {
 		await sleep(START_POLL_MS);
+		// An app that could not be started says so a turn after the launch.
+		if (launched.error) {
+			return { ok: false, code: 'not-running', error: `The WordPress Contributor Toolkit could not be opened: ${String(launched.error.message || launched.error)}. Open it, then try again.` };
+		}
 		let endpoint = args.endpoint;
 		try {
 			endpoint = (args.shim && endpointInShim(readFile(args.shim))) || endpoint;
@@ -346,13 +350,16 @@ async function askOpeningTheApp(args, request, { send, err, timeoutMs, launch, r
 }
 
 // Starts the app and lets go of it: it outlives this command. The variable
-// that makes this process Node would make the app Node too.
+// that makes this process Node would make the app Node too. What is handed
+// back carries the error of a start that failed, once there is one.
 function launchApp(app) {
 	const env = { ...process.env };
 	delete env.ELECTRON_RUN_AS_NODE;
+	const launched = { error: null };
 	const child = spawn(app, [], { detached: true, stdio: 'ignore', env });
-	child.on('error', () => {});
+	child.on('error', (e) => { launched.error = e; });
 	child.unref();
+	return launched;
 }
 
 /**
@@ -362,7 +369,7 @@ function launchApp(app) {
  * @param {Function} [io.err]      Writes to stderr.
  * @param {Function} [io.send]     `ask`, replaced in tests.
  * @param {string}   [io.cwd]      The folder the command was run in.
- * @param {Function} [io.launch]   Starts the app; replaced in tests.
+ * @param {Function} [io.launch]   Starts the app and answers `{ error }`; replaced in tests.
  * @param {Function} [io.readFile] Reads the shim; replaced in tests.
  * @param {Function} [io.sleep]
  * @param {Function} [io.now]
