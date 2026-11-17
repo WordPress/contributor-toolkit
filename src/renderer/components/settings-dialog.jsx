@@ -7,7 +7,7 @@ import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalT
 import { __, sprintf } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, InputLayout, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
 import { useThemeWarnings } from './app-theme.jsx';
-import { editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
+import { toolkitCommandLine, editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // A notice here is read by its role, and is not also spoken: the dialog it
@@ -563,6 +563,65 @@ function AccountTab({ wporg }) {
   );
 }
 
+// What a tool outside the window may do (#764). The `toolkit` command reads
+// without being asked; the switch is for what changes a site. The command's
+// path is shown as a shell wants it and copied whole, since a tool is handed
+// it by being told it, and it is asked for each time the dialog opens: the
+// app writes the command a moment after the window is made.
+function ToolsTab({ settings, onChange }) {
+  const [error, setError] = useState('');
+  const [command, setCommand] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.api.getToolkitCommand()
+      .then((res) => { if (!cancelled) setCommand(res || { ok: false }); })
+      .catch(() => { if (!cancelled) setCommand({ ok: false }); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const keep = async (key, value) => {
+    const result = await onChange(key, value);
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
+  };
+  const line = toolkitCommandLine(command);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(line.copy);
+      setCopied(true);
+    } catch {
+      setError(__('Could not copy the command. Select it and copy it by hand.'));
+    }
+  };
+
+  return (
+    <Stack direction="column" gap="xl">
+      <Text variant="heading-lg" render={<h3 />}>{__('Scripts and AI tools')}</Text>
+      <Text variant="body-sm">{__('The app writes a command, toolkit, that a script or an AI coding tool with a terminal can run to work with your sites. Give the tool the command below. If the app is closed, the command opens it.')}</Text>
+      <Stack direction="column" gap="sm">
+        <Text variant="body-sm" className="file-field-value toolkit-command">{line.text}</Text>
+        <Stack direction="row" gap="sm" align="center">
+          <Button variant="outline" tone="neutral" disabled={!line.copy} onClick={copy}>{__('Copy command')}</Button>
+          {copied ? <Text variant="body-sm" role="status">{__('Copied.')}</Text> : null}
+        </Stack>
+      </Stack>
+      <SwitchControl
+        label={__('Let tools on this computer change my sites')}
+        description={__('Off, the command can only read: your sites, a site’s debug log and its caught mail. On, it can also create a site, link a ticket, check out a pull request, apply a patch, update trunk, run builds and start the server. It can never delete a site, discard your changes, or submit anything.')}
+        checked={settings ? settings.toolAccess : false}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('toolAccess', checked)}
+      />
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+    </Stack>
+  );
+}
+
 // The tabs and what is on each. Inside the dialog's popup, which is there
 // while the dialog is open and not otherwise, so every opening starts on
 // General with nothing typed and not yet saved.
@@ -576,6 +635,7 @@ function SettingsPanels({ settings, loaded, php, onChange, wporg }) {
             <Tabs.Tab value="general">{__('General')}</Tabs.Tab>
             <Tabs.Tab value="sites">{__('Sites')}</Tabs.Tab>
             <Tabs.Tab value="account">{__('Account')}</Tabs.Tab>
+            <Tabs.Tab value="tools">{__('Tools')}</Tabs.Tab>
           </Tabs.List>
           <hr className="card-divider" />
         </div>
@@ -587,6 +647,9 @@ function SettingsPanels({ settings, loaded, php, onChange, wporg }) {
         </Tabs.Panel>
         <Tabs.Panel value="account" tabIndex={-1} className="settings-panel">
           <AccountTab wporg={wporg} />
+        </Tabs.Panel>
+        <Tabs.Panel value="tools" tabIndex={-1} className="settings-panel">
+          <ToolsTab settings={settings} onChange={onChange} />
         </Tabs.Panel>
       </Tabs.Root>
     </Dialog.Content>

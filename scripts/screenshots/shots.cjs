@@ -204,6 +204,20 @@ const shots = [
 		}
 	},
 	{
+		// The Tools tab of the settings (#764): where the `toolkit` command
+		// is, and the switch that lets a tool change a site.
+		slug: 'settings-tools',
+		tier: 'fixture',
+		variant: 'empty',
+		target: (page) => ui.settingsDialog(page),
+		prepare: async (page) => {
+			await ui.noSitesTitle(page).waitFor();
+			await ui.settingsButton(page).click();
+			await ui.settingsTab(page, 'Tools').click();
+			await ui.settingsDialog(page).getByRole('switch', { name: 'Let tools on this computer change my sites', exact: true }).waitFor();
+		}
+	},
+	{
 		slug: 'create-site-modal',
 		tier: 'fixture',
 		variant: 'empty',

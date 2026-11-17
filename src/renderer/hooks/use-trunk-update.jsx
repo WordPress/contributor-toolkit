@@ -58,6 +58,9 @@ export function useTrunkUpdate({ sitePath, confirm, askFirst, installing, buildi
   const [dirtyError, setDirtyError] = useState(null); // failure text shown inside the dirty-tree modal
   const [updateLockfileChanged, setUpdateLockfileChanged] = useState(false);
   const [lastUpdateSummary, setLastUpdateSummary] = useState(null);
+  // Whether the last update could not get trunk at all. The page says so in
+  // the terminal only; this is for a caller that is not the page (#764).
+  const [updateFetchFailed, setUpdateFetchFailed] = useState(false);
   const updateStartRef = useRef(null);
   const savedPatchPathRef = useRef(null);
   const isUpdating = updateState !== 'idle';
@@ -202,6 +205,7 @@ export function useTrunkUpdate({ sitePath, confirm, askFirst, installing, buildi
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(false);
     setLastUpdateSummary(null);
+    setUpdateFetchFailed(false);
     updateStartRef.current = Date.now();
     setUpdateState('fetching');
     window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
@@ -211,6 +215,7 @@ export function useTrunkUpdate({ sitePath, confirm, askFirst, installing, buildi
         // read, or an update that could not fetch looks like one that was
         // never asked for.
         revealTerminal();
+        setUpdateFetchFailed(true);
         finishUpdate();
         return;
       }
@@ -325,6 +330,7 @@ export function useTrunkUpdate({ sitePath, confirm, askFirst, installing, buildi
   };
 
   return {
+    updateFetchFailed,
     updateState,
     isUpdating,
     updateHeld,

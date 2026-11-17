@@ -246,4 +246,23 @@ function editorValue(choice) {
 	return choice === ASK_FOR_EDITOR ? null : choice;
 }
 
-module.exports = { editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE };
+/**
+ * What the Tools tab says of the `toolkit` command (#764): its path, quoted
+ * as a shell wants it, since on macOS the path has a space in it; or why
+ * there is none to show.
+ *
+ * `command` is what `control:command` answers, or null while it has not.
+ *
+ * @param {?{ok: boolean, path?: string}} command
+ * @return {{text: string, copy: ?string}} What to show, and what Copy puts on the clipboard, or null for nothing to copy.
+ */
+function toolkitCommandLine(command) {
+	if (!command) return { text: __('Reading…'), copy: null };
+	if (!command.ok || !command.path) {
+		return { text: __('The command is not available. Quit the app and open it again; if it is still missing, the app log says why.'), copy: null };
+	}
+	const quoted = `"${command.path}"`;
+	return { text: quoted, copy: quoted };
+}
+
+module.exports = { toolkitCommandLine, editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE };
