@@ -22,6 +22,8 @@ On Contributor Day, open that site and run [**Update to latest trunk**](./trunk-
 
 Download the latest build for your platform with the button above, then open the app.
 
+On Linux the button downloads an AppImage. The [Releases page](https://github.com/WordPress/contributor-toolkit/releases/latest) also has a `.deb` for Debian and Ubuntu and an `.rpm` for Fedora, which add the app to your application menu. From the folder you downloaded the file to, run `sudo apt install ./wordpress-contributor-toolkit-X.Y.Z-linux-amd64.deb` or `sudo dnf install ./wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.rpm`, with the version you downloaded in place of `X.Y.Z`. To remove it, run `sudo apt remove wordpress-contributor-toolkit` or `sudo dnf remove wordpress-contributor-toolkit`.
+
 If macOS blocks the app when you first open it, see [Troubleshooting](./troubleshooting#macos-blocks-the-app-from-opening).
 
 ## Your first contribution
