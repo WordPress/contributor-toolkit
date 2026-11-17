@@ -29,7 +29,7 @@ The merge is the person's. Wait to be told it is merged, unless the person asks 
 
 **The bump pull request is an ordinary pull request.** Fill in `.github/pull_request_template.md` and run the review AGENTS.md requires before opening it.
 
-**The person downloads the artifacts; this skill checks them.** This skill cannot see Buildkite: the build reports nothing to the pull request. Ask the person to confirm that the build's commit matches the pull request's current head, and to download the three files from it into a directory they name. Then run the checks in section 2 of `RELEASING.md`, *Check the signed artifacts*, and report each result. Do not report the build as matching the head until the person has said it does.
+**The person downloads the artifacts; this skill checks them.** This skill cannot see Buildkite: the build reports nothing to the pull request. Ask the person to confirm that the build's commit matches the pull request's current head, and to download the five files from it into a directory they name. Then run the checks in section 2 of `RELEASING.md`, *Check the signed artifacts*, and report each result. Do not report the build as matching the head until the person has said it does.
 
 **Draft the release notes once the pull request is merged.** Write them plainly, save them to a temporary directory outside the repository, and show them in the chat for editing before `gh release create` (item 4 above).
 
