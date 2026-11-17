@@ -36,9 +36,9 @@ Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags ad
 
 ## 2. Check the signed artifacts
 
-Buildkite builds signed Windows, macOS and Linux artifacts for the pull request's branch. Before merging, open the build for the pull request's **current head commit** (`gh pr view <number> --json headRefOid --jq .headRefOid`), download the three files into one directory, and check them. Buildkite reports nothing back to the pull request (`.buildkite/pipeline.yml` asks for a commit status per platform, but none reached the 2.0.0 bump pull request), so the commit can only be read on the build's page in Buildkite: compare it with `headRefOid` there, by eye.
+Buildkite builds signed Windows, macOS and Linux artifacts for the pull request's branch. Before merging, open the build for the pull request's **current head commit** (`gh pr view <number> --json headRefOid --jq .headRefOid`), download the five files into one directory, and check them. Buildkite reports nothing back to the pull request (`.buildkite/pipeline.yml` asks for a commit status per platform, but none reached the 2.0.0 bump pull request), so the commit can only be read on the build's page in Buildkite: compare it with `headRefOid` there, by eye.
 
-- The files are named `wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, `wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg` and `wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.AppImage`. The Windows file may download as `dist_wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, because the Windows build uploads it from `dist\`. Rename it to remove the `dist_` prefix, so its name matches the other two.
+- The files are named `wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, `wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg`, `wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.AppImage`, `wordpress-contributor-toolkit-X.Y.Z-linux-amd64.deb` and `wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.rpm`. The Windows file may download as `dist_wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, because the Windows build uploads it from `dist\`. Rename it to remove the `dist_` prefix, so its name matches the others.
 - The macOS app is signed with Automattic's Developer ID, notarized, and has its ticket stapled.
 - The Windows installer carries an Authenticode signature from Automattic Inc.
 - The app's `app.asar` root holds exactly `node_modules`, `package.json` and `src`, with npm 11 under `node_modules/npm` and no `.codesigning` directory.
@@ -118,7 +118,9 @@ gh release create vX.Y.Z \
   --notes-file "<path>/notes.md" \
   "<dir>/wordpress-contributor-toolkit-X.Y.Z-win-x64.exe" \
   "<dir>/wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg" \
-  "<dir>/wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.AppImage"
+  "<dir>/wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.AppImage" \
+  "<dir>/wordpress-contributor-toolkit-X.Y.Z-linux-amd64.deb" \
+  "<dir>/wordpress-contributor-toolkit-X.Y.Z-linux-x86_64.rpm"
 ```
 
 - **A beta** adds `--prerelease`, so `releases/latest` stays on the last stable release.
@@ -161,7 +163,7 @@ The first two list the issues and pull requests still open, the third finds the 
 
 ## 7. Check the result
 
-- `gh release view vX.Y.Z` lists the three files under the names from step 2, and shows the release as a pre-release only for a beta.
+- `gh release view vX.Y.Z` lists the five files under the names from step 2, and shows the release as a pre-release only for a beta.
 - `gh api repos/WordPress/contributor-toolkit/releases/latest --jq .tag_name` prints `vX.Y.Z` for a stable release, and the previous stable tag for a beta.
 - `git ls-remote origin refs/tags/vX.Y.Z` points at the bump commit.
 - For a stable release, the docs run from step 5 finished with its deploy job.
