@@ -6,7 +6,7 @@
   "license": "GPL-2.0-or-later",
   "description": "Desktop app that sets up a WordPress core development environment with no prerequisites, applies the work already on a Trac ticket, and submits a contribution back",
   "homepage": "https://wordpress.github.io/contributor-toolkit/",
-  "desktopName": "WordPress Contributor Toolkit",
+  "desktopName": "wordpress-contributor-toolkit.desktop",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WordPress/contributor-toolkit.git"
