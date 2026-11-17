@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-10-19 17:27:36+0000",
+	"translation-revision-date": "2026-11-15 11:30:43+0000",
 	"generator": "GlotPress/4.1.0",
 	"domain": "messages",
 	"locale_data": {
@@ -9,39 +9,294 @@
 				"plural-forms": "nplurals=2; plural=n != 1;",
 				"lang": "gl_ES"
 			},
-			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [],
-			"That file could not be read: %s": [],
-			"That file is not in the site. The change may have deleted it.": [],
-			"Changed files": [],
-			"You created this file": [],
-			"You edited this file": [],
-			"Revert %s": [],
-			"Discard your changes?": [],
-			"PR #%d stays checked out.": [],
-			"The applied patch %s is removed too, because the app can’t put it back.": [],
-			"The patch %s stays applied.": [],
-			"Your edits to %d file are removed.": [],
-			"There are no edits of yours to discard.": [],
-			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [],
-			"Your changes were discarded.": [],
-			"Your changes to it are removed.": [],
-			"%s deleted.": [],
-			"Delete file": [],
-			"You created this file.": [],
-			"From PR #%d": [],
-			"From the patch": [],
-			"Could not revert the file: %s": [],
-			"%s reverted.": [],
-			"Revert file": [],
-			"Revert %s?": [],
-			"Your edits to it are removed, and it goes back to how the patch left it.": [],
-			"Your edits to it are removed, and it goes back to how PR #%d has it.": [],
-			"Could not revert %1$s, so it was left as it was: %2$s": [],
-			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [],
-			"%s has no changes to revert.": [],
-			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [],
-			"%s is as the patch left it, so there is nothing of yours to revert.": [],
-			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [],
+			"Set up Xdebug for %s": [
+				"Configurar Xdebug para %s"
+			],
+			"Link #%d": [
+				"Ligazón #%d"
+			],
+			"#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use Check out a pull request to test it.": [
+				"#%1$d é unha pull request. Corrixe %2$s. Liga ese problema en vez diso, ou usa Facer checkout dunha pull request para probala.",
+				"#%1$d é unha pull request. Corrixe %2$s. Liga un eses problemas en vez diso, ou usa Facer checkout dunha pull request para probala."
+			],
+			"#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.": [
+				"#%d é unha pull request, non un problema, e a súa descrición non indica que problema deste sitio corrixe. Para probala, usa Facer checkout dunha pull request."
+			],
+			"What “Open in” in the site’s menu and the files under “Changed files” open in, and which editor’s Xdebug setup the site’s details offer. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.": [
+				"Con que se abre «Abrir en» no menú do sitio e os arquivos de «Arquivos cambiados», e de que editor ofrecen os detalles do sitio a configuración de Xdebug. Con «Preguntar cada vez», ou cun editor que xa non está instalado, a aplicación pregunta cal usar."
+			],
+			"Zed": [
+				"Zed"
+			],
+			"PhpStorm": [
+				"PhpStorm"
+			],
+			"Cursor": [
+				"Cursor"
+			],
+			"VS Code": [
+				"VS Code"
+			],
+			"Xdebug is turned on, but this site started before that. Restart the server to use it.": [
+				"Xdebug está activado, pero este sitio iniciouse antes. Reinicia o servidor para usalo."
+			],
+			"This site started without Xdebug because another site’s server had it. Restart the server to use it.": [
+				"Este sitio iniciouse sen Xdebug porque o servidor doutro sitio o tiña. Reinicia o servidor para usalo."
+			],
+			"Xdebug is on for %s. Stop that site’s server, then restart this one to use it here.": [
+				"Xdebug está activado para %s. Detén o servidor ese sitio e reinicia este para usalo aquí."
+			],
+			"Xdebug is still on for this site until you restart the server.": [
+				"Xdebug segue activado para este sitio ata que reinicies o servidor."
+			],
+			"Absolute path on the server": [
+				"Ruta absoluta no servidor"
+			],
+			"File/Directory": [
+				"Arquivo/Directorio"
+			],
+			"Port": [
+				"Porto"
+			],
+			"Host": [
+				"Servidor"
+			],
+			"Cancel the development server start": [
+				"Cancelar o inicio do servidor de desenvolvemento"
+			],
+			"Dev server start cancelled.": [
+				"Inicio do servidor de desenvolvemento cancelado."
+			],
+			"Copy debug.json": [
+				"Copiar debug.json"
+			],
+			"Open the site’s folder, and put this in <code>.zed/debug.json</code>:": [
+				"Abre o cartafol do sitio e pon isto en <code>.zed/debug.json</code>:"
+			],
+			"Run <b>zed: extensions</b> from the command palette, and install <b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with.": [
+				"Executa <b>zed: extensions</b> desde a paleta de comandos e instala <b>PHP</b>. O seu adaptador de Xdebug é co que Zed depura PHP."
+			],
+			"In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"En <b>Run and Debug</b>, inicia «Listen for Xdebug», establece un punto de interrupción e carga o sitio."
+			],
+			"Copy launch.json": [
+				"Copiar launch.json"
+			],
+			"Open the site’s folder, and put this in <code>.vscode/launch.json</code>:": [
+				"Abre o cartafol do sitio e pon isto en <code>.vscode/launch.json</code>:"
+			],
+			"Install the <b>PHP Debug</b> extension by Xdebug.": [
+				"Instala a extensión <b>PHP Debug</b> de Xdebug."
+			],
+			"Every site’s server sends Xdebug to port %d, so only one running site has Xdebug at a time: the first one started with it.": [
+				"O servidor de cada sitio envía Xdebug ao porto %d, polo que só un sitio en execución ten Xdebug á vez: o primeiro que se iniciou con el."
+			],
+			"Couldn’t copy to clipboard.": [
+				"Non se puido copiar ao portapapeis."
+			],
+			"Copied to clipboard": [
+				"Copiado no portapapeis"
+			],
+			"If the site starts on another port, PhpStorm asks which server it is; update the Host above.": [
+				"Se o sitio se inicia noutro porto, PhpStorm pregunta que servidor é; actualiza o servidor indicado arriba."
+			],
+			"Set up %s": [
+				"Configurar %s"
+			],
+			"Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a breakpoint, and load the site.": [
+				"Activa <b>Run → Start Listening for PHP Debug Connections</b>, establece un punto de interrupción e carga o sitio."
+			],
+			"In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:": [
+				"En <b>Settings → PHP → Servers</b>, engade un servidor con Xdebug como depurador, activa «Use path mappings» e introduce:"
+			],
+			"In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options.": [
+				"En <b>Settings → PHP → Debug</b>, asegúrate de que Debug port inclúa %d e desactiva as dúas opcións «Force break at first line»."
+			],
+			"If Zed says no debug tasks were found, the PHP extension is not installed.": [
+				"Se Zed di que non se atoparon tarefas de depuración, a extensión PHP non está instalada."
+			],
+			"Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"Executa <b>debugger: start</b> desde a paleta de comandos, elixe «Listen for Xdebug», establece un punto de interrupción e carga o sitio."
+			],
+			"Set up Xdebug for your editor": [
+				"Configurar Xdebug para o teu editor"
+			],
+			"Stop on breakpoints in VS Code. Slows every request, so leave it off unless you are debugging. The site’s details show how to connect.": [
+				"Detense nos puntos de interrupción en VS Code. Ralentiza todas as solicitudes, así que déixao desactivado a non ser que esteas a depurar. Os detalles do sitio mostran como conectar."
+			],
+			"Step debugging (Xdebug)": [
+				"Depuración paso a paso (Xdebug)"
+			],
+			"Choose one of the editors the app found.": [
+				"Elixe un dos editores que atopou a aplicación."
+			],
+			"Open in %s": [
+				"Abrir en %s"
+			],
+			"Ask each time": [
+				"Preguntar cada vez"
+			],
+			"Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.": [
+				"Ata que elixas outro editor, «Abrir en» e os arquivos de «Arquivos cambiados» preguntan cal usar."
+			],
+			"%s is no longer installed": [
+				"%s xa non está instalado"
+			],
+			"Code editor": [
+				"Editor de código"
+			],
+			"Could not keep that editor.": [
+				"Non se puido manter ese editor."
+			],
+			"Could not look for editors on this machine, so none can be chosen here.": [
+				"Non se puido buscar editores nesta máquina, así que non se pode elixir ningún aquí."
+			],
+			"e.g. 71210": [
+				"p. ex. 71210"
+			],
+			"e.g. 9000": [
+				"p. ex. 9000"
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.": [
+				"Os teus cambios en %1$d arquivo quedan co ticket #%2$d e volverán cando volvas a el.",
+				"Os teus cambios en %1$d arquivos quedan co ticket #%2$d e volverán cando volvas a el."
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you revert this PR.": [
+				"Os teus cambios en %1$d arquivo quedan co ticket #%2$d e volverán cando reviertas esta PR.",
+				"Os teus cambios en %1$d arquivos quedan co ticket #%2$d e volverán cando reviertas esta PR."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you return to it.": [
+				"Os teus cambios en %1$d arquivo quedan co problema #%2$d e volverán cando volvas a el.",
+				"Os teus cambios en %1$d arquivos quedan co problema #%2$d e volverán cando volvas a el."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you revert this PR.": [
+				"Os teus cambios en %1$d arquivo quedan co problema #%2$d e volverán cando reviertas esta PR.",
+				"Os teus cambios en %1$d arquivos quedan co problema #%2$d e volverán cando reviertas esta PR."
+			],
+			"Attachment (%d)": [
+				"Adxunto (%d)",
+				"Adxuntos (%d)"
+			],
+			"Other attachment (%d)": [
+				"Outro adxunto (%d)",
+				"Outros adxuntos (%d)"
+			],
+			"Closed PR (%d)": [
+				"PR pechada (%d)",
+				"PR pechadas (%d)"
+			],
+			"Other closed PR (%d)": [
+				"Outra PR pechada (%d)",
+				"Outras PR pechadas (%d)"
+			],
+			"Open PR (%d)": [
+				"PR aberta (%d)",
+				"PR abertas (%d)"
+			],
+			"Other open PR (%d)": [
+				"Outra PR aberta (%d)",
+				"Outras PR abertas (%d)"
+			],
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
+				"Non se puido descargar o último trunk, polo que esta lista tamén pode incluír cambios do trunk que non forman parte desta pull request."
+			],
+			"That file could not be read: %s": [
+				"Non se puido ler ese arquivo: %s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"Ese arquivo non está no sitio. Pode que o cambio o eliminase."
+			],
+			"Changed files": [
+				"Arquivos cambiados"
+			],
+			"You created this file": [
+				"Creaches este arquivo"
+			],
+			"You edited this file": [
+				"Editaches este arquivo"
+			],
+			"Revert %s": [
+				"Reverter %s"
+			],
+			"Discard your changes?": [
+				"Descartar os teus cambios?"
+			],
+			"PR #%d stays checked out.": [
+				"A PR #%d segue obtida."
+			],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"O parche aplicado %s tamén se elimina, porque a aplicación non pode volver poñelo."
+			],
+			"The patch %s stays applied.": [
+				"O parche %s segue aplicado."
+			],
+			"Your edits to %d file are removed.": [
+				"Elimínase a túa edición en %d arquivo.",
+				"Elimínanse as túas edicións en %d arquivos."
+			],
+			"There are no edits of yours to discard.": [
+				"Non hai edicións túas que descartar."
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [
+				"Os teus cambios descartáronse, pero non se puido volver poñer %s, polo que xa non está aplicado."
+			],
+			"Your changes were discarded.": [
+				"Os teus cambios descartáronse."
+			],
+			"Your changes to it are removed.": [
+				"Os teus cambios nel eliminaranse."
+			],
+			"%s deleted.": [
+				"%s eliminado."
+			],
+			"Delete file": [
+				"Eliminar arquivo"
+			],
+			"You created this file.": [
+				"Creaches este arquivo."
+			],
+			"From PR #%d": [
+				"Da PR #%d"
+			],
+			"From the patch": [
+				"Do parche"
+			],
+			"Could not revert the file: %s": [
+				"Non se puido reverter o arquivo: %s"
+			],
+			"%s reverted.": [
+				"%s revertido."
+			],
+			"Revert file": [
+				"Reverter arquivo"
+			],
+			"Revert %s?": [
+				"Reverter %s?"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"As túas edicións nel eliminaranse e volverá ao estado en que o deixou o parche."
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"As túas edicións nel eliminaranse e volverá ao estado da PR #%d."
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"Non se puido reverter %1$s, polo que quedou como estaba: %2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"Non se puido reverter %1$s (%2$s) nin devolvelo ao seu estado anterior, polo que os teus cambios nel poden perderse: %3$s"
+			],
+			"%s has no changes to revert.": [
+				"%s non ten cambios que reverter."
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [
+				"A aplicación non gardou unha copia do parche, polo que non pode devolver %s ao estado en que o deixou o parche."
+			],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [
+				"%s está como o deixou o parche, polo que non hai nada teu que reverter."
+			],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [
+				"O parche cambia o nome de %s, polo que só se pode reverter co parche completo. Usa Descartar os teus cambios."
+			],
 			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
 				"Aínda non hai saída do servidor de desenvolvemento. Aquí aparece o que imprime ao iniciarse e durante a execución, incluído calquera erro que o deteña."
 			],
@@ -2208,7 +2463,9 @@
 			"Saved to %s": [
 				"Gardado en %s"
 			],
-			"Discard your changes": [],
+			"Discard your changes": [
+				"Descartar os teus cambios"
+			],
 			"(<discard />)": [
 				"(<discard />)"
 			],
@@ -2791,9 +3048,6 @@
 			],
 			"Starting…": [
 				"Iniciando…"
-			],
-			"Starting development server…": [
-				"Iniciando o servidor de desenvolvemento…"
 			],
 			"Server starting…": [
 				"Iniciando o servidor…"
