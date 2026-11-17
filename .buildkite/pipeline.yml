@@ -14,7 +14,7 @@ steps:
     env:
       SIGN_WINDOWS_BUILD: 1
     artifact_paths:
-      - dist\*.exe
+      - dist/*.exe
     notify:
       - github_commit_status: { context: "Windows Build" }
 
@@ -24,7 +24,7 @@ steps:
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: .buildkite/commands/build_windows.ps1
     artifact_paths:
-      - dist\*.exe
+      - dist/*.exe
     notify:
       - github_commit_status: { context: "Windows Build" }
 
@@ -100,4 +100,4 @@ steps:
       SIGN_WINDOWS_BUILD: 1
     command: .buildkite/commands/build_windows.ps1
     artifact_paths:
-      - dist\*.exe
+      - dist/*.exe
