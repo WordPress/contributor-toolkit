@@ -69,6 +69,39 @@ test('a CLI shim keeps the preload, the CLI and the arguments in order', () => {
 	assert.ok(npm.indexOf('npm-cli.js') < npm.indexOf('"$@"'));
 });
 
+// The `toolkit` shim (#764) tells its CLI where the app listens. Those
+// arguments are the app's, so they sit after the CLI, which reads them, and
+// before the caller's, and are quoted: a profile path has a space in it on
+// macOS ("Application Support").
+test('a CLI shim puts the app\'s own arguments between the CLI and the caller\'s, quoted', () => {
+	const posix = cliShim({
+		execPath: EXEC.darwin,
+		compatPath: null,
+		cliPath: '/app/src/cli.cjs',
+		cliArgs: ['--endpoint', '/Users/dev/Library/Application Support/Toolkit/control.sock'],
+		platform: 'darwin'
+	});
+	assert.ok(posix.includes('"/app/src/cli.cjs" "--endpoint" "/Users/dev/Library/Application Support/Toolkit/control.sock" "$@"'));
+	assert.ok(posix.includes('ELECTRON_RUN_AS_NODE=1'));
+	assert.ok(!posix.includes('--require'), 'the CLI is the app\'s own and needs no compat preload');
+
+	const win = cliShim({
+		execPath: EXEC.win32,
+		compatPath: null,
+		cliPath: 'C:\\app\\src\\cli.cjs',
+		cliArgs: ['--endpoint', '\\\\.\\pipe\\wpct-control-0123456789abcdef'],
+		platform: 'win32'
+	});
+	// Run from a person's own cmd.exe, the shim must not leave Electron's
+	// run-as-Node switch set in that window once it has finished.
+	assert.ok(win.includes('setlocal') && win.indexOf('setlocal') < win.indexOf('set ELECTRON_RUN_AS_NODE=1'));
+	assert.ok(win.includes('"C:\\app\\src\\cli.cjs" "--endpoint" "\\\\.\\pipe\\wpct-control-0123456789abcdef" %*'));
+
+	// A shim given none is byte for byte what it was.
+	const npm = cliShim({ execPath: EXEC.darwin, compatPath: COMPAT.darwin, cliPath: 'npm-cli.js', platform: 'darwin' });
+	assert.ok(npm.includes('"npm-cli.js" "$@"'));
+});
+
 // Paths are interpolated into quoted arguments, so a space must not split them.
 // This is the failure mode that would only ever appear on someone else's machine.
 test('a path with spaces stays one argument', () => {
@@ -257,4 +290,62 @@ test('a Helper path with spaces survives into a working shim', () => {
 	assert.ok(shim.includes(`"${PACKAGED_HELPER}"`));
 	assert.ok(shim.includes(`--require "${COMPAT.darwin}"`));
 	assert.ok(shim.includes('ELECTRON_RUN_AS_NODE=1'));
+});
+
+// The `toolkit` shim's arguments name the profile's folder, which is the
+// person's to choose (#764). Inside double quotes bash still expands `$` and
+// a backtick, and a batch file expands `%`.
+test('what a shell would expand in a CLI shim\'s arguments reaches the CLI as written', { skip: process.platform === 'win32' && 'runs a bash shim' }, () => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wptk-shim-'));
+	try {
+		const cli = path.join(dir, 'cli.js');
+		fs.writeFileSync(cli, 'process.stdout.write(JSON.stringify(process.argv.slice(2)));');
+		const odd = '/tmp/pro file-$USER/`whoami`/a\\b"c/control.sock';
+		const shim = path.join(dir, 'toolkit');
+		fs.writeFileSync(shim, cliShim({ execPath: process.execPath, compatPath: null, cliPath: cli, cliArgs: ['--endpoint', odd], platform: 'linux' }), { mode: 0o755 });
+		const ran = spawnSync(shim, ['sites'], { encoding: 'utf8' });
+		assert.deepEqual(JSON.parse(ran.stdout), ['--endpoint', odd, 'sites']);
+	} finally {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test('a percent sign in a Windows CLI shim\'s arguments is doubled, which a batch file reads as one', () => {
+	const win = cliShim({ execPath: EXEC.win32, compatPath: null, cliPath: 'C:\\app\\src\\cli.cjs', cliArgs: ['--shim', 'C:\\Users\\100%\\bin\\toolkit.cmd'], platform: 'win32' });
+	assert.ok(win.includes('"--shim" "C:\\Users\\100%%\\bin\\toolkit.cmd" %*'));
+});
+
+// An AppImage's mount, and the binary in it, are gone once the app quits
+// (#764): the shim is all that is left, and it answers for a closed app.
+test('a CLI shim told its binary can go says the app is closed when it has, as JSON when asked', { skip: process.platform === 'win32' && 'runs a bash shim' }, () => {
+	const message = 'The WordPress Contributor Toolkit is not running. Open it and try again.';
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wptk-shim-'));
+	try {
+		const write = (name, execPath, cliPath) => {
+			const file = path.join(dir, name);
+			fs.writeFileSync(file, cliShim({ execPath, compatPath: null, cliPath, cliArgs: [], platform: 'linux', goneMessage: message }), { mode: 0o755 });
+			return file;
+		};
+		const gone = write('gone', path.join(dir, 'mount', 'toolkit'), path.join(dir, 'mount', 'cli.cjs'));
+		const plain = spawnSync(gone, ['sites'], { encoding: 'utf8' });
+		assert.equal(plain.status, 1);
+		assert.equal(plain.stdout, '');
+		assert.equal(plain.stderr, `${message}\n`);
+		const json = spawnSync(gone, ['sites', '--json'], { encoding: 'utf8' });
+		assert.equal(json.status, 1);
+		assert.deepEqual(JSON.parse(json.stdout), { ok: false, code: 'not-running', error: message });
+		assert.equal(json.stderr, '');
+
+		// With the binary there, the shim runs it as any other does.
+		const cli = path.join(dir, 'cli.js');
+		fs.writeFileSync(cli, 'process.stdout.write(JSON.stringify(process.argv.slice(2)));');
+		const here = spawnSync(write('here', process.execPath, cli), ['sites', '--json'], { encoding: 'utf8' });
+		assert.deepEqual(JSON.parse(here.stdout), ['sites', '--json']);
+	} finally {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+
+	// A shim not told so has no such check, and neither has a Windows one.
+	assert.ok(!cliShim({ execPath: EXEC.darwin, compatPath: null, cliPath: '/app/src/cli.cjs', platform: 'darwin' }).includes('not-running'));
+	assert.ok(!cliShim({ execPath: EXEC.win32, compatPath: null, cliPath: 'C:\\app\\src\\cli.cjs', platform: 'win32', goneMessage: message }).includes('not-running'));
 });

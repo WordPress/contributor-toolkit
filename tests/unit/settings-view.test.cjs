@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
+const { toolkitCommandLine, editorItems, editorGone, editorName, editorValue, ASK_FOR_EDITOR, githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
 
 test('the GitHub line says the account is still being read, and offers no sign-out, until it is', () => {
 	assert.deepEqual(githubAccountLine(null), { text: 'Reading…', canSignOut: false });
@@ -138,4 +138,18 @@ test('the editor set is gone only when a detection that answered does not find i
 test('asking each time is kept as no choice, and an editor as its id (#738)', () => {
 	assert.equal(editorValue(ASK_FOR_EDITOR), null);
 	assert.equal(editorValue('cursor'), 'cursor');
+});
+
+test('the Tools tab shows the toolkit command quoted, as a shell needs a path with a space in it, and copies the same', () => {
+	assert.deepEqual(toolkitCommandLine(null), { text: 'Reading…', copy: null });
+
+	const mac = '/Users/jane/Library/Application Support/WordPress Contributor Toolkit/bin/toolkit';
+	assert.deepEqual(toolkitCommandLine({ ok: true, path: mac }), { text: `"${mac}"`, copy: `"${mac}"` });
+
+	// The app could not start answering tools: nothing to copy, and why.
+	for (const none of [{ ok: false }, { ok: true }, { ok: true, path: '' }]) {
+		const line = toolkitCommandLine(none);
+		assert.equal(line.copy, null);
+		assert.match(line.text, /not available/);
+	}
 });
