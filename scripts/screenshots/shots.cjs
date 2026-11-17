@@ -50,7 +50,7 @@ const path = require('path');
 const ui = require('../../tests/e2e/helpers/ui.cjs');
 const {
 	FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET, OTHER_TICKET,
-	SUMMARY_FILE, SUMMARY_FIXED, FIXED_LINE, SUMMARY_TEST_FILE, SUMMARY_TEST
+	SUMMARY_FILE, SUMMARY_FIXED, FIXED_LINE, SUMMARY_TEST_FILE, SUMMARY_TEST, SERVER_URL, SMTP_PORT
 } = require('./fixtures.cjs');
 
 // The fixture's site that is a real checkout (the `repo:` variants).
@@ -597,6 +597,63 @@ const shots = [
 			// ended, by a read of its own, and is the last thing in the
 			// picture to arrive.
 			await page.getByText(`1 unsubmitted change for ticket #${LINKED_TICKET}`, { exact: true }).filter({ visible: true }).first().waitFor();
+		}
+	},
+
+	{
+		slug: 'settings-dialog',
+		tier: 'fixture',
+		variant: 'seeded',
+		// The General tab is taller than the window the harness opens, and
+		// the dialog would scroll to reach its foot: a taller window, so the
+		// picture has every setting on the tab.
+		viewport: { width: 1200, height: 1300 },
+		target: (page) => ui.settingsDialog(page),
+		prepare: async (page) => {
+			await selectSite(page, 'my-first-patch');
+			await ui.settingsButton(page).click();
+			// The editors are the fixture's (see standInForTheOutside). The
+			// control is disabled until they are found, and a trial click
+			// waits for it to be enabled.
+			await ui.settingsDialog(page).getByLabel('Code editor', { exact: true }).click({ trial: true });
+			await page.mouse.move(0, 0);
+		}
+	},
+	{
+		slug: 'xdebug-setup-menu',
+		tier: 'fixture',
+		variant: 'seeded',
+		// The site's details from their heading to the foot of the menu of
+		// editors, open under the Debugging row.
+		clip: async (page) => {
+			const details = await page.getByRole('complementary', { name: 'Details of my-first-patch', exact: true }).boundingBox();
+			const menu = await page.getByRole('menu').filter({ visible: true }).boundingBox();
+			return insideThePage(page, { x: details.x - 8, y: details.y, width: details.width + 16, height: menu.y + menu.height + 16 - details.y });
+		},
+		prepare: async (page, app) => {
+			await selectSite(page, 'my-first-patch');
+			await page.getByText(LINKED_PULL_REQUESTS[0].title).waitFor();
+			// Turned on as a contributor does, in the settings.
+			await ui.settingsButton(page).click();
+			const dialog = ui.settingsDialog(page);
+			await ui.settingsTab(page, 'Sites').click();
+			await dialog.getByRole('switch', { name: 'Step debugging (Xdebug)', exact: true }).click();
+			await ui.closeDialogButton(dialog).click();
+			await dialog.waitFor({ state: 'detached' });
+			// The server's start is the fixture's, and says the server has
+			// Xdebug, as main says it of one started with the setting on.
+			await app.evaluate(({ ipcMain }, [serverUrl, smtpPort]) => {
+				ipcMain.removeHandler('playground:start');
+				ipcMain.handle('playground:start', async (event, sitePath) => {
+					event.sender.send('smtp:started', { sitePath, port: smtpPort });
+					event.sender.send('playground:url', { sitePath, url: serverUrl, xdebug: true });
+					return { ok: true, url: serverUrl, xdebug: true };
+				});
+			}, [SERVER_URL, SMTP_PORT]);
+			await ui.startDevServerButton(page).click();
+			const setup = page.getByRole('button', { name: 'Set up Xdebug for your editor', exact: true });
+			await setup.click();
+			await page.getByRole('menuitem', { name: 'VS Code', exact: true }).waitFor();
 		}
 	},
 

@@ -221,6 +221,15 @@ async function standInForTheOutside(app) {
 			return { ok: true, url: serverUrl };
 		});
 		replace('url:open', () => true);
+		// The editors found on the machine are the same two in every picture,
+		// whatever is installed where the shots are taken.
+		replace('editor:list', () => ({
+			detected: [
+				{ id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' },
+				{ id: 'phpstorm', name: 'PhpStorm', path: '/Applications/PhpStorm.app' }
+			],
+			names: { vscode: 'Visual Studio Code', cursor: 'Cursor', phpstorm: 'PhpStorm', sublime: 'Sublime Text', zed: 'Zed' }
+		}));
 	}, [LINKED_TICKET, LINKED_PULL_REQUESTS, TICKET_FROM_TRAC, SMTP_PORT, SERVER_URL, TICKET_PATCH]);
 }
 
@@ -445,4 +454,4 @@ function cleanFixtureSites() {
 	removeRepo(FIXTURE_ROOT);
 }
 
-module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET, OTHER_TICKET, SUMMARY_FILE, SUMMARY_FIXED, FIXED_LINE, SUMMARY_TEST_FILE, SUMMARY_TEST };
+module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET, OTHER_TICKET, SUMMARY_FILE, SUMMARY_FIXED, FIXED_LINE, SUMMARY_TEST_FILE, SUMMARY_TEST, SERVER_URL, SMTP_PORT };

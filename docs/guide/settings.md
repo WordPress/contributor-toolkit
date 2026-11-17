@@ -2,12 +2,15 @@
 
 The app's settings are in one dialog, opened from the cog at the bottom right of the window, or from the menu: **Settings…** in the application menu on macOS (⌘,), under **File** on Windows and Linux (Ctrl+,). A setting applies to every site and is kept between launches.
 
+![The Settings dialog on its General tab: Theme with Light, Dark, System and Custom, Language, the two settings for starting the server and the build watch when a site opens, what happens to running servers and build watches on quit, Code editor set to Ask each time, and New sites go here](/screenshots/settings-dialog.png)
+
 ## General
 
 - **Theme** — light, dark, whatever your operating system is set to, which is the default, or custom: a background and a primary colour of your own, typed as hex or picked from the swatch, from which the app builds every other colour. A change applies as you make it, to the whole window; nothing running is touched. The dialog says if some text may be hard to read on the colours you chose; they are kept all the same.
 - **Language** — which language the app is shown in: your system's language, which is the default, or one of the languages the app has a translation for. A change applies after a relaunch, which the dialog offers; relaunching stops running servers and builds, as quitting does. Translations come from [translate.wordpress.org](https://translate.wordpress.org/projects/meta/contributor-toolkit/) and ship with the app once they are mostly complete, so the list grows from release to release.
 - **Start the server when I open a site** and **Start the build watch when I open a site** — off unless you turn them on. On, opening a site that is set up starts its [development server](./running-the-site), its build watch, or both, as it would if you pressed Start; on WordPress Core the server's start brings the watch with it. Nothing starts for a site whose setup, update or deletion is under way, and nothing already running is started again.
 - **When I quit, running servers and build watches** — quitting always stops them, as it always has. **Stop them, and start them again next time** remembers which sites had a server or a watch running and starts them again when the app next opens, whichever site it opens on.
+- **Code editor**: the editor the app opens a site and its changed files in, from the editors it found on your computer, or **Ask each time**, which is the default. See [Opening the site in your editor](./editors#choose-your-code-editor).
 - **New sites go here** — the folder new sites are created in, each in a subfolder of its own. With one set, the [create-site dialog](./creating-a-site) starts on it; you can still pick another folder for one site without changing the setting. **Forget this folder** clears it, and the dialog goes back to asking each time. A folder that no longer exists is refused when you choose it.
 
 ## Sites
