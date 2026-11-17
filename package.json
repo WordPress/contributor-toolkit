@@ -6,6 +6,7 @@
   "license": "GPL-2.0-or-later",
   "description": "Desktop app that sets up a WordPress core development environment with no prerequisites, applies the work already on a Trac ticket, and submits a contribution back",
   "homepage": "https://wordpress.github.io/contributor-toolkit/",
+  "desktopName": "WordPress Contributor Toolkit",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WordPress/contributor-toolkit.git"
@@ -99,9 +100,19 @@
     "icon": "build/icon.png",
     "linux": {
       "maintainer": "WordPress.org",
+      "category": "Development",
+      "executableName": "wordpress-contributor-toolkit",
       "target": [
-        "AppImage"
+        "AppImage",
+        "deb",
+        "rpm"
       ]
+    },
+    "deb": {
+      "packageName": "wordpress-contributor-toolkit"
+    },
+    "rpm": {
+      "packageName": "wordpress-contributor-toolkit"
     },
     "win": {
       "icon": "build/icon.ico",
