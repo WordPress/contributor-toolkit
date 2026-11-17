@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-10-22 14:34:11+0000",
+	"translation-revision-date": "2026-11-14 08:39:40+0000",
 	"generator": "GlotPress/4.1.0",
 	"domain": "messages",
 	"locale_data": {
@@ -9,6 +9,194 @@
 				"plural-forms": "nplurals=2; plural=n != 1;",
 				"lang": "nl"
 			},
+			"Set up Xdebug for %s": [
+				"Xdebug instellen voor %s"
+			],
+			"Link #%d": [
+				"Link #%d"
+			],
+			"#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use Check out a pull request to test it.": [
+				"#%1$d is een pull request. Het heeft oplossingen voor %2$s. Link in plaats daarvan naar dat issue, of gebruik 'Bekijk een pull aanvraag om het te testen.",
+				"#%1$d is een pull request. Het lost %2$sop. Link in plaats daarvan naar een van die issues, of gebruik 'Bekijk een pull request om het te testen."
+			],
+			"#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.": [
+				"#%d is een pull request, geen issue, en in de beschrijving staat niet welk issue hiermee wordt opgelost. Om het te testen, gebruik je 'Een pull request bekijken'."
+			],
+			"What “Open in” in the site’s menu and the files under “Changed files” open in, and which editor’s Xdebug setup the site’s details offer. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.": [
+				"Wat “Open in” in het menu van de site’en de bestanden onder “Gewijzigde bestanden” openen in, en welke editor de Xdebug setup van de site details biedt. Met “Vraag elke keer”, of een editor die niet meer geïnstalleerd is, vraagt de app welke je wilt gebruiken."
+			],
+			"Zed": [
+				"Zed"
+			],
+			"PhpStorm": [
+				"PhpStorm"
+			],
+			"Cursor": [
+				"Cursor"
+			],
+			"VS Code": [
+				"VS code"
+			],
+			"Xdebug is turned on, but this site started before that. Restart the server to use it.": [
+				"Xdebug staat aan, maar deze site is al eerder opgestart. Start de server opnieuw op om het te kunnen gebruiken."
+			],
+			"This site started without Xdebug because another site’s server had it. Restart the server to use it.": [
+				"Deze site is zonder Xdebug gestart omdat de server van een andere site, dit al had. Start de server opnieuw op om het te gebruiken."
+			],
+			"Xdebug is on for %s. Stop that site’s server, then restart this one to use it here.": [
+				"Xdebug staat aan voor %s. Zet de server van die site’uit en start deze vervolgens opnieuw op om hem hier te kunnen gebruiken."
+			],
+			"Xdebug is still on for this site until you restart the server.": [
+				"Xdebug staat nog steeds aan voor deze site, totdat je de server opnieuw opstart."
+			],
+			"Absolute path on the server": [
+				"Absoluut pad op de server"
+			],
+			"File/Directory": [
+				"Bestand/folder"
+			],
+			"Port": [
+				"Poort"
+			],
+			"Host": [
+				"Host"
+			],
+			"Cancel the development server start": [
+				"Annuleer het opstarten van de ontwikkelingsserver"
+			],
+			"Dev server start cancelled.": [
+				"Het opstarten van de Dev server is geannuleerd."
+			],
+			"Copy debug.json": [
+				"Kopieer debug.json"
+			],
+			"Open the site’s folder, and put this in <code>.zed/debug.json</code>:": [
+				"Open de map van de site en zet dit in <code>.zed/debug.json</code>:"
+			],
+			"Run <b>zed: extensions</b> from the command palette, and install <b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with.": [
+				"Voer vanuit het opdrachtpaneel ' <b>zed: extensies</b> ' uit en installeer ' <b>PHP</b>'. De Xdebug adapter daarvan is waarmee Zed PHP debugt."
+			],
+			"In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"Ga naar <b>, uitvoer 'Run and Debug'</b>, start “, luister naar Xdebug”, zet een breekpunt en laad de site."
+			],
+			"Copy launch.json": [
+				"Kopieer launch.json"
+			],
+			"Open the site’s folder, and put this in <code>.vscode/launch.json</code>:": [
+				"Open de map van de site’en zet dit in <code>.vscode/launch.json</code>:"
+			],
+			"Install the <b>PHP Debug</b> extension by Xdebug.": [
+				"Installeer de <b> PHP debug </b> extensie van Xdebug."
+			],
+			"Every site’s server sends Xdebug to port %d, so only one running site has Xdebug at a time: the first one started with it.": [
+				"Elke site op de server van’verzendt Xdebug naar poort %d, dus er wordt maar één site tegelijk uitgevoerd met Xdebug: de eerste die ermee is gestart."
+			],
+			"Couldn’t copy to clipboard.": [
+				"Kon het niet naar het klembord kopiëren."
+			],
+			"Copied to clipboard": [
+				"Gekopieerd naar klembord"
+			],
+			"If the site starts on another port, PhpStorm asks which server it is; update the Host above.": [
+				"Als de site op een andere poort draait, vraagt PHPStorm welke server het is; updaten dan de host hierboven."
+			],
+			"Set up %s": [
+				"Instellen van %s"
+			],
+			"Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a breakpoint, and load the site.": [
+				"Zet <b>uit, uitvoer → Start Listening for PHP Debug Connections</b>, stel een breekpunt in en laad de site."
+			],
+			"In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:": [
+				"Ga in <b>naar Instellingen → PHP → Servers</b>, voeg een server toe met Xdebug als debugger, inschakelen. \"Gebruik pad toewijzingen” en voer het volgende in:"
+			],
+			"In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options.": [
+				"Ga in <b>naar Instellingen → PHP → Debug</b>, zorg ervoor dat bij 'debug poort' %dstaat, en schakel beide opties uit: en \"Forceer onderbreking op de eerste regel”."
+			],
+			"If Zed says no debug tasks were found, the PHP extension is not installed.": [
+				"Als Zed zegt dat er geen debug taken zijn gevonden, is de PHP extensie niet geïnstalleerd."
+			],
+			"Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"De <b>debugger: start</b> uitvoeren vanuit het opdrachtpaneel, kies “Luister naar Xdebug”, stel een breekpunt in en laad de site."
+			],
+			"Set up Xdebug for your editor": [
+				"Stel Xdebug in voor je editor"
+			],
+			"Stop on breakpoints in VS Code. Slows every request, so leave it off unless you are debugging. The site’s details show how to connect.": [
+				"Stop bij breekpunten in VS Code. Dit vertraagt elke aanvraag, dus laat het uitgeschakeld tenzij je aan het debuggen bent. Op de sites worden de details weergegeven over hoe je verbinding kunt maken."
+			],
+			"Step debugging (Xdebug)": [
+				"Stapsgewijze foutopsporing (xdebug)"
+			],
+			"Choose one of the editors the app found.": [
+				"Kies een van de editors die de app heeft gevonden."
+			],
+			"Open in %s": [
+				"Openen in %s"
+			],
+			"Ask each time": [
+				"Vraag elke keer"
+			],
+			"Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.": [
+				"Tot je een andere editor kiest, vragen “Openen in” en de bestanden onder “Gewijzigde bestanden” welke je wilt gebruiken."
+			],
+			"%s is no longer installed": [
+				"%s is niet langer geïnstalleerd"
+			],
+			"Code editor": [
+				"Code editor"
+			],
+			"Could not keep that editor.": [
+				"Kon die editor niet behouden."
+			],
+			"Could not look for editors on this machine, so none can be chosen here.": [
+				"Kon op deze machine niet naar editors zoeken, dus hier kan er geen gekozen worden."
+			],
+			"e.g. 71210": [
+				"bijv. 71210"
+			],
+			"e.g. 9000": [
+				"bijv. 9000"
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.": [
+				"Je bewerkingen in bestand %1$d blijven bij ticket #%2$d en komen terug als je ernaar terugkeert.",
+				"Je bewerkingen in bestanden %1$d blijven bij ticket #%2$d en komen terug als je ernaar terugkeert."
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you revert this PR.": [
+				"Je bewerkingen in bestand %1$d blijven bij ticket #%2$d en komen terug wanneer je deze PR terugdraait.",
+				"Je bewerkingen in bestanden %1$d blijven bij ticket #%2$d en komen terug wanneer je deze PR terugdraait."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you return to it.": [
+				"Je bewerkingen in bestand %1$d blijven bij probleem #%2$d en komen terug als je ernaar teruggaat.",
+				"Je bewerkingen in bestanden %1$d blijven bij probleem #%2$d en komen terug als je ernaar teruggaat."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you revert this PR.": [
+				"Je bewerkingen aan bestand %1$d blijven bij issue #%2$d en komen terug wanneer je deze PR terugdraait.",
+				"Je bewerkingen aan bestanden %1$d blijven bij issue #%2$d en komen terug wanneer je deze PR terugdraait."
+			],
+			"Attachment (%d)": [
+				"Bijlage (%d)",
+				"Bijlagen (%d)"
+			],
+			"Other attachment (%d)": [
+				"Andere bijlage (%d)",
+				"Andere bijlagen (%d)"
+			],
+			"Closed PR (%d)": [
+				"Gesloten PR (%d)",
+				"Gesloten PR's (%d)"
+			],
+			"Other closed PR (%d)": [
+				"Andere gesloten PR (%d)",
+				"Andere gesloten PR's (%d)"
+			],
+			"Open PR (%d)": [
+				"PR openen (%d)",
+				"PR's openen (%d)"
+			],
+			"Other open PR (%d)": [
+				"Andere open PR (%d)",
+				"Andere open PR's (%d)"
+			],
 			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
 				"Kon de nieuwste trunk niet downloaden, dus deze lijst kan ook wijzigingen uit trunk bevatten die geen deel uitmaken van deze pull request."
 			],
@@ -134,7 +322,7 @@
 				"Wijzigingen beoordelen"
 			],
 			"They stay with this pull request's local copy when you revert this PR.": [
-				"Ze blijven bij de lokale kopie van deze pull aanvraag wanneer je deze PR terugdraait."
+				"Ze blijven bij de lokale kopie van deze pull request wanneer je deze PR terugdraait."
 			],
 			"%1$d unsubmitted change for ticket #%2$s": [
 				"%1$d niet ingediende wijziging voor ticket #%2$s",
@@ -2130,7 +2318,7 @@
 				"Ook op GitHub is niets samengevoegd. Een committer past de wijziging zelf toe, en op het ticket besluiten ze dat."
 			],
 			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
-				"Niemand bekijkt de lijst met pull-aanvragen. Je aanvraag wordt gezien omdat de link ervan op het ticket staat - daarom eindigt deze stroom met je daarheen terug te sturen."
+				"Niemand bekijkt de lijst met pull requests. Je aanvraag wordt gezien omdat de link ervan op het ticket staat - daarom eindigt deze stroom met je daarheen terug te sturen."
 			],
 			"How pull requests work in core": [
 				"Hoe pull requests in core werken"
@@ -2860,9 +3048,6 @@
 			],
 			"Starting…": [
 				"Aan het starten…"
-			],
-			"Starting development server…": [
-				"Ontwikkelserver aan het starten…"
 			],
 			"Server starting…": [
 				"Server wordt gestart…"
