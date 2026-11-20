@@ -58,14 +58,12 @@ If Zed says no debug tasks were found, the PHP extension is not installed: Zed l
 
 ## Connect Sublime Text
 
-Sublime Text debugs PHP with the **Debugger** package, which needs Node.js installed on your computer. The app does not install Node.js or check for it.
+Sublime Text debugs PHP with the **Debugger** package and its PHP adapter, which needs [Node.js](https://nodejs.org/) installed on your computer. If you have not set them up, follow the [Debugger package's setup guide](https://github.com/daveleroy/SublimeDebugger). The app does not install Node.js or check for it.
 
-1. Install [Node.js](https://nodejs.org/), then restart Sublime Text. On macOS, if Debugger later says it cannot find node, run `which node` in a terminal. Then, from the command palette, run **Preferences: Debugger Settings** and set `node` to the path it printed. This happens when you open Sublime Text from the Dock, because it does not get your terminal's `PATH`. The command comes with the Debugger package, so it is there only after step 2.
-2. If you have not used Package Control before, run **Install Package Control** from the command palette first. Then run **Package Control: Install Package**, and install **Debugger**. Then run **Debugger: Install Adapters**, and install **PHP**.
-3. In the site's details, select **Set up Xdebug for your editor**, choose **Sublime Text**, then select **Copy project file**.
-4. Paste it into a new file, and save it in the site's folder with a `.sublime-project` extension. The app keeps it out of your patch.
-5. Open it with **Project → Open Project**.
-6. Run **Debugger: Open**, start **Listen for Xdebug**, set a breakpoint, and load a page of the site in the browser.
+1. In the site's details, select **Set up Xdebug for your editor**, choose **Sublime Text**, then select **Copy project file**.
+2. Save it in the site's folder as `xdebug.sublime-project`, and open it with **Project → Open Project**. The app keeps it out of your patch.
+3. Press the Debugger's play button, choose **Listen for Xdebug**, then press play again.
+4. Set a breakpoint, and load a page of the site in the browser.
 
 Like the launch.json, the project file listens on `127.0.0.1` only.
 

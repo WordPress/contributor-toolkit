@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { speak } from '@wordpress/a11y';
+import { Button as LinkButton } from '@wordpress/components';
 import { createInterpolateElement } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import { check as checkIcon, copy as copyIcon, error as errorIcon } from '@wordpress/icons';
@@ -109,26 +110,32 @@ function ZedSteps({ config, onCopy }) {
   );
 }
 
-// Sublime Text debugs PHP with the Debugger package, which runs its Xdebug
-// adapter on a Node.js installed on the computer (#758). Node comes first, so
-// nobody finds out after the rest. The app does not look for Node itself: a
-// Sublime opened from the Dock on macOS does not get the shell's PATH, so the
-// app's answer could differ from the package's.
+// Sublime Text debugs PHP with the Debugger package, a third-party package
+// whose setup, and what to do when it fails, is its own README's to say
+// (#758). The dialog gives only what this site needs. Its README does not
+// say the PHP adapter needs Node.js, so the dialog does.
+const SUBLIME_DEBUGGER_URL = 'https://github.com/daveleroy/SublimeDebugger';
+
 function SublimeSteps({ config, onCopy }) {
+  const link = <LinkButton variant="link" onClick={() => window.api.openExternal(SUBLIME_DEBUGGER_URL)} />;
   return (
-    <ol className="xdebug-setup-steps">
-      <Step words={__('Install <b>Node.js</b> on your computer, then restart Sublime Text. The Debugger package runs its PHP adapter with it. On macOS, if Debugger later says it can’t find node, run <code>which node</code> in a terminal. Then, from the command palette, run <b>Preferences: Debugger Settings</b> and set <code>node</code> to the path it printed.')} />
-      <Step words={__('If you have not used Package Control before, run <b>Install Package Control</b> from the command palette first. Then run <b>Package Control: Install Package</b>, and install <b>Debugger</b>. Then run <b>Debugger: Install Adapters</b>, and install <b>PHP</b>.')} />
-      <Step words={__('Open the site’s folder, and save this in it as a <code>.sublime-project</code> file. Then open that file with <b>Project → Open Project</b>:')}>
-        <div className="xdebug-launch-config-box">
-          <pre className="xdebug-launch-config">{config}</pre>
-          <Stack direction="row" justify="end">
-            <CopyButton text={config} label={__('Copy project file')} onCopy={onCopy} />
-          </Stack>
-        </div>
-      </Step>
-      <Step words={__('Run <b>Debugger: Open</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.')} />
-    </ol>
+    <>
+      <Text variant="body-md">{createInterpolateElement(
+        __('Sublime Text debugs PHP with the <b>Debugger</b> package and its PHP adapter, which needs Node.js. If you haven’t set them up, follow the <link>Debugger package’s setup guide</link>.'),
+        { ...STEP_MARKUP, link }
+      )}</Text>
+      <ol className="xdebug-setup-steps">
+        <Step words={__('Save this in the site’s folder as <code>xdebug.sublime-project</code>, and open it with <b>Project → Open Project</b>:')}>
+          <div className="xdebug-launch-config-box">
+            <pre className="xdebug-launch-config">{config}</pre>
+            <Stack direction="row" justify="end">
+              <CopyButton text={config} label={__('Copy project file')} onCopy={onCopy} />
+            </Stack>
+          </div>
+        </Step>
+        <Step words={__('Press the Debugger’s play button, choose “Listen for Xdebug”, then press play again. Set a breakpoint, and load the site.')} />
+      </ol>
+    </>
   );
 }
 

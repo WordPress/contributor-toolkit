@@ -363,17 +363,25 @@ test( 'the setup menu offers the detected editors that have a setup, and no setu
 	await expect( zed ).toHaveCount( 0 );
 
 	// INVARIANT — Sublime Text's is a .sublime-project for the Debugger
-	// package's PHP adapter, with the same listener and mapping, and its first
-	// step is the Node.js the package needs, before anything else is done.
+	// package's PHP adapter, with the same listener and mapping. Setting the
+	// package up is its own guide's to say; the dialog links to it and names
+	// the Node.js that guide leaves out.
 	await setup.click();
 	await page.getByRole( 'menuitem', { name: 'Sublime Text', exact: true } ).click();
 	const sublime = page.getByRole( 'dialog', { name: 'Set up Sublime Text', exact: true } );
 	await expect( sublime ).toBeVisible();
-	const nodeStep = sublime.locator( '.xdebug-setup-step' ).first();
-	await expect( nodeStep ).toContainText( 'Install Node.js on your computer, then restart Sublime Text.' );
-	// INVARIANT — the settings command is named as a command palette entry:
-	// it is not in Sublime's Preferences menu.
-	await expect( nodeStep ).toContainText( 'On macOS, if Debugger later says it can’t find node, run which node in a terminal. Then, from the command palette, run Preferences: Debugger Settings' );
+	await expect( sublime ).toContainText( 'Sublime Text debugs PHP with the Debugger package and its PHP adapter, which needs Node.js.' );
+	// The link opens the guide in the browser; the function that would open it
+	// records the address instead.
+	await app.evaluate( ( { shell } ) => {
+		global.e2eOpened = [];
+		shell.openExternal = async ( url ) => { global.e2eOpened.push( url ); };
+	} );
+	await sublime.getByRole( 'button', { name: 'Debugger package’s setup guide', exact: true } ).click();
+	await expect.poll( () => app.evaluate( () => global.e2eOpened ) ).toEqual( [ 'https://github.com/daveleroy/SublimeDebugger' ] );
+	// INVARIANT — the file has a name before its extension: a file named only
+	// .sublime-project is hidden on macOS, and Open Project cannot choose it.
+	await expect( sublime.locator( '.xdebug-setup-step' ).first() ).toContainText( 'Save this in the site’s folder as xdebug.sublime-project' );
 	const project = JSON.parse( await sublime.locator( '.xdebug-launch-config' ).textContent() );
 	expect( project.folders ).toEqual( [ { path: '.' } ] );
 	expect( project.debugger_configurations[ 0 ] ).toMatchObject( { type: 'php', request: 'launch', port: 9003, hostname: '127.0.0.1' } );
