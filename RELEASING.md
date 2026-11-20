@@ -25,6 +25,14 @@ Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags ad
    ```
 
 4. Run `npm run i18n:download` and commit `src/languages/`. It writes a catalog for every locale at least 80% translated on translate.wordpress.org, removes every other catalog in `src/languages/` (an untracked one included), and prints a coverage table. Right-to-left locales are held back even at 80%, and the output lists them after the table under `Not shipped:`. When no locale reaches 80% and there is no catalog to remove, it prints `No locales downloaded.` instead of a table. If it exits with an error, nothing in `src/languages/` changed; run it again. Skipping this step ships the previous release's translations, or none, and nothing fails. See [Translatable strings](CONTRIBUTING.md#translatable-strings) in `CONTRIBUTING.md`.
+
+   The script holds right-to-left locales back by slug, so a right-to-left locale missing from its list ships anyway: Southern Balochi (`bcc`) did in 2.1.0-beta.1 ([#787](https://github.com/WordPress/contributor-toolkit/issues/787)). Check the direction each catalog declares. Every line ends in `ltr`:
+
+   ```bash
+   node -e 'const fs=require("fs");for(const f of fs.readdirSync("src/languages").filter(f=>f.endsWith(".json"))){const t=JSON.parse(fs.readFileSync("src/languages/"+f)).locale_data.messages["text direction\u0004ltr"];console.log(f.slice(0,-5),(t&&t[0])||"ltr")}'
+   ```
+
+   If any line ends in `rtl`, stop. Add that locale to `RTL_LANGUAGES` in `scripts/download-translations.cjs` in its own pull request, then run `npm run i18n:download` again on the release branch once it lands.
 5. Run `npm run lint` and `npm test`.
 6. Open the pull request, titled `Bump version to X.Y.Z`, and paste the coverage table into its description, or the script's message if it printed no table. [#533](https://github.com/WordPress/contributor-toolkit/pull/533) is a good model. Outside `src/languages/`, the diff must be the three version lines, plus any change to `build.electronLanguages` in `package.json`, and nothing else:
 
@@ -48,7 +56,7 @@ All but the name and Windows checks run on the macOS artifact, on a Mac, from th
 
 ```bash
 mnt="$(mktemp -d)"
-hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "<dir>/wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg"
+diskutil image attach --nobrowse --readOnly --mountPoint "$mnt" "<dir>/wordpress-contributor-toolkit-X.Y.Z-mac-arm64.dmg"
 app="$mnt/WordPress Contributor Toolkit.app"
 codesign --verify --deep --strict "$app" && echo signed
 spctl -a -vv -t exec "$app"
@@ -56,8 +64,10 @@ xcrun stapler validate "$app"
 npx asar list "$app/Contents/Resources/app.asar" | grep -E '^/[^/]+$'
 node -p "JSON.parse(require('@electron/asar').extractFile(process.argv[1], 'node_modules/npm/package.json')).version" "$app/Contents/Resources/app.asar"
 plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist"
-hdiutil detach "$mnt" && rmdir "$mnt"
+diskutil eject "$mnt" && rmdir "$mnt"
 ```
+
+`hdiutil` is deprecated on macOS 27. On a macOS without `diskutil image`, use `hdiutil attach -nobrowse -readonly -mountpoint` and `hdiutil detach` instead.
 
 `codesign` prints `signed`. `spctl` prints `accepted`, `source=Notarized Developer ID` and an `origin` naming `Automattic, Inc.`. `stapler` prints `The validate action worked!`. The `asar list` command prints `/node_modules`, `/package.json` and `/src`, and nothing else. The `node` command prints a version starting with `11.`. `plutil` prints `X.Y.Z`.
 
@@ -72,6 +82,8 @@ node -e 'const fs=require("fs");const b=fs.readFileSync(process.argv[1]);const o
 It prints a `subject` line naming `O=Automattic Inc.`, and fails with `not signed` when the installer has no signature. A tampered installer that kept the certificate prints the same, so this does not replace the Windows check.
 
 ## 3. Merge
+
+List every check in section 2 that has not run, such as the Windows signature check when no Windows machine was at hand. Merge with a check outstanding only as a decision, and name the check in the pull request.
 
 Check that the head you checked already contains trunk. The second command prints `up to date`; if it prints nothing, update the branch with trunk, wait for the new head's build, and download and check the artifacts again from it:
 
@@ -99,6 +111,12 @@ Check that it matches the build: after `git fetch origin trunk`, `git diff --sta
 ## 4. Publish the GitHub release
 
 Write the notes first. They open with what changed for a contributor, grouped by theme, with the pull request number on each line, and end with a **Downloads** section naming the file for each platform. The [v1.2.0 notes](https://github.com/WordPress/contributor-toolkit/releases/tag/v1.2.0) are a good model for a stable release, and the previous beta's notes for a beta.
+
+The guide's screenshots use `/screenshots/…` paths, which resolve only on the docs site, and a beta does not deploy the docs. To show a screenshot in a beta's notes, embed it from `docs/public/screenshots/` with a raw URL pinned to a commit on trunk that has it, such as the bump commit:
+
+```markdown
+![Alt text describing the screenshot](https://raw.githubusercontent.com/WordPress/contributor-toolkit/<commit SHA>/docs/public/screenshots/<name>.png)
+```
 
 They cover everything since the previous stable release for a stable release, the betas' changes included, and since the previous tag of any kind for a beta. Find the base tag, and the commit count since it that the opening paragraph gives (it includes the bump commit):
 
