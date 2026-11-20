@@ -61,7 +61,7 @@ If Zed says no debug tasks were found, the PHP extension is not installed: Zed l
 Sublime Text debugs PHP with the **Debugger** package, which needs Node.js installed on your computer. The app does not install Node.js or check for it.
 
 1. Install [Node.js](https://nodejs.org/), then restart Sublime Text. On macOS, if Debugger later says it cannot find node, run `which node` in a terminal. Then, from the command palette, run **Preferences: Debugger Settings** and set `node` to the path it printed. This happens when you open Sublime Text from the Dock, because it does not get your terminal's `PATH`. The command comes with the Debugger package, so it is there only after step 2.
-2. Run **Package Control: Install Package** from the command palette, and install **Debugger**. Then run **Debugger: Install Adapters**, and install **PHP**.
+2. If you have not used Package Control before, run **Install Package Control** from the command palette first. Then run **Package Control: Install Package**, and install **Debugger**. Then run **Debugger: Install Adapters**, and install **PHP**.
 3. In the site's details, select **Set up Xdebug for your editor**, choose **Sublime Text**, then select **Copy project file**.
 4. Paste it into a new file, and save it with a `.sublime-project` extension outside the site's folder, so it stays out of your patch. The file names the site's folder by its full path, so it works from anywhere.
 5. Open it with **Project → Open Project**.

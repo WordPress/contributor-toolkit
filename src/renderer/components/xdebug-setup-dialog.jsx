@@ -118,7 +118,7 @@ function SublimeSteps({ config, onCopy }) {
   return (
     <ol className="xdebug-setup-steps">
       <Step words={__('Install <b>Node.js</b> on your computer, then restart Sublime Text. The Debugger package runs its PHP adapter with it. On macOS, if Debugger later says it can’t find node, run <code>which node</code> in a terminal. Then, from the command palette, run <b>Preferences: Debugger Settings</b> and set <code>node</code> to the path it printed.')} />
-      <Step words={__('Run <b>Package Control: Install Package</b> from the command palette, and install <b>Debugger</b>. Then run <b>Debugger: Install Adapters</b>, and install <b>PHP</b>.')} />
+      <Step words={__('If you have not used Package Control before, run <b>Install Package Control</b> from the command palette first. Then run <b>Package Control: Install Package</b>, and install <b>Debugger</b>. Then run <b>Debugger: Install Adapters</b>, and install <b>PHP</b>.')} />
       <Step words={__('Save this as a <code>.sublime-project</code> file outside the site’s folder, so it stays out of your patch, and open it with <b>Project → Open Project</b>:')}>
         <div className="xdebug-launch-config-box">
           <pre className="xdebug-launch-config">{config}</pre>
