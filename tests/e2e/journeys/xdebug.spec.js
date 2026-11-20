@@ -369,8 +369,11 @@ test( 'the setup menu offers the detected editors that have a setup, and no setu
 	await page.getByRole( 'menuitem', { name: 'Sublime Text', exact: true } ).click();
 	const sublime = page.getByRole( 'dialog', { name: 'Set up Sublime Text', exact: true } );
 	await expect( sublime ).toBeVisible();
-	await expect( sublime.locator( '.xdebug-setup-step' ).first() ).toContainText( 'Install Node.js on your computer.' );
-	await expect( sublime.locator( '.xdebug-setup-step' ).first() ).toContainText( 'which node' );
+	const nodeStep = sublime.locator( '.xdebug-setup-step' ).first();
+	await expect( nodeStep ).toContainText( 'Install Node.js on your computer, then restart Sublime Text.' );
+	// INVARIANT — the settings command is named as a command palette entry:
+	// it is not in Sublime's Preferences menu.
+	await expect( nodeStep ).toContainText( 'On macOS, if Debugger later says it can’t find node, run which node in a terminal. Then, from the command palette, run Preferences: Debugger Settings' );
 	const project = JSON.parse( await sublime.locator( '.xdebug-launch-config' ).textContent() );
 	expect( project.folders ).toEqual( [ { path: site.dir } ] );
 	expect( project.debugger_configurations[ 0 ] ).toMatchObject( { type: 'php', request: 'launch', port: 9003, hostname: '127.0.0.1' } );

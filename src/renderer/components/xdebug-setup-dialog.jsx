@@ -117,7 +117,7 @@ function ZedSteps({ config, onCopy }) {
 function SublimeSteps({ config, onCopy }) {
   return (
     <ol className="xdebug-setup-steps">
-      <Step words={__('Install <b>Node.js</b> on your computer. The Debugger package runs its PHP adapter with it. If Debugger later says it can’t find node, run <code>which node</code> in a terminal, then run <b>Preferences: Debugger Settings</b> and set <code>node</code> to the path it printed.')} />
+      <Step words={__('Install <b>Node.js</b> on your computer, then restart Sublime Text. The Debugger package runs its PHP adapter with it. On macOS, if Debugger later says it can’t find node, run <code>which node</code> in a terminal. Then, from the command palette, run <b>Preferences: Debugger Settings</b> and set <code>node</code> to the path it printed.')} />
       <Step words={__('Run <b>Package Control: Install Package</b> from the command palette, and install <b>Debugger</b>. Then run <b>Debugger: Install Adapters</b>, and install <b>PHP</b>.')} />
       <Step words={__('Save this as a <code>.sublime-project</code> file outside the site’s folder, so it stays out of your patch, and open it with <b>Project → Open Project</b>:')}>
         <div className="xdebug-launch-config-box">
@@ -171,8 +171,9 @@ function PhpStormSteps({ values, onCopy }) {
  * How to stop on breakpoints while the site's server has Xdebug (#723), for
  * one editor, picked from the Debugging row's menu: VS Code or Cursor, with
  * the launch.json they need, Zed, with its debug.json, Sublime Text, with its
- * project file, or PhpStorm, with the values its settings need. The app shows and copies them, and never writes them into the checkout, where
- * they would end up in a patch.
+ * project file, or PhpStorm, with the values its settings need. The app
+ * shows and copies them, and never writes them into the checkout, where they
+ * would end up in a patch.
  *
  * @param {Object}   props
  * @param {?Object}  props.editor   The editor while open, from `xdebugEditors`: `{id, name, setup}`; or null.
