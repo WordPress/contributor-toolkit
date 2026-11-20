@@ -109,6 +109,29 @@ function ZedSteps({ config, onCopy }) {
   );
 }
 
+// Sublime Text debugs PHP with the Debugger package, which runs its Xdebug
+// adapter on a Node.js installed on the computer (#758). Node comes first, so
+// nobody finds out after the rest. The app does not look for Node itself: a
+// Sublime opened from the Dock on macOS does not get the shell's PATH, so the
+// app's answer could differ from the package's.
+function SublimeSteps({ config, onCopy }) {
+  return (
+    <ol className="xdebug-setup-steps">
+      <Step words={__('Install <b>Node.js</b> on your computer. The Debugger package runs its PHP adapter with it. If Debugger later says it can’t find node, run <code>which node</code> in a terminal, then run <b>Preferences: Debugger Settings</b> and set <code>node</code> to the path it printed.')} />
+      <Step words={__('Run <b>Package Control: Install Package</b> from the command palette, and install <b>Debugger</b>. Then run <b>Debugger: Install Adapters</b>, and install <b>PHP</b>.')} />
+      <Step words={__('Save this as a <code>.sublime-project</code> file outside the site’s folder, so it stays out of your patch, and open it with <b>Project → Open Project</b>:')}>
+        <div className="xdebug-launch-config-box">
+          <pre className="xdebug-launch-config">{config}</pre>
+          <Stack direction="row" justify="end">
+            <CopyButton text={config} label={__('Copy project file')} onCopy={onCopy} />
+          </Stack>
+        </div>
+      </Step>
+      <Step words={__('Run <b>Debugger: Open</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.')} />
+    </ol>
+  );
+}
+
 // A value for PhpStorm's settings: its field's name over it, and its copy
 // button at the end, described by that name.
 function PhpStormValue({ value, onCopy }) {
@@ -147,20 +170,20 @@ function PhpStormSteps({ values, onCopy }) {
 /**
  * How to stop on breakpoints while the site's server has Xdebug (#723), for
  * one editor, picked from the Debugging row's menu: VS Code or Cursor, with
- * the launch.json they need, Zed, with its debug.json, or PhpStorm, with the
- * values its settings need. The
- * app shows and copies them, and never writes them into the checkout, where
+ * the launch.json they need, Zed, with its debug.json, Sublime Text, with its
+ * project file, or PhpStorm, with the values its settings need. The app shows and copies them, and never writes them into the checkout, where
  * they would end up in a patch.
  *
  * @param {Object}   props
  * @param {?Object}  props.editor   The editor while open, from `xdebugEditors`: `{id, name, setup}`; or null.
  * @param {string}   props.config   The launch.json, from `xdebugLaunchConfig`.
  * @param {string}   props.zed      The debug.json, from `zedDebugConfig`.
+ * @param {string}   props.sublime  The .sublime-project, from `sublimeProjectConfig`.
  * @param {Array}    props.phpStorm The PhpStorm values, from `phpStormSettings`.
  * @param {Function} props.onCopy   Copies a text, resolving to whether it worked.
  * @param {Function} props.onClose
  */
-export function XdebugSetupDialog({ editor, config, zed, phpStorm, onCopy, onClose }) {
+export function XdebugSetupDialog({ editor, config, zed, sublime, phpStorm, onCopy, onClose }) {
   // The editor stays drawn while the dialog closes, when `editor` is already
   // null.
   const [shown, setShown] = useState(editor);
@@ -170,7 +193,8 @@ export function XdebugSetupDialog({ editor, config, zed, phpStorm, onCopy, onClo
   const phpStormShown = setup === 'phpstorm';
   const steps = {
     phpstorm: <PhpStormSteps values={phpStorm} onCopy={onCopy} />,
-    zed: <ZedSteps config={zed} onCopy={onCopy} />
+    zed: <ZedSteps config={zed} onCopy={onCopy} />,
+    sublime: <SublimeSteps config={sublime} onCopy={onCopy} />
   };
   return (
     <Dialog.Root open={Boolean(editor)} onOpenChange={(next) => { if (!next) onClose(); }}>

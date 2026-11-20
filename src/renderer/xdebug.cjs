@@ -67,6 +67,29 @@ function zedDebugConfig({ sitePath, serve }) {
 }
 
 /**
+ * The .sublime-project a contributor saves for Sublime Text's Debugger
+ * package, which runs the same Xdebug adapter as VS Code's PHP Debug, as
+ * "php", and reads its setups from `debugger_configurations` in the project
+ * file. The project names the site's folder by its full path, so the file
+ * works wherever it is saved, and is saved outside the checkout, where it
+ * would otherwise end up in a patch.
+ *
+ * @param {Object} root0
+ * @param {string} root0.sitePath The checkout's folder, in this platform's form.
+ * @param {Object} root0.serve    The project's serve model: `{strategy, pluginSlug}`.
+ * @return {string} The file's text.
+ */
+function sublimeProjectConfig({ sitePath, serve }) {
+	const { server, local } = xdebugMapping({ sitePath, serve });
+	return JSON.stringify({
+		folders: [{ path: sitePath }],
+		debugger_configurations: [
+			{ name: 'Listen for Xdebug', type: 'php', request: 'launch', hostname: XDEBUG_HOST, port: XDEBUG_PORT, pathMappings: { [server]: local } }
+		]
+	}, null, 2);
+}
+
+/**
  * The one mapping between the path PHP sees and the folder on this machine,
  * which every editor needs; see `xdebugLaunchConfig` for why it is this one.
  *
@@ -147,9 +170,9 @@ function xdebugStatus({ setting, running, startedWith, holder = '', heldAtStart 
 /**
  * What the server's details say of Xdebug: null when there is nothing to
  * say; otherwise whether the server has it, the note from `xdebugStatus`,
- * and the launch.json for VS Code, the debug.json for Zed and the values for
- * PhpStorm while it has
- * it (and nothing when it would not connect).
+ * and the launch.json for VS Code, the debug.json for Zed, the project file
+ * for Sublime Text and the values for PhpStorm while it has it (and nothing
+ * when it would not connect).
  *
  * @param {Object}   root0
  * @param {boolean}  root0.setting       What the settings hold.
@@ -161,7 +184,7 @@ function xdebugStatus({ setting, running, startedWith, holder = '', heldAtStart 
  * @param {Function} [root0.nameFor]     A site's name, by its path.
  * @param {Object}   root0.serve         The project's serve model.
  * @param {string}   root0.url           The running server's address.
- * @return {?{on: boolean, note: string, config: string, zed: string, phpStorm: Array}}
+ * @return {?{on: boolean, note: string, config: string, zed: string, sublime: string, phpStorm: Array}}
  */
 function xdebugSection({ setting, running, startedWith, heldAtStart = false, sitePath, servers = {}, nameFor = (dir) => dir, serve, url }) {
 	const holderPath = xdebugHolder({ sitePath, servers });
@@ -171,6 +194,7 @@ function xdebugSection({ setting, running, startedWith, heldAtStart = false, sit
 		...status,
 		config: status.on ? xdebugLaunchConfig({ sitePath, serve }) : '',
 		zed: status.on ? zedDebugConfig({ sitePath, serve }) : '',
+		sublime: status.on ? sublimeProjectConfig({ sitePath, serve }) : '',
 		phpStorm: status.on ? phpStormSettings({ sitePath, serve, url }) : []
 	};
 }
@@ -193,19 +217,20 @@ function xdebugHolder({ sitePath, servers }) {
 /**
  * The editors the setup menu offers: those found on this machine that have a
  * setup, in this order. Cursor reads VS Code's launch.json, so it gets that
- * setup under its own name. Sublime Text has none: its PHP debugger needs
- * Node.js installed, which the toolkit does not ask for. With none found
- * that has a setup, there is nothing to set up, and the list is empty.
+ * setup under its own name. Sublime Text's needs Node.js on the computer,
+ * which its steps say first (#758). With none found that has a setup, there
+ * is nothing to set up, and the list is empty.
  *
  * @param {Array<{id: string}>} [detected] From `editor:list`.
- * @return {Array<{id: string, name: string, setup: string}>} `setup` is 'vscode', 'phpstorm' or 'zed'.
+ * @return {Array<{id: string, name: string, setup: string}>} `setup` is 'vscode', 'phpstorm', 'zed' or 'sublime'.
  */
 function xdebugEditors(detected) {
 	const editors = [
 		{ id: 'vscode', name: __('VS Code'), setup: 'vscode' },
 		{ id: 'cursor', name: __('Cursor'), setup: 'vscode' },
 		{ id: 'phpstorm', name: __('PhpStorm'), setup: 'phpstorm' },
-		{ id: 'zed', name: __('Zed'), setup: 'zed' }
+		{ id: 'zed', name: __('Zed'), setup: 'zed' },
+		{ id: 'sublime', name: __('Sublime Text'), setup: 'sublime' }
 	];
 	const ids = new Set((detected || []).map((editor) => editor.id));
 	return editors.filter((editor) => ids.has(editor.id));
@@ -229,4 +254,4 @@ function xdebugSetupEditor({ editors = [], preferred = null } = {}) {
 	return { ...chosen, label: sprintf(__('Set up Xdebug for %s'), chosen.name) };
 }
 
-module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, xdebugSetupEditor, zedDebugConfig };
+module.exports = { XDEBUG_PORT, xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, xdebugSetupEditor, zedDebugConfig, sublimeProjectConfig };

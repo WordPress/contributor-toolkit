@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, xdebugSetupEditor, zedDebugConfig } = require('../../src/renderer/xdebug.cjs');
+const { xdebugLaunchConfig, phpStormSettings, xdebugStatus, xdebugSection, xdebugHolder, xdebugEditors, xdebugSetupEditor, zedDebugConfig, sublimeProjectConfig } = require('../../src/renderer/xdebug.cjs');
 
 const mappings = (text) => JSON.parse(text).configurations[0].pathMappings;
 
@@ -171,7 +171,8 @@ test('the setup menu lists the detected editors that have a setup, in a fixed or
 	assert.deepEqual(xdebugEditors(found('zed', 'sublime', 'phpstorm', 'vscode')), [
 		{ id: 'vscode', name: 'VS Code', setup: 'vscode' },
 		{ id: 'phpstorm', name: 'PhpStorm', setup: 'phpstorm' },
-		{ id: 'zed', name: 'Zed', setup: 'zed' }
+		{ id: 'zed', name: 'Zed', setup: 'zed' },
+		{ id: 'sublime', name: 'Sublime Text', setup: 'sublime' }
 	]);
 });
 
@@ -183,7 +184,7 @@ test('Cursor gets the VS Code setup, under its own name', () => {
 // menu has no entries, and the Debugging row offers no setup.
 test('with no detected editor that has a setup, the menu offers nothing', () => {
 	assert.deepEqual(xdebugEditors([]), []);
-	assert.deepEqual(xdebugEditors(found('sublime')), []);
+	assert.deepEqual(xdebugEditors(found('notepad')), []);
 	assert.deepEqual(xdebugEditors(undefined), []);
 });
 
@@ -197,9 +198,9 @@ test('the setup opens the editor chosen in Settings directly when it has a setup
 });
 
 test('the setup is the menu with no editor chosen, one with no setup, or one no longer found', () => {
-	const editors = xdebugEditors(found('vscode', 'sublime'));
+	const editors = xdebugEditors(found('vscode', 'notepad'));
 	assert.equal(xdebugSetupEditor({ editors, preferred: null }), null);
-	assert.equal(xdebugSetupEditor({ editors, preferred: 'sublime' }), null);
+	assert.equal(xdebugSetupEditor({ editors, preferred: 'notepad' }), null);
 	assert.equal(xdebugSetupEditor({ editors, preferred: 'zed' }), null);
 	assert.equal(xdebugSetupEditor({ editors: undefined, preferred: 'vscode' }), null);
 });
@@ -225,4 +226,31 @@ test('a server with Xdebug gets its Zed config', () => {
 	const section = xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/', setting: true, running: true, startedWith: true });
 	assert.equal(section.zed, zedDebugConfig({ sitePath: '/sites/wp', serve: { strategy: 'docroot' } }));
 	assert.equal(xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, setting: true, running: true, startedWith: false }).zed, '');
+});
+
+// Sublime Text's Debugger package reads `debugger_configurations` from a
+// .sublime-project and runs the same Xdebug adapter as VS Code, as "php"
+// (#758). The project names the site's folder by its full path, so it works
+// saved outside the checkout.
+test('the Sublime Text project file opens the site and listens on 127.0.0.1:9003 with the launch.json mapping', () => {
+	for (const sitePath of ['/sites/wp', 'C:\\sites\\wp']) {
+		for (const serve of [{ strategy: 'docroot' }, { strategy: 'plugin-mount', pluginSlug: 'gutenberg' }]) {
+			const project = JSON.parse(sublimeProjectConfig({ sitePath, serve }));
+			assert.deepEqual(project.folders, [{ path: sitePath }]);
+			assert.equal(project.debugger_configurations.length, 1);
+			const [listen] = project.debugger_configurations;
+			assert.equal(listen.type, 'php');
+			assert.equal(listen.request, 'launch');
+			assert.equal(listen.port, 9003);
+			assert.equal(listen.hostname, '127.0.0.1');
+			assert.equal(listen.name, 'Listen for Xdebug');
+			assert.deepEqual(listen.pathMappings, mappings(xdebugLaunchConfig({ sitePath, serve })));
+		}
+	}
+});
+
+test('a server with Xdebug gets its Sublime Text project file', () => {
+	const section = xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, url: 'http://127.0.0.1:9400/', setting: true, running: true, startedWith: true });
+	assert.equal(section.sublime, sublimeProjectConfig({ sitePath: '/sites/wp', serve: { strategy: 'docroot' } }));
+	assert.equal(xdebugSection({ sitePath: '/sites/wp', serve: { strategy: 'docroot' }, setting: true, running: true, startedWith: false }).sublime, '');
 });
