@@ -2614,7 +2614,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onClose={() => setDirtyModalOpen(false)}
         />
       ) : null}
-      <XdebugSetupDialog editor={xdebugOn ? setupEditors.find((entry) => entry.id === xdebugEditor) || null : null} config={xdebug ? xdebug.config : ''} zed={xdebug ? xdebug.zed : ''} phpStorm={xdebug ? xdebug.phpStorm : []} onCopy={copyXdebugConfig} onClose={() => setXdebugEditor(null)} />
+      <XdebugSetupDialog editor={xdebugOn ? setupEditors.find((entry) => entry.id === xdebugEditor) || null : null} config={xdebug ? xdebug.config : ''} zed={xdebug ? xdebug.zed : ''} sublime={xdebug ? xdebug.sublime : ''} phpStorm={xdebug ? xdebug.phpStorm : []} onCopy={copyXdebugConfig} onClose={() => setXdebugEditor(null)} />
       <RenameSiteDialog open={renameModalOpen} sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
       <ConfirmDialog question={asking ? asking.question : null} onConfirm={() => asking.action()} onClose={() => setAsking(null)} />
       {isPatchOpen && (

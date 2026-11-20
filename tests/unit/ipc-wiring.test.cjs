@@ -1931,6 +1931,37 @@ test('site:status excludes editor folders from a site seeded before they were ad
 	assert.equal(exclude.split('# WordPress Contributor Toolkit local excludes').length - 1, 1, 'the agent block is not written again');
 });
 
+// The Xdebug setup for Sublime Text asks for a .sublime-project in the site's
+// folder (#758). A site seeded before then has the editor block, written only
+// once, so the project file arrives in a block of its own.
+test('site:status excludes a Sublime Text project from a site seeded before it was added (issue #758)', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-wiring-sublime-exclude-');
+	fs.writeFileSync(path.join(dir, 'README.md'), 'managed wordpress-develop site\n');
+	commitFiles(dir, ['README.md'], 'init');
+	fs.writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '# WordPress Contributor Toolkit local excludes\n/.claude/\n# WordPress Contributor Toolkit editor folders\n/.vscode/\n');
+	fs.writeFileSync(path.join(dir, 'wordpress.sublime-project'), '{}\n');
+	fs.writeFileSync(path.join(dir, 'wordpress.sublime-workspace'), '{}\n');
+	fs.appendFileSync(path.join(dir, 'README.md'), 'real contributor edit\n');
+
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } }).stubs
+		}
+	});
+	await main.invoke('site:status', dir);
+	const result = await main.invoke('git:get-patch', dir);
+
+	assert.equal(result.ok, true);
+	assert.match(result.patch, /README\.md/, 'the contributor\'s WordPress change stays visible');
+	assert.doesNotMatch(result.patch, /sublime-project/);
+	assert.doesNotMatch(result.patch, /sublime-workspace/);
+
+	await main.invoke('site:status', dir);
+	const exclude = fs.readFileSync(path.join(dir, '.git', 'info', 'exclude'), 'utf8');
+	assert.equal(exclude.split('# WordPress Contributor Toolkit Sublime Text').length - 1, 1, 'the Sublime Text block is added only once');
+});
+
 // --- what the patch says about deletions, additions and binaries (#85) ---
 
 // A repository with a committed base, for the generation tests below. Returns
