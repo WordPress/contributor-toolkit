@@ -111,9 +111,12 @@ function ZedSteps({ config, onCopy }) {
 }
 
 // Sublime Text debugs PHP with the Debugger package, a third-party package
-// whose setup, and what to do when it fails, is its own README's to say
-// (#758). The dialog gives only what this site needs. Its README does not
-// say the PHP adapter needs Node.js, so the dialog does.
+// whose setup is its own README's to say (#758). The dialog gives only what
+// this site needs, and names the Node.js the PHP adapter needs, which the
+// README does not. It deliberately leaves out the fix for a Sublime opened
+// from the macOS Dock not finding an nvm or Homebrew Node (the package's
+// `node` setting): the README does not cover that either, and the app does
+// not troubleshoot a third-party package.
 const SUBLIME_DEBUGGER_URL = 'https://github.com/daveleroy/SublimeDebugger';
 
 function SublimeSteps({ config, onCopy }) {
