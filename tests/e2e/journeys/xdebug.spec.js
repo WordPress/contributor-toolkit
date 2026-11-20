@@ -375,7 +375,7 @@ test( 'the setup menu offers the detected editors that have a setup, and no setu
 	// it is not in Sublime's Preferences menu.
 	await expect( nodeStep ).toContainText( 'On macOS, if Debugger later says it can’t find node, run which node in a terminal. Then, from the command palette, run Preferences: Debugger Settings' );
 	const project = JSON.parse( await sublime.locator( '.xdebug-launch-config' ).textContent() );
-	expect( project.folders ).toEqual( [ { path: site.dir } ] );
+	expect( project.folders ).toEqual( [ { path: '.' } ] );
 	expect( project.debugger_configurations[ 0 ] ).toMatchObject( { type: 'php', request: 'launch', port: 9003, hostname: '127.0.0.1' } );
 	expect( project.debugger_configurations[ 0 ].pathMappings ).toEqual( { '/wordpress': path.join( site.dir, 'src' ) } );
 	await expect( sublime.getByRole( 'button', { name: 'Copy project file', exact: true } ) ).toBeVisible();

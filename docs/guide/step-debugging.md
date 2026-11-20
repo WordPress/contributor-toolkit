@@ -63,7 +63,7 @@ Sublime Text debugs PHP with the **Debugger** package, which needs Node.js insta
 1. Install [Node.js](https://nodejs.org/), then restart Sublime Text. On macOS, if Debugger later says it cannot find node, run `which node` in a terminal. Then, from the command palette, run **Preferences: Debugger Settings** and set `node` to the path it printed. This happens when you open Sublime Text from the Dock, because it does not get your terminal's `PATH`. The command comes with the Debugger package, so it is there only after step 2.
 2. If you have not used Package Control before, run **Install Package Control** from the command palette first. Then run **Package Control: Install Package**, and install **Debugger**. Then run **Debugger: Install Adapters**, and install **PHP**.
 3. In the site's details, select **Set up Xdebug for your editor**, choose **Sublime Text**, then select **Copy project file**.
-4. Paste it into a new file, and save it with a `.sublime-project` extension outside the site's folder, so it stays out of your patch. The file names the site's folder by its full path, so it works from anywhere.
+4. Paste it into a new file, and save it in the site's folder with a `.sublime-project` extension. The app keeps it out of your patch.
 5. Open it with **Project → Open Project**.
 6. Run **Debugger: Open**, start **Listen for Xdebug**, set a breakpoint, and load a page of the site in the browser.
 

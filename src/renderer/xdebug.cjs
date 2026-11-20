@@ -70,9 +70,9 @@ function zedDebugConfig({ sitePath, serve }) {
  * The .sublime-project a contributor saves for Sublime Text's Debugger
  * package, which runs the same Xdebug adapter as VS Code's PHP Debug, as
  * "php", and reads its setups from `debugger_configurations` in the project
- * file. The project names the site's folder by its full path, so the file
- * works wherever it is saved, and is saved outside the checkout, where it
- * would otherwise end up in a patch.
+ * file. It is saved in the site's folder, like the other editors' files, so
+ * the folder it opens is that one; the site's `.git/info/exclude` keeps it,
+ * and the .sublime-workspace Sublime writes beside it, out of a patch.
  *
  * @param {Object} root0
  * @param {string} root0.sitePath The checkout's folder, in this platform's form.
@@ -82,7 +82,7 @@ function zedDebugConfig({ sitePath, serve }) {
 function sublimeProjectConfig({ sitePath, serve }) {
 	const { server, local } = xdebugMapping({ sitePath, serve });
 	return JSON.stringify({
-		folders: [{ path: sitePath }],
+		folders: [{ path: '.' }],
 		debugger_configurations: [
 			{ name: 'Listen for Xdebug', type: 'php', request: 'launch', hostname: XDEBUG_HOST, port: XDEBUG_PORT, pathMappings: { [server]: local } }
 		]

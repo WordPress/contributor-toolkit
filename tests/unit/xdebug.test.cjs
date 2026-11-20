@@ -230,13 +230,12 @@ test('a server with Xdebug gets its Zed config', () => {
 
 // Sublime Text's Debugger package reads `debugger_configurations` from a
 // .sublime-project and runs the same Xdebug adapter as VS Code, as "php"
-// (#758). The project names the site's folder by its full path, so it works
-// saved outside the checkout.
+// (#758). The file is saved in the site's folder, so it opens that folder.
 test('the Sublime Text project file opens the site and listens on 127.0.0.1:9003 with the launch.json mapping', () => {
 	for (const sitePath of ['/sites/wp', 'C:\\sites\\wp']) {
 		for (const serve of [{ strategy: 'docroot' }, { strategy: 'plugin-mount', pluginSlug: 'gutenberg' }]) {
 			const project = JSON.parse(sublimeProjectConfig({ sitePath, serve }));
-			assert.deepEqual(project.folders, [{ path: sitePath }]);
+			assert.deepEqual(project.folders, [{ path: '.' }]);
 			assert.equal(project.debugger_configurations.length, 1);
 			const [listen] = project.debugger_configurations;
 			assert.equal(listen.type, 'php');

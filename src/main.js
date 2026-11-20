@@ -128,6 +128,16 @@ const EDITOR_EXCLUDES = [
 	'/.nova/'
 ];
 
+// Sublime Text keeps a project in a file rather than a folder, and writes a
+// .sublime-workspace beside it. The Xdebug setup asks for one in the site's
+// folder (#758). A block of its own for the reason above: a site seeded
+// before this has the editor block already.
+const SUBLIME_EXCLUDES_MARKER = '# WordPress Contributor Toolkit Sublime Text';
+const SUBLIME_EXCLUDES = [
+	'/*.sublime-project',
+	'/*.sublime-workspace'
+];
+
 /**
  * Seeds per-site ignores for machine-local files that must never become part
  * of a contribution. This lives in `.git/info/exclude`, not the repository's
@@ -157,11 +167,13 @@ async function ensureLocalExcludes(dir) {
 	// Playground CLI links its VFS root into the folder the server runs from,
 	// which for a plugin-mount site is the checkout, and leaves the link behind
 	// when the server stops. The launch.json and debug.json the editor setups
-	// ask for are under the editor folders excluded below.
+	// ask for are under the editor folders excluded below, and the Sublime Text
+	// project file is in a block of its own.
 	await appendExcludeBlock(dir, '# WordPress Contributor Toolkit Xdebug', ['/.playground-xdebug-root'], { once: true });
 	const agents = await appendExcludeBlock(dir, LOCAL_EXCLUDES_MARKER, LOCAL_EXCLUDES, { once: true });
 	const editors = await appendExcludeBlock(dir, EDITOR_EXCLUDES_MARKER, EDITOR_EXCLUDES, { once: true });
-	return agents || editors;
+	const sublime = await appendExcludeBlock(dir, SUBLIME_EXCLUDES_MARKER, SUBLIME_EXCLUDES, { once: true });
+	return agents || editors || sublime;
 }
 
 // Screenshot harness only (scripts/screenshots/): point userData at a throwaway
