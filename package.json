@@ -1,11 +1,12 @@
 {
   "name": "electron-setup-wordpress-core",
   "author": "WordPress.org",
-  "version": "2.0.0",
+  "version": "2.1.0-beta.1",
   "private": true,
   "license": "GPL-2.0-or-later",
   "description": "Desktop app that sets up a WordPress core development environment with no prerequisites, applies the work already on a Trac ticket, and submits a contribution back",
   "homepage": "https://wordpress.github.io/contributor-toolkit/",
+  "desktopName": "wordpress-contributor-toolkit.desktop",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WordPress/contributor-toolkit.git"
@@ -88,20 +89,35 @@
     "electronLanguages": [
       "en-US",
       "cs",
+      "de",
       "en-GB",
       "en_GB",
+      "es",
       "hu",
+      "ja",
       "nl",
       "pl",
       "sr",
-      "tr"
+      "tr",
+      "zh-CN",
+      "zh_CN"
     ],
     "icon": "build/icon.png",
     "linux": {
       "maintainer": "WordPress.org",
+      "category": "Development",
+      "executableName": "wordpress-contributor-toolkit",
       "target": [
-        "AppImage"
+        "AppImage",
+        "deb",
+        "rpm"
       ]
+    },
+    "deb": {
+      "packageName": "wordpress-contributor-toolkit"
+    },
+    "rpm": {
+      "packageName": "wordpress-contributor-toolkit"
     },
     "win": {
       "icon": "build/icon.ico",

@@ -14,7 +14,7 @@ steps:
     env:
       SIGN_WINDOWS_BUILD: 1
     artifact_paths:
-      - dist\*.exe
+      - dist/*.exe
     notify:
       - github_commit_status: { context: "Windows Build" }
 
@@ -24,7 +24,7 @@ steps:
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: .buildkite/commands/build_windows.ps1
     artifact_paths:
-      - dist\*.exe
+      - dist/*.exe
     notify:
       - github_commit_status: { context: "Windows Build" }
 
@@ -72,7 +72,11 @@ steps:
       echo "~~~ Install Node dependencies"
       npm ci --no-audit --no-progress --maxsockets 1
 
-      echo "~~~ Build Linux artifact"
+      echo "~~~ Install rpmbuild for the rpm target"
+      apt-get update -qq
+      apt-get install -y -qq --no-install-recommends rpm
+
+      echo "~~~ Build Linux artifacts"
       npm run dist
     plugins:
       - $DOCKER_PLUGIN:
@@ -80,6 +84,8 @@ steps:
           always-pull: true
     artifact_paths:
       - dist/*.AppImage
+      - dist/*.deb
+      - dist/*.rpm
     notify:
       - github_commit_status: { context: "Linux Build" }
 
@@ -100,4 +106,4 @@ steps:
       SIGN_WINDOWS_BUILD: 1
     command: .buildkite/commands/build_windows.ps1
     artifact_paths:
-      - dist\*.exe
+      - dist/*.exe

@@ -1,0 +1,3488 @@
+{
+	"translation-revision-date": "2026-11-17 11:18:17+0000",
+	"generator": "GlotPress/4.1.0",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": {
+				"domain": "messages",
+				"plural-forms": "nplurals=1; plural=0;",
+				"lang": "zh_CN"
+			},
+			"Set up Xdebug for %s": [
+				"为 %s 配置 Xdebug"
+			],
+			"Link #%d": [
+				"关联 #%d"
+			],
+			"#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use Check out a pull request to test it.": [
+				"#%1$d 是拉取请求，修复了 %2$s。请改为关联其中的问题，或使用「签出拉取请求」进行测试。"
+			],
+			"#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.": [
+				"#%d 是拉取请求，而不是问题，其描述也未说明修复了这里的哪个问题。如需测试，请使用「签出拉取请求」。"
+			],
+			"What “Open in” in the site’s menu and the files under “Changed files” open in, and which editor’s Xdebug setup the site’s details offer. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.": [
+				"决定站点菜单中的「打开方式」及「已更改文件」中的文件使用哪个编辑器打开，以及站点详情中显示哪个编辑器的 Xdebug 配置说明。选择「每次询问」或原编辑器已卸载时，应用会询问要使用哪个编辑器。"
+			],
+			"Zed": [
+				"Zed"
+			],
+			"PhpStorm": [
+				"PhpStorm"
+			],
+			"Cursor": [
+				"Cursor"
+			],
+			"VS Code": [
+				"VS Code"
+			],
+			"Xdebug is turned on, but this site started before that. Restart the server to use it.": [
+				"Xdebug 已开启，但此站点在开启前就已启动。请重启服务器以使用它。"
+			],
+			"This site started without Xdebug because another site’s server had it. Restart the server to use it.": [
+				"由于另一个站点的服务器已使用 Xdebug，此站点启动时未启用它。请重启服务器以使用它。"
+			],
+			"Xdebug is on for %s. Stop that site’s server, then restart this one to use it here.": [
+				"%s 已启用 Xdebug。请停止该站点的服务器，再重启此站点的服务器，即可在这里使用。"
+			],
+			"Xdebug is still on for this site until you restart the server.": [
+				"在重启服务器之前，此站点仍会启用 Xdebug。"
+			],
+			"Absolute path on the server": [
+				"服务器上的绝对路径"
+			],
+			"File/Directory": [
+				"文件/目录"
+			],
+			"Port": [
+				"端口"
+			],
+			"Host": [
+				"主机"
+			],
+			"Cancel the development server start": [
+				"取消启动开发服务器"
+			],
+			"Dev server start cancelled.": [
+				"已取消启动开发服务器。"
+			],
+			"Copy debug.json": [
+				"复制 debug.json"
+			],
+			"Open the site’s folder, and put this in <code>.zed/debug.json</code>:": [
+				"打开站点文件夹，并将以下内容放入 <code>.zed/debug.json</code>："
+			],
+			"Run <b>zed: extensions</b> from the command palette, and install <b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with.": [
+				"在命令面板中运行 <b>zed: extensions</b>，并安装 <b>PHP</b> 扩展。Zed 通过该扩展的 Xdebug 适配器调试 PHP。"
+			],
+			"In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"在<b>运行和调试</b>中启动「Listen for Xdebug」，设置断点并加载站点。"
+			],
+			"Copy launch.json": [
+				"复制 launch.json"
+			],
+			"Open the site’s folder, and put this in <code>.vscode/launch.json</code>:": [
+				"打开站点文件夹，并将以下内容放入 <code>.vscode/launch.json</code>："
+			],
+			"Install the <b>PHP Debug</b> extension by Xdebug.": [
+				"安装由 Xdebug 提供的 <b>PHP Debug</b> 扩展。"
+			],
+			"Every site’s server sends Xdebug to port %d, so only one running site has Xdebug at a time: the first one started with it.": [
+				"每个站点的服务器都将 Xdebug 连接发送到端口 %d，因此同一时间只有一个运行中的站点能使用 Xdebug，即最先启用它启动的站点。"
+			],
+			"Couldn’t copy to clipboard.": [
+				"无法复制到剪贴板。"
+			],
+			"Copied to clipboard": [
+				"已复制到剪贴板"
+			],
+			"If the site starts on another port, PhpStorm asks which server it is; update the Host above.": [
+				"如果站点在其他端口启动，PhpStorm 会询问对应的服务器；请更新上方的主机设置。"
+			],
+			"Set up %s": [
+				"配置 %s"
+			],
+			"Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a breakpoint, and load the site.": [
+				"开启 <b>Run → Start Listening for PHP Debug Connections</b>，设置断点并加载站点。"
+			],
+			"In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:": [
+				"在 <b>Settings → PHP → Servers</b> 中添加服务器，将调试器设为 Xdebug，开启「Use path mappings」，然后输入："
+			],
+			"In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options.": [
+				"在 <b>Settings → PHP → Debug</b> 中，确保 Debug port 包含 %d，并关闭两个「Force break at first line」选项。"
+			],
+			"If Zed says no debug tasks were found, the PHP extension is not installed.": [
+				"如果 Zed 提示未找到调试任务，说明尚未安装 PHP 扩展。"
+			],
+			"Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"在命令面板中运行 <b>debugger: start</b>，选择「Listen for Xdebug」，设置断点并加载站点。"
+			],
+			"Set up Xdebug for your editor": [
+				"为您的编辑器配置 Xdebug"
+			],
+			"Stop on breakpoints in VS Code. Slows every request, so leave it off unless you are debugging. The site’s details show how to connect.": [
+				"在 VS Code 中于断点处暂停。此功能会减慢每个请求，因此仅在调试时开启。站点详情中提供了连接说明。"
+			],
+			"Step debugging (Xdebug)": [
+				"单步调试（Xdebug）"
+			],
+			"Choose one of the editors the app found.": [
+				"选择应用找到的一个编辑器。"
+			],
+			"Open in %s": [
+				"在 %s 中打开"
+			],
+			"Ask each time": [
+				"每次询问"
+			],
+			"Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.": [
+				"在您选择其他编辑器之前，「打开方式」和「已更改文件」中的文件都会询问要使用哪个编辑器。"
+			],
+			"%s is no longer installed": [
+				"%s 已卸载"
+			],
+			"Code editor": [
+				"代码编辑器"
+			],
+			"Could not keep that editor.": [
+				"无法保存该编辑器选择。"
+			],
+			"Could not look for editors on this machine, so none can be chosen here.": [
+				"无法查找此设备上的编辑器，因此无法在此选择。"
+			],
+			"e.g. 71210": [
+				"例如：71210"
+			],
+			"e.g. 9000": [
+				"例如：9000"
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.": [
+				"您对 %1$d 个文件的修改会随工单 #%2$d 保留，返回该工单时会恢复。"
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you revert this PR.": [
+				"您对 %1$d 个文件的修改会随工单 #%2$d 保留，撤销此 PR 时会恢复。"
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you return to it.": [
+				"您对 %1$d 个文件的修改会随问题 #%2$d 保留，返回该问题时会恢复。"
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you revert this PR.": [
+				"您对 %1$d 个文件的修改会随问题 #%2$d 保留，撤销此 PR 时会恢复。"
+			],
+			"Attachment (%d)": [
+				"附件（%d）"
+			],
+			"Other attachment (%d)": [
+				"其他附件（%d）"
+			],
+			"Closed PR (%d)": [
+				"已关闭的 PR（%d）"
+			],
+			"Other closed PR (%d)": [
+				"其他已关闭的 PR（%d）"
+			],
+			"Open PR (%d)": [
+				"开放的 PR（%d）"
+			],
+			"Other open PR (%d)": [
+				"其他开放的 PR（%d）"
+			],
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
+				"无法下载最新的 trunk，因此此列表也可能包含 trunk 中不属于此拉取请求的更改。"
+			],
+			"That file could not be read: %s": [
+				"无法读取该文件：%s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"站点中不存在该文件，相关更改可能已将其删除。"
+			],
+			"Changed files": [
+				"已更改文件"
+			],
+			"You created this file": [
+				"您创建了此文件"
+			],
+			"You edited this file": [
+				"您修改了此文件"
+			],
+			"Revert %s": [
+				"还原 %s"
+			],
+			"Discard your changes?": [
+				"丢弃您的更改？"
+			],
+			"PR #%d stays checked out.": [
+				"PR #%d 将保持签出状态。"
+			],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"已应用的补丁 %s 也将被移除，因为应用无法将其重新应用。"
+			],
+			"The patch %s stays applied.": [
+				"补丁 %s 将保持应用状态。"
+			],
+			"Your edits to %d file are removed.": [
+				"您对 %d 个文件的修改将被移除。"
+			],
+			"There are no edits of yours to discard.": [
+				"没有您作出的修改可供丢弃。"
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [
+				"您的更改已丢弃，但无法重新应用 %s，因此它不再处于应用状态。"
+			],
+			"Your changes were discarded.": [
+				"您的更改已丢弃。"
+			],
+			"Your changes to it are removed.": [
+				"您对它的更改将被移除。"
+			],
+			"%s deleted.": [
+				"%s 已删除。"
+			],
+			"Delete file": [
+				"删除文件"
+			],
+			"You created this file.": [
+				"您创建了此文件。"
+			],
+			"From PR #%d": [
+				"来自 PR #%d"
+			],
+			"From the patch": [
+				"来自补丁"
+			],
+			"Could not revert the file: %s": [
+				"无法还原文件：%s"
+			],
+			"%s reverted.": [
+				"%s 已还原。"
+			],
+			"Revert file": [
+				"还原文件"
+			],
+			"Revert %s?": [
+				"还原 %s？"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"您对它的修改将被移除，并恢复为应用补丁后的状态。"
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"您对它的修改将被移除，并恢复为 PR #%d 中的状态。"
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"无法还原 %1$s，因此保留其原状：%2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"无法还原 %1$s（%2$s），也无法恢复至操作前的状态，因此您对它的更改可能已丢失：%3$s"
+			],
+			"%s has no changes to revert.": [
+				"%s 没有可还原的更改。"
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [
+				"应用未保留补丁副本，因此无法将 %s 恢复为应用补丁后的状态。"
+			],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [
+				"%s 与应用补丁后的状态一致，没有您作出的修改可供还原。"
+			],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [
+				"补丁重命名了 %s，因此只能随整个补丁一同还原。请改用「丢弃您的更改」。"
+			],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
+				"开发服务器尚无输出。其启动和运行时的输出（包括导致其停止的错误）会显示在这里。"
+			],
+			"Opened": [
+				"创建时间"
+			],
+			"Milestone": [
+				"里程碑"
+			],
+			"Component": [
+				"组件"
+			],
+			"Type": [
+				"类型"
+			],
+			"Read from Trac %s": [
+				"读取自 Trac %s"
+			],
+			"Review and submit": [
+				"检查并提交"
+			],
+			"Review changes": [
+				"检查更改"
+			],
+			"They stay with this pull request's local copy when you revert this PR.": [
+				"撤销此 PR 时，它们会保留在此拉取请求的本地副本中。"
+			],
+			"%1$d unsubmitted change for ticket #%2$s": [
+				"工单 #%2$s 有 %1$d 项未提交更改"
+			],
+			"%1$d unsubmitted change for issue #%2$s": [
+				"问题 #%2$s 有 %1$d 项未提交更改"
+			],
+			"Unsubmitted changes for ticket #%s": [
+				"工单 #%s 的未提交更改"
+			],
+			"Unsubmitted changes for issue #%s": [
+				"问题 #%s 的未提交更改"
+			],
+			"%1$d change on top of PR #%2$d": [
+				"在 PR #%2$d 基础上的 %1$d 项更改"
+			],
+			"Changes on top of PR #%d": [
+				"在 PR #%d 基础上的更改"
+			],
+			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
+				"缩放"
+			],
+			"Discard edits": [
+				"丢弃修改"
+			],
+			"Discard the uncommitted edits on trunk?": [
+				"丢弃 trunk 上尚未提交的修改？"
+			],
+			"Discard changes": [
+				"丢弃更改"
+			],
+			"This can’t be undone.": [
+				"此操作无法撤销。"
+			],
+			"Discard all local changes?": [
+				"丢弃所有本地更改？"
+			],
+			"Stop Speaking": [
+				"停止朗读"
+			],
+			"Start Speaking": [
+				"开始朗读"
+			],
+			"Speech": [
+				"语音"
+			],
+			"Text Replacement": [
+				"文本替换"
+			],
+			"Smart Dashes": [
+				"智能破折号"
+			],
+			"Smart Quotes": [
+				"智能引号"
+			],
+			"Show Substitutions": [
+				"显示替换"
+			],
+			"Substitutions": [
+				"替换"
+			],
+			"Paste and Match Style": [
+				"粘贴并匹配样式"
+			],
+			"Paste": [
+				"粘贴"
+			],
+			"Cut": [
+				"剪切"
+			],
+			"Redo": [
+				"重做"
+			],
+			"Undo": [
+				"撤消"
+			],
+			"Edit": [
+				"编辑"
+			],
+			"Quit": [
+				"退出"
+			],
+			"Exit": [
+				"退出"
+			],
+			"Close Window": [
+				"关闭窗口"
+			],
+			"File": [
+				"文件"
+			],
+			"Quit %s": [
+				"退出 %s"
+			],
+			"Show All": [
+				"全部显示"
+			],
+			"Hide Others": [
+				"隐藏其他"
+			],
+			"Hide %s": [
+				"隐藏 %s"
+			],
+			"Services": [
+				"服务"
+			],
+			"About %s": [
+				"关于 %s"
+			],
+			"Toggle Developer Tools": [
+				"切换开发者工具"
+			],
+			"Help": [
+				"帮助"
+			],
+			"Bring All to Front": [
+				"全部置于顶层"
+			],
+			"Minimize": [
+				"最小化"
+			],
+			"Window": [
+				"窗口"
+			],
+			"Toggle Full Screen": [
+				"切换全屏"
+			],
+			"Zoom Out": [
+				"缩小"
+			],
+			"Zoom In": [
+				"放大"
+			],
+			"Actual Size": [
+				"实际大小"
+			],
+			"Force Reload": [
+				"强制重新加载"
+			],
+			"Reload": [
+				"重新加载"
+			],
+			"View": [
+				"视图"
+			],
+			"Select All": [
+				"全选"
+			],
+			"Delete": [
+				"删除"
+			],
+			"Choose folder…": [
+				"选择文件夹……"
+			],
+			"Mail": [
+				"邮件"
+			],
+			"ends a sentence that lacks a full stop\u0004%s.": [
+				"%s。"
+			],
+			"Too much output to announce, navigate to rows manually to read": [
+				"输出过多，无法全部朗读，请手动逐行浏览以阅读"
+			],
+			"Terminal input": [
+				"终端输入"
+			],
+			"Timed out starting web server": [
+				"启动 Web 服务器超时"
+			],
+			"Server exited before becoming ready": [
+				"服务器在就绪前已退出"
+			],
+			"%s directory not found.": [
+				"未找到 %s 目录。"
+			],
+			"The patch you applied is applied. Revert it before submitting this checkout as your own work.": [
+				"您选择的补丁已应用。在将此签出内容作为自己的工作提交前，请先撤销该补丁。"
+			],
+			"%s is applied. Revert it before submitting this checkout as your own work.": [
+				"%s 已应用。在将此签出内容作为自己的工作提交前，请先将其撤销。"
+			],
+			"an action that finished\u0004Done": [
+				"完成"
+			],
+			"No such branch: %s": [
+				"不存在此分支：%s"
+			],
+			"Refusing to delete a branch the app did not create": [
+				"拒绝删除非本应用创建的分支"
+			],
+			"Refusing to delete trunk": [
+				"拒绝删除 trunk"
+			],
+			"Trunk and this ticket's work disagree": [
+				"主干（trunk）与此工单的更改存在冲突"
+			],
+			"Trunk and this ticket's work disagree in %d file": [
+				"主干（trunk）与此工单的更改在 %d 个文件中存在冲突"
+			],
+			"Already working on ticket #%s in this site": [
+				"此站点已在处理工单 #%s"
+			],
+			"Already working on issue #%s in this site": [
+				"此站点已在处理问题 #%s"
+			],
+			"This site has no trunk branch": [
+				"此站点没有 trunk 分支"
+			],
+			"Enter a ticket number or URL.": [
+				"请输入工单编号或 URL。"
+			],
+			"Enter a ticket number like 62281, or a %s ticket URL.": [
+				"请输入类似 62281 的工单编号，或 %s 的工单 URL。"
+			],
+			"Only %s tickets are supported.": [
+				"仅支持 %s 工单。"
+			],
+			"Trunk and your work disagree in: %s.": [
+				"主干（trunk）与您的更改在以下文件中存在冲突：%s。"
+			],
+			"Trunk added a file your work also adds, with different content: %s.": [
+				"主干（trunk）和您的更改都新增了以下文件，但内容不同：%s。"
+			],
+			"Deleted on one side and changed on the other: %s.": [
+				"一方删除了以下文件，另一方则修改了它们：%s。"
+			],
+			"Trunk changed the same lines as your work in: %s.": [
+				"主干（trunk）和您的更改修改了以下文件中的相同行：%s。"
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.": [
+				"保存工作副本，解除工单关联，从站点删除该工单的更改，然后重新关联 #%s 并应用保存的副本。"
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.": [
+				"保存工作副本，解除工单关联，从站点删除该工单的更改，然后重新关联工单并应用保存的副本。"
+			],
+			"Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.": [
+				"保留此问题的分支，并通过「检查并提交更改」保存副本。请导师帮助您将更改移至当前 trunk；本应用无法解决冲突或导入保存的副本。"
+			],
+			"Update this ticket to the current trunk": [
+				"将此工单更新至当前 trunk"
+			],
+			"Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.": [
+				"较新的补丁可能无法顺利应用。您可以在此将更改移至当前 trunk，或保存副本后重新开始处理该工单。"
+			],
+			"Trunk has moved since this ticket started.": [
+				"自开始处理此工单以来，trunk 已有更新。"
+			],
+			"Update this issue to the current trunk": [
+				"将此问题更新至当前 trunk"
+			],
+			"Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.": [
+				"在此将您的更改移至当前 trunk。如果发生冲突，您的分支会保持完整，以便寻求帮助解决冲突。"
+			],
+			"Trunk has moved since this issue started.": [
+				"自开始处理此问题以来，trunk 已有更新。"
+			],
+			"Could not move the ticket onto the current trunk.": [
+				"无法将工单移至当前 trunk。"
+			],
+			"Could not move the issue onto the current trunk.": [
+				"无法将问题移至当前 trunk。"
+			],
+			"Only an issue branch can be moved onto the current trunk.": [
+				"只能将问题分支移至当前 trunk。"
+			],
+			"Link a ticket first: trunk is what tickets are measured against.": [
+				"请先关联工单：trunk 是比较工单更改的基准。"
+			],
+			"Link an issue first: trunk is what issues are measured against.": [
+				"请先关联问题：trunk 是比较问题更改的基准。"
+			],
+			"The app does not know which trunk the ticket started from, so it cannot move the work safely.": [
+				"应用不知道此工单基于哪个 trunk 版本开始，因此无法安全地迁移更改。"
+			],
+			"The app does not know which trunk the issue started from, so it cannot move the work safely.": [
+				"应用不知道此问题基于哪个 trunk 版本开始，因此无法安全地迁移更改。"
+			],
+			"The app does not know which trunk #%s started from, so it cannot move the work safely.": [
+				"应用不知道 #%s 基于哪个 trunk 版本开始，因此无法安全地迁移更改。"
+			],
+			"Nothing was moved.": [
+				"未迁移任何内容。"
+			],
+			"Trunk and your work disagree.": [
+				"主干（trunk）与您的更改存在冲突。"
+			],
+			"You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?": [
+				"此站点有 %d 项尚未提交的更改，尚不属于任何工单。您希望如何处理？"
+			],
+			"You have %d uncommitted change on this site, not on any issue yet. What should happen to them?": [
+				"此站点有 %d 项尚未提交的更改，尚不属于任何问题。您希望如何处理？"
+			],
+			"Stop the dev server before updating the ticket.": [
+				"更新工单前，请先停止开发服务器。"
+			],
+			"Stop the dev server before updating the issue.": [
+				"更新问题前，请先停止开发服务器。"
+			],
+			"Wait for the discard to finish before updating the ticket.": [
+				"请等待丢弃更改完成后，再更新工单。"
+			],
+			"Wait for the discard to finish before updating the issue.": [
+				"请等待丢弃更改完成后，再更新问题。"
+			],
+			"Wait for the PR or patch operation to finish.": [
+				"请等待 PR 或补丁操作完成。"
+			],
+			"Wait for the ticket's work to finish deleting.": [
+				"请等待工单的更改删除完成。"
+			],
+			"Wait for the issue's work to finish deleting.": [
+				"请等待问题的更改删除完成。"
+			],
+			"Wait for the current ticket change to finish.": [
+				"请等待当前工单切换完成。"
+			],
+			"Wait for the current issue change to finish.": [
+				"请等待当前问题切换完成。"
+			],
+			"This ticket already has its own work here, so these edits cannot come along into it.": [
+				"此工单在这里已有自己的更改，因此无法将这些修改带入。"
+			],
+			"This issue already has its own work here, so these edits cannot come along into it.": [
+				"此问题在这里已有自己的更改，因此无法将这些修改带入。"
+			],
+			"Discard them and continue on the ticket": [
+				"丢弃修改并继续处理工单"
+			],
+			"Save them as a patch, then continue on the ticket…": [
+				"将修改保存为补丁，然后继续处理工单……"
+			],
+			"Discard them and continue on the issue": [
+				"丢弃修改并继续处理问题"
+			],
+			"Save them as a patch, then continue on the issue…": [
+				"将修改保存为补丁，然后继续处理问题……"
+			],
+			"Discard them and continue on #%s": [
+				"丢弃修改并继续处理 #%s"
+			],
+			"Save them as a patch, then continue on #%s…": [
+				"将修改保存为补丁，然后继续处理 #%s……"
+			],
+			"Discard them and start clean": [
+				"丢弃修改并重新开始"
+			],
+			"Save them as a patch, then start clean…": [
+				"将修改保存为补丁，然后重新开始……"
+			],
+			"Take these edits into the ticket": [
+				"将这些修改带入工单"
+			],
+			"Take these edits into the issue": [
+				"将这些修改带入问题"
+			],
+			"Take these edits into #%s": [
+				"将这些修改带入 #%s"
+			],
+			"Discard them and check out PR #%d": [
+				"丢弃修改并签出 PR #%d"
+			],
+			"Save them as a patch, then check out PR #%d…": [
+				"将修改保存为补丁，然后签出 PR #%d……"
+			],
+			"PR #%d is a separate checkout, so these edits cannot come along into it.": [
+				"PR #%d 使用独立的签出副本，因此无法将这些修改带入。"
+			],
+			"You have uncommitted changes on this site, not on any ticket yet. What should happen to them?": [
+				"此站点有尚未提交的更改，尚不属于任何工单。您希望如何处理？"
+			],
+			"You have uncommitted changes on this site, not on any issue yet. What should happen to them?": [
+				"此站点有尚未提交的更改，尚不属于任何问题。您希望如何处理？"
+			],
+			"Could not open the folder.": [
+				"无法打开文件夹。"
+			],
+			"Could not reach the app's main process: %s": [
+				"无法连接应用主进程：%s"
+			],
+			"This app has no record of that folder, so it will not open it.": [
+				"本应用没有该文件夹的记录，因此不会打开它。"
+			],
+			"The file manager would not open the folder: %s": [
+				"文件管理器无法打开文件夹：%s"
+			],
+			"The application would not start: %s": [
+				"应用程序无法启动：%s"
+			],
+			"That application is no longer where it was. Choose another.": [
+				"该应用程序已不在原位置。请选择其他应用程序。"
+			],
+			"That is not an application this app can open a folder in.": [
+				"无法使用该应用程序打开文件夹。"
+			],
+			"A merge started outside the app is in progress.": [
+				"在应用之外启动的合并操作正在进行。"
+			],
+			"every file the patch touched, not only the ones in conflict": [
+				"补丁涉及的每个文件，而不只是存在冲突的文件"
+			],
+			"git add the files": [
+				"对这些文件运行 git add"
+			],
+			"resolve the files, then git add them": [
+				"解决文件中的冲突，然后对其运行 git add"
+			],
+			"A three-way patch apply started outside the app is in progress.": [
+				"在应用之外启动的补丁三方合并操作正在进行。"
+			],
+			"A revert started outside the app is in progress.": [
+				"在应用之外启动的 revert 操作正在进行。"
+			],
+			"A cherry-pick started outside the app is in progress.": [
+				"在应用之外启动的 cherry-pick 操作正在进行。"
+			],
+			"A rebase started outside the app is in progress.": [
+				"在应用之外启动的 rebase 操作正在进行。"
+			],
+			"resolve the files, then git add them and run %s": [
+				"解决文件中的冲突，然后对其运行 git add，再运行 %s"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)": [
+				"应用无法检查此签出副本中是否正在进行合并，因此未作任何更改。如果终端中有针对它运行的 Git 命令，请等待命令完成后再试一次。（%s）"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again.": [
+				"应用无法检查此签出副本中是否正在进行合并，因此未作任何更改。如果终端中有针对它运行的 Git 命令，请等待命令完成后再试一次。"
+			],
+			"Its conflicts are resolved but it is not finished. Finish it from a terminal (%1$s) or abandon it (%2$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"冲突已解决，但操作尚未完成。请先从终端完成操作（%1$s）或丢弃操作（%2$s），再使用应用处理此站点。在此之前，应用将拒绝关联工单、应用补丁、丢弃更改和更新 trunk。"
+			],
+			"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"%1$s 中存在冲突。请先从终端完成操作（%2$s）或丢弃操作（%3$s），再使用应用处理此站点。在此之前，应用将拒绝关联工单、应用补丁、丢弃更改和更新 trunk。"
+			],
+			"The app now runs on a different Git engine, so linking tickets, applying patches, discarding changes and updating trunk are refused here. Export your work as a patch, create a new site, apply the patch there, then delete this one.": [
+				"应用现已改用另一种 Git 引擎，因此无法在这里关联工单、应用补丁、丢弃更改或更新 trunk。请将更改导出为补丁，创建新站点并在那里应用补丁，然后删除此站点。"
+			],
+			"This site was created by an earlier version of the app.": [
+				"此站点由较早版本的应用创建。"
+			],
+			"This site was created by an earlier version of the app and cannot be changed by this one. Create a new site to keep working; you can still export a patch of what is here, and delete this site.": [
+				"此站点由较早版本的应用创建，当前版本无法修改它。请创建新站点以继续工作；您仍可导出此站点的更改为补丁，或删除此站点。"
+			],
+			"Unable to copy path: %s": [
+				"无法复制路径：%s"
+			],
+			"Clipboard access is not available in this environment": [
+				"此环境无法访问剪贴板"
+			],
+			"Dismiss": [
+				"关闭"
+			],
+			"Stopped": [
+				"已停止"
+			],
+			"Playground web server": [
+				"Playground Web 服务器"
+			],
+			"Start Playground web server": [
+				"启动 Playground Web 服务器"
+			],
+			"Stop Playground web server": [
+				"停止 Playground Web 服务器"
+			],
+			"Starting the Playground web server": [
+				"正在启动 Playground Web 服务器"
+			],
+			"Server exited with code %d": [
+				"服务器已退出，退出码为 %d"
+			],
+			"Choose application…": [
+				"选择应用程序……"
+			],
+			"Saved to %s. The edits are still in the working tree.": [
+				"已保存至 %s。修改仍保留在工作树中。"
+			],
+			"Your edits were saved to %s and are no longer in the working tree.": [
+				"您的修改已保存至 %s，且已从工作树中移除。"
+			],
+			"Your %1$d uncommitted change came along into #%2$s, and will go into its patch.": [
+				"您的 %1$d 项未提交更改已带入 #%2$s，并将包含在其补丁中。"
+			],
+			"Could not delete the branch.": [
+				"无法删除分支。"
+			],
+			"Could not save the patch.": [
+				"无法保存补丁。"
+			],
+			"Could not discard the changes.": [
+				"无法丢弃更改。"
+			],
+			"Could not save the ticket.": [
+				"无法保存工单。"
+			],
+			"Only %s issues are supported.": [
+				"仅支持 %s 问题。"
+			],
+			"Enter an issue number or URL.": [
+				"请输入问题编号或 URL。"
+			],
+			"Enter an issue number like 1234, or a %s issue URL.": [
+				"请输入类似 1234 的问题编号，或 %s 的问题 URL。"
+			],
+			"Only %s issues can be linked here.": [
+				"这里只能关联 %s 问题。"
+			],
+			"That is a pull request. Link the issue it fixes instead.": [
+				"这是拉取请求。请改为关联它修复的问题。"
+			],
+			"There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.": [
+				"还没有可用于处理此工单的站点。请从侧边栏创建一个，准备就绪后应用会提示您关联此工单。"
+			],
+			"Ticket #%s is ready to link.": [
+				"工单 #%s 已可关联。"
+			],
+			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
+				"工单编号来自链接。关联工单会暂存站点当前的工作并签出该工单的分支，因此应用会先询问您。"
+			],
+			"Link ticket #%1$s to %2$s?": [
+				"将工单 #%1$s 关联到 %2$s？"
+			],
+			"A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.": [
+				"Trac 工单应在 WordPress 核心站点中处理。请打开一个核心站点，应用会在那里提示您关联此工单。"
+			],
+			"Ticket #%1$s cannot be linked to %2$s.": [
+				"无法将工单 #%1$s 关联到 %2$s。"
+			],
+			"Raw": [
+				"原始内容"
+			],
+			"Rendered": [
+				"渲染效果"
+			],
+			"Date:": [
+				"日期："
+			],
+			"CC:": [
+				"抄送："
+			],
+			"To:": [
+				"收件人："
+			],
+			"From:": [
+				"发件人："
+			],
+			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"您在 PR #%2$d 基础上有 %1$d 项更改。可以<review>检查更改</review>或<discard>丢弃您的更改</discard>。撤销此 PR 时，更改会保留在此拉取请求的本地副本中。"
+			],
+			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"您在 PR #%d 基础上有更改。可以<review>检查更改</review>或<discard>丢弃您的更改</discard>。撤销此 PR 时，更改会保留在此拉取请求的本地副本中。"
+			],
+			"Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.": [
+				"解除此工单的关联不会影响您为它作出的本地更改——这些更改仍会在此站点中与该工单关联，供您再次关联时使用。"
+			],
+			"Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.": [
+				"解除此问题的关联不会影响您为它作出的本地更改——这些更改仍会在此站点中与该问题关联，供您再次关联时使用。"
+			],
+			"You have %d change not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"您有 %d 项未归属任何工单的更改。可以<review>创建并保存补丁</review>或<discard>丢弃您的更改</discard>。"
+			],
+			"You have %d change not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"您有 %d 项未归属任何问题的更改。可以<review>创建并保存补丁</review>或<discard>丢弃您的更改</discard>。"
+			],
+			"You have changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"您有未归属任何工单的更改。可以<review>创建并保存补丁</review>或<discard>丢弃您的更改</discard>。"
+			],
+			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"您有未归属任何问题的更改。可以<review>创建并保存补丁</review>或<discard>丢弃您的更改</discard>。"
+			],
+			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
+				"此工单未记录起始版本，因此应用无法将其更改移至当前 trunk。"
+			],
+			"Only a ticket branch can be moved onto the current trunk.": [
+				"只能将工单分支移至当前 trunk。"
+			],
+			"Link a ticket first: trunk is what tickets are measured against, not a ticket.": [
+				"请先关联工单：trunk 是比较工单更改的基准，本身不是工单。"
+			],
+			"There is uncommitted work on trunk — decide what happens to it before starting the ticket": [
+				"主干（trunk）上有未提交的更改——请先决定如何处理，再开始工单"
+			],
+			"the editor could not be opened (exit code %s)": [
+				"无法打开编辑器（退出码 %s）"
+			],
+			"the saved work\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"已恢复——构建监听进程已完成重新构建。请打开站点进行测试。"
+			],
+			"the saved work\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"已恢复——构建监听进程仍在编译此更改。请等待编译完成后再测试站点。"
+			],
+			"the saved work\u0004Restored.": [
+				"已恢复。"
+			],
+			"the saved work\u0004Restored — open the site to try it out.": [
+				"已恢复——请打开站点进行测试。"
+			],
+			"the previous branch\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"已恢复——构建监听进程已完成重新构建。请打开站点进行测试。"
+			],
+			"the previous branch\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"已恢复——构建监听进程仍在编译此更改。请等待编译完成后再测试站点。"
+			],
+			"the previous branch\u0004Restored.": [
+				"已恢复。"
+			],
+			"the previous branch\u0004Restored — open the site to try it out.": [
+				"已恢复——请打开站点进行测试。"
+			],
+			"Now on trunk as of %s.": [
+				"当前已切换至 %s 的 trunk。"
+			],
+			"Resetting to latest trunk (%s)…": [
+				"正在重置为最新 trunk（%s）……"
+			],
+			"Already up to date.": [
+				"已是最新。"
+			],
+			"Fetching latest trunk…": [
+				"正在获取最新 trunk……"
+			],
+			"Trac returned %s — try opening the ticket again to pass the check.": [
+				"Trac 返回了 %s——请尝试重新打开工单以通过检查。"
+			],
+			"Only https core.trac.wordpress.org attachments are allowed": [
+				"仅允许使用 core.trac.wordpress.org 上的 HTTPS 附件"
+			],
+			"%s file": [
+				"%s 个文件"
+			],
+			"Ready to work on %s": [
+				"已准备好处理 %s"
+			],
+			"Ready to try %s": [
+				"已准备好测试 %s"
+			],
+			"Checking which files change…": [
+				"正在检查哪些文件有更改……"
+			],
+			"Swapping files for %s…": [
+				"正在切换 %s 的文件……"
+			],
+			"Swapping files…": [
+				"正在切换文件……"
+			],
+			"Moving your work on %s onto the current trunk…": [
+				"正在将您在 %s 上的更改移至当前 trunk……"
+			],
+			"Moving your edits on %s onto the current trunk…": [
+				"正在将您在 %s 上的修改移至当前 trunk……"
+			],
+			"Moving your work onto the current trunk…": [
+				"正在将您的更改移至当前 trunk……"
+			],
+			"Saving your work on %s…": [
+				"正在保存您在 %s 上的更改……"
+			],
+			"Saving your edits on %s…": [
+				"正在保存您在 %s 上的修改……"
+			],
+			"Saving your work…": [
+				"正在保存您的更改……"
+			],
+			"The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.": [
+				"构建监听进程正在根据此次更改重新构建。请等待其恢复监听后再测试站点。"
+			],
+			"Start the build watch, or run %s in the Terminal.": [
+				"请启动构建监听进程，或在终端运行 %s。"
+			],
+			"The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"构建监听进程仍在编译此更改。请等待编译完成后再测试站点。"
+			],
+			"PR #%s is applied.": [
+				"PR #%s 已应用。"
+			],
+			"The build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"构建监听进程在重新构建完成前已停止，因此站点仍使用旧资源。"
+			],
+			"PR #%s is applied but not built.": [
+				"PR #%s 已应用，但尚未构建。"
+			],
+			"PR #%s is applied. The site is rebuilding.": [
+				"PR #%s 已应用。站点正在重新构建。"
+			],
+			"Update incomplete — the build watch stopped before it finished rebuilding.": [
+				"更新未完成——构建监听进程在重新构建完成前已停止。"
+			],
+			"Update complete — the build watch has rebuilt, and this site is now on the latest trunk.": [
+				"更新完成——构建监听进程已完成重新构建，此站点现已切换至最新 trunk。"
+			],
+			"Update incomplete — the build watch was stopped, so nothing rebuilt.": [
+				"更新未完成——构建监听进程已停止，因此未重新构建。"
+			],
+			"The code is new but the built assets are old; retry install & build from the banner above.": [
+				"代码已更新，但构建资源仍是旧的；请通过上方横幅重试安装和构建。"
+			],
+			"The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"补丁已应用，但构建监听进程在重新构建完成前停止，因此站点仍使用旧资源。"
+			],
+			"The patch is applied but the build watch was stopped, so the site still runs the old assets.": [
+				"补丁已应用，但构建监听进程已停止，因此站点仍使用旧资源。"
+			],
+			"%s failed, so the build was skipped. The patch is applied but dependencies are stale.": [
+				"%s 失败，因此跳过了构建。补丁已应用，但依赖项仍是旧的。"
+			],
+			"The patch is applied but the build failed, so the site still runs the old assets.": [
+				"补丁已应用，但构建失败，因此站点仍使用旧资源。"
+			],
+			"The patch changes %1$s — running %2$s…": [
+				"补丁更改了 %1$s——正在运行 %2$s……"
+			],
+			"Applied — the build watch has rebuilt. Open the site to try it out.": [
+				"已应用——构建监听进程已完成重新构建。请打开站点进行测试。"
+			],
+			"Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"已应用——构建监听进程仍在编译此更改。请等待编译完成后再测试站点。"
+			],
+			"Applied.": [
+				"已应用。"
+			],
+			"Applied — open the site to try it out.": [
+				"已应用——请打开站点进行测试。"
+			],
+			"The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"保存的更改已恢复，但构建监听进程在重新构建完成前停止，因此站点仍使用旧资源。"
+			],
+			"The saved work is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"保存的更改已恢复，但构建监听进程已停止，因此站点仍使用旧资源。"
+			],
+			"%s failed, so the build was skipped. The saved work is restored but dependencies are stale.": [
+				"%s 失败，因此跳过了构建。保存的更改已恢复，但依赖项仍是旧的。"
+			],
+			"The saved work is restored but the build failed, so the site still runs the old assets.": [
+				"保存的更改已恢复，但构建失败，因此站点仍使用旧资源。"
+			],
+			"The saved work changes %1$s — running %2$s…": [
+				"保存的更改涉及 %1$s——正在运行 %2$s……"
+			],
+			"The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"原分支已恢复，但构建监听进程在重新构建完成前停止，因此站点仍使用旧资源。"
+			],
+			"The previous branch is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"原分支已恢复，但构建监听进程已停止，因此站点仍使用旧资源。"
+			],
+			"%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.": [
+				"%s 失败，因此跳过了构建。原分支已恢复，但依赖项仍是旧的。"
+			],
+			"The previous branch is restored but the build failed, so the site still runs the old assets.": [
+				"原分支已恢复，但构建失败，因此站点仍使用旧资源。"
+			],
+			"The previous branch changes %1$s — running %2$s…": [
+				"原分支更改了 %1$s——正在运行 %2$s……"
+			],
+			"The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"拉取请求已签出，但构建监听进程在重新构建完成前停止，因此站点仍使用旧资源。"
+			],
+			"The pull request is checked out but the build watch was stopped, so the site still runs the old assets.": [
+				"拉取请求已签出，但构建监听进程已停止，因此站点仍使用旧资源。"
+			],
+			"%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.": [
+				"%s 失败，因此跳过了构建。拉取请求已签出，但依赖项仍是旧的。"
+			],
+			"The pull request is checked out but the build failed, so the site still runs the old assets.": [
+				"拉取请求已签出，但构建失败，因此站点仍使用旧资源。"
+			],
+			"The pull request changes %1$s — running %2$s…": [
+				"拉取请求更改了 %1$s——正在运行 %2$s……"
+			],
+			"Checked out — the build watch has rebuilt. Open the site to try it out.": [
+				"已签出——构建监听进程已完成重新构建。请打开站点进行测试。"
+			],
+			"Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"已签出——构建监听进程仍在编译此更改。请等待编译完成后再测试站点。"
+			],
+			"Checked out.": [
+				"已签出。"
+			],
+			"Checked out — open the site to try it out.": [
+				"已签出——请打开站点进行测试。"
+			],
+			"The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"补丁已撤销，但构建监听进程在重新构建完成前停止，因此站点仍使用旧资源。"
+			],
+			"The patch is reverted but the build watch was stopped, so the site still runs the old assets.": [
+				"补丁已撤销，但构建监听进程已停止，因此站点仍使用旧资源。"
+			],
+			"%s failed, so the build was skipped. The patch is reverted but dependencies are stale.": [
+				"%s 失败，因此跳过了构建。补丁已撤销，但依赖项仍是旧的。"
+			],
+			"The patch is reverted but the build failed, so the site still runs the old assets.": [
+				"补丁已撤销，但构建失败，因此站点仍使用旧资源。"
+			],
+			"Reverted — the build watch has rebuilt. Open the site to try it out.": [
+				"已撤销——构建监听进程已完成重新构建。请打开站点进行测试。"
+			],
+			"Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"已撤销——构建监听进程仍在编译此更改。请等待编译完成后再测试站点。"
+			],
+			"Reverted.": [
+				"已撤销。"
+			],
+			"Reverted — open the site to try it out.": [
+				"已撤销——请打开站点进行测试。"
+			],
+			"The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.": [
+				"构建监听进程恢复时会从头重新构建 %s，输出可在日志中的「构建监听」下查看。恢复监听后，更新即告完成。"
+			],
+			"This pull request is closed. You can still check out its last head to investigate it.": [
+				"此拉取请求已关闭。您仍可签出其最后一次提交以进行调查。"
+			],
+			"Return to saved copy": [
+				"返回保存的副本"
+			],
+			"PR #%d is already on this site; you will switch to your local copy.": [
+				"此站点已有 PR #%d；您将切换到本地副本。"
+			],
+			"PR #%d has moved on GitHub; your local copy will be updated.": [
+				"GitHub 上的 PR #%d 已有更新；您的本地副本将会更新。"
+			],
+			"PR #%d has moved on GitHub, but your copy has edits on top.": [
+				"GitHub 上的 PR #%d 已有更新，但您的副本上还有额外修改。"
+			],
+			"PR #%1$d changes %2$d file.": [
+				"PR #%1$d 更改了 %2$d 个文件。"
+			],
+			"Could not switch this pull request. Check the log and try again.": [
+				"无法切换此拉取请求。请检查日志后再试一次。"
+			],
+			"This pull request has no recorded starting point, so the app cannot safely save its edits. Save a patch before changing branches.": [
+				"此拉取请求未记录起始版本，因此应用无法安全保存其修改。切换分支前，请先保存补丁。"
+			],
+			"No pull request is checked out on this site.": [
+				"此站点未签出任何拉取请求。"
+			],
+			"Enter a positive whole pull request number.": [
+				"请输入正整数形式的拉取请求编号。"
+			],
+			"PR #%d is already checked out. Revert it before applying it again.": [
+				"PR #%d 已签出。再次应用前，请先将其撤销。"
+			],
+			"This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.": [
+				"此站点已有名为 pr/%d 的分支，且并非由本应用创建。请先在终端中重命名或删除该分支，再重试。"
+			],
+			"PR #%d has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.": [
+				"GitHub 上的 PR #%d 已有更新，而您的副本上还有额外修改。请先丢弃这些修改再更新，或保留现有副本。"
+			],
+			"Revert this PR": [
+				"撤销此 PR"
+			],
+			"Edits you make here stay with your local copy of the PR.": [
+				"您在这里作出的修改会随 PR 的本地副本保留。"
+			],
+			"Your edits here stay with your local copy of the PR.": [
+				"您在这里的修改会随 PR 的本地副本保留。"
+			],
+			"Your ticket changes are saved separately and return when you revert this PR.": [
+				"您的工单更改会单独保存，并在撤销此 PR 时恢复。"
+			],
+			"Your issue changes are saved separately and return when you revert this PR.": [
+				"您的问题更改会单独保存，并在撤销此 PR 时恢复。"
+			],
+			"Reverting this PR returns to trunk.": [
+				"撤销此 PR 将返回 trunk。"
+			],
+			"Setup failed: %s": [
+				"设置失败：%s"
+			],
+			"Site setup request completed.": [
+				"站点设置请求已完成。"
+			],
+			"Starting site setup…": [
+				"正在开始设置站点……"
+			],
+			"Cloning repository…": [
+				"正在克隆代码仓库……"
+			],
+			"Setup finished.": [
+				"设置完成。"
+			],
+			"Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.": [
+				"输入 <code><command /></code> 可列出支持的命令。按 <code><keys /></code> 可停止当前命令。"
+			],
+			"Added a dependency to <code><file /></code>? Run <command />.": [
+				"在 <code><file /></code> 中添加了依赖项？请运行 <command />。"
+			],
+			"Edited files in <code><folder /></code>? Run <command /> so the site picks them up.": [
+				"修改了 <code><folder /></code> 中的文件？请运行 <command />，让站点应用这些更改。"
+			],
+			"Setting this site up — running %s…": [
+				"正在设置此站点——运行 %s……"
+			],
+			"Stopping setup…": [
+				"正在停止设置……"
+			],
+			"Debug.log": [
+				"Debug.log"
+			],
+			"Debug.log (%d)": [
+				"Debug.log（%d）"
+			],
+			"Discarded local changes.": [
+				"已丢弃本地更改。"
+			],
+			"Saved your changes to %s and reset the working tree.": [
+				"已将您的更改保存至 %s，并重置工作树。"
+			],
+			"Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.": [
+				"更新未完成——%s 失败。代码已更新，但依赖项和构建资源仍是旧的；请通过上方横幅重试安装和构建。"
+			],
+			"%1$s changed — running %2$s (only the changed packages are downloaded)…": [
+				"%1$s 已更改——正在运行 %2$s（仅下载有变化的软件包）……"
+			],
+			"Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.": [
+				"更新未完成——构建失败。代码已更新，但构建资源仍是旧的；请通过上方横幅重试安装和构建。"
+			],
+			"Update complete — this site is now on the latest trunk.": [
+				"更新完成——此站点现已切换至最新 trunk。"
+			],
+			"WordPress npm helper terminal.": [
+				"WordPress npm 辅助终端。"
+			],
+			"A command is already running. Press %s to stop it.": [
+				"已有命令正在运行。按 %s 可停止。"
+			],
+			"Try \"%s\" for the list of supported commands.": [
+				"输入「%s」可查看支持的命令列表。"
+			],
+			"Unsupported command: %s": [
+				"不支持的命令：%s"
+			],
+			"Unsupported script \"%1$s\". Allowed scripts: %2$s": [
+				"不支持的脚本「%1$s」。允许的脚本：%2$s"
+			],
+			"Missing script name. Example: %s": [
+				"缺少脚本名称。示例：%s"
+			],
+			"Run them here whenever you change files or add a dependency afterwards.": [
+				"之后每次修改文件或添加依赖项，都可在此运行这些命令。"
+			],
+			"The setup checklist runs %1$s and %2$s once.": [
+				"设置清单会各运行一次 %1$s 和 %2$s。"
+			],
+			"%1$s Run one of: %2$s": [
+				"%1$s 运行以下命令之一：%2$s"
+			],
+			"%1$s Run %2$s in the site directory": [
+				"%1$s 在站点目录中运行 %2$s"
+			],
+			"%s Show this help text": [
+				"%s 显示此帮助文本"
+			],
+			"Available commands:": [
+				"可用命令："
+			],
+			"Could not show the log file: %s": [
+				"无法显示日志文件：%s"
+			],
+			"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was not.": [
+				"无法清空 %1$s 的 debug.log：%2$s。面板已清空，但文件未清空。"
+			],
+			"Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.": [
+				"已取消启动开发服务器：构建监听进程在 %s 完成前停止。请待监听运行后重新启动。"
+			],
+			"%s is complete: starting the server without the build watch. Start build watch to compile edits on save.": [
+				"%s 已完成：正在不启用构建监听的情况下启动服务器。请启动构建监听，以便保存修改时进行编译。"
+			],
+			"Failed to start PHP server: %s": [
+				"启动 PHP 服务器失败：%s"
+			],
+			"unknown error": [
+				"未知错误"
+			],
+			"Dev server failed to start: %s": [
+				"开发服务器启动失败：%s"
+			],
+			"Dev server stopped unexpectedly (see Help → %s for details).": [
+				"开发服务器意外停止（详情请查看「帮助 → %s」）。"
+			],
+			"Resumed.": [
+				"已恢复运行。"
+			],
+			"Paused while another operation uses the build.": [
+				"其他操作正在使用构建，已暂停。"
+			],
+			"%1$s failed with code %2$s — build watch not started.": [
+				"%1$s 失败，退出码为 %2$s——未启动构建监听。"
+			],
+			"%s was stopped — build watch not started.": [
+				"%s 已停止——未启动构建监听。"
+			],
+			"No completed build found — running %s first…": [
+				"未找到已完成的构建——正在先运行 %s……"
+			],
+			"A command is already running in the terminal — stop it before starting the build watch.": [
+				"终端中已有命令正在运行——请先停止它，再启动构建监听。"
+			],
+			"%1$s exited with code %2$s": [
+				"%1$s 已退出，退出码为 %2$s"
+			],
+			"%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for \"%3$s\".": [
+				"%1$s 会先重新构建 %2$s，再开始监听。如果已启动开发服务器，它会等待「%3$s」。"
+			],
+			"The patch could not be applied.": [
+				"无法应用补丁。"
+			],
+			"%s The record of it could not be cleared, so this site still thinks it is applied.": [
+				"%s 无法清除其记录，因此此站点仍认为它已应用。"
+			],
+			"%s The applied-patch record has been cleared.": [
+				"%s 已清除补丁应用记录。"
+			],
+			"A command is already running. Stop it before switching tickets.": [
+				"已有命令正在运行。切换工单前请先停止它。"
+			],
+			"Could not read that patch.": [
+				"无法读取该补丁。"
+			],
+			"Could not download %s.": [
+				"无法下载 %s。"
+			],
+			"Could not read that file: %s": [
+				"无法读取该文件：%s"
+			],
+			"Running %s…": [
+				"正在运行 %s……"
+			],
+			"Build watch (exited %d)": [
+				"构建监听（已退出，退出码 %d）"
+			],
+			"Build watch (stopped)": [
+				"构建监听（已停止）"
+			],
+			"Build watch (paused)": [
+				"构建监听（已暂停）"
+			],
+			"Build watch (building)": [
+				"构建监听（正在构建）"
+			],
+			"Build watch (watching)": [
+				"构建监听（正在监听）"
+			],
+			"Build watch (compiling)": [
+				"构建监听（正在编译）"
+			],
+			"Could not copy": [
+				"无法复制"
+			],
+			"The build failed — dependencies are installed. Its output is above; retry the build from the checklist.": [
+				"构建失败——依赖项已安装。输出见上方；请从清单中重试构建。"
+			],
+			"%s failed — setup stopped here. Its output is above; retry the install from the checklist.": [
+				"%s 失败——设置在此停止。输出见上方；请从清单中重试安装。"
+			],
+			"Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.": [
+				"设置已停止。剩余步骤列在上方清单中，准备好后可随时运行。"
+			],
+			"Setup complete — start the dev server when you are ready.": [
+				"设置完成——准备好后即可启动开发服务器。"
+			],
+			"Status update": [
+				"状态更新"
+			],
+			"Status: done": [
+				"状态：完成"
+			],
+			"Status: cloning": [
+				"状态：正在克隆"
+			],
+			"Clear": [
+				"清空"
+			],
+			"Show in folder": [
+				"在文件夹中显示"
+			],
+			"The log file appears once the dev server has run.": [
+				"开发服务器运行后，日志文件才会出现。"
+			],
+			"No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.": [
+				"尚无 PHP 通知或错误。开发服务器运行时，WordPress 或您的代码写入的内容——<code><function /></code>、通知、弃用提示和致命错误——都会显示在这里。"
+			],
+			"The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.": [
+				"构建监听进程会将 <code><source /></code> 中的修改编译到 <code><build /></code>。它独立于开发服务器运行；其输出和监听、暂停或停止状态会显示在这里。"
+			],
+			"it no longer fits": [
+				"已无法匹配"
+			],
+			"Open the pull request": [
+				"打开拉取请求"
+			],
+			"the code around it has changed": [
+				"周围的代码已发生变化"
+			],
+			"looks like that change is not in your checkout any more": [
+				"该更改似乎已不在您的签出副本中"
+			],
+			"It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"它现已成为您更改的一部分。撤销您对这些行的修改后，即可再次使用「撤销」；否则，请保存工作副本，再丢弃工单更改以恢复至起始状态——在这个项目中，这是正常的处理方式，并不意味着白费了整个下午。"
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.": [
+				"无法单独移除此补丁：它在 %3$d 个文件中共有 %2$d 项更改，其中 %1$d 项包含您自己的修改。"
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.": [
+				"无法单独移除此补丁：它共有 %2$d 项更改，其中 %1$d 项包含您自己的修改。"
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.": [
+				"无法单独移除 %1$s：它在 %4$d 个文件中共有 %3$d 项更改，其中 %2$d 项包含您自己的修改。"
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.": [
+				"无法单独移除 %1$s：它共有 %3$d 项更改，其中 %2$d 项包含您自己的修改。"
+			],
+			"Ask its author for a rebase": [
+				"请作者进行变基"
+			],
+			"Bringing it up to date is its author's work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.": [
+				"更新拉取请求应由作者完成，例如变基或合并 trunk。在拉取请求中留言告知作者，本身也是有价值的贡献。"
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"此拉取请求基于旧版 trunk 编写，现已无法匹配：其 %2$d 项更改中有 %1$d 项需要调整，涉及 %3$d 个文件。"
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"此拉取请求基于旧版 trunk 编写，现已无法匹配：其 %2$d 项更改中有 %1$d 项需要调整，涉及 %3$d 个文件。"
+			],
+			"looks like it is already in your checkout": [
+				"似乎已包含在您的签出副本中"
+			],
+			"Your own work is also in %s, so it may be part of why the pull request does not fit.": [
+				"%s 中也包含您自己的更改，这可能是拉取请求无法匹配的部分原因。"
+			],
+			"%s includes changes from the patch you applied and may also contain your own edits.": [
+				"%s 包含已应用补丁中的更改，也可能包含您自己的修改。"
+			],
+			"%1$s includes changes from %2$s and may also contain your own edits.": [
+				"%1$s 包含来自 %2$s 的更改，也可能包含您自己的修改。"
+			],
+			"Other failures are in %s.": [
+				"其他失败出现在 %s 中。"
+			],
+			"Your own work is also in %s and may be part of the failure.": [
+				"%s 中也包含您自己的更改，可能与此次失败有关。"
+			],
+			"Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.": [
+				"请先将您的更改保存为补丁以保留副本，再在干净的工单上测试此拉取请求。如果仍无法匹配，请打开拉取请求，告知作者可能需要更新。"
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"此拉取请求与您的签出副本不匹配：其 %2$d 项更改中有 %1$d 项需要调整，涉及 %3$d 个文件。"
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"此拉取请求与您的签出副本不匹配：其 %2$d 项更改中有 %1$d 项需要调整，涉及 %3$d 个文件。"
+			],
+			"See why it was closed": [
+				"查看关闭原因"
+			],
+			"Nobody is coming back to update a closed pull request — its discussion may say why it ended.": [
+				"已关闭的拉取请求通常不会再有人更新，其讨论中可能说明了结束的原因。"
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"此拉取请求已关闭，且基于旧版 trunk 编写，现已无法匹配：其 %2$d 项更改中有 %1$d 项需要调整，涉及 %3$d 个文件。"
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"此拉取请求已关闭，且基于旧版 trunk 编写，现已无法匹配：其 %2$d 项更改中有 %1$d 项需要调整，涉及 %3$d 个文件。"
+			],
+			"All %d of this pull request's change look like they are already in trunk — there is nothing left to apply.": [
+				"此拉取请求的全部 %d 项更改似乎已包含在 trunk 中——没有剩余更改需要应用。"
+			],
+			"All %d of this pull request's change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.": [
+				"此拉取请求的全部 %d 项更改似乎已包含在 trunk 中——它可能已提交到核心，因此被关闭。没有剩余更改需要应用。"
+			],
+			"All %d of this pull request's change look like they are already in your checkout — there is nothing left to apply.": [
+				"此拉取请求的全部 %d 项更改似乎已包含在您的签出副本中——没有剩余更改需要应用。"
+			],
+			"%1$s and %2$d more file": [
+				"%1$s 及其他 %2$d 个文件"
+			],
+			"%1$d of this patch's %2$d change across %3$d files no longer fit — the other %4$d do.": [
+				"此补丁在 %3$d 个文件中共有 %2$d 项更改，其中 %1$d 项已不匹配，其余 %4$d 项仍可匹配。"
+			],
+			"%1$d of this patch's %2$d change no longer fit — the other %3$d do.": [
+				"此补丁共有 %2$d 项更改，其中 %1$d 项已不匹配，其余 %3$d 项仍可匹配。"
+			],
+			"None of this patch's %1$d change across %2$d files still fit your checkout.": [
+				"此补丁在 %2$d 个文件中的全部 %1$d 项更改均已无法匹配您的签出副本。"
+			],
+			"None of this patch's %d change still fit your checkout.": [
+				"此补丁的全部 %d 项更改均已无法匹配您的签出副本。"
+			],
+			"%1$d of this patch's %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.": [
+				"此补丁在 %3$d 个文件中共有 %2$d 项更改，其中 %1$d 项似乎已包含在您的签出副本中，其余 %4$d 项仍可匹配。"
+			],
+			"%1$d of this patch's %2$d change look like they are already in your checkout — the other %3$d still fit.": [
+				"此补丁共有 %2$d 项更改，其中 %1$d 项似乎已包含在您的签出副本中，其余 %3$d 项仍可匹配。"
+			],
+			"All %1$d of this patch's change across %2$d files look like they are already in your checkout.": [
+				"此补丁在 %2$d 个文件中的全部 %1$d 项更改似乎已包含在您的签出副本中。"
+			],
+			"All %d of this patch's change look like they are already in your checkout.": [
+				"此补丁的全部 %d 项更改似乎已包含在您的签出副本中。"
+			],
+			"The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.": [
+				"补丁会在这些更改的基础上应用：如果没有重叠便会成功；如果存在重叠，则会失败且不更改任何内容。"
+			],
+			"%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.": [
+				"%s 包含您所应用补丁的更改，也可能包含您自己的修改。"
+			],
+			"%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.": [
+				"%1$s 包含您所应用的 %2$s 的更改，也可能包含您自己的修改。"
+			],
+			"You have your own edits to %s. Save a patch of your work first if you want a copy.": [
+				"您对 %s 作了修改。如需保留副本，请先将更改保存为补丁。"
+			],
+			"%1$s and %2$s": [
+				"%1$s 和 %2$s"
+			],
+			"It still counts as this ticket's one applied patch, so another cannot be applied until this ticket is reverted or discarded.": [
+				"它仍占用此工单唯一的已应用补丁位置，因此在撤销或丢弃此工单的更改前，无法应用其他补丁。"
+			],
+			"Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"请先保存工作副本，然后即可安全地丢弃工单更改，恢复至起始状态——在这个项目中，这是正常的处理方式，并不意味着白费了整个下午。"
+			],
+			"The copy could not be saved: %s": [
+				"无法保存副本：%s"
+			],
+			"%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"%s 过大，无法保留用于撤消的副本，因此无法单独移除。"
+			],
+			"A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"补丁过大，无法保留用于撤消的副本，因此无法单独移除。"
+			],
+			"A patch is applied — %d file.": [
+				"补丁已应用——涉及 %d 个文件。"
+			],
+			"A patch is applied — %1$d file, %2$s.": [
+				"补丁已应用——涉及 %1$d 个文件，%2$s。"
+			],
+			"%1$s is applied — %2$d file.": [
+				"%1$s 已应用——涉及 %2$d 个文件。"
+			],
+			"%1$s is applied — %2$d file, %3$s.": [
+				"%1$s 已应用——涉及 %2$d 个文件，%3$s。"
+			],
+			"Only %s pull requests can be applied here.": [
+				"这里只能应用 %s 拉取请求。"
+			],
+			"That does not look like a pull request URL.": [
+				"这似乎不是拉取请求 URL。"
+			],
+			"Only github.com pull requests are supported.": [
+				"仅支持 github.com 的拉取请求。"
+			],
+			"That is not a pull request URL or number.": [
+				"这不是拉取请求 URL 或编号。"
+			],
+			"Enter a pull request URL or number.": [
+				"请输入拉取请求 URL 或编号。"
+			],
+			"That does not look like a patch — no file changes found.": [
+				"这似乎不是补丁——未找到文件更改。"
+			],
+			"No file changes found in the patch.": [
+				"补丁中未找到文件更改。"
+			],
+			"The patch is empty.": [
+				"补丁为空。"
+			],
+			"The empty file path is quoted or ambiguous.": [
+				"空文件路径带有引号或存在歧义。"
+			],
+			"Applied %d file.": [
+				"已应用 %d 个文件的更改。"
+			],
+			"Reverted %d file.": [
+				"已还原 %d 个文件。"
+			],
+			"The patch could not be written, so the checkout was put back as it was: %s": [
+				"无法写入补丁，签出副本已恢复原状：%s"
+			],
+			"The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s": [
+				"无法写入补丁，也无法完全恢复签出副本——其状态未知。无法撤消：%s"
+			],
+			"writing could not verify %1$s after git apply: %2$s": [
+				"写入时无法在 git apply 后验证 %1$s：%2$s"
+			],
+			"writing git apply exited %s": [
+				"写入时 git apply 退出，退出码为 %s"
+			],
+			"writing %s": [
+				"正在写入 %s"
+			],
+			"Could not snapshot the checkout before applying the patch: %s": [
+				"应用补丁前无法为签出副本创建快照：%s"
+			],
+			"The patch was not applied — the checkout is unchanged.": [
+				"未应用补丁——签出副本保持不变。"
+			],
+			"That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.": [
+				"该补丁已不在此签出副本中——某个操作重置了它，可能是 trunk 更新或丢弃更改。未撤销任何内容。"
+			],
+			"The patch does not apply.": [
+				"无法应用该补丁。"
+			],
+			"a file has moved on since the patch was written, so it no longer applies": [
+				"补丁编写后文件已发生变化，因此补丁不再适用"
+			],
+			"%s has moved on since the patch was written, so it no longer applies": [
+				"补丁编写后 %s 已发生变化，因此补丁不再适用"
+			],
+			"%d more file was not checked one by one": [
+				"另有 %d 个文件未逐一检查"
+			],
+			"The patch does not change any files.": [
+				"补丁未更改任何文件。"
+			],
+			"(unnamed binary file)": [
+				"（未命名的二进制文件）"
+			],
+			"Could not read the patch: %s": [
+				"无法读取补丁：%s"
+			],
+			"Skipped %1$d binary file the app cannot apply: %2$s": [
+				"已跳过应用无法处理的 %1$d 个二进制文件：%2$s"
+			],
+			"%s is not in this checkout, so the patch does not fit it": [
+				"此签出副本中不存在 %s，因此补丁无法匹配"
+			],
+			"%1$s already exists, so the patch cannot move %2$s onto it": [
+				"%1$s 已存在，因此补丁无法将 %2$s 移至该位置"
+			],
+			"%s is not in this checkout, so the patch cannot move it": [
+				"此签出副本中不存在 %s，因此补丁无法移动它"
+			],
+			"%s could not be created from the patch": [
+				"无法根据补丁创建 %s"
+			],
+			"%s already exists, so the patch cannot add it": [
+				"%s 已存在，因此补丁无法添加它"
+			],
+			"%s is already gone, so the patch cannot remove it": [
+				"%s 已不存在，因此补丁无法移除它"
+			],
+			"%s points outside the site folder": [
+				"%s 指向站点文件夹之外"
+			],
+			"%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do": [
+				"补丁编写后 %1$s 已发生变化：其 %3$d 项更改中有 %2$d 项已不匹配，其余 %4$d 项仍可匹配"
+			],
+			"%1$s has moved on since the patch was written, so none of its %2$d change still fits": [
+				"补丁编写后 %1$s 已发生变化，因此其全部 %2$d 项更改均已不匹配"
+			],
+			"Server did not start within %d second": [
+				"服务器未能在 %d 秒内启动"
+			],
+			"Server exited with code %s before reporting a URL": [
+				"服务器在报告 URL 前已退出，退出码为 %s"
+			],
+			"Server exited with code %1$s (signal %2$s) before reporting a URL": [
+				"服务器在报告 URL 前已退出，退出码为 %1$s（信号 %2$s）"
+			],
+			"Failed to start: %s": [
+				"启动失败：%s"
+			],
+			"Retrying with engine checks relaxed…": [
+				"正在放宽引擎检查后重试……"
+			],
+			"This site requires a newer Node.js than this app bundles.": [
+				"此站点需要的 Node.js 版本比本应用附带的版本更新。"
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm 已退出，退出码为 %s，但它启动的某个进程仍在运行并占用输出。正在释放输出并结束该进程。"
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm 已退出，退出码为 %1$s（信号 %2$s），但它启动的某个进程仍在运行并占用输出。正在释放输出并结束该进程。"
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm 已退出，退出码为 %s，但它启动的某个进程仍在运行并占用输出。正在释放输出；该进程将继续运行，直到自行结束。"
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm 已退出，退出码为 %1$s（信号 %2$s），但它启动的某个进程仍在运行并占用输出。正在释放输出；该进程将继续运行，直到自行结束。"
+			],
+			"Applying the patch failed: %s": [
+				"应用补丁失败：%s"
+			],
+			"The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s": [
+				"补丁已应用，但无法保存撤销记录，也无法撤销——签出副本中保留着补丁，而应用无法将其撤销。%s"
+			],
+			"The patch applied but its revert record could not be saved, so it was undone. %s": [
+				"补丁已应用，但无法保存撤销记录，因此已撤销。%s"
+			],
+			"This patch is too large to keep for an undo, so Revert will not be offered.": [
+				"此补丁过大，无法保留用于撤销的副本，因此不会提供「撤销」功能。"
+			],
+			"Applying %s…": [
+				"正在应用 %s……"
+			],
+			"Reverting %s…": [
+				"正在撤销 %s……"
+			],
+			"%s is already applied. Revert it before applying another patch.": [
+				"%s 已应用。应用其他补丁前，请先将其撤销。"
+			],
+			"There is no stored patch to revert.": [
+				"没有已存储的补丁可供撤销。"
+			],
+			"Could not check your work for conflicts, so the preview was not shown.": [
+				"无法检查您的更改是否存在冲突，因此未显示预览。"
+			],
+			"Restoring the files of your previous branch…": [
+				"正在恢复原分支的文件……"
+			],
+			"Could not remove the unused branch: %s": [
+				"无法移除未使用的分支：%s"
+			],
+			"Downloading the pull request's files and switching to its branch…": [
+				"正在下载拉取请求的文件并切换至其分支……"
+			],
+			"Returning to your saved copy of the pull request…": [
+				"正在返回您保存的拉取请求副本……"
+			],
+			"Your work is safe — it is committed on %s. Apply that pull request again to return to it.": [
+				"您的更改已安全提交到 %s。再次应用该拉取请求即可返回。"
+			],
+			"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.": [
+				"您对 #%1$s 的更改已安全提交到 %2$s。重新关联该工单即可返回。"
+			],
+			"Update failed during fetch: %s": [
+				"获取时更新失败：%s"
+			],
+			"Update failed during checkout: %s": [
+				"签出时更新失败：%s"
+			],
+			"Returning to your work on %s…": [
+				"正在返回您在 %s 上的工作……"
+			],
+			"Parking your work on %s before updating…": [
+				"正在更新前暂存您在 %s 上的更改……"
+			],
+			"Fetch latest trunk": [
+				"获取最新 trunk"
+			],
+			"The build watch is rebuilding — output in the Logs, under Build watch": [
+				"构建监听进程正在重新构建——输出位于日志中的「构建监听」下"
+			],
+			"Dependencies unchanged — skipping %s": [
+				"依赖项未变——跳过 %s"
+			],
+			"Dependencies unchanged, rebuilt.": [
+				"依赖项未变，已重新构建。"
+			],
+			"Dependencies updated, rebuilt.": [
+				"依赖项已更新，已重新构建。"
+			],
+			"Dependencies unchanged, rebuilt in %s.": [
+				"依赖项未变，重新构建耗时 %s。"
+			],
+			"Dependencies updated, rebuilt in %s.": [
+				"依赖项已更新，重新构建耗时 %s。"
+			],
+			"Install dependencies": [
+				"安装依赖项"
+			],
+			"Download WordPress": [
+				"下载 WordPress"
+			],
+			"Rebuild": [
+				"重新构建"
+			],
+			"Apply the patch": [
+				"应用补丁"
+			],
+			"Revert the pull request": [
+				"撤销拉取请求"
+			],
+			"Apply the pull request": [
+				"应用拉取请求"
+			],
+			"The build watch rebuilds when it resumes": [
+				"构建监听进程将在恢复时重新构建"
+			],
+			"The build watch will recompile the change": [
+				"构建监听进程将重新编译更改"
+			],
+			"Rebuilt": [
+				"已重新构建"
+			],
+			"Rebuilding — output in the Terminal": [
+				"正在重新构建——输出位于终端中"
+			],
+			"Dependencies changed — installing the difference…": [
+				"依赖项有变化——正在安装差异部分……"
+			],
+			"Fetched and reset to trunk": [
+				"已获取并重置为 trunk"
+			],
+			"Fetching and resetting to trunk…": [
+				"正在获取并重置为 trunk……"
+			],
+			"Fetch and reset to trunk": [
+				"获取并重置为 trunk"
+			],
+			"The build did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"构建未完成。输出位于终端中，请查看后重试。"
+			],
+			"Retry the build": [
+				"重试构建"
+			],
+			"Build complete": [
+				"构建完成"
+			],
+			"The install did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"安装未完成。输出位于终端中，请查看后重试。"
+			],
+			"Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.": [
+				"已安装。此后在 %1$s 中添加了依赖项？请在终端运行 %2$s。"
+			],
+			"Install npm packages so commands can run.": [
+				"安装 npm 软件包以运行命令。"
+			],
+			"Retry %s": [
+				"重试 %s"
+			],
+			"Dependencies installed": [
+				"依赖项已安装"
+			],
+			"Ready": [
+				"就绪"
+			],
+			"In progress": [
+				"进行中"
+			],
+			"Locked": [
+				"已锁定"
+			],
+			"Pending": [
+				"待处理"
+			],
+			"Failed": [
+				"失败"
+			],
+			"Completed": [
+				"已完成"
+			],
+			"The trunk snapshot is old; update before making a patch.": [
+				"主干（trunk）快照较旧，请在创建补丁前更新。"
+			],
+			"The update left the build stale; install and build to recover.": [
+				"更新后构建资源已过时，请安装依赖并构建以恢复。"
+			],
+			"A patch is staged — apply and rebuild, or cancel.": [
+				"补丁已准备就绪——请应用并重新构建，或取消。"
+			],
+			"The trunk update in progress.": [
+				"主干（trunk）更新正在进行。"
+			],
+			"A patch is being applied or reverted.": [
+				"正在应用或撤销补丁。"
+			],
+			"The next step in the setup checklist.": [
+				"设置清单中的下一步。"
+			],
+			"Link a Trac ticket to give your work a home.": [
+				"关联 Trac 工单，让您的工作有所归属。"
+			],
+			"Link a GitHub issue to give your work a home.": [
+				"关联 GitHub 问题，让您的工作有所归属。"
+			],
+			"You have uncommitted changes ready to review and submit.": [
+				"您有未提交的更改，可以检查并提交。"
+			],
+			"PR #%d is applied; revert it before applying another change.": [
+				"PR #%d 已应用，请先撤销它，再应用其他更改。"
+			],
+			"Start the dev server to work on the site.": [
+				"启动开发服务器以处理站点。"
+			],
+			"Setting up new site…": [
+				"正在设置新站点……"
+			],
+			"Finish setting this site up first.": [
+				"请先完成此站点的设置。"
+			],
+			"Hide": [
+				"隐藏"
+			],
+			"Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.": [
+				"正在执行完整构建。在 Windows 上可能需要半小时，终端会显示进度。"
+			],
+			"Installing dependencies. You can leave this running — the build follows on its own.": [
+				"正在安装依赖项。您可以让其继续运行，完成后会自动开始构建。"
+			],
+			"Setting this site up for you — step %1$d of %2$d": [
+				"正在为您设置此站点——第 %1$d 步，共 %2$d 步"
+			],
+			"Your changes were saved to %s before the reset.": [
+				"重置前已将您的更改保存至 %s。"
+			],
+			"Up to date with trunk as of today.": [
+				"已与今天的 trunk 保持同步。"
+			],
+			"Most packages are already cached, so this is a download of the difference — not the whole tree.": [
+				"大多数软件包已有缓存，因此只需下载差异部分，而非全部内容。"
+			],
+			"step %1$d of %2$d": [
+				"第 %1$d 步，共 %2$d 步"
+			],
+			"Patches you create now may not apply on Trac. Updating takes a few minutes.": [
+				"现在创建的补丁可能无法在 Trac 上应用。更新需要几分钟。"
+			],
+			"This site's WordPress code is %d day old": [
+				"此站点的 WordPress 代码已有 %d 天未更新"
+			],
+			"Retry install & build": [
+				"重试安装和构建"
+			],
+			"The code is new but the built assets are old. The site may not run correctly until install and build succeed.": [
+				"代码已更新，但构建资源仍是旧的。在安装和构建成功前，站点可能无法正常运行。"
+			],
+			"Update incomplete": [
+				"更新未完成"
+			],
+			"Next step: %s": [
+				"下一步：%s"
+			],
+			"Starting… (%s)": [
+				"正在启动……（%s）"
+			],
+			"Start dev server and finish the wizard": [
+				"启动开发服务器并完成向导"
+			],
+			"Stop dev server": [
+				"停止开发服务器"
+			],
+			"Start dev server & finish wizard": [
+				"启动开发服务器并完成向导"
+			],
+			"Run full build": [
+				"运行完整构建"
+			],
+			"Install npm dependencies": [
+				"安装 npm 依赖项"
+			],
+			"Cloning the repository… install and build start on their own when it finishes.": [
+				"正在克隆代码仓库……完成后会自动开始安装和构建。"
+			],
+			"Failed to discard changes: %s": [
+				"丢弃更改失败：%s"
+			],
+			"Saved your changes to %1$s, but resetting the working tree failed: %2$s": [
+				"已将您的更改保存至 %1$s，但重置工作树失败：%2$s"
+			],
+			"Error saving diff: %s": [
+				"保存差异时出错：%s"
+			],
+			"Please complete the full build before starting the dev server. You can also skip the wizard.": [
+				"请先完成完整构建，再启动开发服务器。您也可以跳过向导。"
+			],
+			"Updating to latest trunk": [
+				"正在更新至最新 trunk"
+			],
+			"Skip initialization wizard": [
+				"跳过初始化向导"
+			],
+			"Nothing was lost — pick it back up with the buttons below whenever you want.": [
+				"没有内容丢失——您可以随时使用下方按钮继续。"
+			],
+			"Setup stopped.": [
+				"设置已停止。"
+			],
+			"Stop setup": [
+				"停止设置"
+			],
+			"Complete each step to prepare this site for development.": [
+				"完成每个步骤，为此站点的开发做好准备。"
+			],
+			"Initial setup checklist": [
+				"初始设置清单"
+			],
+			"Save patch & update": [
+				"保存补丁并更新"
+			],
+			"Discard & update": [
+				"丢弃更改并更新"
+			],
+			"— your changes are lost; this cannot be undone": [
+				"——您的更改将丢失，且无法撤销"
+			],
+			"Discard them": [
+				"丢弃更改"
+			],
+			"— a .diff on your machine — nothing is sent to Trac": [
+				"——在您的设备上保存为 .diff 文件，不会向 Trac 发送任何内容"
+			],
+			"Save them as a patch first (as a local file)": [
+				"先保存为补丁（本地文件）"
+			],
+			"You've changed %d file in this site. Resetting to trunk would throw them away.": [
+				"您在此站点中修改了 %d 个文件。重置为 trunk 会丢弃这些更改。"
+			],
+			"Update to latest trunk?": [
+				"更新至最新 trunk？"
+			],
+			"Launch the development server once to complete the WordPress setup wizard.": [
+				"启动一次开发服务器，完成 WordPress 设置向导。"
+			],
+			"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.": [
+				"已构建。此后修改了 %1$s 中的文件？请在终端运行 %2$s，让站点应用这些更改——更新和应用补丁后会自动重新构建。"
+			],
+			"Compile WordPress Core to generate the dist files. Later updates rebuild automatically.": [
+				"编译 WordPress 核心以生成分发文件。后续更新会自动重新构建。"
+			],
+			"Clone the WordPress develop repository.": [
+				"克隆 WordPress 开发代码仓库。"
+			],
+			"Download WordPress development version": [
+				"下载 WordPress 开发版本"
+			],
+			"Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.": [
+				"启动一次将此签出副本用作 Gutenberg 插件的 WordPress，以完成设置。"
+			],
+			"Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.": [
+				"已构建。此后修改了软件包？请在终端运行 %s，让站点应用更改；更新后会自动重新构建。"
+			],
+			"Compile the Gutenberg packages. Later updates rebuild automatically.": [
+				"编译 Gutenberg 软件包。后续更新会自动重新构建。"
+			],
+			"Clone the Gutenberg repository.": [
+				"克隆 Gutenberg 代码仓库。"
+			],
+			"Download Gutenberg": [
+				"下载 Gutenberg"
+			],
+			"the window’s theme: two colours of one’s own\u0004Custom": [
+				"自定义"
+			],
+			"Choose a colour as six hex digits, like #3858e9.": [
+				"请输入六位十六进制颜色值，例如 #3858e9。"
+			],
+			"Choose light, dark, your system’s theme, or custom.": [
+				"选择浅色、深色、跟随系统或自定义主题。"
+			],
+			"Some text may be hard to read with these colours. They are kept as they are; choose others if it is.": [
+				"这些颜色可能使部分文字难以辨认。颜色会保持原样，如有需要请另选颜色。"
+			],
+			"Primary": [
+				"主色"
+			],
+			"Background": [
+				"背景"
+			],
+			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
+				"「跟随系统」会采用操作系统的浅色或深色设置。「自定义」则根据您选择的两种颜色生成主题。"
+			],
+			"%s colour picker": [
+				"%s 颜色选择器"
+			],
+			"Working…": [
+				"正在处理……"
+			],
+			"Opening the pull request…": [
+				"正在创建拉取请求……"
+			],
+			"Uploading your changes…": [
+				"正在上传您的更改……"
+			],
+			"Bringing your fork up to date…": [
+				"正在将您的分支仓库更新至最新……"
+			],
+			"Creating your fork of %s…": [
+				"正在为您创建 %s 的分支仓库……"
+			],
+			"Could not start sign-in.": [
+				"无法开始登录。"
+			],
+			"Sign-in did not complete.": [
+				"登录未完成。"
+			],
+			"The authorization was declined on GitHub. Nothing was changed.": [
+				"您在 GitHub 上拒绝了授权。未作任何更改。"
+			],
+			"The pull request could not be opened.": [
+				"无法创建拉取请求。"
+			],
+			"Your checkout was behind trunk, so the branch was based on today's trunk. None of your files were changed upstream in between — the pull request shows only your work.": [
+				"您的签出副本落后于 trunk，因此分支基于今天的 trunk 创建。在此期间，上游未修改您涉及的文件，拉取请求仅包含您的工作。"
+			],
+			"Opened <link>pull request #%s</link> from <branch />.": [
+				"已从 <branch /> 创建<link>拉取请求 #%s</link>。"
+			],
+			"Dry run — branch <branch /> was created on your fork; no pull request was opened.": [
+				"试运行——已在您的分支仓库中创建分支 <branch />，未创建拉取请求。"
+			],
+			"Save the patch file instead": [
+				"改为保存补丁文件"
+			],
+			"Pull requests go to <target />, not to <upstream />.": [
+				"拉取请求将提交至 <target />，而不是 <upstream />。"
+			],
+			"Dry run — a branch is pushed to your fork, no pull request is opened.": [
+				"试运行——将分支推送到您的分支仓库，不创建拉取请求。"
+			],
+			"Test mode": [
+				"测试模式"
+			],
+			"Open a pull request": [
+				"创建拉取请求"
+			],
+			"Not now": [
+				"暂不"
+			],
+			"Sign in with GitHub": [
+				"使用 GitHub 登录"
+			],
+			"Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.": [
+				"登录后，应用可将 %s 复刻到您的账号，将此补丁推送到其中的分支，并创建拉取请求。登录通过浏览器完成，应用不会索取您的密码，并会在退出时清除授权。"
+			],
+			"Show this again": [
+				"再次显示此提示"
+			],
+			"Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.": [
+				"未登录任何账号，也未发送任何内容。您仍可保存补丁文件，其他提交方式不受影响。"
+			],
+			"Signed in as <login /> — the fork and branch go to <fork />.": [
+				"已以 <login /> 身份登录——分支仓库和分支将位于 <fork />。"
+			],
+			"Open pull request": [
+				"创建拉取请求"
+			],
+			"Push branch (dry run)": [
+				"推送分支（试运行）"
+			],
+			"Anything you are unsure about.": [
+				"任何您不确定的事项。"
+			],
+			"How to see it working — the steps you used.": [
+				"验证效果的方式——您使用的步骤。"
+			],
+			"What the change does, and why.": [
+				"更改做了什么，以及为什么这样做。"
+			],
+			"Notes for reviewers (optional)": [
+				"审核者备注（可选）"
+			],
+			"Left empty, it will be titled <strong><title /></strong>.": [
+				"留空时，将使用 <strong><title /></strong> 作为标题。"
+			],
+			"What the change does, in one line. Reviewers scan these.": [
+				"用一句话说明更改的作用，便于审核者浏览。"
+			],
+			"Title": [
+				"标题"
+			],
+			"Reject a theme zip in the plugin installer": [
+				"在插件安装器中拒绝主题 zip 文件"
+			],
+			"No connection to GitHub.": [
+				"无法连接 GitHub。"
+			],
+			"GitHub is rate-limiting this connection. It usually clears within the hour.": [
+				"GitHub 正在限制此连接的请求频率，通常会在一小时内解除。"
+			],
+			"Waiting for you to finish in the browser…": [
+				"正在等待您在浏览器中完成操作……"
+			],
+			"That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.": [
+				"此次 GitHub 登录已失效。请重新登录，或改为保存补丁文件。"
+			],
+			"Copy the code": [
+				"复制代码"
+			],
+			"Code copied": [
+				"代码已复制"
+			],
+			"Enter this code at <strong><address /></strong>, which has been opened in your browser.": [
+				"请在已于浏览器中打开的 <strong><address /></strong> 输入此代码。"
+			],
+			"This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.": [
+				"此构建未配置 GitHub 应用，因此无法创建拉取请求。其他提交方式仍可使用。"
+			],
+			"Checking…": [
+				"正在检查……"
+			],
+			"Open #%s to comment": [
+				"打开 #%s 发表评论"
+			],
+			"Copy the link": [
+				"复制链接"
+			],
+			"Link copied": [
+				"链接已复制"
+			],
+			"Triage and props live on the ticket, so the link belongs there too.": [
+				"问题分类和贡献者致谢都记录在工单中，因此也应将链接发布到那里。"
+			],
+			"Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.": [
+				"放在描述顶部。工单链接和您的 WordPress.org 用户名会添加在下方。"
+			],
+			"It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.": [
+				"它无法替您创建 GitHub 账号，也无法代您在 Trac 上发帖。"
+			],
+			"Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.": [
+				"自动检查会针对它运行。但没有人专门关注 GitHub，只有将链接发布到工单中，它才会被看到。"
+			],
+			"No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.": [
+				"此站点未关联工单。拉取请求必须引用工单，请在 Trac 卡片中关联。"
+			],
+			"Link a GitHub issue to this site first. A pull request has to cite one.": [
+				"请先为此站点关联 GitHub 问题。拉取请求必须引用一个问题。"
+			],
+			"The Gutenberg contributing guide": [
+				"Gutenberg 贡献指南"
+			],
+			"Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.": [
+				"审核者需要测试步骤。请在备注中说明：打开什么、点击什么，以及应出现什么结果。"
+			],
+			"The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.": [
+				"更改会在拉取请求中接受审核，并在获批后合并。无需发布到其他地方就能被看到。"
+			],
+			"How pull requests work in Gutenberg": [
+				"Gutenberg 中拉取请求的工作方式"
+			],
+			"The Fixes line already lists it on the issue. A comment there still tells the people watching it.": [
+				"Fixes 行已将它关联到问题。在该问题下发表评论，仍可通知关注者。"
+			],
+			"Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.": [
+				"放在描述顶部。用于关联问题的 Fixes 行和您的 WordPress.org 用户名会添加在下方。"
+			],
+			"It cannot create the GitHub account for you.": [
+				"它无法替您创建 GitHub 账号。"
+			],
+			"Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.": [
+				"自动检查、审核和合并都在这里进行：在 Gutenberg 中，拉取请求就是协作场所。"
+			],
+			"A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.": [
+				"一个 GitHub 账号。应用会为您创建分支仓库；无需在应用中输入密码，也不会将凭据写入磁盘。"
+			],
+			"No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.": [
+				"此站点未关联问题。拉取请求必须引用问题，请在 GitHub 问题卡片中关联。"
+			],
+			"Link a Trac ticket to this site first. A pull request has to cite one.": [
+				"请先为此站点关联 Trac 工单。拉取请求必须引用一个工单。"
+			],
+			"The handbook page on pull requests": [
+				"手册中的拉取请求页面"
+			],
+			"Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.": [
+				"GitHub 上也不会进行合并。提交者会自行应用更改，并在工单中决定是否这样做。"
+			],
+			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
+				"没有人专门查看拉取请求列表。您的请求会因工单中的链接而被看到，因此此流程最后会引导您返回工单。"
+			],
+			"How pull requests work in core": [
+				"核心项目中拉取请求的工作方式"
+			],
+			"Sign in to GitHub first.": [
+				"请先登录 GitHub。"
+			],
+			"Could not read the base commit": [
+				"无法读取基准提交"
+			],
+			"Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.": [
+				"您修改的文件（%s）在 trunk 中已有更新。请将此站点更新至最新 trunk，确认您的更改仍适用后再试一次。"
+			],
+			"There are no changes to open a pull request with.": [
+				"没有可用于创建拉取请求的更改。"
+			],
+			"Could not open the pull request": [
+				"无法创建拉取请求"
+			],
+			"Could not find an unused branch name": [
+				"找不到尚未使用的分支名称"
+			],
+			"Could not create the branch": [
+				"无法创建分支"
+			],
+			"Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s": [
+				"GitHub 仍在准备您的分支仓库。请稍后再试一次，补丁文件仍可使用。%s"
+			],
+			"Could not create the commit": [
+				"无法创建提交"
+			],
+			"Could not assemble the change": [
+				"无法组装更改"
+			],
+			"Could not upload %s": [
+				"无法上传 %s"
+			],
+			"Could not read your fork’s %s": [
+				"无法读取您分支仓库的 %s"
+			],
+			"Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.": [
+				"GitHub 仍在准备您的分支仓库。对于此规模的仓库，可能需要几分钟。请稍后再试一次，补丁文件仍可使用。"
+			],
+			"Could not read your fork": [
+				"无法读取您的分支仓库"
+			],
+			"Could not fork %s": [
+				"无法复刻 %s"
+			],
+			"Could not check for your fork": [
+				"无法检查您的分支仓库"
+			],
+			"You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.": [
+				"您已有名为 %1$s 的仓库，但它不是 %2$s 的分支仓库，因此无法向其推送此更改。补丁文件仍可使用。"
+			],
+			"%1$s: %2$s%3$s": [
+				"%1$s：%2$s%3$s"
+			],
+			"This build has no GitHub application configured, so it cannot sign you in.": [
+				"此构建未配置 GitHub 应用，因此无法为您登录。"
+			],
+			"GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke \"%1$s\" under %2$s, then sign in here again.": [
+				"GitHub 为此次登录授予的权限不足以创建拉取请求，可能沿用了本应用的旧授权。请在 %2$s 下撤销「%1$s」，然后在此重新登录。"
+			],
+			"GitHub returned %s": [
+				"GitHub 返回了 %s"
+			],
+			"That sign-in is no longer valid.": [
+				"此次登录已失效。"
+			],
+			"The authorization was declined on GitHub.": [
+				"您在 GitHub 上拒绝了授权。"
+			],
+			"The code expired before it was entered.": [
+				"代码在输入前已过期。"
+			],
+			"Sign-in was canceled.": [
+				"登录已取消。"
+			],
+			"GitHub does not recognise this application, or device flow is not enabled on it.": [
+				"GitHub 无法识别此应用，或此应用未启用设备授权流程。"
+			],
+			"Revert the patch you applied before opening a pull request from this checkout.": [
+				"从此签出副本创建拉取请求前，请先撤销已应用的补丁。"
+			],
+			"Revert %s before opening a pull request from this checkout.": [
+				"从此签出副本创建拉取请求前，请先撤销 %s。"
+			],
+			"PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.": [
+				"PR #%d 已应用。其作者的提交已成为此签出副本的历史记录，因此不能作为您的工作提交。请先撤销此 PR。"
+			],
+			"Unknown error": [
+				"未知错误"
+			],
+			"Trac ticket number or URL": [
+				"Trac 工单编号或 URL"
+			],
+			"Ticket number or URL, e.g. 62281": [
+				"工单编号或 URL，例如 62281"
+			],
+			"No ticket is linked to this site, so there is nowhere to attach it yet.": [
+				"此站点尚未关联工单，因此还没有可以附加补丁的位置。"
+			],
+			"Save, then open #%d": [
+				"保存，然后打开 #%d"
+			],
+			"No automated checks. Often followed by a request to open a pull request.": [
+				"没有自动检查。通常之后会被要求创建拉取请求。"
+			],
+			"A WordPress.org account — needed anyway, for props and to comment.": [
+				"一个 WordPress.org 账号——记录贡献者致谢和发表评论都需要它。"
+			],
+			"Attach to Trac": [
+				"附加到 Trac"
+			],
+			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
+				"应用无法安全地区分原作者的更改和之后的修改，因此不能将此合并后的补丁作为您的工作提交。您仍可使用<strong>保存</strong>保留不带署名的副本；提交前请先撤销已应用的补丁。"
+			],
+			"<strong>The patch you applied is part of this checkout.</strong>": [
+				"<strong>您应用的补丁是此签出副本的一部分。</strong>"
+			],
+			"<strong><label /> is part of this checkout.</strong>": [
+				"<strong><label /> 是此签出副本的一部分。</strong>"
+			],
+			"You can still use <strong>Save</strong> to keep an unattributed copy of your edits.": [
+				"您仍可使用<strong>保存</strong>保留不带署名的修改副本。"
+			],
+			"The pull request is the one the app sends for you. The others save a file for you to send.": [
+				"应用会代您提交拉取请求。其他方式则保存文件，由您自行发送。"
+			],
+			"Where this patch goes": [
+				"此补丁的提交去向"
+			],
+			"Could not load your changes. Close this panel and try again. The error is shown below.": [
+				"无法加载您的更改。请关闭此面板后再试一次，错误显示在下方。"
+			],
+			"This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.": [
+				"此站点的 WordPress 代码已有 %d 天未更新，此补丁可能无法在 Trac 上应用。建议先更新至最新 trunk。"
+			],
+			"Saved to %s": [
+				"已保存至 %s"
+			],
+			"Discard your changes": [
+				"丢弃您的更改"
+			],
+			"(<discard />)": [
+				"（<discard />）"
+			],
+			"Failed to generate patch": [
+				"生成补丁失败"
+			],
+			"Error: %s": [
+				"错误：%s"
+			],
+			"No changes.": [
+				"没有更改。"
+			],
+			"Generating patch…": [
+				"正在生成补丁……"
+			],
+			"Could not save the patch: %s": [
+				"无法保存补丁：%s"
+			],
+			"Change these": [
+				"修改这些信息"
+			],
+			"No event on the patch.": [
+				"补丁未注明活动。"
+			],
+			"The patch will say it was written at <strong><event /></strong>.": [
+				"补丁将注明其编写于 <strong><event /></strong>。"
+			],
+			"Save patch as %s": [
+				"将补丁保存为 %s"
+			],
+			"Someone else pushes it; the props still land on you.": [
+				"由他人推送，贡献者致谢仍归于您。"
+			],
+			"No accounts at all. The patch carries your WordPress.org username, and the event you are at.": [
+				"无需任何账号。补丁会包含您的 WordPress.org 用户名和所参加的活动。"
+			],
+			"Hand it to a mentor": [
+				"交给导师"
+			],
+			"Remember this": [
+				"记住此信息"
+			],
+			"Event this patch was written at": [
+				"编写此补丁时参加的活动"
+			],
+			"Event, e.g. WordCamp Europe 2026 (optional)": [
+				"活动，例如 WordCamp Europe 2026（可选）"
+			],
+			"WordPress.org username, e.g. janedoe": [
+				"WordPress.org 用户名，例如 janedoe"
+			],
+			"Asked once and remembered for every site — these are facts about you, not about this checkout.": [
+				"只询问一次，并供所有站点使用——这些是您的个人信息，而非此签出副本的信息。"
+			],
+			"There is nothing to send yet — this site has no changes against its copy of trunk.": [
+				"还没有可发送的内容——此站点与其 trunk 副本相比没有更改。"
+			],
+			"Everything this site has that its copy of trunk does not.": [
+				"此站点中相对于其 trunk 副本新增或更改的全部内容。"
+			],
+			"Your changes": [
+				"您的更改"
+			],
+			"There are no changes on top of PR #%d.": [
+				"在 PR #%d 基础上没有更改。"
+			],
+			"Edits to this local copy, compared with the original PR commits.": [
+				"与原始 PR 提交相比，此本地副本中的修改。"
+			],
+			"Your changes on top of PR #%d": [
+				"您在 PR #%d 基础上的更改"
+			],
+			"Your changes for ticket #%d": [
+				"您为工单 #%d 作出的更改"
+			],
+			"Your changes for issue #%d": [
+				"您为问题 #%d 作出的更改"
+			],
+			"Stop the dev server before discarding changes.": [
+				"丢弃更改前，请先停止开发服务器。"
+			],
+			"Wait for the build to finish before discarding changes.": [
+				"丢弃更改前，请等待构建完成。"
+			],
+			"Wait for the installation to finish before discarding changes.": [
+				"丢弃更改前，请等待安装完成。"
+			],
+			"Wait for the trunk update to finish before discarding changes.": [
+				"丢弃更改前，请等待 trunk 更新完成。"
+			],
+			"There are no changes to discard.": [
+				"没有可丢弃的更改。"
+			],
+			"Changes could not be loaded.": [
+				"无法加载更改。"
+			],
+			"Wait for your changes to finish loading.": [
+				"请等待您的更改加载完成。"
+			],
+			"Changes are already being discarded.": [
+				"正在丢弃更改。"
+			],
+			"the window’s theme: the operating system’s\u0004System": [
+				"跟随系统"
+			],
+			"the window’s theme\u0004Dark": [
+				"深色"
+			],
+			"the window’s theme\u0004Light": [
+				"浅色"
+			],
+			"Theme": [
+				"主题"
+			],
+			"Choose what happens when the app quits.": [
+				"选择退出应用时的行为。"
+			],
+			"Stop them, and start them again next time": [
+				"停止，并在下次启动时重新运行"
+			],
+			"Stop them": [
+				"停止"
+			],
+			"So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.": [
+				"无需点击即可使用站点和 wp-admin。对于 WordPress 核心，构建监听也会一同启动。"
+			],
+			"Start the server when I open a site": [
+				"打开站点时启动服务器"
+			],
+			"Opening and quitting": [
+				"打开与退出"
+			],
+			"Quitting always stops them; they can be started again when the app next opens.": [
+				"退出时始终会停止它们，下次打开应用时可以重新启动。"
+			],
+			"When I quit, running servers and build watches": [
+				"退出时，对运行中的服务器和构建监听执行"
+			],
+			"So edits are compiled as they are saved.": [
+				"让修改在保存时自动编译。"
+			],
+			"Start the build watch when I open a site": [
+				"打开站点时启动构建监听"
+			],
+			"The app does not have that PHP version.": [
+				"应用未提供该 PHP 版本。"
+			],
+			"Choose on or off.": [
+				"请选择开启或关闭。"
+			],
+			"Off": [
+				"关闭"
+			],
+			"Debugging": [
+				"调试"
+			],
+			"%1$s · PHP %2$s": [
+				"%1$s · PHP %2$s"
+			],
+			"PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.": [
+				"已选择 PHP %1$s，但此版本的应用未提供它；服务器将使用 PHP %2$s 启动。"
+			],
+			"Sites": [
+				"站点"
+			],
+			"Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.": [
+				"核心将提供未经压缩的 JavaScript 和 CSS，便于在浏览器中阅读和单步调试。"
+			],
+			"Use unminified scripts (SCRIPT_DEBUG)": [
+				"使用未压缩脚本（SCRIPT_DEBUG）"
+			],
+			"Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.": [
+				"关闭时，不报告通知和弃用提示。警告和错误仍会输出到 debug.log 和浏览器，error_log() 调用仍会写入 debug.log。"
+			],
+			"Report notices and deprecations (WP_DEBUG)": [
+				"报告通知和弃用提示（WP_DEBUG）"
+			],
+			"PHP version": [
+				"PHP 版本"
+			],
+			"Applies the next time a site’s server starts. A server that is running keeps what it started with.": [
+				"在站点服务器下次启动时生效。运行中的服务器会继续使用启动时的设置。"
+			],
+			"Development server": [
+				"开发服务器"
+			],
+			"The PHP versions could not be read. Quit the app and open it again.": [
+				"无法读取 PHP 版本。请退出并重新打开应用。"
+			],
+			"Could not keep that.": [
+				"无法保存该设置。"
+			],
+			"The app has no translation for that language.": [
+				"应用尚无该语言的翻译。"
+			],
+			"Choose a language.": [
+				"请选择语言。"
+			],
+			"Your system’s language": [
+				"系统语言"
+			],
+			"Relaunch now": [
+				"立即重新启动"
+			],
+			"The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.": [
+				"应用重新启动后将显示新语言。运行中的服务器和构建会停止，与退出应用时相同。"
+			],
+			"Which language the app is shown in. A change applies after a relaunch.": [
+				"应用的显示语言。更改将在重新启动后生效。"
+			],
+			"Language": [
+				"语言"
+			],
+			"The app could not relaunch. Quit it and open it again.": [
+				"应用无法重新启动。请退出后重新打开。"
+			],
+			"Could not keep that language.": [
+				"无法保存该语言设置。"
+			],
+			"Appearance": [
+				"外观"
+			],
+			"Enter your WordPress.org username.": [
+				"请输入您的 WordPress.org 用户名。"
+			],
+			"Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.": [
+				"请输入您的 WordPress.org 用户名（例如 janedoe），或您的 profiles.wordpress.org URL。"
+			],
+			"Only %s profile links are supported.": [
+				"仅支持 %s 个人资料链接。"
+			],
+			"There is no such setting.": [
+				"不存在此设置。"
+			],
+			"That folder does not exist.": [
+				"该文件夹不存在。"
+			],
+			"Choose a folder by its full path.": [
+				"请使用完整路径选择文件夹。"
+			],
+			"Choose a folder.": [
+				"请选择文件夹。"
+			],
+			"Not set: the create-site dialog asks each time.": [
+				"未设置：创建站点对话框会每次询问。"
+			],
+			"Reading…": [
+				"正在读取……"
+			],
+			"Not signed in. The app asks you to sign in when you open a pull request.": [
+				"尚未登录。创建拉取请求时，应用会提示您登录。"
+			],
+			"Signed in as %s.": [
+				"已以 %s 身份登录。"
+			],
+			"Sign-in is not set up in this build.": [
+				"此构建未配置登录功能。"
+			],
+			"Could not save that event.": [
+				"无法保存该活动。"
+			],
+			"Could not save that username.": [
+				"无法保存该用户名。"
+			],
+			"Forget this folder": [
+				"清除此文件夹设置"
+			],
+			"Each new site is created in a subfolder of this location.": [
+				"每个新站点都会创建在此位置的一个子文件夹中。"
+			],
+			"New sites go here": [
+				"新站点存放位置"
+			],
+			"New sites": [
+				"新站点"
+			],
+			"Could not keep that folder.": [
+				"无法保存该文件夹设置。"
+			],
+			"Account": [
+				"账号"
+			],
+			"General": [
+				"常规"
+			],
+			"Sign out": [
+				"退出登录"
+			],
+			"GitHub": [
+				"GitHub"
+			],
+			"Save": [
+				"保存"
+			],
+			"Saving": [
+				"正在保存"
+			],
+			"Saved.": [
+				"已保存。"
+			],
+			"Where you are contributing from, if you are at an event. Leave it empty otherwise.": [
+				"如果您正在参加活动，请填写贡献所在的活动；否则请留空。"
+			],
+			"Event": [
+				"活动"
+			],
+			"Goes on a patch you hand to a mentor, so the props land on you.": [
+				"会写入交给导师的补丁中，以便将贡献者致谢归于您。"
+			],
+			"WordPress.org username": [
+				"WordPress.org 用户名"
+			],
+			"How you contribute": [
+				"您的贡献方式"
+			],
+			"Settings": [
+				"设置"
+			],
+			"The event name has to fit on one line.": [
+				"活动名称必须在一行内。"
+			],
+			"Enter the event name, or leave it empty.": [
+				"请输入活动名称，或留空。"
+			],
+			"Keep the event name under %d characters.": [
+				"活动名称请少于 %d 个字符。"
+			],
+			"Settings…": [
+				"设置……"
+			],
+			"Show Logs Folder": [
+				"显示日志文件夹"
+			],
+			"Open App Log": [
+				"打开应用日志"
+			],
+			"Choose the application to open this folder in": [
+				"选择用于打开此文件夹的应用程序"
+			],
+			"Programs": [
+				"程序"
+			],
+			"Applications": [
+				"应用程序"
+			],
+			"All Files": [
+				"所有文件"
+			],
+			"Patch Files": [
+				"补丁文件"
+			],
+			"Choose a patch file": [
+				"选择补丁文件"
+			],
+			"Save Diff File": [
+				"保存差异文件"
+			],
+			"Save Patch for Handoff": [
+				"保存用于交接的补丁"
+			],
+			"Email": [
+				"电子邮件"
+			],
+			"Logs": [
+				"日志"
+			],
+			"Terminal": [
+				"终端"
+			],
+			"Closed": [
+				"已关闭"
+			],
+			"Merged": [
+				"已合并"
+			],
+			"No pull requests cite this ticket yet.": [
+				"尚无拉取请求引用此工单。"
+			],
+			"See the work that already exists on this ticket before adding your own.": [
+				"在添加自己的工作前，请先查看此工单已有的工作。"
+			],
+			"Open in Trac": [
+				"在 Trac 中打开"
+			],
+			"Browse good first bugs on Trac": [
+				"在 Trac 中浏览适合新手的Bug"
+			],
+			"Linking ticket": [
+				"正在关联工单"
+			],
+			"Link ticket": [
+				"关联工单"
+			],
+			"e.g. 62281": [
+				"例如：62281"
+			],
+			"Ticket number or URL": [
+				"工单编号或 URL"
+			],
+			"Link the ticket you’re working on.": [
+				"关联您正在处理的工单。"
+			],
+			"Trac ticket": [
+				"Trac 工单"
+			],
+			"No pull requests cite this issue yet.": [
+				"尚无拉取请求引用此问题。"
+			],
+			"See the work that already exists on this issue before adding your own.": [
+				"在添加自己的工作前，请先查看此问题已有的工作。"
+			],
+			"Open on GitHub": [
+				"在 GitHub 上打开"
+			],
+			"Browse good first issues on GitHub": [
+				"在 GitHub 上浏览适合新手的问题"
+			],
+			"Linking issue": [
+				"正在关联问题"
+			],
+			"Link issue": [
+				"关联问题"
+			],
+			"e.g. 71234": [
+				"例如：71234"
+			],
+			"Issue number or URL": [
+				"问题编号或 URL"
+			],
+			"Link the issue you’re working on.": [
+				"关联您正在处理的问题。"
+			],
+			"GitHub issue": [
+				"GitHub 问题"
+			],
+			"Could not read the attachments from Trac. (%s)": [
+				"无法从 Trac 读取附件。（%s）"
+			],
+			"Could not read the attachments from Trac.": [
+				"无法从 Trac 读取附件。"
+			],
+			"The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.": [
+				"附件加载完成前，Trac 窗口已关闭。请点击「刷新」再试一次。"
+			],
+			"Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.": [
+				"Trac 的人机验证未及时完成。请再试一次，如果出现「I am human」，请点击它。"
+			],
+			"by %s": [
+				"作者：%s"
+			],
+			"Showing what was last seen %s.": [
+				"正在显示 %s 时最后获取的内容。"
+			],
+			"No cached list to fall back on.": [
+				"没有可供使用的缓存列表。"
+			],
+			"Could not reach GitHub.": [
+				"无法连接 GitHub。"
+			],
+			"GitHub is rate-limiting this connection.": [
+				"GitHub 正在限制此连接的请求频率。"
+			],
+			"Could not read the pull requests from GitHub.": [
+				"无法从 GitHub 读取拉取请求。"
+			],
+			"Updated %s": [
+				"更新于 %s"
+			],
+			"Last commit %s": [
+				"最后提交于 %s"
+			],
+			"Open": [
+				"开放"
+			],
+			"Edited on %s": [
+				"编辑于 %s"
+			],
+			"Edited %d day ago": [
+				"%d 天前编辑"
+			],
+			"Edited %d hour ago": [
+				"%d 小时前编辑"
+			],
+			"Edited %d minute ago": [
+				"%d 分钟前编辑"
+			],
+			"Edited just now": [
+				"刚刚编辑"
+			],
+			"Delete this ticket’s work": [
+				"删除此工单的更改"
+			],
+			"This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.": [
+				"这将永久删除在此站点上为此工单作出的所有更改，无论是否已提交。此操作无法撤销。"
+			],
+			"Delete all work on ticket #%d?": [
+				"删除工单 #%d 的所有更改？"
+			],
+			"Delete this issue’s work": [
+				"删除此问题的更改"
+			],
+			"This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.": [
+				"这将永久删除在此站点上为此问题作出的所有更改，无论是否已提交。此操作无法撤销。"
+			],
+			"Delete all work on issue #%d?": [
+				"删除问题 #%d 的所有更改？"
+			],
+			"Your tickets on this site": [
+				"您在此站点上的工单"
+			],
+			"Other tickets on this site": [
+				"此站点上的其他工单"
+			],
+			"Your issues on this site": [
+				"您在此站点上的问题"
+			],
+			"Other issues on this site": [
+				"此站点上的其他问题"
+			],
+			"Deleting": [
+				"正在删除"
+			],
+			"Continue working": [
+				"继续工作"
+			],
+			"Switch": [
+				"切换"
+			],
+			"Deleting site…": [
+				"正在删除站点……"
+			],
+			"WordPress code is %d day old — update to latest trunk": [
+				"WordPress 代码已有 %d 天未更新——请更新至最新 trunk"
+			],
+			"Update incomplete — code is new, built assets are old": [
+				"更新未完成——代码已更新，构建资源仍是旧的"
+			],
+			"Build watching": [
+				"构建正在监听"
+			],
+			"Build compiling": [
+				"构建正在编译"
+			],
+			"Edits in %s are compiled as they are saved.": [
+				"%s 中的修改会在保存时编译。"
+			],
+			"Start build watch": [
+				"启动构建监听"
+			],
+			"Start": [
+				"启动"
+			],
+			"Stop build watch": [
+				"停止构建监听"
+			],
+			"Stop": [
+				"停止"
+			],
+			"The development server could not start. Its last lines are in the Logs.": [
+				"开发服务器无法启动。最后的输出位于日志中。"
+			],
+			"The development server stopped by itself. Its last lines are in the Logs.": [
+				"开发服务器自行停止。最后的输出位于日志中。"
+			],
+			"Start development server": [
+				"启动开发服务器"
+			],
+			"Server stopped": [
+				"服务器已停止"
+			],
+			"Stop development server": [
+				"停止开发服务器"
+			],
+			"Server running": [
+				"服务器运行中"
+			],
+			"Starting…": [
+				"正在启动……"
+			],
+			"Server starting…": [
+				"服务器正在启动……"
+			],
+			"Dev server is starting… (%s)": [
+				"开发服务器正在启动……（%s）"
+			],
+			"Database": [
+				"数据库"
+			],
+			"wp-admin": [
+				"wp-admin"
+			],
+			"View site": [
+				"查看站点"
+			],
+			"Build stopped": [
+				"构建已停止"
+			],
+			"The build watch ended by itself, with exit code %d. Its last lines are in the Logs.": [
+				"构建监听进程自行结束，退出码为 %d。最后的输出位于日志中。"
+			],
+			"The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.": [
+				"启动监听前必须完成的构建失败，因此未启动监听。最后的输出位于日志中。"
+			],
+			"The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.": [
+				"启动监听前必须完成的构建失败，退出码为 %d，因此未启动监听。最后的输出位于日志中。"
+			],
+			"The build watch ended by itself. Its last lines are in the Logs.": [
+				"构建监听进程自行结束。最后的输出位于日志中。"
+			],
+			"Paused while another operation builds the site. It comes back by itself.": [
+				"其他操作正在构建站点，已暂停。稍后会自动恢复。"
+			],
+			"Build paused": [
+				"构建已暂停"
+			],
+			"Building the site before watching it.": [
+				"正在开始监听前构建站点。"
+			],
+			"Build building": [
+				"正在构建"
+			],
+			"Wait for the build to finish.": [
+				"请等待构建完成。"
+			],
+			"Wait for the installation to finish.": [
+				"请等待安装完成。"
+			],
+			"Wait for the trunk update to finish.": [
+				"请等待 trunk 更新完成。"
+			],
+			"Looking for applications…": [
+				"正在查找应用程序……"
+			],
+			"Other application…": [
+				"其他应用程序……"
+			],
+			"Show in file manager": [
+				"在文件管理器中显示"
+			],
+			"Show in Explorer": [
+				"在资源管理器中显示"
+			],
+			"Show in Finder": [
+				"在访达中显示"
+			],
+			"Deleting…": [
+				"正在删除……"
+			],
+			"Open in": [
+				"打开方式"
+			],
+			"Copy path": [
+				"复制路径"
+			],
+			"Rename…": [
+				"重命名……"
+			],
+			"Update to latest trunk": [
+				"更新至最新 trunk"
+			],
+			"(no subject)": [
+				"（无主题）"
+			],
+			"No mail yet. WordPress transactional email will appear here once the site sends any.": [
+				"暂无邮件。站点发送 WordPress 事务性邮件后，会显示在这里。"
+			],
+			"SMTP listening on 127.0.0.1:%d": [
+				"SMTP 正在监听 127.0.0.1:%d"
+			],
+			"SMTP will start with the dev server.": [
+				"SMTP 将随开发服务器启动。"
+			],
+			"Delete site": [
+				"删除站点"
+			],
+			"This will permanently delete the site and all of its files from your computer. This can’t be undone.": [
+				"这将从您的计算机中永久删除此站点及其所有文件。此操作无法撤销。"
+			],
+			"Delete %s?": [
+				"删除 %s？"
+			],
+			"Site name cannot be empty.": [
+				"站点名称不能为空。"
+			],
+			"Checkout": [
+				"签出副本"
+			],
+			"Local path": [
+				"本地路径"
+			],
+			"%d day old": [
+				"%d 天前"
+			],
+			"Trunk as of": [
+				"主干（trunk）快照时间"
+			],
+			"Created": [
+				"创建时间"
+			],
+			"Uninitialized": [
+				"未初始化"
+			],
+			"Initialized": [
+				"已初始化"
+			],
+			"Setup": [
+				"设置"
+			],
+			"Show sites list": [
+				"显示站点列表"
+			],
+			"Hide sites list": [
+				"隐藏站点列表"
+			],
+			"Site": [
+				"站点"
+			],
+			"Create your first site to begin contributing": [
+				"创建您的第一个站点，开始贡献"
+			],
+			"No sites": [
+				"没有站点"
+			],
+			"All changes discarded.": [
+				"所有更改已丢弃。"
+			],
+			"This site is ready to work on": [
+				"此站点已准备就绪"
+			],
+			"Copied the path": [
+				"路径已复制"
+			],
+			"Updated to the latest trunk": [
+				"已更新至最新 trunk"
+			],
+			"Local changes discarded.": [
+				"本地更改已丢弃。"
+			],
+			"Already up to date with trunk": [
+				"已与 trunk 保持同步"
+			],
+			"%d unseen line in Debug.log": [
+				"Debug.log 中有 %d 行未查看内容"
+			],
+			"A site’s project cannot be changed later.": [
+				"站点所属的项目之后无法更改。"
+			],
+			"Opened pull request #%1$s on %2$s": [
+				"已在 %2$s 上创建拉取请求 #%1$s"
+			],
+			"Dry run — branch created, no pull request opened": [
+				"试运行——分支已创建，未创建拉取请求"
+			],
+			"Saved your changes to %s and reset the working tree": [
+				"已将您的更改保存至 %s，并重置工作树"
+			],
+			"Patch saved to %s": [
+				"补丁已保存至 %s"
+			],
+			"Restored the saved work": [
+				"已恢复保存的更改"
+			],
+			"Restored the previous branch": [
+				"已恢复原分支"
+			],
+			"Checked out the pull request": [
+				"已签出拉取请求"
+			],
+			"Reverted the patch": [
+				"已撤销补丁"
+			],
+			"Applied the patch": [
+				"已应用补丁"
+			],
+			"The site could not be created. %s": [
+				"无法创建站点。%s"
+			],
+			"The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s": [
+				"由于无法删除文件夹，站点仍保留在列表中。请关闭所有占用它的程序后再试一次。文件夹：%s"
+			],
+			"The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s": [
+				"由于无法删除文件夹（%1$s），站点仍保留在列表中。请关闭所有占用它的程序后再试一次。文件夹：%2$s"
+			],
+			"Opened pull request #%s": [
+				"已创建拉取请求 #%s"
+			],
+			"Notifications": [
+				"通知"
+			],
+			"Checking GitHub…": [
+				"正在检查 GitHub……"
+			],
+			"Checking GitHub": [
+				"正在检查 GitHub"
+			],
+			"Linked pull requests": [
+				"关联的拉取请求"
+			],
+			"Keywords": [
+				"关键词"
+			],
+			"Apply…": [
+				"应用……"
+			],
+			"The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.": [
+				"此工单最新的补丁是文件附件，而不是拉取请求，请查看下方的 Trac 附件。"
+			],
+			"Read details from Trac": [
+				"从 Trac 读取详情"
+			],
+			"Reading the ticket on Trac": [
+				"正在 Trac 上读取工单"
+			],
+			"Unlink": [
+				"解除关联"
+			],
+			"Refresh": [
+				"刷新"
+			],
+			"Not sure yet?": [
+				"还不确定？"
+			],
+			"If you have edited anything already, you will be asked what should happen to those edits.": [
+				"如果您已作出修改，应用会询问如何处理这些修改。"
+			],
+			"Latest": [
+				"最新"
+			],
+			"No patch files attached to this ticket.": [
+				"此工单没有附加补丁文件。"
+			],
+			"Opening the ticket on Trac…": [
+				"正在 Trac 上打开工单……"
+			],
+			"Show Trac attachments": [
+				"显示 Trac 附件"
+			],
+			"Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.": [
+				"补丁有时以 Trac 附件形式提供，而非 PR。读取附件时会打开工单，让您完成一次人机验证。"
+			],
+			"Opening the ticket on Trac": [
+				"正在 Trac 上打开工单"
+			],
+			"Trac attachments": [
+				"Trac 附件"
+			],
+			"Applied": [
+				"已应用"
+			],
+			"My sites": [
+				"我的站点"
+			],
+			"Create new site": [
+				"创建新站点"
+			],
+			"(Deleting)": [
+				"（正在删除）"
+			],
+			"(%s)": [
+				"（%s）"
+			],
+			"Name": [
+				"名称"
+			],
+			"Site actions": [
+				"站点操作"
+			],
+			"Show details": [
+				"显示详情"
+			],
+			"Hide details": [
+				"隐藏详情"
+			],
+			"Review & submit changes": [
+				"检查并提交更改"
+			],
+			"Review": [
+				"检查"
+			],
+			"Show password": [
+				"显示密码"
+			],
+			"Hide password": [
+				"隐藏密码"
+			],
+			"Password": [
+				"密码"
+			],
+			"Username": [
+				"用户名"
+			],
+			"Admin credentials": [
+				"管理员凭据"
+			],
+			"Server": [
+				"服务器"
+			],
+			"Copied": [
+				"已复制"
+			],
+			"Copy": [
+				"复制"
+			],
+			"Details": [
+				"详情"
+			],
+			"Details of %s": [
+				"%s 的详情"
+			],
+			"Build watch offline": [
+				"构建监听未运行"
+			],
+			"Build watch": [
+				"构建监听"
+			],
+			"Development server offline": [
+				"开发服务器未运行"
+			],
+			"Rename": [
+				"重命名"
+			],
+			"Renaming the site": [
+				"正在重命名站点"
+			],
+			"Rename site": [
+				"重命名站点"
+			],
+			"Clear emails": [
+				"清空邮件"
+			],
+			"Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.": [
+				"选择用于创建新站点的上级文件夹。系统会为站点创建一个新的子目录。"
+			],
+			"Location": [
+				"位置"
+			],
+			"Setting up a site": [
+				"正在设置站点"
+			],
+			"Project": [
+				"项目"
+			],
+			"Close": [
+				"关闭"
+			],
+			"Resize tray": [
+				"调整托盘大小"
+			],
+			"This patch is applied to your current work. Removing it may require undoing overlapping edits.": [
+				"此补丁已应用到您当前的工作中。移除它可能需要撤销重叠的修改。"
+			],
+			"Discard this ticket to its base": [
+				"丢弃此工单的更改并恢复至起始状态"
+			],
+			"Save a copy of your work": [
+				"保存工作副本"
+			],
+			"Revert this PR before applying another PR or patch file.": [
+				"应用其他 PR 或补丁文件前，请先撤销此 PR。"
+			],
+			"Try another patch on this ticket": [
+				"在此工单上尝试其他补丁"
+			],
+			"Revert this patch": [
+				"撤销此补丁"
+			],
+			"Give feedback": [
+				"提供反馈"
+			],
+			"It changes package-lock.json, so dependencies will be installed before the rebuild.": [
+				"它更改了 package-lock.json，因此重新构建前会先安装依赖项。"
+			],
+			"Apply and rebuild": [
+				"应用并重新构建"
+			],
+			"%1$s changes %2$d file.": [
+				"%1$s 更改了 %2$d 个文件。"
+			],
+			"Apply %s": [
+				"应用 %s"
+			],
+			"%s is a binary file and will be skipped.": [
+				"%s 为二进制文件，将被跳过。"
+			],
+			"Apply PR #%d": [
+				"应用 PR #%d"
+			],
+			"A .diff or .patch file is applied to the current branch as a removable layer.": [
+				"将 .diff 或 .patch 文件作为可移除的更改层应用到当前分支。"
+			],
+			"Choose a .diff or .patch file…": [
+				"选择 .diff 或 .patch 文件……"
+			],
+			"Diff": [
+				"差异"
+			],
+			"Pull request": [
+				"拉取请求"
+			],
+			"Test changes in this checkout. Your own changes are preserved.": [
+				"在此签出副本中测试更改。您自己的更改会保留。"
+			],
+			"Apply a patch or PR": [
+				"应用补丁或 PR"
+			],
+			"Test a pull request in this checkout. Your own changes are preserved.": [
+				"在此签出副本中测试拉取请求。您自己的更改会保留。"
+			],
+			"Check out a pull request": [
+				"签出拉取请求"
+			],
+			"A pull request is checked out with its author’s commits.": [
+				"签出拉取请求时会包含其作者的提交。"
+			],
+			"Apply PR": [
+				"应用 PR"
+			],
+			"Pull request URL or number": [
+				"拉取请求 URL 或编号"
+			],
+			"line %d of the patch": [
+				"补丁的第 %d 行"
+			],
+			"… %d more line": [
+				"……另有 %d 行"
+			],
+			"Near %s": [
+				"靠近 %s"
+			],
+			"%1$s — %2$d of %3$d change": [
+				"%1$s——第 %2$d 项更改，共 %3$d 项"
+			],
+			"The checkout was not changed.": [
+				"签出副本未作更改。"
+			],
+			"Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.": [
+				"此站点上有其他命令正在运行。请等待其完成，或在终端中按 Ctrl+C 停止。"
+			],
+			"text direction\u0004ltr": [
+				"ltr"
+			],
+			"Finish creating the current site first": [
+				"请先完成当前站点的创建"
+			],
+			"Open the feedback form ↗": [
+				"打开反馈表单 ↗"
+			],
+			"Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.": [
+				"回复将提交到团队定期查看的共享表单。除非您填写电子邮箱，否则提交内容均为匿名。"
+			],
+			"Your feedback helps decide what to build next.": [
+				"您的反馈将帮助决定接下来开发什么。"
+			],
+			"WordPress Contributor Toolkit": [
+				"WordPress 贡献者工具包"
+			],
+			"Please choose where to create the site.": [
+				"请选择创建站点的位置。"
+			],
+			"Please provide a site name.": [
+				"请提供站点名称。"
+			],
+			"Create site": [
+				"创建站点"
+			],
+			"Cancel": [
+				"取消"
+			],
+			"No folder selected yet.": [
+				"尚未选择文件夹。"
+			],
+			"My WordPress site": [
+				"我的 WordPress 站点"
+			],
+			"Site name": [
+				"站点名称"
+			],
+			"The wordpress-develop repository: Trac tickets, patches and pull requests.": [
+				"WordPress 开发代码仓库（wordpress-develop）：Trac 工单、补丁和拉取请求。"
+			],
+			"The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.": [
+				"区块编辑器，作为插件在标准 WordPress 中构建和运行：支持 GitHub 问题，并通过签出测试拉取请求。"
+			]
+		}
+	}
+}
