@@ -1,0 +1,3564 @@
+{
+	"translation-revision-date": "2026-11-14 00:25:20+0000",
+	"generator": "GlotPress/4.1.0",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": {
+				"domain": "messages",
+				"plural-forms": "nplurals=2; plural=n != 1;",
+				"lang": "de"
+			},
+			"Set up Xdebug for %s": [
+				"Xdebug für %s einrichten"
+			],
+			"Link #%d": [
+				"#%d verknüpfen"
+			],
+			"#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use Check out a pull request to test it.": [
+				"#%1$d ist ein Pull-Request. Er behebt %2$s. Verknüpfe stattdessen dieses Issue oder verwende „Pull-Request auschecken“, um ihn zu testen.",
+				"#%1$d ist ein Pull-Request. Er behebt %2$s. Verknüpfe stattdessen eines dieser Issues oder verwende „Pull-Request auschecken“, um ihn zu testen."
+			],
+			"#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.": [
+				"#%d ist ein Pull-Request, kein Issue, und in der Beschreibung wird nicht angegeben, welches Issue dadurch behoben wird. Um ihn zu testen, verwende „Pull-Request auschecken“."
+			],
+			"What “Open in” in the site’s menu and the files under “Changed files” open in, and which editor’s Xdebug setup the site’s details offer. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.": [
+				"Welcher Editor für „Öffnen in“ im Website-Menü sowie für die Dateien unter „Geänderte Dateien“ verwendet wird und für welchen Editor die Website-Details die Xdebug-Einrichtung anbieten. Bei „Jedes Mal fragen“ oder einem Editor, der nicht mehr installiert ist, fragt die App, welcher verwendet werden soll."
+			],
+			"Zed": [
+				"Zed"
+			],
+			"PhpStorm": [
+				"PhpStorm"
+			],
+			"Cursor": [
+				"Cursor"
+			],
+			"VS Code": [
+				"VS Code"
+			],
+			"Xdebug is turned on, but this site started before that. Restart the server to use it.": [
+				"Xdebug ist eingeschaltet, aber diese Website wurde bereits zuvor gestartet. Starte den Server neu, um es zu verwenden."
+			],
+			"This site started without Xdebug because another site’s server had it. Restart the server to use it.": [
+				"Diese Website wurde ohne Xdebug gestartet, da der Server einer anderen Website es bereits verwendet hat. Starte den Server neu, um es zu verwenden."
+			],
+			"Xdebug is on for %s. Stop that site’s server, then restart this one to use it here.": [
+				"Xdebug ist für %s eingeschaltet. Halte dort den Server an und starte dann den Server dieser Website neu, um es hier zu verwenden."
+			],
+			"Xdebug is still on for this site until you restart the server.": [
+				"Xdebug ist weiterhin für diese Website eingeschaltet, bis du den Server neu startest."
+			],
+			"Absolute path on the server": [
+				"Absoluter Pfad auf dem Server"
+			],
+			"File/Directory": [
+				"Datei/Verzeichnis"
+			],
+			"Port": [
+				"Port"
+			],
+			"Host": [
+				"Host"
+			],
+			"Cancel the development server start": [
+				"Start des Entwicklungsservers abbrechen"
+			],
+			"Dev server start cancelled.": [
+				"Der Start des Entwicklungsservers wurde abgebrochen."
+			],
+			"Copy debug.json": [
+				"debug.json kopieren"
+			],
+			"Open the site’s folder, and put this in <code>.zed/debug.json</code>:": [
+				"Öffne den Ordner der Website und füge dies in <code>.zed/debug.json</code> ein:"
+			],
+			"Run <b>zed: extensions</b> from the command palette, and install <b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with.": [
+				"Führe über die Befehlspalette <b>zed: extensions</b> aus und installiere <b>PHP</b>. Dessen Xdebug-Adapter wird von Zed für die Fehlerdiagnose von PHP verwendet."
+			],
+			"In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"Starte unter <b>Ausführen und Debuggen</b> „Listen for Xdebug“, setze einen Haltepunkt und lade die Website."
+			],
+			"Copy launch.json": [
+				"launch.json kopieren"
+			],
+			"Open the site’s folder, and put this in <code>.vscode/launch.json</code>:": [
+				"Öffne den Ordner der Website und füge dies in <code>.vscode/launch.json</code> ein:"
+			],
+			"Install the <b>PHP Debug</b> extension by Xdebug.": [
+				"Installiere die Erweiterung <b>PHP Debug</b> von Xdebug."
+			],
+			"Every site’s server sends Xdebug to port %d, so only one running site has Xdebug at a time: the first one started with it.": [
+				"Der Server jeder Website sendet Xdebug an den Port %d, sodass jeweils nur eine aktive Website über Xdebug verfügt: diejenige, die zuerst damit gestartet wurde."
+			],
+			"Couldn’t copy to clipboard.": [
+				"Es konnte nicht in die Zwischenablage kopiert werden."
+			],
+			"Copied to clipboard": [
+				"In die Zwischenablage kopiert"
+			],
+			"If the site starts on another port, PhpStorm asks which server it is; update the Host above.": [
+				"Wenn die Website auf einem anderen Port startet, fragt PhpStorm, um welchen Server es sich handelt. Passe den oben angegebenen Host entsprechend an."
+			],
+			"Set up %s": [
+				"%s einrichten"
+			],
+			"Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a breakpoint, and load the site.": [
+				"Aktiviere <b>Ausführen → Überwachung für PHP-Debug-Verbindungen starten</b>, setze einen Haltepunkt und lade die Website."
+			],
+			"In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:": [
+				"Füge unter <b>Einstellungen → PHP → Server</b> einen Server mit Xdebug als Debugger hinzu, aktiviere „Pfadzuordnungen verwenden“ und gib Folgendes ein:"
+			],
+			"In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options.": [
+				"Stelle unter <b>Einstellungen → PHP → Debug</b> sicher, dass der Debug-Port %d enthält, und deaktiviere beide Optionen für „Unterbrechung in der ersten Zeile erzwingen“."
+			],
+			"If Zed says no debug tasks were found, the PHP extension is not installed.": [
+				"Wenn Zed meldet, dass keine Debug-Aufgaben gefunden wurden, ist die PHP-Erweiterung nicht installiert."
+			],
+			"Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"Führe über die Befehlspalette <b>debugger: start</b> aus, wähle „Listen for Xdebug“, setze einen Haltepunkt und lade die Website."
+			],
+			"Set up Xdebug for your editor": [
+				"Xdebug für deinen Editor einrichten"
+			],
+			"Stop on breakpoints in VS Code. Slows every request, so leave it off unless you are debugging. The site’s details show how to connect.": [
+				"An Haltepunkten in VS Code anhalten. Dies verlangsamt jede Anfrage. Daher solltest du diese Funktion deaktiviert lassen, sofern du nicht gerade eine Fehlerdiagnose durchführst. In den Website-Details wird angezeigt, wie du eine Verbindung herstellst."
+			],
+			"Step debugging (Xdebug)": [
+				"Step-Debugging (Xdebug)"
+			],
+			"Choose one of the editors the app found.": [
+				"Wähle einen der von der App gefundenen Editoren aus."
+			],
+			"Open in %s": [
+				"In %s öffnen"
+			],
+			"Ask each time": [
+				"Jedes Mal fragen"
+			],
+			"Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.": [
+				"Solange du keinen anderen Editor auswählst, wirst du bei „Öffnen in“ und bei den Dateien unter „Geänderte Dateien“ gefragt, welcher Editor verwendet werden soll."
+			],
+			"%s is no longer installed": [
+				"%s ist nicht mehr installiert"
+			],
+			"Code editor": [
+				"Code-Editor"
+			],
+			"Could not keep that editor.": [
+				"Dieser Editor konnte nicht übernommen werden."
+			],
+			"Could not look for editors on this machine, so none can be chosen here.": [
+				"Es konnte auf diesem Computer nicht nach Editoren gesucht werden. Daher kann hier keiner ausgewählt werden."
+			],
+			"e.g. 71210": [
+				"z. B. 71210"
+			],
+			"e.g. 9000": [
+				"z. B. 9000"
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.": [
+				"Deine Bearbeitungen an %1$d Datei bleiben bei dem Ticket #%2$d und werden wiederhergestellt, wenn du dorthin zurückkehrst.",
+				"Deine Bearbeitungen an %1$d Dateien bleiben bei dem Ticket #%2$d und werden wiederhergestellt, wenn du dorthin zurückkehrst."
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you revert this PR.": [
+				"Deine Bearbeitungen an %1$d Datei bleiben bei dem Ticket #%2$d und werden wiederhergestellt, wenn du diesen PR rückgängig machst.",
+				"Deine Bearbeitungen an %1$d Dateien bleiben bei dem Ticket #%2$d und werden wiederhergestellt, wenn du diesen PR rückgängig machst."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you return to it.": [
+				"Deine Bearbeitungen an %1$d Datei bleiben bei dem Issue #%2$d und werden wiederhergestellt, wenn du dorthin zurückkehrst.",
+				"Deine Bearbeitungen an %1$d Dateien bleiben bei dem Issue #%2$d und werden wiederhergestellt, wenn du dorthin zurückkehrst."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you revert this PR.": [
+				"Deine Bearbeitungen an %1$d Datei bleiben bei dem Issue #%2$d und werden wiederhergestellt, wenn du diesen PR rückgängig machst.",
+				"Deine Bearbeitungen an %1$d Dateien bleiben bei dem Issue #%2$d und werden wiederhergestellt, wenn du diesen PR rückgängig machst."
+			],
+			"Attachment (%d)": [
+				"Anhang (%d)",
+				"Anhänge (%d)"
+			],
+			"Other attachment (%d)": [
+				"Weiterer Anhang (%d)",
+				"Weitere Anhänge (%d)"
+			],
+			"Closed PR (%d)": [
+				"Geschlossener PR (%d)",
+				"Geschlossene PRs (%d)"
+			],
+			"Other closed PR (%d)": [
+				"Weiterer geschlossener PR (%d)",
+				"Weitere geschlossene PRs (%d)"
+			],
+			"Open PR (%d)": [
+				"Offener PR (%d)",
+				"Offene PRs (%d)"
+			],
+			"Other open PR (%d)": [
+				"Weiterer offener PR (%d)",
+				"Weitere offene PRs (%d)"
+			],
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
+				"Der neueste Trunk konnte nicht heruntergeladen werden. Daher enthält diese Liste möglicherweise auch Änderungen von Trunk, die nicht Teil dieses Pull-Requests sind."
+			],
+			"That file could not be read: %s": [
+				"Diese Datei konnte nicht gelesen werden: %s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"Diese Datei befindet sich nicht auf der Website. Möglicherweise wurde sie durch die Änderung gelöscht."
+			],
+			"Changed files": [
+				"Geänderte Dateien"
+			],
+			"You created this file": [
+				"Du hast diese Datei erstellt"
+			],
+			"You edited this file": [
+				"Du hast diese Datei bearbeitet"
+			],
+			"Revert %s": [
+				"%s zurücksetzen"
+			],
+			"Discard your changes?": [
+				"Deine Änderungen verwerfen?"
+			],
+			"PR #%d stays checked out.": [
+				"Der PR #%d bleibt ausgecheckt."
+			],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"Der angewendete Patch %s wird ebenfalls entfernt, da die App ihn nicht wiederherstellen kann."
+			],
+			"The patch %s stays applied.": [
+				"Der Patch %s bleibt angewendet."
+			],
+			"Your edits to %d file are removed.": [
+				"Deine Bearbeitungen an %d Datei werden entfernt.",
+				"Deine Bearbeitungen an %d Dateien werden entfernt."
+			],
+			"There are no edits of yours to discard.": [
+				"Es gibt keine Bearbeitungen von dir, die verworfen werden können."
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [
+				"Deine Änderungen wurden verworfen, aber %s konnte nicht wiederhergestellt werden und ist daher nicht mehr angewendet."
+			],
+			"Your changes were discarded.": [
+				"Deine Änderungen wurden verworfen."
+			],
+			"Your changes to it are removed.": [
+				"Deine Änderungen daran werden entfernt."
+			],
+			"%s deleted.": [
+				"%s wurde gelöscht."
+			],
+			"Delete file": [
+				"Datei löschen"
+			],
+			"You created this file.": [
+				"Du hast diese Datei erstellt."
+			],
+			"From PR #%d": [
+				"Aus PR #%d"
+			],
+			"From the patch": [
+				"Aus dem Patch"
+			],
+			"Could not revert the file: %s": [
+				"Die Datei konnte nicht zurückgesetzt werden: %s"
+			],
+			"%s reverted.": [
+				"%s wurde zurückgesetzt."
+			],
+			"Revert file": [
+				"Datei zurücksetzen"
+			],
+			"Revert %s?": [
+				"%s zurücksetzen?"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"Deine Bearbeitungen daran werden entfernt und sie wird in den Zustand zurückgesetzt, in dem der Patch sie hinterlassen hat."
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"Deine Bearbeitungen daran werden entfernt und sie wird auf den Stand von PR #%d zurückgesetzt."
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"%1$s konnte nicht zurückgesetzt werden. Daher wurde der Zustand beibehalten: %2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"%1$s konnte nicht zurückgesetzt werden (%2$s) und konnte nicht in den ursprünglichen Zustand zurückversetzt werden, sodass deine Änderungen daran möglicherweise verloren gegangen sind: %3$s"
+			],
+			"%s has no changes to revert.": [
+				"%s enthält keine Änderungen zum Zurücksetzen."
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [
+				"Die App hat keine Kopie des Patches behalten. Daher kann sie %s nicht in den Zustand zurückversetzen, in dem der Patch die Datei hinterlassen hat."
+			],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [
+				"%s befindet sich in dem Zustand, in dem der Patch die Datei hinterlassen hat. Daher gibt es nichts von dir zum Zurücksetzen."
+			],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [
+				"Der Patch benennt %s um. Daher kann dies nur mit dem gesamten Patch rückgängig gemacht werden. Verwende stattdessen „Deine Änderungen verwerfen“."
+			],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
+				"Bisher keine Ausgabe des Entwicklungsservers. Was beim Starten und Ausführen ausgegeben wird – einschließlich eventueller Fehler, die ihn stoppen –, erscheint hier."
+			],
+			"Opened": [
+				"Eröffnet"
+			],
+			"Milestone": [
+				"Meilenstein"
+			],
+			"Component": [
+				"Komponente"
+			],
+			"Type": [
+				"Typ"
+			],
+			"Read from Trac %s": [
+				"Aus Trac gelesen: %s"
+			],
+			"Review and submit": [
+				"Überprüfen und einreichen"
+			],
+			"Review changes": [
+				"Änderungen überprüfen"
+			],
+			"They stay with this pull request's local copy when you revert this PR.": [
+				"Sie bleiben bei der lokalen Kopie dieses Pull-Requests, wenn du diesen PR rückgängig machst."
+			],
+			"%1$d unsubmitted change for ticket #%2$s": [
+				"%1$d nicht eingereichte Änderung für Ticket #%2$s",
+				"%1$d nicht eingereichte Änderungen für Ticket #%2$s"
+			],
+			"%1$d unsubmitted change for issue #%2$s": [
+				"%1$d nicht eingereichte Änderung für Issue #%2$s",
+				"%1$d nicht eingereichte Änderungen für Issue #%2$s"
+			],
+			"Unsubmitted changes for ticket #%s": [
+				"Nicht eingereichte Änderungen für Ticket #%s"
+			],
+			"Unsubmitted changes for issue #%s": [
+				"Nicht eingereichte Änderungen für Issue #%s"
+			],
+			"%1$d change on top of PR #%2$d": [
+				"%1$d Änderung zusätzlich zu PR #%2$d",
+				"%1$d Änderungen zusätzlich zu PR #%2$d"
+			],
+			"Changes on top of PR #%d": [
+				"Änderungen zusätzlich zu PR #%d"
+			],
+			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
+				"Zoomen"
+			],
+			"Discard edits": [
+				"Bearbeitungen verwerfen"
+			],
+			"Discard the uncommitted edits on trunk?": [
+				"Die nicht committeten Änderungen auf Trunk verwerfen?"
+			],
+			"Discard changes": [
+				"Änderungen verwerfen"
+			],
+			"This can’t be undone.": [
+				"Dies kann nicht rückgängig gemacht werden."
+			],
+			"Discard all local changes?": [
+				"Alle lokalen Änderungen verwerfen?"
+			],
+			"Stop Speaking": [
+				"Sprachausgabe anhalten"
+			],
+			"Start Speaking": [
+				"Sprachausgabe starten"
+			],
+			"Speech": [
+				"Sprachausgabe"
+			],
+			"Text Replacement": [
+				"Textersetzung"
+			],
+			"Smart Dashes": [
+				"Intelligente Bindestriche"
+			],
+			"Smart Quotes": [
+				"Intelligente Anführungszeichen"
+			],
+			"Show Substitutions": [
+				"Ersetzungen anzeigen"
+			],
+			"Substitutions": [
+				"Ersetzungen"
+			],
+			"Paste and Match Style": [
+				"Einfügen und Stil anpassen"
+			],
+			"Paste": [
+				"Einfügen"
+			],
+			"Cut": [
+				"Ausschneiden"
+			],
+			"Redo": [
+				"Wiederherstellen"
+			],
+			"Undo": [
+				"Rückgängig machen"
+			],
+			"Edit": [
+				"Bearbeiten"
+			],
+			"Quit": [
+				"Beenden"
+			],
+			"Exit": [
+				"Beenden"
+			],
+			"Close Window": [
+				"Fenster schließen"
+			],
+			"File": [
+				"Datei"
+			],
+			"Quit %s": [
+				"%s beenden"
+			],
+			"Show All": [
+				"Alle anzeigen"
+			],
+			"Hide Others": [
+				"Andere ausblenden"
+			],
+			"Hide %s": [
+				"%s ausblenden"
+			],
+			"Services": [
+				"Dienste"
+			],
+			"About %s": [
+				"Über %s"
+			],
+			"Toggle Developer Tools": [
+				"Entwicklerwerkzeuge ein-/ausblenden"
+			],
+			"Help": [
+				"Hilfe"
+			],
+			"Bring All to Front": [
+				"Alle nach vorne bringen"
+			],
+			"Minimize": [
+				"Minimieren"
+			],
+			"Window": [
+				"Fenster"
+			],
+			"Toggle Full Screen": [
+				"Vollbildmodus ein-/ausblenden"
+			],
+			"Zoom Out": [
+				"Verkleinern"
+			],
+			"Zoom In": [
+				"Vergrößern"
+			],
+			"Actual Size": [
+				"Tatsächliche Größe"
+			],
+			"Force Reload": [
+				"Erneutes Laden erzwingen"
+			],
+			"Reload": [
+				"Neu laden"
+			],
+			"View": [
+				"Ansicht"
+			],
+			"Select All": [
+				"Alle auswählen"
+			],
+			"Delete": [
+				"Löschen"
+			],
+			"Choose folder…": [
+				"Ordner auswählen …"
+			],
+			"Mail": [
+				"E-Mail"
+			],
+			"ends a sentence that lacks a full stop\u0004%s.": [
+				"%s."
+			],
+			"Too much output to announce, navigate to rows manually to read": [
+				"Die Ausgabe ist zu umfangreich für die Sprachausgabe. Navigiere manuell zu den Zeilen, um sie zu lesen"
+			],
+			"Terminal input": [
+				"Terminal-Eingabe"
+			],
+			"Timed out starting web server": [
+				"Zeitüberschreitung beim Starten des Webservers"
+			],
+			"Server exited before becoming ready": [
+				"Der Server wurde beendet, bevor er betriebsbereit war"
+			],
+			"%s directory not found.": [
+				"Das Verzeichnis %s wurde nicht gefunden."
+			],
+			"The patch you applied is applied. Revert it before submitting this checkout as your own work.": [
+				"Der von dir angewendete Patch ist angewendet. Mache ihn rückgängig, bevor du diesen Checkout als deine eigene Arbeit einreichst."
+			],
+			"%s is applied. Revert it before submitting this checkout as your own work.": [
+				"%s ist angewendet. Mache dies rückgängig, bevor du diesen Checkout als deine eigene Arbeit einreichst."
+			],
+			"an action that finished\u0004Done": [
+				"Fertig"
+			],
+			"No such branch: %s": [
+				"Kein solcher Branch: %s"
+			],
+			"Refusing to delete a branch the app did not create": [
+				"Das Löschen eines Branches wurde verweigert, der nicht von der App erstellt wurde"
+			],
+			"Refusing to delete trunk": [
+				"Löschen von Trunk verweigert"
+			],
+			"Trunk and this ticket's work disagree": [
+				"Trunk und die Arbeit dieses Tickets weichen voneinander ab"
+			],
+			"Trunk and this ticket's work disagree in %d file": [
+				"Trunk und die Arbeit dieses Tickets weichen in %d Datei voneinander ab",
+				"Trunk und die Arbeit dieses Tickets weichen in %d Dateien voneinander ab"
+			],
+			"Already working on ticket #%s in this site": [
+				"Auf dieser Website wird bereits an Ticket #%s gearbeitet"
+			],
+			"Already working on issue #%s in this site": [
+				"Auf dieser Website wird bereits an Issue #%s gearbeitet"
+			],
+			"This site has no trunk branch": [
+				"Diese Website hat keinen Trunk-Branch"
+			],
+			"Enter a ticket number or URL.": [
+				"Gib eine Ticketnummer oder -URL ein."
+			],
+			"Enter a ticket number like 62281, or a %s ticket URL.": [
+				"Gib eine Ticketnummer wie 62281 oder eine %s-Ticket-URL ein."
+			],
+			"Only %s tickets are supported.": [
+				"Es werden nur Tickets von %s unterstützt."
+			],
+			"Trunk and your work disagree in: %s.": [
+				"Trunk und deine Arbeit weichen voneinander ab in: %s."
+			],
+			"Trunk added a file your work also adds, with different content: %s.": [
+				"Trunk hat eine Datei hinzugefügt, die deine Arbeit ebenfalls hinzufügt, mit unterschiedlichem Inhalt: %s.",
+				"Trunk hat Dateien hinzugefügt, die deine Arbeit ebenfalls hinzufügt, mit unterschiedlichem Inhalt: %s."
+			],
+			"Deleted on one side and changed on the other: %s.": [
+				"Auf einer Seite gelöscht und auf der anderen geändert: %s."
+			],
+			"Trunk changed the same lines as your work in: %s.": [
+				"Trunk hat dieselben Zeilen geändert wie deine Arbeit in: %s."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.": [
+				"Speichere eine Kopie deiner Arbeit, hebe die Verknüpfung mit dem Ticket auf, lösche die Arbeit daran von der Website, verknüpfe dann #%s erneut und wende die Kopie an."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.": [
+				"Speichere eine Kopie deiner Arbeit, hebe die Verknüpfung mit dem Ticket auf, lösche die Arbeit daran von der Website, verknüpfe dann das Ticket erneut und wende die Kopie an."
+			],
+			"Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.": [
+				"Behalte den Branch dieses Issues und speichere eine Kopie über „Änderungen überprüfen und einreichen“. Bitte einen Mentor um Hilfe, um die Arbeit auf den aktuellen Trunk zu übertragen. Diese App kann den Konflikt weder auflösen noch die gespeicherte Kopie importieren."
+			],
+			"Update this ticket to the current trunk": [
+				"Dieses Ticket auf den aktuellen Trunk aktualisieren"
+			],
+			"Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.": [
+				"Neuere Patches lassen sich möglicherweise nicht sauber anwenden. Übertrage deine Arbeit hier auf den aktuellen Trunk oder speichere eine Kopie davon und beginne mit dem Ticket von Neuem."
+			],
+			"Trunk has moved since this ticket started.": [
+				"Trunk hat sich verändert, seit mit diesem Ticket begonnen wurde."
+			],
+			"Update this issue to the current trunk": [
+				"Dieses Issue auf den aktuellen Trunk aktualisieren"
+			],
+			"Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.": [
+				"Übertrage deine Arbeit hier auf den aktuellen Trunk. Wenn die Änderungen zu Konflikten führen, bleibt dein Branch unverändert, sodass du dir bei der Behebung helfen lassen kannst."
+			],
+			"Trunk has moved since this issue started.": [
+				"Trunk hat sich verändert, seit mit diesem Issue begonnen wurde."
+			],
+			"Could not move the ticket onto the current trunk.": [
+				"Das Ticket konnte nicht auf den aktuellen Trunk verschoben werden."
+			],
+			"Could not move the issue onto the current trunk.": [
+				"Das Issue konnte nicht auf den aktuellen Trunk verschoben werden."
+			],
+			"Only an issue branch can be moved onto the current trunk.": [
+				"Nur ein Issue-Branch kann auf den aktuellen Trunk verschoben werden."
+			],
+			"Link a ticket first: trunk is what tickets are measured against.": [
+				"Verknüpfe zuerst ein Ticket: Trunk ist die Vergleichsbasis für Tickets."
+			],
+			"Link an issue first: trunk is what issues are measured against.": [
+				"Verknüpfe zuerst ein Issue: Trunk ist die Vergleichsbasis für Issues."
+			],
+			"The app does not know which trunk the ticket started from, so it cannot move the work safely.": [
+				"Die App weiß nicht, von welchem Trunk das Ticket ausgegangen ist. Daher kann die Arbeit nicht sicher übertragen werden."
+			],
+			"The app does not know which trunk the issue started from, so it cannot move the work safely.": [
+				"Die App weiß nicht, von welchem Trunk das Issue ausgegangen ist. Daher kann die Arbeit nicht sicher übertragen werden."
+			],
+			"The app does not know which trunk #%s started from, so it cannot move the work safely.": [
+				"Die App weiß nicht, von welchem Trunk #%s ausgegangen ist. Daher kann die Arbeit nicht sicher übertragen werden."
+			],
+			"Nothing was moved.": [
+				"Es wurde nichts verschoben."
+			],
+			"Trunk and your work disagree.": [
+				"Trunk und deine Arbeit weichen voneinander ab."
+			],
+			"You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?": [
+				"Du hast %d nicht committete Änderung auf dieser Website, die noch keinem Ticket zugeordnet ist. Was soll damit geschehen?",
+				"Du hast %d nicht committete Änderungen auf dieser Website, die noch keinem Ticket zugeordnet sind. Was soll damit geschehen?"
+			],
+			"You have %d uncommitted change on this site, not on any issue yet. What should happen to them?": [
+				"Du hast %d nicht committete Änderung auf dieser Website, die noch keinem Issue zugeordnet ist. Was soll damit geschehen?",
+				"Du hast %d nicht committete Änderungen auf dieser Website, die noch keinem Issue zugeordnet sind. Was soll damit geschehen?"
+			],
+			"Stop the dev server before updating the ticket.": [
+				"Halte den Entwicklungsserver an, bevor du das Ticket aktualisierst."
+			],
+			"Stop the dev server before updating the issue.": [
+				"Halte den Entwicklungsserver an, bevor du das Issue aktualisierst."
+			],
+			"Wait for the discard to finish before updating the ticket.": [
+				"Warte, bis das Verwerfen abgeschlossen ist, bevor du das Ticket aktualisierst."
+			],
+			"Wait for the discard to finish before updating the issue.": [
+				"Warte, bis das Verwerfen abgeschlossen ist, bevor du das Issue aktualisierst."
+			],
+			"Wait for the PR or patch operation to finish.": [
+				"Warte, bis der PR- oder Patch-Vorgang abgeschlossen ist."
+			],
+			"Wait for the ticket's work to finish deleting.": [
+				"Warte, bis das Löschen der Arbeit am Ticket abgeschlossen ist."
+			],
+			"Wait for the issue's work to finish deleting.": [
+				"Warte, bis das Löschen der Arbeit am Issue abgeschlossen ist."
+			],
+			"Wait for the current ticket change to finish.": [
+				"Warte, bis die aktuelle Ticket-Änderung abgeschlossen ist."
+			],
+			"Wait for the current issue change to finish.": [
+				"Warte, bis die aktuelle Issue-Änderung abgeschlossen ist."
+			],
+			"This ticket already has its own work here, so these edits cannot come along into it.": [
+				"Dieses Ticket enthält hier bereits eigene Arbeit. Daher können diese Bearbeitungen nicht dorthin übernommen werden."
+			],
+			"This issue already has its own work here, so these edits cannot come along into it.": [
+				"Dieses Issue enthält hier bereits eigene Arbeit. Daher können diese Bearbeitungen nicht dorthin übernommen werden."
+			],
+			"Discard them and continue on the ticket": [
+				"Dies verwerfen und mit dem Ticket fortfahren"
+			],
+			"Save them as a patch, then continue on the ticket…": [
+				"Dies als Patch speichern und dann mit dem Ticket fortfahren …"
+			],
+			"Discard them and continue on the issue": [
+				"Dies verwerfen und mit dem Issue fortfahren"
+			],
+			"Save them as a patch, then continue on the issue…": [
+				"Dies als Patch speichern und dann mit dem Issue fortfahren …"
+			],
+			"Discard them and continue on #%s": [
+				"Dies verwerfen und mit #%s fortfahren"
+			],
+			"Save them as a patch, then continue on #%s…": [
+				"Dies als Patch speichern und dann mit #%s fortfahren …"
+			],
+			"Discard them and start clean": [
+				"Dies verwerfen und von Neuem beginnen"
+			],
+			"Save them as a patch, then start clean…": [
+				"Dies als Patch speichern und dann von Neuem beginnen …"
+			],
+			"Take these edits into the ticket": [
+				"Diese Bearbeitungen in das Ticket übernehmen"
+			],
+			"Take these edits into the issue": [
+				"Diese Bearbeitungen in das Issue übernehmen"
+			],
+			"Take these edits into #%s": [
+				"Diese Bearbeitungen in #%s übernehmen"
+			],
+			"Discard them and check out PR #%d": [
+				"Dies verwerfen und PR #%d auschecken"
+			],
+			"Save them as a patch, then check out PR #%d…": [
+				"Dies als Patch speichern und dann PR #%d auschecken …"
+			],
+			"PR #%d is a separate checkout, so these edits cannot come along into it.": [
+				"PR #%d ist ein separater Checkout. Daher können diese Bearbeitungen nicht dorthin übernommen werden."
+			],
+			"You have uncommitted changes on this site, not on any ticket yet. What should happen to them?": [
+				"Du hast nicht committete Änderungen auf dieser Website, die noch keinem Ticket zugeordnet sind. Was soll damit geschehen?"
+			],
+			"You have uncommitted changes on this site, not on any issue yet. What should happen to them?": [
+				"Du hast nicht committete Änderungen auf dieser Website, die noch keinem Issue zugeordnet sind. Was soll damit geschehen?"
+			],
+			"Could not open the folder.": [
+				"Der Ordner konnte nicht geöffnet werden."
+			],
+			"Could not reach the app's main process: %s": [
+				"Der Hauptprozess der App konnte nicht erreicht werden: %s"
+			],
+			"This app has no record of that folder, so it will not open it.": [
+				"Diese App hat keinen Eintrag zu diesem Ordner. Daher kann er nicht geöffnet werden."
+			],
+			"The file manager would not open the folder: %s": [
+				"Der Dateimanager konnte den Ordner nicht öffnen: %s"
+			],
+			"The application would not start: %s": [
+				"Die Anwendung konnte nicht gestartet werden: %s"
+			],
+			"That application is no longer where it was. Choose another.": [
+				"Diese Anwendung befindet sich nicht mehr dort, wo sie war. Wähle eine andere aus."
+			],
+			"That is not an application this app can open a folder in.": [
+				"Dies ist keine Anwendung, in der diese App einen Ordner öffnen kann."
+			],
+			"A merge started outside the app is in progress.": [
+				"Ein außerhalb der App gestarteter Merge-Vorgang wird ausgeführt."
+			],
+			"every file the patch touched, not only the ones in conflict": [
+				"jede vom Patch geänderte Datei, nicht nur jene mit Konflikten"
+			],
+			"git add the files": [
+				"„git add“ für die Dateien ausführen"
+			],
+			"resolve the files, then git add them": [
+				"die Konflikte in den Dateien beheben, dann „git add“ dafür ausführen"
+			],
+			"A three-way patch apply started outside the app is in progress.": [
+				"Ein außerhalb der App gestartetes Drei-Wege-Anwenden eines Patches wird ausgeführt."
+			],
+			"A revert started outside the app is in progress.": [
+				"Ein außerhalb der App gestarteter Revert-Vorgang wird ausgeführt."
+			],
+			"A cherry-pick started outside the app is in progress.": [
+				"Ein außerhalb der App gestarteter Cherry-Pick-Vorgang wird ausgeführt."
+			],
+			"A rebase started outside the app is in progress.": [
+				"Ein außerhalb der App gestarteter Rebase-Vorgang wird ausgeführt."
+			],
+			"resolve the files, then git add them and run %s": [
+				"die Konflikte in den Dateien beheben, dann dafür „git add“ und %s ausführen"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)": [
+				"Die App konnte nicht prüfen, ob in diesem Checkout ein Merge-Vorgang ausgeführt wird. Daher wurde nichts geändert. Wenn darin ein Git-Befehl über ein Terminal ausgeführt wird, warte, bis er beendet ist, und versuche es erneut. (%s)"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again.": [
+				"Die App konnte nicht prüfen, ob in diesem Checkout ein Merge-Vorgang ausgeführt wird. Daher wurde nichts geändert. Wenn darin ein Git-Befehl über ein Terminal ausgeführt wird, warte, bis er beendet ist, und versuche es erneut."
+			],
+			"Its conflicts are resolved but it is not finished. Finish it from a terminal (%1$s) or abandon it (%2$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"Die Konflikte sind behoben, aber der Vorgang ist noch nicht abgeschlossen. Schließe ihn über ein Terminal ab (%1$s) oder brich ihn ab (%2$s), bevor du die App auf dieser Website verwendest. Bis dahin wird das Verknüpfen von Tickets, Anwenden von Patches, Verwerfen von Änderungen und Aktualisieren des Trunks hier verweigert."
+			],
+			"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"Es gibt Konflikte in %1$s. Schließe den Vorgang über ein Terminal ab (%2$s) oder brich ihn ab (%3$s), bevor du die App auf dieser Website verwendest. Bis dahin wird das Verknüpfen von Tickets, Anwenden von Patches, Verwerfen von Änderungen und Aktualisieren des Trunks hier verweigert."
+			],
+			"The app now runs on a different Git engine, so linking tickets, applying patches, discarding changes and updating trunk are refused here. Export your work as a patch, create a new site, apply the patch there, then delete this one.": [
+				"Die App wird jetzt mit einer anderen Git-Engine ausgeführt. Daher wird das Verknüpfen von Tickets, Anwenden von Patches, Verwerfen von Änderungen und Aktualisieren des Trunks hier verweigert. Exportiere deine Arbeit als Patch, erstelle eine neue Website, wende den Patch dort an und lösche diese Website anschließend."
+			],
+			"This site was created by an earlier version of the app.": [
+				"Diese Website wurde von einer früheren App-Version erstellt."
+			],
+			"This site was created by an earlier version of the app and cannot be changed by this one. Create a new site to keep working; you can still export a patch of what is here, and delete this site.": [
+				"Diese Website wurde von einer früheren Version der App erstellt und kann von dieser Version nicht geändert werden. Erstelle eine neue Website, um weiterzuarbeiten. Du kannst weiterhin einen Patch deiner bisherigen Arbeit exportieren und diese Website löschen."
+			],
+			"Unable to copy path: %s": [
+				"Der Pfad konnte nicht kopiert werden: %s"
+			],
+			"Clipboard access is not available in this environment": [
+				"Der Zugriff auf die Zwischenablage ist in dieser Umgebung nicht verfügbar"
+			],
+			"Dismiss": [
+				"Verwerfen"
+			],
+			"Stopped": [
+				"Angehalten"
+			],
+			"Playground web server": [
+				"Playground-Webserver"
+			],
+			"Start Playground web server": [
+				"Playground-Webserver starten"
+			],
+			"Stop Playground web server": [
+				"Playground-Webserver anhalten"
+			],
+			"Starting the Playground web server": [
+				"Playground-Webserver wird gestartet"
+			],
+			"Server exited with code %d": [
+				"Server wurde mit dem Code %d beendet"
+			],
+			"Choose application…": [
+				"Anwendung auswählen …"
+			],
+			"Saved to %s. The edits are still in the working tree.": [
+				"Unter %s gespeichert. Die Bearbeitungen befinden sich weiterhin im Arbeitsverzeichnis."
+			],
+			"Your edits were saved to %s and are no longer in the working tree.": [
+				"Deine Bearbeitungen wurden unter %s gespeichert und befinden sich nicht mehr im Arbeitsverzeichnis."
+			],
+			"Your %1$d uncommitted change came along into #%2$s, and will go into its patch.": [
+				"Deine %1$d nicht committete Änderung wurde in #%2$s übernommen und fließt in dessen Patch ein.",
+				"Deine %1$d nicht committeten Änderungen wurden in #%2$s übernommen und fließen in dessen Patch ein."
+			],
+			"Could not delete the branch.": [
+				"Der Branch konnte nicht gelöscht werden."
+			],
+			"Could not save the patch.": [
+				"Der Patch konnte nicht gespeichert werden."
+			],
+			"Could not discard the changes.": [
+				"Die Änderungen konnten nicht verworfen werden."
+			],
+			"Could not save the ticket.": [
+				"Das Ticket konnte nicht gespeichert werden."
+			],
+			"Only %s issues are supported.": [
+				"Es werden nur Issues von %s unterstützt."
+			],
+			"Enter an issue number or URL.": [
+				"Gib eine Issue-Nummer oder -URL ein."
+			],
+			"Enter an issue number like 1234, or a %s issue URL.": [
+				"Gib eine Issue-Nummer wie 1234 oder eine %s-Issue-URL ein."
+			],
+			"Only %s issues can be linked here.": [
+				"Hier können nur Issues von %s verknüpft werden."
+			],
+			"That is a pull request. Link the issue it fixes instead.": [
+				"Das ist ein Pull-Request. Verknüpfe stattdessen das dadurch behobene Issue."
+			],
+			"There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.": [
+				"Es gibt noch keine Website, um daran zu arbeiten. Erstelle eine über die Seitenleiste und die App wird dieses Ticket anbieten, sobald sie bereit ist."
+			],
+			"Ticket #%s is ready to link.": [
+				"Das Ticket #%s ist bereit für die Verknüpfung."
+			],
+			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
+				"Die Ticketnummer stammt aus einem Link. Bei der Verknüpfung wird der aktuelle Stand der Website zurückgestellt und der Branch dieses Tickets ausgecheckt. Daher fragt die App zunächst nach."
+			],
+			"Link ticket #%1$s to %2$s?": [
+				"Das Ticket #%1$s mit %2$s verknüpfen?"
+			],
+			"A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.": [
+				"Ein Trac-Ticket gehört zu einer WordPress-Core-Website. Öffne eine solche Website und die App wird das Ticket dort anbieten."
+			],
+			"Ticket #%1$s cannot be linked to %2$s.": [
+				"Das Ticket #%1$s kann nicht mit %2$s verknüpft werden."
+			],
+			"Raw": [
+				"Quelltext"
+			],
+			"Rendered": [
+				"Formatiert"
+			],
+			"Date:": [
+				"Datum:"
+			],
+			"CC:": [
+				"CC:"
+			],
+			"To:": [
+				"An:"
+			],
+			"From:": [
+				"Von:"
+			],
+			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"Du hast %1$d Änderung zusätzlich zu PR #%2$d. Du kannst sie <review>überprüfen</review> oder <discard>deine Änderungen verwerfen</discard>. Sie verbleiben bei der lokalen Kopie dieses Pull-Requests, wenn du diesen PR rückgängig machst.",
+				"Du hast %1$d Änderungen zusätzlich zu PR #%2$d. Du kannst sie <review>überprüfen</review> oder <discard>deine Änderungen verwerfen</discard>. Sie verbleiben bei der lokalen Kopie dieses Pull-Requests, wenn du diesen PR rückgängig machst."
+			],
+			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"Du hast Änderungen zusätzlich zu PR #%d. Du kannst sie <review>überprüfen</review> oder <discard>deine Änderungen verwerfen</discard>. Sie verbleiben bei der lokalen Kopie dieses Pull-Requests, wenn du diesen PR rückgängig machst."
+			],
+			"Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.": [
+				"Das Aufheben der Verknüpfung mit diesem Ticket hat keine Auswirkungen auf deine lokalen Änderungen – sie bleiben diesem Ticket auf dieser Website zugeordnet und stehen bereit, wenn du es erneut verknüpfst."
+			],
+			"Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.": [
+				"Das Aufheben der Verknüpfung mit diesem Issue hat keine Auswirkungen auf deine lokalen Änderungen – sie bleiben diesem Issue auf dieser Website zugeordnet und stehen bereit, wenn du es erneut verknüpfst."
+			],
+			"You have %d change not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Du hast %d Änderung, die keinem Ticket zugeordnet ist. Du kannst <review>einen Patch erstellen und speichern</review> oder <discard>deine Änderungen verwerfen</discard>.",
+				"Du hast %d Änderungen, die keinem Ticket zugeordnet sind. Du kannst <review>einen Patch erstellen und speichern</review> oder <discard>deine Änderungen verwerfen</discard>."
+			],
+			"You have %d change not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Du hast %d Änderung, die keinem Issue zugeordnet ist. Du kannst <review>einen Patch erstellen und speichern</review> oder <discard>deine Änderungen verwerfen</discard>.",
+				"Du hast %d Änderungen, die keinem Issue zugeordnet sind. Du kannst <review>einen Patch erstellen und speichern</review> oder <discard>deine Änderungen verwerfen</discard>."
+			],
+			"You have changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Du hast Änderungen, die keinem Ticket zugeordnet sind. Du kannst <review>einen Patch erstellen und speichern</review> oder <discard>deine Änderungen verwerfen</discard>."
+			],
+			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"Du hast Änderungen, die keinem Issue zugeordnet sind. Du kannst <review>einen Patch erstellen und speichern</review> oder <discard>deine Änderungen verwerfen</discard>."
+			],
+			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
+				"Dieses Ticket hat keinen erfassten Ausgangspunkt. Daher kann die App die Arbeit daran nicht auf den aktuellen Trunk übertragen."
+			],
+			"Only a ticket branch can be moved onto the current trunk.": [
+				"Nur ein Ticket-Branch kann auf den aktuellen Trunk verschoben werden."
+			],
+			"Link a ticket first: trunk is what tickets are measured against, not a ticket.": [
+				"Verknüpfe zuerst ein Ticket: Trunk ist die Vergleichsbasis für Tickets, nicht ein anderes Ticket."
+			],
+			"There is uncommitted work on trunk — decide what happens to it before starting the ticket": [
+				"Es gibt nicht committete Arbeit auf Trunk – entscheide, was damit geschehen soll, bevor du mit dem Ticket beginnst"
+			],
+			"the editor could not be opened (exit code %s)": [
+				"der Editor konnte nicht geöffnet werden (Exit-Code %s)"
+			],
+			"the saved work\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Wiederhergestellt – der Build-Watch hat alles neu erstellt. Öffne die Website, um sie auszuprobieren."
+			],
+			"the saved work\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Wiederhergestellt – der Build-Watch kompiliert diese Änderung noch. Warte, bis keine Aktivitäten mehr vorliegen, bevor du die Website ausprobierst."
+			],
+			"the saved work\u0004Restored.": [
+				"Wiederhergestellt."
+			],
+			"the saved work\u0004Restored — open the site to try it out.": [
+				"Wiederhergestellt – öffne die Website, um sie auszuprobieren."
+			],
+			"the previous branch\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"Wiederhergestellt – der Build-Watch hat alles neu erstellt. Öffne die Website, um sie auszuprobieren."
+			],
+			"the previous branch\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Wiederhergestellt – der Build-Watch kompiliert diese Änderung noch. Warte, bis keine Aktivitäten mehr vorliegen, bevor du die Website ausprobierst."
+			],
+			"the previous branch\u0004Restored.": [
+				"Wiederhergestellt."
+			],
+			"the previous branch\u0004Restored — open the site to try it out.": [
+				"Wiederhergestellt – öffne die Website, um sie auszuprobieren."
+			],
+			"Now on trunk as of %s.": [
+				"Jetzt auf Trunk mit Stand vom %s."
+			],
+			"Resetting to latest trunk (%s)…": [
+				"Auf den neuesten Trunk (%s) zurücksetzen …"
+			],
+			"Already up to date.": [
+				"Bereits aktuell."
+			],
+			"Fetching latest trunk…": [
+				"Neuester Trunk wird abgerufen …"
+			],
+			"Trac returned %s — try opening the ticket again to pass the check.": [
+				"Trac hat %s zurückgegeben – versuche, das Ticket erneut zu öffnen, um die Prüfung zu bestehen."
+			],
+			"Only https core.trac.wordpress.org attachments are allowed": [
+				"Es sind nur HTTPS-Anhänge von core.trac.wordpress.org zulässig"
+			],
+			"%s file": [
+				"%s Datei",
+				"%s Dateien"
+			],
+			"Ready to work on %s": [
+				"Bereit zur Arbeit an %s"
+			],
+			"Ready to try %s": [
+				"Bereit zum Ausprobieren von %s"
+			],
+			"Checking which files change…": [
+				"Es wird geprüft, welche Dateien sich ändern …"
+			],
+			"Swapping files for %s…": [
+				"Dateien für %s werden ausgetauscht …"
+			],
+			"Swapping files…": [
+				"Dateien werden ausgetauscht …"
+			],
+			"Moving your work on %s onto the current trunk…": [
+				"Deine Arbeit an %s wird auf den aktuellen Trunk übertragen …"
+			],
+			"Moving your edits on %s onto the current trunk…": [
+				"Deine Bearbeitungen an %s werden auf den aktuellen Trunk übertragen …"
+			],
+			"Moving your work onto the current trunk…": [
+				"Deine Arbeit wird auf den aktuellen Trunk übertragen …"
+			],
+			"Saving your work on %s…": [
+				"Deine Arbeit an %s wird gespeichert …"
+			],
+			"Saving your edits on %s…": [
+				"Deine Bearbeitungen an %s werden gespeichert …"
+			],
+			"Saving your work…": [
+				"Deine Arbeit wird gespeichert …"
+			],
+			"The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.": [
+				"Der Build-Watch führt nach dieser Änderung eine Neuerstellung durch. Warte, bis die Überwachung wieder aktiv ist, bevor du die Website ausprobierst."
+			],
+			"Start the build watch, or run %s in the Terminal.": [
+				"Starte den Build-Watch oder führe %s im Terminal aus."
+			],
+			"The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Der Build-Watch kompiliert diese Änderung noch. Warte, bis keine Aktivitäten mehr vorliegen, bevor du die Website ausprobierst."
+			],
+			"PR #%s is applied.": [
+				"Der PR #%s ist angewendet."
+			],
+			"The build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Der Build-Watch wurde angehalten, bevor die Neuerstellung abgeschlossen war. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"PR #%s is applied but not built.": [
+				"Der PR #%s ist angewendet, aber noch nicht erstellt."
+			],
+			"PR #%s is applied. The site is rebuilding.": [
+				"Der PR #%s ist angewendet. Die Website wird neu erstellt."
+			],
+			"Update incomplete — the build watch stopped before it finished rebuilding.": [
+				"Aktualisierung unvollständig – der Build-Watch wurde angehalten, bevor die Neuerstellung abgeschlossen war."
+			],
+			"Update complete — the build watch has rebuilt, and this site is now on the latest trunk.": [
+				"Aktualisierung abgeschlossen – der Build-Watch hat alles neu erstellt und diese Website ist nun auf dem neuesten Trunk."
+			],
+			"Update incomplete — the build watch was stopped, so nothing rebuilt.": [
+				"Aktualisierung unvollständig – der Build-Watch wurde angehalten. Daher wurde nichts neu erstellt."
+			],
+			"The code is new but the built assets are old; retry install & build from the banner above.": [
+				"Der Code ist neu, aber die erstellten Assets sind alt. Wiederhole die Installation und den Build über den Banner oben."
+			],
+			"The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Der Patch ist angewendet, aber der Build-Watch wurde angehalten, bevor die Neuerstellung abgeschlossen war. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"The patch is applied but the build watch was stopped, so the site still runs the old assets.": [
+				"Der Patch ist angewendet, aber der Build-Watch wurde angehalten. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"%s failed, so the build was skipped. The patch is applied but dependencies are stale.": [
+				"%s ist fehlgeschlagen. Daher wurde der Build übersprungen. Der Patch ist angewendet, aber die Abhängigkeiten sind veraltet."
+			],
+			"The patch is applied but the build failed, so the site still runs the old assets.": [
+				"Der Patch ist angewendet, aber der Build ist fehlgeschlagen. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"The patch changes %1$s — running %2$s…": [
+				"Der Patch ändert %1$s – %2$s wird ausgeführt …"
+			],
+			"Applied — the build watch has rebuilt. Open the site to try it out.": [
+				"Angewendet – der Build-Watch hat alles neu erstellt. Öffne die Website, um sie auszuprobieren."
+			],
+			"Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Angewendet – der Build-Watch kompiliert diese Änderung noch. Warte, bis keine Aktivitäten mehr vorliegen, bevor du die Website ausprobierst."
+			],
+			"Applied.": [
+				"Angewendet."
+			],
+			"Applied — open the site to try it out.": [
+				"Angewendet – öffne die Website, um sie auszuprobieren."
+			],
+			"The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Die gespeicherte Arbeit wurde wiederhergestellt, aber der Build-Watch wurde angehalten, bevor die Neuerstellung abgeschlossen war. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"The saved work is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Die gespeicherte Arbeit wurde wiederhergestellt, aber der Build-Watch wurde angehalten. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"%s failed, so the build was skipped. The saved work is restored but dependencies are stale.": [
+				"%s ist fehlgeschlagen. Daher wurde der Build übersprungen. Die gespeicherte Arbeit wurde wiederhergestellt, aber die Abhängigkeiten sind veraltet."
+			],
+			"The saved work is restored but the build failed, so the site still runs the old assets.": [
+				"Die gespeicherte Arbeit wurde wiederhergestellt, aber der Build ist fehlgeschlagen. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"The saved work changes %1$s — running %2$s…": [
+				"Die gespeicherte Arbeit ändert %1$s – %2$s wird ausgeführt …"
+			],
+			"The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Der vorherige Branch wurde wiederhergestellt, aber der Build-Watch wurde angehalten, bevor die Neuerstellung abgeschlossen war. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"The previous branch is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"Der vorherige Branch wurde wiederhergestellt, aber der Build-Watch wurde angehalten. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.": [
+				"%s ist fehlgeschlagen. Daher wurde der Build übersprungen. Der vorherige Branch wurde wiederhergestellt, aber die Abhängigkeiten sind veraltet."
+			],
+			"The previous branch is restored but the build failed, so the site still runs the old assets.": [
+				"Der vorherige Branch wurde wiederhergestellt, aber der Build ist fehlgeschlagen. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"The previous branch changes %1$s — running %2$s…": [
+				"Der vorherige Branch ändert %1$s – %2$s wird ausgeführt …"
+			],
+			"The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Der Pull-Request ist ausgecheckt, aber der Build-Watch wurde angehalten, bevor die Neuerstellung abgeschlossen war. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"The pull request is checked out but the build watch was stopped, so the site still runs the old assets.": [
+				"Der Pull-Request ist ausgecheckt, aber der Build-Watch wurde angehalten. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.": [
+				"%s ist fehlgeschlagen. Daher wurde der Build übersprungen. Der Pull-Request ist ausgecheckt, aber die Abhängigkeiten sind veraltet."
+			],
+			"The pull request is checked out but the build failed, so the site still runs the old assets.": [
+				"Der Pull-Request ist ausgecheckt, aber der Build ist fehlgeschlagen. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"The pull request changes %1$s — running %2$s…": [
+				"Der Pull-Request ändert %1$s – %2$s wird ausgeführt …"
+			],
+			"Checked out — the build watch has rebuilt. Open the site to try it out.": [
+				"Ausgecheckt – der Build-Watch hat alles neu erstellt. Öffne die Website, um sie auszuprobieren."
+			],
+			"Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Ausgecheckt – der Build-Watch kompiliert diese Änderung noch. Warte, bis keine Aktivitäten mehr vorliegen, bevor du die Website ausprobierst."
+			],
+			"Checked out.": [
+				"Ausgecheckt."
+			],
+			"Checked out — open the site to try it out.": [
+				"Ausgecheckt – öffne die Website, um sie auszuprobieren."
+			],
+			"The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"Der Patch wurde rückgängig gemacht, aber der Build-Watch wurde angehalten, bevor die Neuerstellung abgeschlossen war. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"The patch is reverted but the build watch was stopped, so the site still runs the old assets.": [
+				"Der Patch wurde rückgängig gemacht, aber der Build-Watch wurde angehalten. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"%s failed, so the build was skipped. The patch is reverted but dependencies are stale.": [
+				"%s ist fehlgeschlagen. Daher wurde der Build übersprungen. Der Patch wurde rückgängig gemacht, aber die Abhängigkeiten sind veraltet."
+			],
+			"The patch is reverted but the build failed, so the site still runs the old assets.": [
+				"Der Patch wurde rückgängig gemacht, aber der Build ist fehlgeschlagen. Daher wird die Website noch mit den alten Assets ausgeführt."
+			],
+			"Reverted — the build watch has rebuilt. Open the site to try it out.": [
+				"Rückgängig gemacht – der Build-Watch hat alles neu erstellt. Öffne die Website, um sie auszuprobieren."
+			],
+			"Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"Rückgängig gemacht – der Build-Watch kompiliert diese Änderung noch. Warte, bis keine Aktivitäten mehr vorliegen, bevor du die Website ausprobierst."
+			],
+			"Reverted.": [
+				"Rückgängig gemacht."
+			],
+			"Reverted — open the site to try it out.": [
+				"Rückgängig gemacht – öffne die Website, um sie auszuprobieren."
+			],
+			"The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.": [
+				"Der Build-Watch erstellt %s beim Fortsetzen von Grund auf neu – die Ausgabe ist in den Protokollen unter „Build-Watch“ zu finden. Die Aktualisierung ist abgeschlossen, sobald die Überwachung wieder aktiv ist."
+			],
+			"This pull request is closed. You can still check out its last head to investigate it.": [
+				"Dieser Pull-Request ist geschlossen. Du kannst den letzten Stand dennoch auschecken, um ihn zu untersuchen."
+			],
+			"Return to saved copy": [
+				"Zur gespeicherten Kopie"
+			],
+			"PR #%d is already on this site; you will switch to your local copy.": [
+				"Der PR #%d ist bereits auf dieser Website vorhanden. Du wechselst zu deiner lokalen Kopie."
+			],
+			"PR #%d has moved on GitHub; your local copy will be updated.": [
+				"Der PR #%d hat sich auf GitHub verändert. Deine lokale Kopie wird aktualisiert."
+			],
+			"PR #%d has moved on GitHub, but your copy has edits on top.": [
+				"Der PR #%d hat sich auf GitHub verändert, aber deine Kopie enthält zusätzliche Bearbeitungen."
+			],
+			"PR #%1$d changes %2$d file.": [
+				"Der PR #%1$d ändert %2$d Datei.",
+				"Der PR #%1$d ändert %2$d Dateien."
+			],
+			"Could not switch this pull request. Check the log and try again.": [
+				"Zu diesem Pull-Request konnte nicht gewechselt werden. Prüfe das Protokoll und versuche es erneut."
+			],
+			"This pull request has no recorded starting point, so the app cannot safely save its edits. Save a patch before changing branches.": [
+				"Dieser Pull-Request hat keinen erfassten Ausgangspunkt. Daher kann die App dessen Bearbeitungen nicht sicher speichern. Speichere einen Patch, bevor du den Branch wechselst."
+			],
+			"No pull request is checked out on this site.": [
+				"Auf dieser Website ist kein Pull-Request ausgecheckt."
+			],
+			"Enter a positive whole pull request number.": [
+				"Gib eine positive ganze Pull-Request-Nummer ein."
+			],
+			"PR #%d is already checked out. Revert it before applying it again.": [
+				"Der PR #%d ist bereits ausgecheckt. Mache ihn rückgängig, bevor du ihn erneut anwendest."
+			],
+			"This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.": [
+				"Diese Website hat bereits einen Branch namens pr/%d, der nicht von dieser App erstellt wurde. Benenne diesen Branch über ein Terminal um oder lösche ihn, bevor du es erneut versuchst."
+			],
+			"PR #%d has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.": [
+				"Der PR #%d hat sich auf GitHub verändert und deine Kopie enthält zusätzliche Bearbeitungen. Verwirf diese Bearbeitungen vor der Aktualisierung oder behalte deine aktuelle Kopie."
+			],
+			"Revert this PR": [
+				"Diesen PR rückgängig machen"
+			],
+			"Edits you make here stay with your local copy of the PR.": [
+				"Bearbeitungen, die du hier vornimmst, verbleiben bei deiner lokalen Kopie des PRs."
+			],
+			"Your edits here stay with your local copy of the PR.": [
+				"Deine Bearbeitungen hier verbleiben bei deiner lokalen Kopie des PRs."
+			],
+			"Your ticket changes are saved separately and return when you revert this PR.": [
+				"Deine Änderungen am Ticket werden separat gespeichert und wiederhergestellt, wenn du diesen PR rückgängig machst."
+			],
+			"Your issue changes are saved separately and return when you revert this PR.": [
+				"Deine Änderungen am Issue werden separat gespeichert und wiederhergestellt, wenn du diesen PR rückgängig machst."
+			],
+			"Reverting this PR returns to trunk.": [
+				"Das Rückgängigmachen dieses PRs setzt auf Trunk zurück."
+			],
+			"Setup failed: %s": [
+				"Einrichtung fehlgeschlagen: %s"
+			],
+			"Site setup request completed.": [
+				"Die Anfrage zur Einrichtung der Website wurde abgeschlossen."
+			],
+			"Starting site setup…": [
+				"Website-Einrichtung wird gestartet …"
+			],
+			"Cloning repository…": [
+				"Repository wird geklont …"
+			],
+			"Setup finished.": [
+				"Die Einrichtung ist abgeschlossen."
+			],
+			"Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.": [
+				"Gib <code><command /></code> ein, um unterstützte Befehle aufzulisten. Drücke <code><keys /></code>, um den aktuellen Befehl abzubrechen."
+			],
+			"Added a dependency to <code><file /></code>? Run <command />.": [
+				"Eine Abhängigkeit zu <code><file /></code> hinzugefügt? Führe <command /> aus."
+			],
+			"Edited files in <code><folder /></code>? Run <command /> so the site picks them up.": [
+				"Dateien in <code><folder /></code> bearbeitet? Führe <command /> aus, damit die Website sie übernimmt."
+			],
+			"Setting this site up — running %s…": [
+				"Diese Website wird eingerichtet – %s wird ausgeführt …"
+			],
+			"Stopping setup…": [
+				"Einrichtung wird angehalten …"
+			],
+			"Debug.log": [
+				"Debug.log"
+			],
+			"Debug.log (%d)": [
+				"Debug.log (%d)"
+			],
+			"Discarded local changes.": [
+				"Die lokalen Änderungen wurden verworfen."
+			],
+			"Saved your changes to %s and reset the working tree.": [
+				"Deine Änderungen wurden unter %s gespeichert und das Arbeitsverzeichnis zurückgesetzt."
+			],
+			"Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.": [
+				"Aktualisierung unvollständig – %s ist fehlgeschlagen. Der Code ist neu, aber die Abhängigkeiten und die erstellten Assets sind alt. Wiederhole die Installation und den Build über den Banner oben."
+			],
+			"%1$s changed — running %2$s (only the changed packages are downloaded)…": [
+				"%1$s geändert – %2$s wird ausgeführt (nur die geänderten Pakete werden heruntergeladen) …"
+			],
+			"Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.": [
+				"Aktualisierung unvollständig – der Build ist fehlgeschlagen. Der Code ist neu, aber die erstellten Assets sind alt. Wiederhole die Installation und den Build über den Banner oben."
+			],
+			"Update complete — this site is now on the latest trunk.": [
+				"Aktualisierung abgeschlossen – diese Website ist nun auf dem neuesten Trunk."
+			],
+			"WordPress npm helper terminal.": [
+				"WordPress-npm-Hilfsterminal."
+			],
+			"A command is already running. Press %s to stop it.": [
+				"Ein Befehl wird bereits ausgeführt. Drücke %s, um ihn abzubrechen."
+			],
+			"Try \"%s\" for the list of supported commands.": [
+				"Versuche es mit „%s“ für die Liste der unterstützten Befehle."
+			],
+			"Unsupported command: %s": [
+				"Nicht unterstützter Befehl: %s"
+			],
+			"Unsupported script \"%1$s\". Allowed scripts: %2$s": [
+				"Das Skript „%1$s“ wird nicht unterstützt. Zulässige Skripte: %2$s"
+			],
+			"Missing script name. Example: %s": [
+				"Der Skriptname fehlt. Beispiel: %s"
+			],
+			"Run them here whenever you change files or add a dependency afterwards.": [
+				"Führe sie hier aus, wann immer du nachträglich Dateien änderst oder eine Abhängigkeit hinzufügst."
+			],
+			"The setup checklist runs %1$s and %2$s once.": [
+				"Die Einrichtungs-Checkliste führt %1$s und %2$s einmal aus."
+			],
+			"%1$s Run one of: %2$s": [
+				"%1$s Eines der Folgenden ausführen: %2$s"
+			],
+			"%1$s Run %2$s in the site directory": [
+				"%1$s %2$s im Website-Verzeichnis ausführen"
+			],
+			"%s Show this help text": [
+				"%s Diesen Hilfetext anzeigen"
+			],
+			"Available commands:": [
+				"Verfügbare Befehle:"
+			],
+			"Could not show the log file: %s": [
+				"Die Protokolldatei konnte nicht angezeigt werden: %s"
+			],
+			"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was not.": [
+				"Die Datei debug.log von %1$s konnte nicht geleert werden: %2$s. Das Panel wurde geleert, die Datei jedoch nicht."
+			],
+			"Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.": [
+				"Start des Entwicklungsservers abgebrochen: Der Build-Watch wurde angehalten, bevor %s abgeschlossen war. Starte ihn erneut, sobald die Überwachung läuft."
+			],
+			"%s is complete: starting the server without the build watch. Start build watch to compile edits on save.": [
+				"%s ist vollständig: Der Server wird ohne den Build-Watch gestartet. Starte den Build-Watch, um Bearbeitungen beim Speichern zu kompilieren."
+			],
+			"Failed to start PHP server: %s": [
+				"Der PHP-Server konnte nicht gestartet werden: %s"
+			],
+			"unknown error": [
+				"unbekannter Fehler"
+			],
+			"Dev server failed to start: %s": [
+				"Der Entwicklungsserver konnte nicht gestartet werden: %s"
+			],
+			"Dev server stopped unexpectedly (see Help → %s for details).": [
+				"Der Entwicklungsserver wurde unerwartet beendet (siehe Hilfe → %s für Details)."
+			],
+			"Resumed.": [
+				"Fortgesetzt."
+			],
+			"Paused while another operation uses the build.": [
+				"Pausiert, während ein anderer Vorgang den Build beansprucht."
+			],
+			"%1$s failed with code %2$s — build watch not started.": [
+				"%1$s ist mit dem Code %2$s fehlgeschlagen. Build-Watch wurde nicht gestartet."
+			],
+			"%s was stopped — build watch not started.": [
+				"%s wurde gestoppt – Build-Watch wurde nicht gestartet."
+			],
+			"No completed build found — running %s first…": [
+				"Kein abgeschlossener Build gefunden – %s wird zuerst ausgeführt …"
+			],
+			"A command is already running in the terminal — stop it before starting the build watch.": [
+				"Im Terminal wird bereits ein Befehl ausgeführt – stoppe ihn, bevor du den Build-Watch startest."
+			],
+			"%1$s exited with code %2$s": [
+				"%1$s wurde mit dem Code %2$s beendet"
+			],
+			"%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for \"%3$s\".": [
+				"%1$s erstellt %2$s neu, bevor die Überwachung beginnt. Der Entwicklungsserver (falls gestartet) wartet auf „%3$s“."
+			],
+			"The patch could not be applied.": [
+				"Der Patch konnte nicht angewendet werden."
+			],
+			"%s The record of it could not be cleared, so this site still thinks it is applied.": [
+				"%s Der Eintrag dazu konnte nicht gelöscht werden. Daher geht diese Website weiterhin davon aus, dass er angewendet ist."
+			],
+			"%s The applied-patch record has been cleared.": [
+				"%s Der Eintrag für den angewendeten Patch wurde gelöscht."
+			],
+			"A command is already running. Stop it before switching tickets.": [
+				"Ein Befehl wird bereits ausgeführt. Stoppe ihn vor dem Ticket-Wechsel."
+			],
+			"Could not read that patch.": [
+				"Dieser Patch konnte nicht gelesen werden."
+			],
+			"Could not download %s.": [
+				"%s konnte nicht heruntergeladen werden."
+			],
+			"Could not read that file: %s": [
+				"Diese Datei konnte nicht gelesen werden: %s"
+			],
+			"Running %s…": [
+				"%s wird ausgeführt …"
+			],
+			"Build watch (exited %d)": [
+				"Build-Watch (mit Code %d beendet)"
+			],
+			"Build watch (stopped)": [
+				"Build-Watch (angehalten)"
+			],
+			"Build watch (paused)": [
+				"Build-Watch (pausiert)"
+			],
+			"Build watch (building)": [
+				"Build-Watch (wird erstellt)"
+			],
+			"Build watch (watching)": [
+				"Build-Watch (überwacht)"
+			],
+			"Build watch (compiling)": [
+				"Build-Watch (kompiliert)"
+			],
+			"Could not copy": [
+				"Konnte nicht kopiert werden"
+			],
+			"The build failed — dependencies are installed. Its output is above; retry the build from the checklist.": [
+				"Der Build ist fehlgeschlagen – die Abhängigkeiten sind installiert. Die Ausgabe steht oben. Wiederhole den Build über die Checkliste."
+			],
+			"%s failed — setup stopped here. Its output is above; retry the install from the checklist.": [
+				"%s ist fehlgeschlagen – die Einrichtung wurde hier angehalten. Die Ausgabe steht oben. Wiederhole die Installation über die Checkliste."
+			],
+			"Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.": [
+				"Die Einrichtung wurde angehalten. Die verbleibenden Schritte befinden sich in der Checkliste oben – führe sie aus, sobald du bereit bist."
+			],
+			"Setup complete — start the dev server when you are ready.": [
+				"Einrichtung abgeschlossen – starte den Entwicklungsserver, sobald du bereit bist."
+			],
+			"Status update": [
+				"Statusaktualisierung"
+			],
+			"Status: done": [
+				"Status: Fertig"
+			],
+			"Status: cloning": [
+				"Status: Klonen"
+			],
+			"Clear": [
+				"Leeren"
+			],
+			"Show in folder": [
+				"Im Ordner anzeigen"
+			],
+			"The log file appears once the dev server has run.": [
+				"Die Protokolldatei erscheint, sobald der Entwicklungsserver ausgeführt wurde."
+			],
+			"No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.": [
+				"Bisher keine PHP-Hinweise oder -Fehler. Alles, was WordPress oder dein Code ausgibt – <code><function /></code>, Hinweise, Veraltungshinweise, fatale Fehler –, erscheint hier, während der Entwicklungsserver läuft."
+			],
+			"The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.": [
+				"Der Build-Watch kompiliert Bearbeitungen aus <code><source /></code> nach <code><build /></code>. Er wird unabhängig vom Entwicklungsserver ausgeführt – seine Ausgabe und ob er überwacht, pausiert oder angehalten ist, erscheint hier."
+			],
+			"it no longer fits": [
+				"es passt nicht mehr"
+			],
+			"Open the pull request": [
+				"Pull-Request öffnen"
+			],
+			"the code around it has changed": [
+				"der umgebende Code hat sich geändert"
+			],
+			"looks like that change is not in your checkout any more": [
+				"anscheinend befindet sich diese Änderung nicht mehr in deinem Checkout"
+			],
+			"It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Das ist jetzt Teil deiner Änderungen. Wenn du deine Bearbeitungen in diesen Zeilen rückgängig machst, steht „Rückgängig machen“ wieder zur Verfügung. Andernfalls speichere eine Kopie deiner Arbeit und setze das Ticket auf seinen Ausgangszustand zurück – bei diesem Projekt ist das der normale Ablauf und bedeutet keineswegs einen verlorenen Nachmittag."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.": [
+				"Dieser Patch kann nicht einzeln rückgängig gemacht werden: Deine eigenen Bearbeitungen betreffen %1$d von insgesamt %2$d Änderung in %3$d Dateien.",
+				"Dieser Patch kann nicht einzeln rückgängig gemacht werden: Deine eigenen Bearbeitungen betreffen %1$d von insgesamt %2$d Änderungen in %3$d Dateien."
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.": [
+				"Dieser Patch kann nicht einzeln rückgängig gemacht werden: Deine eigenen Bearbeitungen betreffen %1$d von insgesamt %2$d Änderung.",
+				"Dieser Patch kann nicht einzeln rückgängig gemacht werden: Deine eigenen Bearbeitungen betreffen %1$d von insgesamt %2$d Änderungen."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.": [
+				"%1$s kann nicht einzeln rückgängig gemacht werden: Deine eigenen Bearbeitungen betreffen %2$d von insgesamt %3$d Änderung in %4$d Dateien.",
+				"%1$s kann nicht einzeln rückgängig gemacht werden: Deine eigenen Bearbeitungen betreffen %2$d von insgesamt %3$d Änderungen in %4$d Dateien."
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.": [
+				"%1$s kann nicht einzeln rückgängig gemacht werden: Deine eigenen Bearbeitungen betreffen %2$d von insgesamt %3$d Änderung.",
+				"%1$s kann nicht einzeln rückgängig gemacht werden: Deine eigenen Bearbeitungen betreffen %2$d von insgesamt %3$d Änderungen."
+			],
+			"Ask its author for a rebase": [
+				"Den Autor um einen Rebase bitten"
+			],
+			"Bringing it up to date is its author's work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.": [
+				"Ihn auf den neuesten Stand zu bringen ist die Aufgabe des Autors – durch einen Rebase oder den Merge von Trunk. Einen Kommentar im Pull-Request zu hinterlassen, um Bescheid zu geben, ist an sich schon ein echter Beitrag."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Dieser Pull-Request wurde für einen älteren Trunk geschrieben und passt nicht mehr dazu: %1$d von insgesamt %2$d Änderung in %3$d Dateien müsste überarbeitet werden.",
+				"Dieser Pull-Request wurde für einen älteren Trunk geschrieben und passt nicht mehr dazu: %1$d von insgesamt %2$d Änderungen in %3$d Dateien müssten überarbeitet werden."
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Dieser Pull-Request wurde für einen älteren Trunk geschrieben und passt nicht mehr dazu: %1$d von insgesamt %2$d Änderung in %3$d Datei müsste überarbeitet werden.",
+				"Dieser Pull-Request wurde für einen älteren Trunk geschrieben und passt nicht mehr dazu: %1$d von insgesamt %2$d Änderungen in %3$d Datei müssten überarbeitet werden."
+			],
+			"looks like it is already in your checkout": [
+				"anscheinend bereits in deinem Checkout vorhanden"
+			],
+			"Your own work is also in %s, so it may be part of why the pull request does not fit.": [
+				"Deine eigene Arbeit befindet sich ebenfalls in %s. Dies könnte mit ein Grund sein, warum der Pull-Request nicht passt."
+			],
+			"%s includes changes from the patch you applied and may also contain your own edits.": [
+				"%s enthält Änderungen aus dem von dir angewendeten Patch und möglicherweise auch deine eigenen Bearbeitungen.",
+				"%s enthalten Änderungen aus dem von dir angewendeten Patch und möglicherweise auch deine eigenen Bearbeitungen."
+			],
+			"%1$s includes changes from %2$s and may also contain your own edits.": [
+				"%1$s enthält Änderungen aus %2$s und möglicherweise auch deine eigenen Bearbeitungen.",
+				"%1$s enthalten Änderungen aus %2$s und möglicherweise auch deine eigenen Bearbeitungen."
+			],
+			"Other failures are in %s.": [
+				"Weitere Fehler liegen in %s vor."
+			],
+			"Your own work is also in %s and may be part of the failure.": [
+				"Deine eigene Arbeit befindet sich ebenfalls in %s und könnte mit ein Grund sein."
+			],
+			"Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.": [
+				"Speichere zunächst einen Patch deiner Arbeit, um eine Kopie zu behalten, und probiere diesen Pull-Request dann mit einem sauberen Ticket aus. Wenn er dort immer noch nicht passt, öffne den Pull-Request und gib dem Autor Bescheid, dass dieser eventuell aktualisiert werden muss."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Dieser Pull-Request passt nicht zu deinem Checkout: %1$d von insgesamt %2$d Änderung in %3$d Dateien müsste überarbeitet werden.",
+				"Dieser Pull-Request passt nicht zu deinem Checkout: %1$d von insgesamt %2$d Änderungen in %3$d Dateien müssten überarbeitet werden."
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Dieser Pull-Request passt nicht zu deinem Checkout: %1$d von insgesamt %2$d Änderung in %3$d Datei müsste überarbeitet werden.",
+				"Dieser Pull-Request passt nicht zu deinem Checkout: %1$d von insgesamt %2$d Änderungen in %3$d Datei müssten überarbeitet werden."
+			],
+			"See why it was closed": [
+				"Grund für die Schließung ansehen"
+			],
+			"Nobody is coming back to update a closed pull request — its discussion may say why it ended.": [
+				"Niemand kümmert sich mehr um die Aktualisierung eines geschlossenen Pull-Requests – aus dessen Diskussion geht möglicherweise hervor, warum er beendet wurde."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"Dieser Pull-Request ist geschlossen und wurde für einen älteren Trunk geschrieben – er passt nicht mehr: %1$d von insgesamt %2$d Änderung in %3$d Dateien müsste überarbeitet werden.",
+				"Dieser Pull-Request ist geschlossen und wurde für einen älteren Trunk geschrieben – er passt nicht mehr: %1$d von insgesamt %2$d Änderungen in %3$d Dateien müssten überarbeitet werden."
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"Dieser Pull-Request ist geschlossen und wurde für einen älteren Trunk geschrieben – er passt nicht mehr: %1$d von insgesamt %2$d Änderung in %3$d Datei müsste überarbeitet werden.",
+				"Dieser Pull-Request ist geschlossen und wurde für einen älteren Trunk geschrieben – er passt nicht mehr: %1$d von insgesamt %2$d Änderungen in %3$d Datei müssten überarbeitet werden."
+			],
+			"All %d of this pull request's change look like they are already in trunk — there is nothing left to apply.": [
+				"Die %d Änderung dieses Pull-Requests scheint sich bereits in Trunk zu befinden – es gibt nichts mehr anzuwenden.",
+				"Alle %d Änderungen dieses Pull-Requests scheinen sich bereits in Trunk zu befinden – es gibt nichts mehr anzuwenden."
+			],
+			"All %d of this pull request's change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.": [
+				"Die %d Änderung dieses Pull-Requests scheint sich bereits in Trunk zu befinden – er wurde wahrscheinlich in Core committet, weshalb er geschlossen ist. Es gibt nichts mehr anzuwenden.",
+				"Alle %d Änderungen dieses Pull-Requests scheinen sich bereits in Trunk zu befinden – er wurde wahrscheinlich in Core committet, weshalb er geschlossen ist. Es gibt nichts mehr anzuwenden."
+			],
+			"All %d of this pull request's change look like they are already in your checkout — there is nothing left to apply.": [
+				"Die %d Änderung dieses Pull-Requests scheint sich bereits in deinem Checkout zu befinden – es gibt nichts mehr anzuwenden.",
+				"Alle %d Änderungen dieses Pull-Requests scheinen sich bereits in deinem Checkout zu befinden – es gibt nichts mehr anzuwenden."
+			],
+			"%1$s and %2$d more file": [
+				"%1$s und %2$d weitere Datei",
+				"%1$s und %2$d weitere Dateien"
+			],
+			"%1$d of this patch's %2$d change across %3$d files no longer fit — the other %4$d do.": [
+				"%1$d der %2$d Änderung dieses Patches in %3$d Dateien passt nicht mehr – die anderen %4$d schon.",
+				"%1$d der %2$d Änderungen dieses Patches in %3$d Dateien passen nicht mehr – die anderen %4$d schon."
+			],
+			"%1$d of this patch's %2$d change no longer fit — the other %3$d do.": [
+				"%1$d der %2$d Änderung dieses Patches passt nicht mehr – die anderen %3$d schon.",
+				"%1$d der %2$d Änderungen dieses Patches passen nicht mehr – die anderen %3$d schon."
+			],
+			"None of this patch's %1$d change across %2$d files still fit your checkout.": [
+				"Die %1$d Änderung dieses Patches in %2$d Dateien passt nicht mehr zu deinem Checkout.",
+				"Keine der %1$d Änderungen dieses Patches in %2$d Dateien passt mehr zu deinem Checkout."
+			],
+			"None of this patch's %d change still fit your checkout.": [
+				"Die %d Änderung dieses Patches passt nicht mehr zu deinem Checkout.",
+				"Keine der %d Änderungen dieses Patches passt mehr zu deinem Checkout."
+			],
+			"%1$d of this patch's %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.": [
+				"%1$d der %2$d Änderung dieses Patches in %3$d Dateien scheint sich bereits in deinem Checkout zu befinden – die anderen %4$d passen weiterhin.",
+				"%1$d der %2$d Änderungen dieses Patches in %3$d Dateien scheinen sich bereits in deinem Checkout zu befinden – die anderen %4$d passen weiterhin."
+			],
+			"%1$d of this patch's %2$d change look like they are already in your checkout — the other %3$d still fit.": [
+				"%1$d der %2$d Änderung dieses Patches scheint sich bereits in deinem Checkout zu befinden – die anderen %3$d passen weiterhin.",
+				"%1$d der %2$d Änderungen dieses Patches scheinen sich bereits in deinem Checkout zu befinden – die anderen %3$d passen weiterhin."
+			],
+			"All %1$d of this patch's change across %2$d files look like they are already in your checkout.": [
+				"Die %1$d Änderung dieses Patches in %2$d Dateien scheint sich bereits in deinem Checkout zu befinden.",
+				"Alle %1$d Änderungen dieses Patches in %2$d Dateien scheinen sich bereits in deinem Checkout zu befinden."
+			],
+			"All %d of this patch's change look like they are already in your checkout.": [
+				"Die %d Änderung dieses Patches scheint sich bereits in deinem Checkout zu befinden.",
+				"Alle %d Änderungen dieses Patches scheinen sich bereits in deinem Checkout zu befinden."
+			],
+			"The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.": [
+				"Der Patch wird zusätzlich zu diesen Änderungen angewendet: Überschneiden sie sich nicht, gelingt dies – andernfalls schlägt das Anwenden fehl, ohne etwas zu verändern."
+			],
+			"%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.": [
+				"%s enthält Änderungen aus dem von dir angewendeten Patch. Die Datei enthält möglicherweise auch deine eigenen Bearbeitungen.",
+				"%s enthalten Änderungen aus dem von dir angewendeten Patch. Die Dateien enthalten möglicherweise auch deine eigenen Bearbeitungen."
+			],
+			"%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.": [
+				"%1$s enthält Änderungen aus %2$s, den du angewendet hast. Die Datei enthält möglicherweise auch deine eigenen Bearbeitungen.",
+				"%1$s enthalten Änderungen aus %2$s, den du angewendet hast. Die Dateien enthalten möglicherweise auch deine eigenen Bearbeitungen."
+			],
+			"You have your own edits to %s. Save a patch of your work first if you want a copy.": [
+				"Du hast eigene Bearbeitungen an %s. Speichere zunächst einen Patch deiner Arbeit, wenn du eine Kopie behalten möchtest."
+			],
+			"%1$s and %2$s": [
+				"%1$s und %2$s"
+			],
+			"It still counts as this ticket's one applied patch, so another cannot be applied until this ticket is reverted or discarded.": [
+				"Er gilt weiterhin als der eine angewendete Patch dieses Tickets. Daher kann kein weiterer angewendet werden, bis dieses Ticket rückgängig gemacht oder verworfen wird."
+			],
+			"Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"Speichere zunächst eine Kopie deiner Arbeit, dann kann das Ticket bedenkenlos auf seinen Ausgangszustand zurückgesetzt werden – bei diesem Projekt ist das der normale Ablauf und bedeutet keineswegs einen verlorenen Nachmittag."
+			],
+			"The copy could not be saved: %s": [
+				"Die Kopie konnte nicht gespeichert werden: %s"
+			],
+			"%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"%s war zu groß, um eine Kopie zum Rückgängigmachen zu behalten. Daher kann er nicht einzeln rückgängig gemacht werden."
+			],
+			"A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"Ein Patch war zu groß, um eine Kopie zum Rückgängigmachen zu behalten. Daher kann er nicht einzeln rückgängig gemacht werden."
+			],
+			"A patch is applied — %d file.": [
+				"Ein Patch ist angewendet – %d Datei.",
+				"Ein Patch ist angewendet – %d Dateien."
+			],
+			"A patch is applied — %1$d file, %2$s.": [
+				"Ein Patch ist angewendet – %1$d Datei, %2$s.",
+				"Ein Patch ist angewendet – %1$d Dateien, %2$s."
+			],
+			"%1$s is applied — %2$d file.": [
+				"%1$s ist angewendet – %2$d Datei.",
+				"%1$s ist angewendet – %2$d Dateien."
+			],
+			"%1$s is applied — %2$d file, %3$s.": [
+				"%1$s ist angewendet – %2$d Datei, %3$s.",
+				"%1$s ist angewendet – %2$d Dateien, %3$s."
+			],
+			"Only %s pull requests can be applied here.": [
+				"Hier können nur Pull-Requests von %s angewendet werden."
+			],
+			"That does not look like a pull request URL.": [
+				"Das sieht nicht nach einer Pull-Request-URL aus."
+			],
+			"Only github.com pull requests are supported.": [
+				"Es werden nur Pull-Requests von github.com unterstützt."
+			],
+			"That is not a pull request URL or number.": [
+				"Das ist keine Pull-Request-URL oder -Nummer."
+			],
+			"Enter a pull request URL or number.": [
+				"Gib eine Pull-Request-URL oder -Nummer ein."
+			],
+			"That does not look like a patch — no file changes found.": [
+				"Das sieht nicht nach einem Patch aus – es wurden keine Dateiänderungen gefunden."
+			],
+			"No file changes found in the patch.": [
+				"Im Patch wurden keine Dateiänderungen gefunden."
+			],
+			"The patch is empty.": [
+				"Der Patch ist leer."
+			],
+			"The empty file path is quoted or ambiguous.": [
+				"Der Pfad der leeren Datei ist in Anführungszeichen gesetzt oder mehrdeutig."
+			],
+			"Applied %d file.": [
+				"%d Datei wurde angewendet.",
+				"%d Dateien wurden angewendet."
+			],
+			"Reverted %d file.": [
+				"%d Datei wurde rückgängig gemacht.",
+				"%d Dateien wurden rückgängig gemacht."
+			],
+			"The patch could not be written, so the checkout was put back as it was: %s": [
+				"Der Patch konnte nicht geschrieben werden. Daher wurde der Checkout in den ursprünglichen Zustand zurückversetzt: %s"
+			],
+			"The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s": [
+				"Der Patch konnte nicht geschrieben und der Checkout nicht vollständig in den ursprünglichen Zustand zurückversetzt werden – er befindet sich in einem unbekannten Zustand. Folgendes konnte nicht rückgängig gemacht werden: %s"
+			],
+			"writing could not verify %1$s after git apply: %2$s": [
+				"beim Schreiben konnte %1$s nach „git apply“ nicht verifiziert werden (%2$s)"
+			],
+			"writing git apply exited %s": [
+				"beim Schreiben wurde „git apply“ mit dem Code %s beendet"
+			],
+			"writing %s": [
+				"beim Schreiben (%s)"
+			],
+			"Could not snapshot the checkout before applying the patch: %s": [
+				"Vor dem Anwenden des Patches konnte keine Sicherungskopie des Checkouts erstellt werden: %s"
+			],
+			"The patch was not applied — the checkout is unchanged.": [
+				"Der Patch wurde nicht angewendet – der Checkout ist unverändert."
+			],
+			"That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.": [
+				"Dieser Patch befindet sich nicht mehr in diesem Checkout – etwas hat ihn zurückgesetzt, wahrscheinlich eine Trunk-Aktualisierung oder das Verwerfen von Änderungen. Es wurde nichts rückgängig gemacht."
+			],
+			"The patch does not apply.": [
+				"Der Patch kann nicht angewendet werden."
+			],
+			"a file has moved on since the patch was written, so it no longer applies": [
+				"eine Datei hat sich verändert, seit der Patch geschrieben wurde, sodass er nicht mehr angewendet werden kann"
+			],
+			"%s has moved on since the patch was written, so it no longer applies": [
+				"%s hat sich verändert, seit der Patch geschrieben wurde, sodass der Patch nicht mehr angewendet werden kann"
+			],
+			"%d more file was not checked one by one": [
+				"%d weitere Datei wurde nicht einzeln geprüft",
+				"%d weitere Dateien wurden nicht einzeln geprüft"
+			],
+			"The patch does not change any files.": [
+				"Der Patch ändert keine Dateien."
+			],
+			"(unnamed binary file)": [
+				"(unbenannte Binärdatei)"
+			],
+			"Could not read the patch: %s": [
+				"Der Patch konnte nicht gelesen werden: %s"
+			],
+			"Skipped %1$d binary file the app cannot apply: %2$s": [
+				"%1$d von der App nicht anwendbare Binärdatei wurde übersprungen: %2$s",
+				"%1$d von der App nicht anwendbare Binärdateien wurden übersprungen: %2$s"
+			],
+			"%s is not in this checkout, so the patch does not fit it": [
+				"%s befindet sich nicht in diesem Checkout. Daher passt der Patch nicht dazu"
+			],
+			"%1$s already exists, so the patch cannot move %2$s onto it": [
+				"%1$s existiert bereits. Daher kann der Patch %2$s nicht an diese Stelle verschieben"
+			],
+			"%s is not in this checkout, so the patch cannot move it": [
+				"%s befindet sich nicht in diesem Checkout. Daher kann der Patch die Datei nicht verschieben"
+			],
+			"%s could not be created from the patch": [
+				"%s konnte nicht aus dem Patch erstellt werden"
+			],
+			"%s already exists, so the patch cannot add it": [
+				"%s existiert bereits. Daher kann der Patch die Datei nicht hinzufügen"
+			],
+			"%s is already gone, so the patch cannot remove it": [
+				"%s ist bereits nicht mehr vorhanden. Daher kann der Patch die Datei nicht entfernen"
+			],
+			"%s points outside the site folder": [
+				"%s verweist auf einen Pfad außerhalb des Website-Ordners"
+			],
+			"%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do": [
+				"%1$s hat sich verändert, seit der Patch geschrieben wurde: %2$d von insgesamt %3$d Änderung passt nicht mehr, die anderen %4$d schon",
+				"%1$s hat sich verändert, seit der Patch geschrieben wurde: %2$d von insgesamt %3$d Änderungen passen nicht mehr, die anderen %4$d schon"
+			],
+			"%1$s has moved on since the patch was written, so none of its %2$d change still fits": [
+				"%1$s hat sich verändert, seit der Patch geschrieben wurde, sodass die %2$d Änderung nicht mehr passt",
+				"%1$s hat sich verändert, seit der Patch geschrieben wurde, sodass keine seiner %2$d Änderungen mehr passt"
+			],
+			"Server did not start within %d second": [
+				"Der Server ist nicht innerhalb von %d Sekunde gestartet",
+				"Der Server ist nicht innerhalb von %d Sekunden gestartet"
+			],
+			"Server exited with code %s before reporting a URL": [
+				"Der Server wurde mit dem Code %s beendet, bevor eine URL gemeldet wurde"
+			],
+			"Server exited with code %1$s (signal %2$s) before reporting a URL": [
+				"Der Server wurde mit dem Code %1$s (Signal %2$s) beendet, bevor eine URL gemeldet wurde"
+			],
+			"Failed to start: %s": [
+				"Start fehlgeschlagen: %s"
+			],
+			"Retrying with engine checks relaxed…": [
+				"Erneuter Versuch mit gelockerten Engine-Prüfungen …"
+			],
+			"This site requires a newer Node.js than this app bundles.": [
+				"Diese Website erfordert eine neuere Node.js-Version als die, die in dieser App enthalten ist."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm wurde mit dem Code %s beendet, aber ein von ihm gestarteter Prozess wird noch ausgeführt und hält die Ausgabe zurück. Die Verbindung wird getrennt und der Prozess wird beendet."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm wurde mit dem Code %1$s (Signal %2$s) beendet, aber ein von ihm gestarteter Prozess wird noch ausgeführt und hält die Ausgabe zurück. Die Verbindung wird getrennt und der Prozess wird beendet."
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm wurde mit dem Code %s beendet, aber ein von ihm gestarteter Prozess wird noch ausgeführt und hält die Ausgabe zurück. Die Verbindung wird getrennt. Dieser Prozess wird weiter ausgeführt, bis er von selbst endet."
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm wurde mit dem Code %1$s (Signal %2$s) beendet, aber ein von ihm gestarteter Prozess wird noch ausgeführt und hält die Ausgabe zurück. Die Verbindung wird getrennt. Dieser Prozess wird weiter ausgeführt, bis er von selbst endet."
+			],
+			"Applying the patch failed: %s": [
+				"Das Anwenden des Patches ist fehlgeschlagen: %s"
+			],
+			"The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s": [
+				"Der Patch wurde angewendet, aber der Eintrag für das Rückgängigmachen konnte nicht gespeichert und der Patch nicht rückgängig gemacht werden – der Checkout enthält den Patch und die App kann ihn nicht rückgängig machen. %s"
+			],
+			"The patch applied but its revert record could not be saved, so it was undone. %s": [
+				"Der Patch wurde angewendet, aber der Eintrag für das Rückgängigmachen konnte nicht gespeichert werden. Daher wurde der Patch wieder rückgängig gemacht. %s"
+			],
+			"This patch is too large to keep for an undo, so Revert will not be offered.": [
+				"Dieser Patch ist zu groß, um eine Kopie zum Rückgängigmachen zu behalten. Daher wird „Rückgängig machen“ nicht angeboten."
+			],
+			"Applying %s…": [
+				"%s wird angewendet …"
+			],
+			"Reverting %s…": [
+				"%s wird rückgängig gemacht …"
+			],
+			"%s is already applied. Revert it before applying another patch.": [
+				"%s ist bereits angewendet. Mache diesen Patch rückgängig, bevor du einen anderen Patch anwendest."
+			],
+			"There is no stored patch to revert.": [
+				"Es gibt keinen gespeicherten Patch, der rückgängig gemacht werden kann."
+			],
+			"Could not check your work for conflicts, so the preview was not shown.": [
+				"Deine Arbeit konnte nicht auf Konflikte geprüft werden. Daher wurde die Vorschau nicht angezeigt."
+			],
+			"Restoring the files of your previous branch…": [
+				"Die Dateien deines vorherigen Branches werden wiederhergestellt …"
+			],
+			"Could not remove the unused branch: %s": [
+				"Der nicht verwendete Branch konnte nicht entfernt werden: %s"
+			],
+			"Downloading the pull request's files and switching to its branch…": [
+				"Die Dateien des Pull-Requests werden heruntergeladen und es wird zu dessen Branch gewechselt …"
+			],
+			"Returning to your saved copy of the pull request…": [
+				"Rückkehr zu deiner gespeicherten Kopie des Pull-Requests …"
+			],
+			"Your work is safe — it is committed on %s. Apply that pull request again to return to it.": [
+				"Deine Arbeit ist gesichert – sie ist auf %s committet. Wende diesen Pull-Request erneut an, um dorthin zurückzukehren."
+			],
+			"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.": [
+				"Deine Arbeit an #%1$s ist gesichert – sie ist auf %2$s committet. Verknüpfe dieses Ticket erneut, um dorthin zurückzukehren."
+			],
+			"Update failed during fetch: %s": [
+				"Aktualisierung beim Abrufen fehlgeschlagen: %s"
+			],
+			"Update failed during checkout: %s": [
+				"Aktualisierung beim Auschecken fehlgeschlagen: %s"
+			],
+			"Returning to your work on %s…": [
+				"Rückkehr zu deiner Arbeit auf %s …"
+			],
+			"Parking your work on %s before updating…": [
+				"Deine Arbeit auf %s wird vor der Aktualisierung zurückgestellt …"
+			],
+			"Fetch latest trunk": [
+				"Neuesten Trunk abrufen"
+			],
+			"The build watch is rebuilding — output in the Logs, under Build watch": [
+				"Der Build-Watch führt eine Neuerstellung durch – die Ausgabe findest du in den Protokollen unter „Build-Watch“"
+			],
+			"Dependencies unchanged — skipping %s": [
+				"Die Abhängigkeiten sind unverändert – %s wird übersprungen"
+			],
+			"Dependencies unchanged, rebuilt.": [
+				"Die Abhängigkeiten sind unverändert und alles wurde neu erstellt."
+			],
+			"Dependencies updated, rebuilt.": [
+				"Die Abhängigkeiten wurden aktualisiert und alles neu erstellt."
+			],
+			"Dependencies unchanged, rebuilt in %s.": [
+				"Die Abhängigkeiten sind unverändert und alles wurde in %s neu erstellt."
+			],
+			"Dependencies updated, rebuilt in %s.": [
+				"Die Abhängigkeiten wurden aktualisiert und alles wurde in %s neu erstellt."
+			],
+			"Install dependencies": [
+				"Abhängigkeiten installieren"
+			],
+			"Download WordPress": [
+				"WordPress herunterladen"
+			],
+			"Rebuild": [
+				"Neu erstellen"
+			],
+			"Apply the patch": [
+				"Patch anwenden"
+			],
+			"Revert the pull request": [
+				"Pull-Request rückgängig machen"
+			],
+			"Apply the pull request": [
+				"Pull-Request anwenden"
+			],
+			"The build watch rebuilds when it resumes": [
+				"Der Build-Watch führt beim Fortsetzen eine Neuerstellung durch"
+			],
+			"The build watch will recompile the change": [
+				"Der Build-Watch wird die Änderung neu kompilieren"
+			],
+			"Rebuilt": [
+				"Neu erstellt"
+			],
+			"Rebuilding — output in the Terminal": [
+				"Wird neu erstellt – die Ausgabe befindet sich im Terminal"
+			],
+			"Dependencies changed — installing the difference…": [
+				"Die Abhängigkeiten haben sich geändert – die Differenz wird installiert …"
+			],
+			"Fetched and reset to trunk": [
+				"Der neueste Stand wurde abgerufen und auf Trunk zurückgesetzt"
+			],
+			"Fetching and resetting to trunk…": [
+				"Der neueste Stand wird abgerufen und auf Trunk zurückgesetzt …"
+			],
+			"Fetch and reset to trunk": [
+				"Neuesten Stand abrufen und auf Trunk zurücksetzen"
+			],
+			"The build did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"Der Build wurde nicht abgeschlossen. Die Ausgabe befindet sich im Terminal – versuche es erneut, nachdem du sie gelesen hast."
+			],
+			"Retry the build": [
+				"Build erneut ausführen"
+			],
+			"Build complete": [
+				"Der Build ist abgeschlossen"
+			],
+			"The install did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"Die Installation wurde nicht abgeschlossen. Die Ausgabe befindet sich im Terminal – versuche es erneut, nachdem du sie gelesen hast."
+			],
+			"Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.": [
+				"Installiert. Hast du seitdem eine Abhängigkeit zu %1$s hinzugefügt? Führe %2$s im Terminal aus."
+			],
+			"Install npm packages so commands can run.": [
+				"Installiere die npm-Pakete, damit Befehle ausgeführt werden können."
+			],
+			"Retry %s": [
+				"%s erneut ausführen"
+			],
+			"Dependencies installed": [
+				"Die Abhängigkeiten wurden installiert"
+			],
+			"Ready": [
+				"Bereit"
+			],
+			"In progress": [
+				"Wird ausgeführt"
+			],
+			"Locked": [
+				"Gesperrt"
+			],
+			"Pending": [
+				"Ausstehend"
+			],
+			"Failed": [
+				"Fehlgeschlagen"
+			],
+			"Completed": [
+				"Abgeschlossen"
+			],
+			"The trunk snapshot is old; update before making a patch.": [
+				"Der Trunk-Stand ist alt. Aktualisiere ihn, bevor du einen Patch erstellst."
+			],
+			"The update left the build stale; install and build to recover.": [
+				"Durch die Aktualisierung ist der Build veraltet. Führe die Installation und den Build erneut aus, um dies zu beheben."
+			],
+			"A patch is staged — apply and rebuild, or cancel.": [
+				"Ein Patch ist bereitgestellt – wende ihn an und erstelle alles neu, oder breche den Vorgang ab."
+			],
+			"The trunk update in progress.": [
+				"Die Trunk-Aktualisierung wird ausgeführt."
+			],
+			"A patch is being applied or reverted.": [
+				"Ein Patch wird angewendet oder rückgängig gemacht."
+			],
+			"The next step in the setup checklist.": [
+				"Der nächste Schritt auf der Einrichtungs-Checkliste."
+			],
+			"Link a Trac ticket to give your work a home.": [
+				"Verknüpfe ein Trac-Ticket, um deiner Arbeit einen festen Platz zu geben."
+			],
+			"Link a GitHub issue to give your work a home.": [
+				"Verknüpfe ein GitHub-Issue, um deiner Arbeit einen festen Platz zu geben."
+			],
+			"You have uncommitted changes ready to review and submit.": [
+				"Du hast nicht committete Änderungen, die bereit zur Überprüfung und Einreichung sind."
+			],
+			"PR #%d is applied; revert it before applying another change.": [
+				"Der PR #%d ist angewendet. Mache ihn rückgängig, bevor du eine weitere Änderung anwendest."
+			],
+			"Start the dev server to work on the site.": [
+				"Starte den Entwicklungsserver, um an der Website zu arbeiten."
+			],
+			"Setting up new site…": [
+				"Neue Website wird eingerichtet …"
+			],
+			"Finish setting this site up first.": [
+				"Schließe zunächst die Einrichtung dieser Website ab."
+			],
+			"Hide": [
+				"Ausblenden"
+			],
+			"Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.": [
+				"Der vollständige Build wird ausgeführt. Dies kann unter Windows bis zu einer halben Stunde dauern. Das Terminal zeigt an, was gerade geschieht."
+			],
+			"Installing dependencies. You can leave this running — the build follows on its own.": [
+				"Die Abhängigkeiten werden installiert. Du kannst diesen Vorgang einfach weiterlaufen lassen – der Build folgt anschließend von selbst."
+			],
+			"Setting this site up for you — step %1$d of %2$d": [
+				"Diese Website wird für dich eingerichtet – Schritt %1$d von %2$d"
+			],
+			"Your changes were saved to %s before the reset.": [
+				"Deine Änderungen wurden vor dem Zurücksetzen unter %s gespeichert."
+			],
+			"Up to date with trunk as of today.": [
+				"Auf dem heutigen Stand von Trunk."
+			],
+			"Most packages are already cached, so this is a download of the difference — not the whole tree.": [
+				"Die meisten Pakete sind bereits zwischengespeichert. Daher wird nur die Differenz heruntergeladen – nicht der gesamte Verzeichnisbaum."
+			],
+			"step %1$d of %2$d": [
+				"Schritt %1$d von %2$d"
+			],
+			"Patches you create now may not apply on Trac. Updating takes a few minutes.": [
+				"Patches, die du jetzt erstellst, lassen sich möglicherweise nicht auf Trac anwenden. Die Aktualisierung dauert einige Minuten."
+			],
+			"This site's WordPress code is %d day old": [
+				"Der WordPress-Code dieser Website ist %d Tag alt",
+				"Der WordPress-Code dieser Website ist %d Tage alt"
+			],
+			"Retry install & build": [
+				"Installation und Build erneut ausführen"
+			],
+			"The code is new but the built assets are old. The site may not run correctly until install and build succeed.": [
+				"Der Code ist neu, aber die erstellten Assets sind alt. Die Website funktioniert möglicherweise nicht richtig, bis die Installation und der Build erfolgreich abgeschlossen sind."
+			],
+			"Update incomplete": [
+				"Aktualisierung unvollständig"
+			],
+			"Next step: %s": [
+				"Nächster Schritt: %s"
+			],
+			"Starting… (%s)": [
+				"Wird gestartet … (%s)"
+			],
+			"Start dev server and finish the wizard": [
+				"Entwicklungsserver starten und Assistenten abschließen"
+			],
+			"Stop dev server": [
+				"Entwicklungsserver anhalten"
+			],
+			"Start dev server & finish wizard": [
+				"Entwicklungsserver starten und Assistenten abschließen"
+			],
+			"Run full build": [
+				"Vollständigen Build ausführen"
+			],
+			"Install npm dependencies": [
+				"npm-Abhängigkeiten installieren"
+			],
+			"Cloning the repository… install and build start on their own when it finishes.": [
+				"Das Repository wird geklont … Die Installation und der Build starten danach von selbst."
+			],
+			"Failed to discard changes: %s": [
+				"Die Änderungen konnten nicht verworfen werden: %s"
+			],
+			"Saved your changes to %1$s, but resetting the working tree failed: %2$s": [
+				"Deine Änderungen wurden unter %1$s gespeichert, aber das Zurücksetzen des Arbeitsverzeichnisses ist fehlgeschlagen: %2$s"
+			],
+			"Error saving diff: %s": [
+				"Fehler beim Speichern des Diffs: %s"
+			],
+			"Please complete the full build before starting the dev server. You can also skip the wizard.": [
+				"Bitte schließe den vollständigen Build ab, bevor du den Entwicklungsserver startest. Du kannst den Assistenten auch überspringen."
+			],
+			"Updating to latest trunk": [
+				"Aktualisierung auf den neuesten Trunk"
+			],
+			"Skip initialization wizard": [
+				"Einrichtungsassistenten überspringen"
+			],
+			"Nothing was lost — pick it back up with the buttons below whenever you want.": [
+				"Es ist nichts verloren gegangen – setze die Einrichtung jederzeit über die Buttons unten fort."
+			],
+			"Setup stopped.": [
+				"Die Einrichtung wurde angehalten."
+			],
+			"Stop setup": [
+				"Einrichtung anhalten"
+			],
+			"Complete each step to prepare this site for development.": [
+				"Schließe jeden Schritt ab, um diese Website für die Entwicklung vorzubereiten."
+			],
+			"Initial setup checklist": [
+				"Checkliste zur Ersteinrichtung"
+			],
+			"Save patch & update": [
+				"Patch speichern und aktualisieren"
+			],
+			"Discard & update": [
+				"Verwerfen und aktualisieren"
+			],
+			"— your changes are lost; this cannot be undone": [
+				"– Deine Änderungen gehen verloren; dies kann nicht rückgängig gemacht werden"
+			],
+			"Discard them": [
+				"Dies verwerfen"
+			],
+			"— a .diff on your machine — nothing is sent to Trac": [
+				"– eine .diff-Datei auf deinem Computer – es wird nichts an Trac gesendet"
+			],
+			"Save them as a patch first (as a local file)": [
+				"Dies zunächst als Patch speichern (als lokale Datei)"
+			],
+			"You've changed %d file in this site. Resetting to trunk would throw them away.": [
+				"Du hast %d Datei auf dieser Website geändert. Durch das Zurücksetzen auf Trunk würden deine Änderungen verworfen.",
+				"Du hast %d Dateien auf dieser Website geändert. Durch das Zurücksetzen auf Trunk würden deine Änderungen verworfen."
+			],
+			"Update to latest trunk?": [
+				"Auf den neuesten Trunk aktualisieren?"
+			],
+			"Launch the development server once to complete the WordPress setup wizard.": [
+				"Starte einmalig den Entwicklungsserver, um den WordPress-Einrichtungsassistenten abzuschließen."
+			],
+			"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.": [
+				"Der Build ist abgeschlossen. Hast du seitdem Dateien in %1$s bearbeitet? Führe %2$s im Terminal aus, damit die Website sie übernimmt – bei Aktualisierungen und angewendeten Patches wird alles von selbst neu erstellt."
+			],
+			"Compile WordPress Core to generate the dist files. Later updates rebuild automatically.": [
+				"Kompiliere WordPress-Core, um die dist-Dateien zu generieren. Spätere Aktualisierungen werden automatisch neu erstellt."
+			],
+			"Clone the WordPress develop repository.": [
+				"Das wordpress-develop-Repository klonen."
+			],
+			"Download WordPress development version": [
+				"WordPress-Entwicklungsversion herunterladen"
+			],
+			"Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.": [
+				"Starte einmalig eine WordPress-Instanz mit diesem Checkout als Gutenberg-Plugin, um die Einrichtung abzuschließen."
+			],
+			"Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.": [
+				"Der Build ist abgeschlossen. Hast du seitdem ein Paket bearbeitet? Führe %s im Terminal aus, damit die Website die Änderungen übernimmt. Bei Aktualisierungen wird alles von selbst neu erstellt."
+			],
+			"Compile the Gutenberg packages. Later updates rebuild automatically.": [
+				"Kompiliere die Gutenberg-Pakete. Spätere Aktualisierungen werden automatisch neu erstellt."
+			],
+			"Clone the Gutenberg repository.": [
+				"Das Gutenberg-Repository klonen."
+			],
+			"Download Gutenberg": [
+				"Gutenberg herunterladen"
+			],
+			"the window’s theme: two colours of one’s own\u0004Custom": [
+				"Individuell"
+			],
+			"Choose a colour as six hex digits, like #3858e9.": [
+				"Wähle eine Farbe als sechsstelligen Hex-Wert aus, z. B. #3858e9."
+			],
+			"Choose light, dark, your system’s theme, or custom.": [
+				"Wähle „Hell“, „Dunkel“, das Theme deines Systems oder „Individuell“ aus."
+			],
+			"Some text may be hard to read with these colours. They are kept as they are; choose others if it is.": [
+				"Manche Texte sind mit diesen Farben möglicherweise schwer lesbar. Die Farben werden wie gewählt beibehalten. Wähle andere aus, falls die Lesbarkeit beeinträchtigt ist."
+			],
+			"Primary": [
+				"Primär"
+			],
+			"Background": [
+				"Hintergrund"
+			],
+			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
+				"„System“ richtet sich nach der hellen oder dunklen Einstellung deines Betriebssystems. „Individuell“ erstellt das Theme aus zwei selbst gewählten Farben."
+			],
+			"%s colour picker": [
+				"Farbwähler für %s"
+			],
+			"Working…": [
+				"Wird ausgeführt …"
+			],
+			"Opening the pull request…": [
+				"Pull-Request wird eröffnet …"
+			],
+			"Uploading your changes…": [
+				"Deine Änderungen werden hochgeladen …"
+			],
+			"Bringing your fork up to date…": [
+				"Dein Fork wird auf den neuesten Stand gebracht …"
+			],
+			"Creating your fork of %s…": [
+				"Dein Fork von %s wird erstellt …"
+			],
+			"Could not start sign-in.": [
+				"Die Anmeldung konnte nicht gestartet werden."
+			],
+			"Sign-in did not complete.": [
+				"Die Anmeldung wurde nicht abgeschlossen."
+			],
+			"The authorization was declined on GitHub. Nothing was changed.": [
+				"Die Autorisierung wurde von GitHub abgelehnt. Es wurde nichts geändert."
+			],
+			"The pull request could not be opened.": [
+				"Der Pull-Request konnte nicht eröffnet werden."
+			],
+			"Your checkout was behind trunk, so the branch was based on today's trunk. None of your files were changed upstream in between — the pull request shows only your work.": [
+				"Dein Checkout lag hinter Trunk zurück. Daher wurde der Branch auf dem heutigen Stand von Trunk aufgebaut. Keine deiner Dateien wurde in der Zwischenzeit upstream geändert – der Pull-Request zeigt ausschließlich deine Arbeit."
+			],
+			"Opened <link>pull request #%s</link> from <branch />.": [
+				"<link>Pull-Request #%s</link> wurde aus <branch /> eröffnet."
+			],
+			"Dry run — branch <branch /> was created on your fork; no pull request was opened.": [
+				"Testlauf – der Branch <branch /> wurde in deinem Fork erstellt; es wurde kein Pull-Request eröffnet."
+			],
+			"Save the patch file instead": [
+				"Stattdessen die Patch-Datei speichern"
+			],
+			"Pull requests go to <target />, not to <upstream />.": [
+				"Pull-Requests gehen an <target />, nicht an <upstream />."
+			],
+			"Dry run — a branch is pushed to your fork, no pull request is opened.": [
+				"Testlauf – ein Branch wird in deinen Fork gepusht, es wird kein Pull-Request eröffnet."
+			],
+			"Test mode": [
+				"Testmodus"
+			],
+			"Open a pull request": [
+				"Einen Pull-Request eröffnen"
+			],
+			"Not now": [
+				"Jetzt nicht"
+			],
+			"Sign in with GitHub": [
+				"Mit GitHub anmelden"
+			],
+			"Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.": [
+				"Durch die Anmeldung kann die App einen Fork von %s in deinem Konto erstellen, diesen Patch dort in einen Branch pushen und den Pull-Request eröffnen. Die Anmeldung erfolgt über deinen Browser, fragt niemals nach deinem Passwort und verwirft die Autorisierung, sobald du die App beendest."
+			],
+			"Show this again": [
+				"Dies erneut anzeigen"
+			],
+			"Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.": [
+				"Es wurde keine Anmeldung durchgeführt und nichts gesendet. Du kannst die Patch-Datei weiterhin speichern. Die anderen Ziele bleiben unverändert."
+			],
+			"Signed in as <login /> — the fork and branch go to <fork />.": [
+				"Angemeldet als <login /> – Fork und Branch werden in <fork /> erstellt."
+			],
+			"Open pull request": [
+				"Pull-Request eröffnen"
+			],
+			"Push branch (dry run)": [
+				"Branch pushen (Testlauf)"
+			],
+			"Anything you are unsure about.": [
+				"Alles, wobei du dir unsicher bist."
+			],
+			"How to see it working — the steps you used.": [
+				"Wie sich die Funktionsweise überprüfen lässt – die Schritte, die du ausgeführt hast."
+			],
+			"What the change does, and why.": [
+				"Was die Änderung bewirkt und warum sie nötig ist."
+			],
+			"Notes for reviewers (optional)": [
+				"Hinweise für Reviewer (optional)"
+			],
+			"Left empty, it will be titled <strong><title /></strong>.": [
+				"Bleibt das Feld leer, lautet der Titel <strong><title /></strong>."
+			],
+			"What the change does, in one line. Reviewers scan these.": [
+				"Was die Änderung bewirkt, in einer Zeile. Reviewer überfliegen diese zuerst."
+			],
+			"Title": [
+				"Titel"
+			],
+			"Reject a theme zip in the plugin installer": [
+				"Theme-ZIP-Datei im Plugin-Installer ablehnen"
+			],
+			"No connection to GitHub.": [
+				"Es besteht keine Verbindung zu GitHub."
+			],
+			"GitHub is rate-limiting this connection. It usually clears within the hour.": [
+				"GitHub begrenzt derzeit die Anfragen über diese Verbindung. Normalerweise wird diese Beschränkung innerhalb einer Stunde aufgehoben."
+			],
+			"Waiting for you to finish in the browser…": [
+				"Es wird darauf gewartet, dass du den Vorgang im Browser abschließt …"
+			],
+			"That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.": [
+				"Diese GitHub-Anmeldung ist nicht mehr gültig. Melde dich erneut an oder speichere stattdessen die Patch-Datei."
+			],
+			"Copy the code": [
+				"Code kopieren"
+			],
+			"Code copied": [
+				"Code kopiert"
+			],
+			"Enter this code at <strong><address /></strong>, which has been opened in your browser.": [
+				"Gib diesen Code unter <strong><address /></strong> ein. Die Seite wurde in deinem Browser geöffnet."
+			],
+			"This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.": [
+				"Für diesen Build ist keine GitHub-Anwendung konfiguriert. Daher kann kein Pull-Request eröffnet werden. Die anderen Ziele funktionieren weiterhin."
+			],
+			"Checking…": [
+				"Wird geprüft …"
+			],
+			"Open #%s to comment": [
+				"#%s öffnen, um zu kommentieren"
+			],
+			"Copy the link": [
+				"Link kopieren"
+			],
+			"Link copied": [
+				"Link kopiert"
+			],
+			"Triage and props live on the ticket, so the link belongs there too.": [
+				"Triage und Props finden im Ticket statt. Daher gehört der Link ebenfalls dorthin."
+			],
+			"Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.": [
+				"Dies steht ganz oben in der Beschreibung. Der Ticket-Link und dein WordPress.org-Benutzername werden darunter eingefügt."
+			],
+			"It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.": [
+				"Die App kann kein GitHub-Konto für dich erstellen und auch keine Beiträge in deinem Namen auf Trac veröffentlichen."
+			],
+			"Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.": [
+				"Es werden automatisierte Prüfungen dafür ausgeführt. Auf GitHub schaut jedoch niemand nach – erst wenn du den Link im Ticket veröffentlichst, wird der Pull-Request wahrgenommen."
+			],
+			"No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.": [
+				"Mit dieser Website ist kein Ticket verknüpft. Ein Pull-Request muss auf ein Ticket verweisen – verknüpfe eines in der Trac-Karte."
+			],
+			"Link a GitHub issue to this site first. A pull request has to cite one.": [
+				"Verknüpfe zunächst ein GitHub-Issue mit dieser Website. Ein Pull-Request muss auf ein Issue verweisen."
+			],
+			"The Gutenberg contributing guide": [
+				"Der Leitfaden zum Mitwirken an Gutenberg"
+			],
+			"Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.": [
+				"Reviewer fragen nach Testschritten. Trage diese in die Hinweise ein: was geöffnet werden soll, worauf geklickt werden soll und was passieren sollte."
+			],
+			"The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.": [
+				"Im Pull-Request wird die Änderung überprüft und nach der Freigabe zusammengeführt. Es muss nirgendwo sonst etwas veröffentlicht werden, damit sie wahrgenommen wird."
+			],
+			"How pull requests work in Gutenberg": [
+				"So funktionieren Pull-Requests in Gutenberg"
+			],
+			"The Fixes line already lists it on the issue. A comment there still tells the people watching it.": [
+				"Durch die „Fixes“-Zeile wird der Pull-Request bereits im Issue aufgeführt. Ein Kommentar dort benachrichtigt trotzdem alle, die das Issue beobachten."
+			],
+			"Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.": [
+				"Dies steht ganz oben in der Beschreibung. Die „Fixes“-Zeile, die das Issue verknüpft, und dein WordPress.org-Benutzername werden darunter eingefügt."
+			],
+			"It cannot create the GitHub account for you.": [
+				"Die App kann kein GitHub-Konto für dich erstellen."
+			],
+			"Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.": [
+				"Es werden automatisierte Prüfungen dafür ausgeführt, und die Änderung wird direkt dort überprüft und zusammengeführt: Bei Gutenberg ist der Pull-Request der zentrale Ort dafür."
+			],
+			"A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.": [
+				"Ein GitHub-Konto. Der Fork wird für dich erstellt; in diese App wird kein Passwort eingegeben und es werden keine Zugangsdaten auf der Festplatte gespeichert."
+			],
+			"No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.": [
+				"Mit dieser Website ist kein Issue verknüpft. Ein Pull-Request muss auf ein Issue verweisen: Verknüpfe eines in der GitHub-Issue-Karte."
+			],
+			"Link a Trac ticket to this site first. A pull request has to cite one.": [
+				"Verknüpfe zuerst ein Trac-Ticket mit dieser Website. Ein Pull-Request muss auf ein Ticket verweisen."
+			],
+			"The handbook page on pull requests": [
+				"Die Handbuchseite zu Pull-Requests"
+			],
+			"Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.": [
+				"Auf GitHub wird ebenfalls nichts zusammengeführt. Ein Committer wendet die Änderung selbst an und die Entscheidung darüber fällt im Ticket."
+			],
+			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
+				"Niemand beobachtet die Liste der Pull-Requests. Deiner wird gesehen, weil der Link dazu im Ticket steht – deshalb führt dich dieser Ablauf am Ende wieder dorthin zurück."
+			],
+			"How pull requests work in core": [
+				"So funktionieren Pull-Requests in Core"
+			],
+			"Sign in to GitHub first.": [
+				"Melde dich zunächst bei GitHub an."
+			],
+			"Could not read the base commit": [
+				"Der Basis-Commit konnte nicht gelesen werden"
+			],
+			"Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.": [
+				"Trunk hat sich bei einer von dir bearbeiteten Datei (%s) verändert. Aktualisiere diese Website auf den neuesten Trunk, prüfe, ob deine Änderungen noch angewendet werden können, und versuche es erneut.",
+				"Trunk hat sich bei von dir bearbeiteten Dateien (%s) verändert. Aktualisiere diese Website auf den neuesten Trunk, prüfe, ob deine Änderungen noch angewendet werden können, und versuche es erneut."
+			],
+			"There are no changes to open a pull request with.": [
+				"Es gibt keine Änderungen, mit denen ein Pull-Request eröffnet werden könnte."
+			],
+			"Could not open the pull request": [
+				"Der Pull-Request konnte nicht eröffnet werden"
+			],
+			"Could not find an unused branch name": [
+				"Es konnte kein unbenutzter Branch-Name gefunden werden"
+			],
+			"Could not create the branch": [
+				"Der Branch konnte nicht erstellt werden"
+			],
+			"Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s": [
+				"Dein Fork wird auf GitHub noch eingerichtet. Versuche es in einer Minute erneut – die Patch-Datei funktioniert weiterhin.%s"
+			],
+			"Could not create the commit": [
+				"Der Commit konnte nicht erstellt werden"
+			],
+			"Could not assemble the change": [
+				"Die Änderung konnte nicht zusammengestellt werden"
+			],
+			"Could not upload %s": [
+				"%s konnte nicht hochgeladen werden"
+			],
+			"Could not read your fork’s %s": [
+				"%s deines Forks konnte nicht gelesen werden"
+			],
+			"Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.": [
+				"Dein Fork wird auf GitHub noch eingerichtet – bei einem Repository dieser Größe kann dies einige Minuten dauern. Versuche es in Kürze erneut. Die Patch-Datei funktioniert weiterhin."
+			],
+			"Could not read your fork": [
+				"Dein Fork konnte nicht gelesen werden"
+			],
+			"Could not fork %s": [
+				"Es konnte kein Fork von %s erstellt werden"
+			],
+			"Could not check for your fork": [
+				"Es konnte nicht geprüft werden, ob dein Fork vorhanden ist"
+			],
+			"You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.": [
+				"Du hast bereits ein Repository namens %1$s, das kein Fork von %2$s ist. Daher gibt es kein Ziel, wohin dies gepusht werden könnte. Die Patch-Datei funktioniert weiterhin."
+			],
+			"%1$s: %2$s%3$s": [
+				"%1$s: %2$s%3$s"
+			],
+			"This build has no GitHub application configured, so it cannot sign you in.": [
+				"Für diesen Build ist keine GitHub-Anwendung konfiguriert. Daher kannst du dich nicht anmelden."
+			],
+			"GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke \"%1$s\" under %2$s, then sign in here again.": [
+				"GitHub hat dieser Anmeldung weniger Berechtigungen erteilt, als für die Eröffnung eines Pull-Requests erforderlich sind – wahrscheinlich wurde eine ältere Autorisierung dieser App wiederverwendet. Widerrufe „%1$s“ unter %2$s und melde dich anschließend hier erneut an."
+			],
+			"GitHub returned %s": [
+				"GitHub hat %s zurückgegeben"
+			],
+			"That sign-in is no longer valid.": [
+				"Diese Anmeldung ist nicht mehr gültig."
+			],
+			"The authorization was declined on GitHub.": [
+				"Die Autorisierung wurde auf GitHub abgelehnt."
+			],
+			"The code expired before it was entered.": [
+				"Der Code ist abgelaufen, bevor er eingegeben wurde."
+			],
+			"Sign-in was canceled.": [
+				"Die Anmeldung wurde abgebrochen."
+			],
+			"GitHub does not recognise this application, or device flow is not enabled on it.": [
+				"GitHub erkennt diese Anwendung nicht oder der Device-Flow ist dafür nicht aktiviert."
+			],
+			"Revert the patch you applied before opening a pull request from this checkout.": [
+				"Mache den von dir angewendeten Patch rückgängig, bevor du aus diesem Checkout einen Pull-Request eröffnest."
+			],
+			"Revert %s before opening a pull request from this checkout.": [
+				"Mache %s rückgängig, bevor du aus diesem Checkout einen Pull-Request eröffnest."
+			],
+			"PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.": [
+				"Der PR #%d ist angewendet. Die Commits seines Autors bilden den Verlauf dieses Checkouts. Daher kann er nicht als deine eigene Arbeit eingereicht werden. Mache diesen PR zuerst rückgängig."
+			],
+			"Unknown error": [
+				"Unbekannter Fehler"
+			],
+			"Trac ticket number or URL": [
+				"Trac-Ticketnummer oder -URL"
+			],
+			"Ticket number or URL, e.g. 62281": [
+				"Ticketnummer oder -URL, z. B. 62281"
+			],
+			"No ticket is linked to this site, so there is nowhere to attach it yet.": [
+				"Mit dieser Website ist kein Ticket verknüpft. Daher gibt es noch kein Ziel zum Anhängen."
+			],
+			"Save, then open #%d": [
+				"Speichern, dann #%d öffnen"
+			],
+			"No automated checks. Often followed by a request to open a pull request.": [
+				"Keine automatisierten Prüfungen. Darauf folgt häufig die Bitte, einen Pull-Request zu eröffnen."
+			],
+			"A WordPress.org account — needed anyway, for props and to comment.": [
+				"Ein WordPress.org-Konto – wird ohnehin benötigt, für Props und zum Kommentieren."
+			],
+			"Attach to Trac": [
+				"An Trac anhängen"
+			],
+			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
+				"Die App kann die Änderungen des Autors nicht sicher von nachträglichen Bearbeitungen trennen. Daher kann dieser kombinierte Patch nicht als deine Arbeit eingereicht werden. Du kannst weiterhin <strong>Speichern</strong> verwenden, um eine Kopie ohne Zuordnung zu behalten. Mache den angewendeten Patch vor dem Einreichen rückgängig."
+			],
+			"<strong>The patch you applied is part of this checkout.</strong>": [
+				"<strong>Der von dir angewendete Patch ist Teil dieses Checkouts.</strong>"
+			],
+			"<strong><label /> is part of this checkout.</strong>": [
+				"<strong><label /> ist Teil dieses Checkouts.</strong>"
+			],
+			"You can still use <strong>Save</strong> to keep an unattributed copy of your edits.": [
+				"Du kannst weiterhin <strong>Speichern</strong> verwenden, um eine Kopie deiner Bearbeitungen ohne Zuordnung zu behalten."
+			],
+			"The pull request is the one the app sends for you. The others save a file for you to send.": [
+				"Der Pull-Request wird für dich von der App gesendet. Die anderen Optionen speichern eine Datei, die du selbst einreichen kannst."
+			],
+			"Where this patch goes": [
+				"Ziel für diesen Patch"
+			],
+			"Could not load your changes. Close this panel and try again. The error is shown below.": [
+				"Deine Änderungen konnten nicht geladen werden. Schließe dieses Panel und versuche es erneut. Der Fehler wird unten angezeigt."
+			],
+			"This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.": [
+				"Der WordPress-Code dieser Website ist %d Tag alt – dieser Patch lässt sich möglicherweise nicht auf Trac anwenden. Erwäge, zuerst auf den neuesten Trunk zu aktualisieren.",
+				"Der WordPress-Code dieser Website ist %d Tage alt – dieser Patch lässt sich möglicherweise nicht auf Trac anwenden. Erwäge, zuerst auf den neuesten Trunk zu aktualisieren."
+			],
+			"Saved to %s": [
+				"Unter %s gespeichert"
+			],
+			"Discard your changes": [
+				"Deine Änderungen verwerfen"
+			],
+			"(<discard />)": [
+				"(<discard />)"
+			],
+			"Failed to generate patch": [
+				"Der Patch konnte nicht generiert werden"
+			],
+			"Error: %s": [
+				"Fehler: %s"
+			],
+			"No changes.": [
+				"Keine Änderungen."
+			],
+			"Generating patch…": [
+				"Patch wird generiert …"
+			],
+			"Could not save the patch: %s": [
+				"Der Patch konnte nicht gespeichert werden: %s"
+			],
+			"Change these": [
+				"Diese ändern"
+			],
+			"No event on the patch.": [
+				"Es wurde keine Veranstaltung im Patch angegeben."
+			],
+			"The patch will say it was written at <strong><event /></strong>.": [
+				"Im Patch wird vermerkt, dass er bei <strong><event /></strong> erstellt wurde."
+			],
+			"Save patch as %s": [
+				"Patch als %s speichern"
+			],
+			"Someone else pushes it; the props still land on you.": [
+				"Jemand anderes pusht ihn. Die Props gehen dennoch an dich."
+			],
+			"No accounts at all. The patch carries your WordPress.org username, and the event you are at.": [
+				"Ganz ohne Konten. Der Patch enthält deinen WordPress.org-Benutzernamen und die Veranstaltung, an der du teilnimmst."
+			],
+			"Hand it to a mentor": [
+				"An einen Mentor übergeben"
+			],
+			"Remember this": [
+				"Angaben merken"
+			],
+			"Event this patch was written at": [
+				"Die Veranstaltung, bei der dieser Patch erstellt wurde"
+			],
+			"Event, e.g. WordCamp Europe 2026 (optional)": [
+				"Veranstaltung, z. B. WordCamp Europe 2026 (optional)"
+			],
+			"WordPress.org username, e.g. janedoe": [
+				"WordPress.org-Benutzername, z. B. janedoe"
+			],
+			"Asked once and remembered for every site — these are facts about you, not about this checkout.": [
+				"Wird einmalig abgefragt und für jede Website gespeichert – diese Angaben betreffen dich persönlich, nicht diesen Checkout."
+			],
+			"There is nothing to send yet — this site has no changes against its copy of trunk.": [
+				"Es gibt noch nichts zu senden – diese Website weist gegenüber ihrer Kopie von Trunk keine Änderungen auf."
+			],
+			"Everything this site has that its copy of trunk does not.": [
+				"Alles, was auf dieser Website vorhanden ist, in deren Kopie von Trunk aber nicht."
+			],
+			"Your changes": [
+				"Deine Änderungen"
+			],
+			"There are no changes on top of PR #%d.": [
+				"Es gibt keine Änderungen zusätzlich zu PR #%d."
+			],
+			"Edits to this local copy, compared with the original PR commits.": [
+				"Die Bearbeitungen an dieser lokalen Kopie im Vergleich zu den ursprünglichen PR-Commits."
+			],
+			"Your changes on top of PR #%d": [
+				"Deine Änderungen zusätzlich zu PR #%d"
+			],
+			"Your changes for ticket #%d": [
+				"Deine Änderungen für Ticket #%d"
+			],
+			"Your changes for issue #%d": [
+				"Deine Änderungen für Issue #%d"
+			],
+			"Stop the dev server before discarding changes.": [
+				"Halte den Entwicklungsserver an, bevor du Änderungen verwirfst."
+			],
+			"Wait for the build to finish before discarding changes.": [
+				"Warte, bis der Build abgeschlossen ist, bevor du Änderungen verwirfst."
+			],
+			"Wait for the installation to finish before discarding changes.": [
+				"Warte, bis die Installation abgeschlossen ist, bevor du Änderungen verwirfst."
+			],
+			"Wait for the trunk update to finish before discarding changes.": [
+				"Warte, bis die Trunk-Aktualisierung abgeschlossen ist, bevor du Änderungen verwirfst."
+			],
+			"There are no changes to discard.": [
+				"Es gibt keine Änderungen, die verworfen werden können."
+			],
+			"Changes could not be loaded.": [
+				"Die Änderungen konnten nicht geladen werden."
+			],
+			"Wait for your changes to finish loading.": [
+				"Warte, bis deine Änderungen vollständig geladen sind."
+			],
+			"Changes are already being discarded.": [
+				"Die Änderungen werden bereits verworfen."
+			],
+			"the window’s theme: the operating system’s\u0004System": [
+				"System"
+			],
+			"the window’s theme\u0004Dark": [
+				"Dunkel"
+			],
+			"the window’s theme\u0004Light": [
+				"Hell"
+			],
+			"Theme": [
+				"Theme"
+			],
+			"Choose what happens when the app quits.": [
+				"Wähle aus, was beim Beenden der App geschehen soll."
+			],
+			"Stop them, and start them again next time": [
+				"Anhalten und beim nächsten Mal wieder starten"
+			],
+			"Stop them": [
+				"Anhalten"
+			],
+			"So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.": [
+				"Damit die Website und wp-admin ohne weiteren Klick bereitstehen. Bei WordPress-Core wird der Build-Watch gleich mitgestartet."
+			],
+			"Start the server when I open a site": [
+				"Server starten, wenn ich eine Website öffne"
+			],
+			"Opening and quitting": [
+				"Öffnen und Beenden"
+			],
+			"Quitting always stops them; they can be started again when the app next opens.": [
+				"Beim Beenden werden sie immer angehalten. Sie können beim nächsten Öffnen der App wieder gestartet werden."
+			],
+			"When I quit, running servers and build watches": [
+				"Beim Beenden der App aktive Server und Build-Watches"
+			],
+			"So edits are compiled as they are saved.": [
+				"Damit Bearbeitungen direkt beim Speichern kompiliert werden."
+			],
+			"Start the build watch when I open a site": [
+				"Build-Watch starten, wenn ich eine Website öffne"
+			],
+			"The app does not have that PHP version.": [
+				"Diese PHP-Version ist in der App nicht enthalten."
+			],
+			"Choose on or off.": [
+				"Wähle „Ein“ oder „Aus“."
+			],
+			"Off": [
+				"Aus"
+			],
+			"Debugging": [
+				"Fehlerdiagnose"
+			],
+			"%1$s · PHP %2$s": [
+				"%1$s · PHP %2$s"
+			],
+			"PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.": [
+				"PHP %1$s wurde ausgewählt, aber diese App-Version enthält es nicht. Die Server starten mit PHP %2$s."
+			],
+			"Sites": [
+				"Websites"
+			],
+			"Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.": [
+				"Core stellt seine JavaScript- und CSS-Dateien unminifiziert bereit, sodass sie im Browser gelesen und schrittweise durchlaufen werden können."
+			],
+			"Use unminified scripts (SCRIPT_DEBUG)": [
+				"Unminifizierte Skripte verwenden (SCRIPT_DEBUG)"
+			],
+			"Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.": [
+				"Ist diese Option ausgeschaltet, werden Hinweise und Veraltungshinweise nicht gemeldet. Warnungen und Fehler werden weiterhin in die Datei „debug.log“ und an den Browser weitergeleitet, und Aufrufe von error_log() werden weiterhin in die Datei „debug.log“ geschrieben."
+			],
+			"Report notices and deprecations (WP_DEBUG)": [
+				"Hinweise und Veraltungshinweise melden (WP_DEBUG)"
+			],
+			"PHP version": [
+				"PHP-Version"
+			],
+			"Applies the next time a site’s server starts. A server that is running keeps what it started with.": [
+				"Wird beim nächsten Start des Servers einer Website wirksam. Ein bereits gestarteter Server behält die Einstellungen bei, mit denen er gestartet wurde."
+			],
+			"Development server": [
+				"Entwicklungsserver"
+			],
+			"The PHP versions could not be read. Quit the app and open it again.": [
+				"Die PHP-Versionen konnten nicht ausgelesen werden. Beende die App und öffne sie erneut."
+			],
+			"Could not keep that.": [
+				"Dies konnte nicht übernommen werden."
+			],
+			"The app has no translation for that language.": [
+				"Die App hat keine Übersetzung für diese Sprache."
+			],
+			"Choose a language.": [
+				"Wähle eine Sprache aus."
+			],
+			"Your system’s language": [
+				"Die Sprache deines Systems"
+			],
+			"Relaunch now": [
+				"Jetzt neu starten"
+			],
+			"The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.": [
+				"Die App wird nach dem Neustart in der neuen Sprache angezeigt. Aktive Server und Builds werden dabei angehalten, genau wie beim Beenden der App."
+			],
+			"Which language the app is shown in. A change applies after a relaunch.": [
+				"In welcher Sprache die App angezeigt wird. Eine Änderung wird erst nach einem Neustart wirksam."
+			],
+			"Language": [
+				"Sprache"
+			],
+			"The app could not relaunch. Quit it and open it again.": [
+				"Die App konnte nicht neu gestartet werden. Beende sie und öffne sie erneut."
+			],
+			"Could not keep that language.": [
+				"Diese Sprache konnte nicht übernommen werden."
+			],
+			"Appearance": [
+				"Erscheinungsbild"
+			],
+			"Enter your WordPress.org username.": [
+				"Gib deinen WordPress.org-Benutzernamen ein."
+			],
+			"Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.": [
+				"Gib deinen WordPress.org-Benutzernamen wie janedoe oder deine profiles.wordpress.org-URL ein."
+			],
+			"Only %s profile links are supported.": [
+				"Es werden nur Profil-Links von %s unterstützt."
+			],
+			"There is no such setting.": [
+				"Eine solche Einstellung gibt es nicht."
+			],
+			"That folder does not exist.": [
+				"Dieser Ordner existiert nicht."
+			],
+			"Choose a folder by its full path.": [
+				"Wähle einen Ordner über seinen vollständigen Pfad aus."
+			],
+			"Choose a folder.": [
+				"Wähle einen Ordner aus."
+			],
+			"Not set: the create-site dialog asks each time.": [
+				"Nicht festgelegt: Der Dialog zum Erstellen einer Website fragt jedes Mal nach."
+			],
+			"Reading…": [
+				"Wird gelesen …"
+			],
+			"Not signed in. The app asks you to sign in when you open a pull request.": [
+				"Du bist nicht angemeldet. Die App fordert dich auf, dich anzumelden, wenn du einen Pull-Request eröffnest."
+			],
+			"Signed in as %s.": [
+				"Angemeldet als %s."
+			],
+			"Sign-in is not set up in this build.": [
+				"Die Anmeldung ist in diesem Build nicht eingerichtet."
+			],
+			"Could not save that event.": [
+				"Diese Veranstaltung konnte nicht gespeichert werden."
+			],
+			"Could not save that username.": [
+				"Dieser Benutzername konnte nicht gespeichert werden."
+			],
+			"Forget this folder": [
+				"Diesen Ordner nicht mehr merken"
+			],
+			"Each new site is created in a subfolder of this location.": [
+				"Jede neue Website wird in einem Unterordner dieses Speicherorts erstellt."
+			],
+			"New sites go here": [
+				"Speicherort für neue Websites"
+			],
+			"New sites": [
+				"Neue Websites"
+			],
+			"Could not keep that folder.": [
+				"Dieser Ordner konnte nicht übernommen werden."
+			],
+			"Account": [
+				"Konto"
+			],
+			"General": [
+				"Allgemein"
+			],
+			"Sign out": [
+				"Abmelden"
+			],
+			"GitHub": [
+				"GitHub"
+			],
+			"Save": [
+				"Speichern"
+			],
+			"Saving": [
+				"Wird gespeichert"
+			],
+			"Saved.": [
+				"Gespeichert."
+			],
+			"Where you are contributing from, if you are at an event. Leave it empty otherwise.": [
+				"Von wo aus du mitwirkst, falls du an einer Veranstaltung teilnimmst. Lass das Feld andernfalls leer."
+			],
+			"Event": [
+				"Veranstaltung"
+			],
+			"Goes on a patch you hand to a mentor, so the props land on you.": [
+				"Wird in einen Patch eingetragen, den du an einen Mentor übergibst, damit die Props an dich gehen."
+			],
+			"WordPress.org username": [
+				"WordPress.org-Benutzername"
+			],
+			"How you contribute": [
+				"Wie du mitwirkst"
+			],
+			"Settings": [
+				"Einstellungen"
+			],
+			"The event name has to fit on one line.": [
+				"Der Name der Veranstaltung muss in eine Zeile passen."
+			],
+			"Enter the event name, or leave it empty.": [
+				"Gib den Namen der Veranstaltung ein oder lass das Feld leer."
+			],
+			"Keep the event name under %d characters.": [
+				"Der Veranstaltungsname darf nicht länger als %d Zeichen sein."
+			],
+			"Settings…": [
+				"Einstellungen …"
+			],
+			"Show Logs Folder": [
+				"Protokollordner anzeigen"
+			],
+			"Open App Log": [
+				"App-Protokoll öffnen"
+			],
+			"Choose the application to open this folder in": [
+				"Wähle die Anwendung aus, in der dieser Ordner geöffnet werden soll"
+			],
+			"Programs": [
+				"Programme"
+			],
+			"Applications": [
+				"Anwendungen"
+			],
+			"All Files": [
+				"Alle Dateien"
+			],
+			"Patch Files": [
+				"Patch-Dateien"
+			],
+			"Choose a patch file": [
+				"Wähle eine Patch-Datei aus"
+			],
+			"Save Diff File": [
+				"Diff-Datei speichern"
+			],
+			"Save Patch for Handoff": [
+				"Patch für die Übergabe speichern"
+			],
+			"Email": [
+				"E-Mail"
+			],
+			"Logs": [
+				"Protokolle"
+			],
+			"Terminal": [
+				"Terminal"
+			],
+			"Closed": [
+				"Geschlossen"
+			],
+			"Merged": [
+				"Zusammengeführt"
+			],
+			"No pull requests cite this ticket yet.": [
+				"Bisher verweist kein Pull-Request auf dieses Ticket."
+			],
+			"See the work that already exists on this ticket before adding your own.": [
+				"Sieh dir die bereits vorhandene Arbeit zu diesem Ticket an, bevor du deine eigene hinzufügst."
+			],
+			"Open in Trac": [
+				"In Trac öffnen"
+			],
+			"Browse good first bugs on Trac": [
+				"Einsteiger-Bugs auf Trac durchsuchen"
+			],
+			"Linking ticket": [
+				"Ticket wird verknüpft"
+			],
+			"Link ticket": [
+				"Ticket verknüpfen"
+			],
+			"e.g. 62281": [
+				"z. B. 62281"
+			],
+			"Ticket number or URL": [
+				"Ticketnummer oder -URL"
+			],
+			"Link the ticket you’re working on.": [
+				"Verknüpfe das Ticket, an dem du arbeitest."
+			],
+			"Trac ticket": [
+				"Trac-Ticket"
+			],
+			"No pull requests cite this issue yet.": [
+				"Bisher verweist kein Pull-Request auf dieses Issue."
+			],
+			"See the work that already exists on this issue before adding your own.": [
+				"Sieh dir die bereits vorhandene Arbeit zu diesem Issue an, bevor du deine eigene hinzufügst."
+			],
+			"Open on GitHub": [
+				"Auf GitHub öffnen"
+			],
+			"Browse good first issues on GitHub": [
+				"Einsteiger-Issues auf GitHub durchsuchen"
+			],
+			"Linking issue": [
+				"Issue wird verknüpft"
+			],
+			"Link issue": [
+				"Issue verknüpfen"
+			],
+			"e.g. 71234": [
+				"z. B. 71234"
+			],
+			"Issue number or URL": [
+				"Issue-Nummer oder -URL"
+			],
+			"Link the issue you’re working on.": [
+				"Verknüpfe das Issue, an dem du arbeitest."
+			],
+			"GitHub issue": [
+				"GitHub-Issue"
+			],
+			"Could not read the attachments from Trac. (%s)": [
+				"Die Anhänge konnten nicht aus Trac abgerufen werden. (%s)"
+			],
+			"Could not read the attachments from Trac.": [
+				"Die Anhänge konnten nicht aus Trac abgerufen werden."
+			],
+			"The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.": [
+				"Das Trac-Fenster wurde geschlossen, bevor die Anhänge vollständig geladen waren. Klicke auf „Aktualisieren“, um es erneut zu versuchen."
+			],
+			"Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.": [
+				"Die Überprüfung durch Trac, ob du ein Mensch bist, wurde nicht rechtzeitig abgeschlossen. Versuche es erneut und klicke auf „I am human“, falls die Abfrage erscheint."
+			],
+			"by %s": [
+				"von %s"
+			],
+			"Showing what was last seen %s.": [
+				"Es wird der zuletzt abgerufene Stand vom %s angezeigt."
+			],
+			"No cached list to fall back on.": [
+				"Es ist keine zwischengespeicherte Liste als Ausweichmöglichkeit vorhanden."
+			],
+			"Could not reach GitHub.": [
+				"GitHub konnte nicht erreicht werden."
+			],
+			"GitHub is rate-limiting this connection.": [
+				"GitHub begrenzt derzeit die Anfragen über diese Verbindung."
+			],
+			"Could not read the pull requests from GitHub.": [
+				"Die Pull-Requests konnten nicht von GitHub abgerufen werden."
+			],
+			"Updated %s": [
+				"Aktualisiert am %s"
+			],
+			"Last commit %s": [
+				"Letzter Commit am %s"
+			],
+			"Open": [
+				"Offen"
+			],
+			"Edited on %s": [
+				"Bearbeitet am %s"
+			],
+			"Edited %d day ago": [
+				"Vor %d Tag bearbeitet",
+				"Vor %d Tagen bearbeitet"
+			],
+			"Edited %d hour ago": [
+				"Vor %d Stunde bearbeitet",
+				"Vor %d Stunden bearbeitet"
+			],
+			"Edited %d minute ago": [
+				"Vor %d Minute bearbeitet",
+				"Vor %d Minuten bearbeitet"
+			],
+			"Edited just now": [
+				"Gerade eben bearbeitet"
+			],
+			"Delete this ticket’s work": [
+				"Arbeit an diesem Ticket löschen"
+			],
+			"This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.": [
+				"Dadurch werden alle Änderungen, die für dieses Ticket auf dieser Website vorgenommen wurden, endgültig gelöscht, unabhängig davon, ob sie eingereicht wurden oder nicht. Dieser Vorgang kann nicht rückgängig gemacht werden."
+			],
+			"Delete all work on ticket #%d?": [
+				"Die gesamte Arbeit an Ticket #%d löschen?"
+			],
+			"Delete this issue’s work": [
+				"Arbeit an diesem Issue löschen"
+			],
+			"This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.": [
+				"Dadurch werden alle Änderungen, die für dieses Issue auf dieser Website vorgenommen wurden, endgültig gelöscht, unabhängig davon, ob sie eingereicht wurden oder nicht. Dieser Vorgang kann nicht rückgängig gemacht werden."
+			],
+			"Delete all work on issue #%d?": [
+				"Die gesamte Arbeit an Issue #%d löschen?"
+			],
+			"Your tickets on this site": [
+				"Deine Tickets auf dieser Website"
+			],
+			"Other tickets on this site": [
+				"Weitere Tickets auf dieser Website"
+			],
+			"Your issues on this site": [
+				"Deine Issues auf dieser Website"
+			],
+			"Other issues on this site": [
+				"Weitere Issues auf dieser Website"
+			],
+			"Deleting": [
+				"Wird gelöscht"
+			],
+			"Continue working": [
+				"Weiterarbeiten"
+			],
+			"Switch": [
+				"Wechseln"
+			],
+			"Deleting site…": [
+				"Website wird gelöscht …"
+			],
+			"WordPress code is %d day old — update to latest trunk": [
+				"Der WordPress-Code ist %d Tag alt – aktualisiere auf den neuesten Trunk",
+				"Der WordPress-Code ist %d Tage alt – aktualisiere auf den neuesten Trunk"
+			],
+			"Update incomplete — code is new, built assets are old": [
+				"Aktualisierung unvollständig – der Code ist neu, aber die erstellten Assets sind alt"
+			],
+			"Build watching": [
+				"Build wird überwacht"
+			],
+			"Build compiling": [
+				"Build wird kompiliert"
+			],
+			"Edits in %s are compiled as they are saved.": [
+				"Die Bearbeitungen in %s werden direkt beim Speichern kompiliert."
+			],
+			"Start build watch": [
+				"Build-Watch starten"
+			],
+			"Start": [
+				"Starten"
+			],
+			"Stop build watch": [
+				"Build-Watch anhalten"
+			],
+			"Stop": [
+				"Anhalten"
+			],
+			"The development server could not start. Its last lines are in the Logs.": [
+				"Der Entwicklungsserver konnte nicht gestartet werden. Die letzten Zeilen findest du in den Protokollen."
+			],
+			"The development server stopped by itself. Its last lines are in the Logs.": [
+				"Der Entwicklungsserver hat sich von selbst beendet. Die letzten Zeilen findest du in den Protokollen."
+			],
+			"Start development server": [
+				"Entwicklungsserver starten"
+			],
+			"Server stopped": [
+				"Server wurde angehalten"
+			],
+			"Stop development server": [
+				"Entwicklungsserver anhalten"
+			],
+			"Server running": [
+				"Server läuft"
+			],
+			"Starting…": [
+				"Wird gestartet …"
+			],
+			"Server starting…": [
+				"Server wird gestartet …"
+			],
+			"Dev server is starting… (%s)": [
+				"Entwicklungsserver wird gestartet … (%s)"
+			],
+			"Database": [
+				"Datenbank"
+			],
+			"wp-admin": [
+				"wp-admin"
+			],
+			"View site": [
+				"Website anzeigen"
+			],
+			"Build stopped": [
+				"Build wurde angehalten"
+			],
+			"The build watch ended by itself, with exit code %d. Its last lines are in the Logs.": [
+				"Der Build-Watch wurde von selbst mit dem Exit-Code %d beendet. Die letzten Zeilen findest du in den Protokollen."
+			],
+			"The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.": [
+				"Der Build, der vor dem Start der Überwachung abgeschlossen sein muss, ist fehlgeschlagen. Daher wurde der Build-Watch nicht gestartet. Die letzten Zeilen findest du in den Protokollen."
+			],
+			"The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.": [
+				"Der Build, der vor dem Start der Überwachung abgeschlossen sein muss, ist mit dem Exit-Code %d fehlgeschlagen. Daher wurde der Build-Watch nicht gestartet. Die letzten Zeilen findest du in den Protokollen."
+			],
+			"The build watch ended by itself. Its last lines are in the Logs.": [
+				"Der Build-Watch wurde von selbst beendet. Die letzten Zeilen findest du in den Protokollen."
+			],
+			"Paused while another operation builds the site. It comes back by itself.": [
+				"Pausiert, während ein anderer Vorgang die Website erstellt. Die Überwachung wird danach von selbst fortgesetzt."
+			],
+			"Build paused": [
+				"Build ist pausiert"
+			],
+			"Building the site before watching it.": [
+				"Die Website wird erstellt, bevor die Überwachung beginnt."
+			],
+			"Build building": [
+				"Build wird erstellt"
+			],
+			"Wait for the build to finish.": [
+				"Warte, bis der Build abgeschlossen ist."
+			],
+			"Wait for the installation to finish.": [
+				"Warte, bis die Installation abgeschlossen ist."
+			],
+			"Wait for the trunk update to finish.": [
+				"Warte, bis die Trunk-Aktualisierung abgeschlossen ist."
+			],
+			"Looking for applications…": [
+				"Anwendungen werden gesucht …"
+			],
+			"Other application…": [
+				"Andere Anwendung …"
+			],
+			"Show in file manager": [
+				"Im Dateimanager anzeigen"
+			],
+			"Show in Explorer": [
+				"Im Explorer anzeigen"
+			],
+			"Show in Finder": [
+				"Im Finder anzeigen"
+			],
+			"Deleting…": [
+				"Wird gelöscht …"
+			],
+			"Open in": [
+				"Öffnen in"
+			],
+			"Copy path": [
+				"Pfad kopieren"
+			],
+			"Rename…": [
+				"Umbenennen …"
+			],
+			"Update to latest trunk": [
+				"Auf den neuesten Trunk aktualisieren"
+			],
+			"(no subject)": [
+				"(kein Betreff)"
+			],
+			"No mail yet. WordPress transactional email will appear here once the site sends any.": [
+				"Noch keine E-Mails. Die Transaktions-E-Mails von WordPress erscheinen hier, sobald die Website welche versendet."
+			],
+			"SMTP listening on 127.0.0.1:%d": [
+				"SMTP wartet auf 127.0.0.1:%d"
+			],
+			"SMTP will start with the dev server.": [
+				"SMTP wird mit dem Entwicklungsserver gestartet."
+			],
+			"Delete site": [
+				"Website löschen"
+			],
+			"This will permanently delete the site and all of its files from your computer. This can’t be undone.": [
+				"Dadurch werden die Website und alle zugehörigen Dateien endgültig von deinem Computer gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden."
+			],
+			"Delete %s?": [
+				"%s löschen?"
+			],
+			"Site name cannot be empty.": [
+				"Der Website-Name darf nicht leer sein."
+			],
+			"Checkout": [
+				"Checkout"
+			],
+			"Local path": [
+				"Lokaler Pfad"
+			],
+			"%d day old": [
+				"%d Tag alt",
+				"%d Tage alt"
+			],
+			"Trunk as of": [
+				"Trunk-Stand vom"
+			],
+			"Created": [
+				"Erstellt"
+			],
+			"Uninitialized": [
+				"Nicht initialisiert"
+			],
+			"Initialized": [
+				"Initialisiert"
+			],
+			"Setup": [
+				"Einrichtung"
+			],
+			"Show sites list": [
+				"Website-Liste anzeigen"
+			],
+			"Hide sites list": [
+				"Website-Liste ausblenden"
+			],
+			"Site": [
+				"Website"
+			],
+			"Create your first site to begin contributing": [
+				"Erstelle deine erste Website, um mit dem Mitwirken zu beginnen"
+			],
+			"No sites": [
+				"Keine Websites"
+			],
+			"All changes discarded.": [
+				"Alle Änderungen wurden verworfen."
+			],
+			"This site is ready to work on": [
+				"Diese Website ist einsatzbereit"
+			],
+			"Copied the path": [
+				"Der Pfad wurde kopiert"
+			],
+			"Updated to the latest trunk": [
+				"Auf den neuesten Trunk aktualisiert"
+			],
+			"Local changes discarded.": [
+				"Die lokalen Änderungen wurden verworfen."
+			],
+			"Already up to date with trunk": [
+				"Bereits auf dem neuesten Stand von Trunk"
+			],
+			"%d unseen line in Debug.log": [
+				"%d ungelesene Zeile in Debug.log",
+				"%d ungelesene Zeilen in Debug.log"
+			],
+			"A site’s project cannot be changed later.": [
+				"Das Projekt einer Website kann nicht mehr nachträglich geändert werden."
+			],
+			"Opened pull request #%1$s on %2$s": [
+				"Pull-Request #%1$s auf %2$s eröffnet"
+			],
+			"Dry run — branch created, no pull request opened": [
+				"Testlauf – Branch wurde erstellt, kein Pull-Request eröffnet"
+			],
+			"Saved your changes to %s and reset the working tree": [
+				"Deine Änderungen wurden unter %s gespeichert und das Arbeitsverzeichnis zurückgesetzt"
+			],
+			"Patch saved to %s": [
+				"Der Patch wurde unter %s gespeichert"
+			],
+			"Restored the saved work": [
+				"Die gespeicherte Arbeit wurde wiederhergestellt"
+			],
+			"Restored the previous branch": [
+				"Der vorherige Branch wurde wiederhergestellt"
+			],
+			"Checked out the pull request": [
+				"Der Pull-Request wurde ausgecheckt"
+			],
+			"Reverted the patch": [
+				"Der Patch wurde rückgängig gemacht"
+			],
+			"Applied the patch": [
+				"Der Patch wurde angewendet"
+			],
+			"The site could not be created. %s": [
+				"Die Website konnte nicht erstellt werden. %s"
+			],
+			"The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s": [
+				"Die Website wird weiterhin aufgeführt, da ihr Ordner nicht gelöscht werden konnte. Schließe alle Programme, die darauf zugreifen, und versuche es erneut. Ordner: %s"
+			],
+			"The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s": [
+				"Die Website wird weiterhin aufgeführt, da ihr Ordner nicht gelöscht werden konnte (%1$s). Schließe alle Programme, die darauf zugreifen, und versuche es erneut. Ordner: %2$s"
+			],
+			"Opened pull request #%s": [
+				"Pull-Request #%s eröffnet"
+			],
+			"Notifications": [
+				"Benachrichtigungen"
+			],
+			"Checking GitHub…": [
+				"GitHub wird abgefragt …"
+			],
+			"Checking GitHub": [
+				"GitHub wird abgefragt"
+			],
+			"Linked pull requests": [
+				"Verknüpfte Pull-Requests"
+			],
+			"Keywords": [
+				"Schlagwörter"
+			],
+			"Apply…": [
+				"Anwenden …"
+			],
+			"The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.": [
+				"Der neueste Patch für dieses Ticket ist ein Dateianhang und kein Pull-Request – siehe Trac-Anhänge unten."
+			],
+			"Read details from Trac": [
+				"Details von Trac abrufen"
+			],
+			"Reading the ticket on Trac": [
+				"Ticket wird von Trac abgerufen"
+			],
+			"Unlink": [
+				"Verknüpfung aufheben"
+			],
+			"Refresh": [
+				"Aktualisieren"
+			],
+			"Not sure yet?": [
+				"Noch unsicher?"
+			],
+			"If you have edited anything already, you will be asked what should happen to those edits.": [
+				"Falls du bereits Bearbeitungen vorgenommen hast, wirst du gefragt, was damit geschehen soll."
+			],
+			"Latest": [
+				"Aktuell"
+			],
+			"No patch files attached to this ticket.": [
+				"Diesem Ticket sind keine Patch-Dateien angehängt."
+			],
+			"Opening the ticket on Trac…": [
+				"Ticket wird auf Trac geöffnet …"
+			],
+			"Show Trac attachments": [
+				"Trac-Anhänge anzeigen"
+			],
+			"Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.": [
+				"Patch-Dateien werden auf Trac manchmal als Anhang statt als PR bereitgestellt. Beim Abrufen wird das Ticket geöffnet, sodass du die Überprüfung, ob du ein Mensch bist, einmalig durchführen kannst."
+			],
+			"Opening the ticket on Trac": [
+				"Ticket wird auf Trac geöffnet"
+			],
+			"Trac attachments": [
+				"Trac-Anhänge"
+			],
+			"Applied": [
+				"Angewendet"
+			],
+			"My sites": [
+				"Meine Websites"
+			],
+			"Create new site": [
+				"Neue Website erstellen"
+			],
+			"(Deleting)": [
+				"(wird gelöscht)"
+			],
+			"(%s)": [
+				"(%s)"
+			],
+			"Name": [
+				"Name"
+			],
+			"Site actions": [
+				"Website-Aktionen"
+			],
+			"Show details": [
+				"Details anzeigen"
+			],
+			"Hide details": [
+				"Details ausblenden"
+			],
+			"Review & submit changes": [
+				"Änderungen überprüfen und einreichen"
+			],
+			"Review": [
+				"Überprüfen"
+			],
+			"Show password": [
+				"Passwort anzeigen"
+			],
+			"Hide password": [
+				"Passwort ausblenden"
+			],
+			"Password": [
+				"Passwort"
+			],
+			"Username": [
+				"Benutzername"
+			],
+			"Admin credentials": [
+				"Admin-Zugangsdaten"
+			],
+			"Server": [
+				"Server"
+			],
+			"Copied": [
+				"Kopiert"
+			],
+			"Copy": [
+				"Kopieren"
+			],
+			"Details": [
+				"Details"
+			],
+			"Details of %s": [
+				"Details zu %s"
+			],
+			"Build watch offline": [
+				"Build-Watch ist offline"
+			],
+			"Build watch": [
+				"Build-Watch"
+			],
+			"Development server offline": [
+				"Entwicklungsserver ist offline"
+			],
+			"Rename": [
+				"Umbenennen"
+			],
+			"Renaming the site": [
+				"Website wird umbenannt"
+			],
+			"Rename site": [
+				"Website umbenennen"
+			],
+			"Clear emails": [
+				"E-Mails löschen"
+			],
+			"Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.": [
+				"Wähle den übergeordneten Ordner aus, in dem diese neue Website erstellt werden soll. Für die Website wird ein neues Unterverzeichnis erstellt."
+			],
+			"Location": [
+				"Speicherort"
+			],
+			"Setting up a site": [
+				"Website wird eingerichtet"
+			],
+			"Project": [
+				"Projekt"
+			],
+			"Close": [
+				"Schließen"
+			],
+			"Resize tray": [
+				"Größe des unteren Bereichs ändern"
+			],
+			"This patch is applied to your current work. Removing it may require undoing overlapping edits.": [
+				"Dieser Patch ist auf deine aktuelle Arbeit angewendet. Um ihn zu entfernen, müssen überschneidende Bearbeitungen möglicherweise rückgängig gemacht werden."
+			],
+			"Discard this ticket to its base": [
+				"Dieses Ticket auf seinen Ausgangszustand zurücksetzen"
+			],
+			"Save a copy of your work": [
+				"Eine Kopie deiner Arbeit speichern"
+			],
+			"Revert this PR before applying another PR or patch file.": [
+				"Mache diesen PR rückgängig, bevor du einen anderen PR oder eine andere Patch-Datei anwendest."
+			],
+			"Try another patch on this ticket": [
+				"Einen anderen Patch für dieses Ticket ausprobieren"
+			],
+			"Revert this patch": [
+				"Diesen Patch rückgängig machen"
+			],
+			"Give feedback": [
+				"Feedback geben"
+			],
+			"It changes package-lock.json, so dependencies will be installed before the rebuild.": [
+				"Dadurch wird package-lock.json geändert. Daher werden vor dem erneuten Build die Abhängigkeiten installiert."
+			],
+			"Apply and rebuild": [
+				"Anwenden und neu erstellen"
+			],
+			"%1$s changes %2$d file.": [
+				"%1$s ändert %2$d Datei.",
+				"%1$s ändert %2$d Dateien."
+			],
+			"Apply %s": [
+				"%s anwenden"
+			],
+			"%s is a binary file and will be skipped.": [
+				"%s ist eine Binärdatei und wird übersprungen.",
+				"%s sind Binärdateien und werden übersprungen."
+			],
+			"Apply PR #%d": [
+				"PR #%d anwenden"
+			],
+			"A .diff or .patch file is applied to the current branch as a removable layer.": [
+				"Eine .diff- oder .patch-Datei wird als entfernbare Ebene auf den aktuellen Branch angewendet."
+			],
+			"Choose a .diff or .patch file…": [
+				"Wähle eine .diff- oder .patch-Datei aus …"
+			],
+			"Diff": [
+				"Diff"
+			],
+			"Pull request": [
+				"Pull-Request"
+			],
+			"Test changes in this checkout. Your own changes are preserved.": [
+				"Teste Änderungen in diesem Checkout. Deine eigenen Änderungen bleiben erhalten."
+			],
+			"Apply a patch or PR": [
+				"Patch oder PR anwenden"
+			],
+			"Test a pull request in this checkout. Your own changes are preserved.": [
+				"Teste einen Pull-Request in diesem Checkout. Deine eigenen Änderungen bleiben erhalten."
+			],
+			"Check out a pull request": [
+				"Pull-Request auschecken"
+			],
+			"A pull request is checked out with its author’s commits.": [
+				"Ein Pull-Request wird zusammen mit den Commits seines Autors ausgecheckt."
+			],
+			"Apply PR": [
+				"PR anwenden"
+			],
+			"Pull request URL or number": [
+				"Pull-Request-URL oder -Nummer"
+			],
+			"line %d of the patch": [
+				"Zeile %d des Patches"
+			],
+			"… %d more line": [
+				"… %d weitere Zeile",
+				"… %d weitere Zeilen"
+			],
+			"Near %s": [
+				"In der Nähe von %s"
+			],
+			"%1$s — %2$d of %3$d change": [
+				"%1$s – %2$d von %3$d Änderung",
+				"%1$s – %2$d von %3$d Änderungen"
+			],
+			"The checkout was not changed.": [
+				"Der Checkout wurde nicht verändert."
+			],
+			"Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.": [
+				"Auf dieser Website wird gerade ein weiterer Befehl ausgeführt. Warte, bis er abgeschlossen ist, oder brich ihn im Terminal mit Strg+C ab."
+			],
+			"text direction\u0004ltr": [
+				"ltr"
+			],
+			"Finish creating the current site first": [
+				"Schließe zunächst die Erstellung der aktuellen Website ab"
+			],
+			"Open the feedback form ↗": [
+				"Feedback-Formular öffnen ↗"
+			],
+			"Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.": [
+				"Antworten werden in einem gemeinsamen Formular gesammelt, das regelmäßig vom Team überprüft wird. Die Einreichungen sind anonym, es sei denn, du gibst deine E-Mail-Adresse an."
+			],
+			"Your feedback helps decide what to build next.": [
+				"Dein Feedback hilft bei der Entscheidung, was als Nächstes entwickelt wird."
+			],
+			"WordPress Contributor Toolkit": [
+				"WordPress Contributor Toolkit"
+			],
+			"Please choose where to create the site.": [
+				"Bitte wähle aus, wo die Website erstellt werden soll."
+			],
+			"Please provide a site name.": [
+				"Bitte gib einen Website-Namen an."
+			],
+			"Create site": [
+				"Website erstellen"
+			],
+			"Cancel": [
+				"Abbrechen"
+			],
+			"No folder selected yet.": [
+				"Es wurde noch kein Ordner ausgewählt."
+			],
+			"My WordPress site": [
+				"Meine WordPress-Website"
+			],
+			"Site name": [
+				"Website-Name"
+			],
+			"The wordpress-develop repository: Trac tickets, patches and pull requests.": [
+				"Das Repository wordpress-develop: Trac-Tickets, Patches und Pull-Requests."
+			],
+			"The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.": [
+				"Der Block-Editor, als Plugin in einem Standard-WordPress erstellt und ausgeführt: GitHub-Issues und Pull-Requests per Checkout."
+			]
+		}
+	}
+}

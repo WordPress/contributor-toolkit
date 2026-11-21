@@ -24,7 +24,7 @@ Click **Save patch as your-username**. The app saves a patch file that carries i
 # Generated: 2026-08-10
 ```
 
-On a Gutenberg site, the work-item line is `# Issue: https://github.com/WordPress/gutenberg/issues/71234`, using the linked issue's number. Core sites keep the Trac ticket line shown above.
+On a Gutenberg site, the work-item line is `# Issue: https://github.com/WordPress/gutenberg/issues/71210`, using the linked issue's number. Core sites keep the Trac ticket line shown above.
 
 The header says who made the patch, at which event, for which ticket or issue, against which trunk revision, and when. A field the app does not know is left out rather than written as "unknown", so a mentor can trust the lines that are there. The `#` lines are ignored by `git apply`, `patch`, and Trac's own tooling, so the file applies exactly like a plain diff.
 

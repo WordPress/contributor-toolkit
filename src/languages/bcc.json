@@ -1,0 +1,3390 @@
+{
+	"translation-revision-date": "2026-11-07 21:45:41+0000",
+	"generator": "GlotPress/4.1.0",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": {
+				"domain": "messages",
+				"plural-forms": "nplurals=1; plural=0;",
+				"lang": "bcc_PK"
+			},
+			"Set up Xdebug for %s": [],
+			"Link #%d": [],
+			"#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use Check out a pull request to test it.": [],
+			"#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.": [],
+			"What “Open in” in the site’s menu and the files under “Changed files” open in, and which editor’s Xdebug setup the site’s details offer. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.": [],
+			"Zed": [],
+			"PhpStorm": [],
+			"Cursor": [],
+			"VS Code": [],
+			"Xdebug is turned on, but this site started before that. Restart the server to use it.": [],
+			"This site started without Xdebug because another site’s server had it. Restart the server to use it.": [],
+			"Xdebug is on for %s. Stop that site’s server, then restart this one to use it here.": [],
+			"Xdebug is still on for this site until you restart the server.": [],
+			"Absolute path on the server": [],
+			"File/Directory": [],
+			"Port": [],
+			"Host": [],
+			"Cancel the development server start": [],
+			"Dev server start cancelled.": [],
+			"Copy debug.json": [],
+			"Open the site’s folder, and put this in <code>.zed/debug.json</code>:": [],
+			"Run <b>zed: extensions</b> from the command palette, and install <b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with.": [],
+			"In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.": [],
+			"Copy launch.json": [],
+			"Open the site’s folder, and put this in <code>.vscode/launch.json</code>:": [],
+			"Install the <b>PHP Debug</b> extension by Xdebug.": [],
+			"Every site’s server sends Xdebug to port %d, so only one running site has Xdebug at a time: the first one started with it.": [],
+			"Couldn’t copy to clipboard.": [],
+			"Copied to clipboard": [],
+			"If the site starts on another port, PhpStorm asks which server it is; update the Host above.": [],
+			"Set up %s": [],
+			"Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a breakpoint, and load the site.": [],
+			"In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:": [],
+			"In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options.": [],
+			"If Zed says no debug tasks were found, the PHP extension is not installed.": [],
+			"Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.": [],
+			"Set up Xdebug for your editor": [],
+			"Stop on breakpoints in VS Code. Slows every request, so leave it off unless you are debugging. The site’s details show how to connect.": [],
+			"Step debugging (Xdebug)": [],
+			"Choose one of the editors the app found.": [],
+			"Open in %s": [],
+			"Ask each time": [],
+			"Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.": [],
+			"%s is no longer installed": [],
+			"Code editor": [],
+			"Could not keep that editor.": [],
+			"Could not look for editors on this machine, so none can be chosen here.": [],
+			"e.g. 71210": [],
+			"e.g. 9000": [],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.": [
+				"%1$d فائل ءِ تہا تئی ترمیم ٹکٹ #%2$d ءِ ہمراہی ءَ مانیت ءُُ ہما وہد ءَ کہ تو آئی ءِ نیمگ ءَ واتر کن ئے گڑا پدا کاینت۔"
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you revert this PR.": [
+				"%1$d فائل ءِ تہا تئی ترمیم ٹکٹ #%2$d ءِ ہمراہی ءَ مانیت ءُ ہما وہد ءَ کہ تو اے پی آر ءَ پدا واتر کن ئے گڑا پدا کاینت۔"
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you return to it.": [
+				"%1$d فائل ءِ تہا تئی ترمیم گوں #%2$d ءِ جیڑہ ءَ مانیت ءُ وھدے کہ تو آئی ءِ نیمگ ءَ واتر کن ئے گڑا پدا کاینت۔"
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you revert this PR.": [
+				"%1$d فائل ءِ تہا تئی ترمیم #%2$d ءِ جیڑہ ءَ گوں مانیت ءُ وھدے کہ تو اے پی آر ءَ پدا واتر کن ئے گڑا پدا کاینت۔"
+			],
+			"Attachment (%d)": [
+				"منسلک (%d)"
+			],
+			"Other attachment (%d)": [
+				"دگہ ھواریں نبشتانک (%d)"
+			],
+			"Closed PR (%d)": [
+				"بندیں پی آر (%d)"
+			],
+			"Other closed PR (%d)": [
+				"دگہ بندیں پی آر (%d)"
+			],
+			"Open PR (%d)": [
+				"پی آر ءَ پچ کن اِت (%d)"
+			],
+			"Other open PR (%d)": [
+				"دگہ پچیں پی آر (%d)"
+			],
+			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
+				"نوکیں ٹرنک ڈاؤن لوڈ نہ بوت، پمیشکا اے لسٹ ءَ ٹرنک ءِ بدلی ھم ھوار بوت کن اَنت کہ اے پل ریکویسٹ ءِ بھر نہ اَنت۔"
+			],
+			"That file could not be read: %s": [
+				"آں فائل پڑھغ نہ بیثہ: %s"
+			],
+			"That file is not in the site. The change may have deleted it.": [
+				"آ فائل سائٹ ءِ تہا نیست۔ بدلی ءَ بوت کنت کہ آئی ءَ گار کتگ۔"
+			],
+			"Changed files": [
+				"بدل کثغیں فائل"
+			],
+			"You created this file": [
+				"تو اے فائل جوڑ کثہ"
+			],
+			"You edited this file": [
+				"تو اے فائل ءَ ترمیم کتگ"
+			],
+			"Revert %s": [
+				"پذا کن %s"
+			],
+			"Discard your changes?": [
+				"وتی بدلی آں یلہ کن؟"
+			],
+			"PR #%d stays checked out.": [
+				"پی آر #%d چیک آؤٹ ءِ تہا مانیت۔"
+			],
+			"The applied patch %s is removed too, because the app can’t put it back.": [
+				"لاگو پیچ %s ھم ھلاس کنگ بیت، پرچا کہ ایپ آئی ءَ پدا ایر نہ کنت۔"
+			],
+			"The patch %s stays applied.": [
+				"پیچ %s ءِ سرا عمل کنگ بیت۔"
+			],
+			"Your edits to %d file are removed.": [
+				"%d فائل ءِ تہا تئی ترمیم گار کنگ بوتگ انت۔"
+			],
+			"There are no edits of yours to discard.": [
+				"تئی ھچ وڑیں ترمیم نیست کہ رد بہ کن ئے۔"
+			],
+			"Your changes were discarded, but %s could not be put back, so it is no longer applied.": [
+				"تئی بدلی رد کنگ بوتگ اَنت بلے %s پدا ایر کنگ نہ بوتگ پمیشکا اے دگہ کارمرز نہ بیت۔"
+			],
+			"Your changes were discarded.": [
+				"تئی بدلی رد کنگ بوتگ اَنت۔"
+			],
+			"Your changes to it are removed.": [
+				"تئی ایشی سرا بدلی ہلاس کنگ بنت۔"
+			],
+			"%s deleted.": [
+				"%s گار کنگ بوتگ۔"
+			],
+			"Delete file": [
+				"فائل ئا گار کن"
+			],
+			"You created this file.": [
+				"تو اے فائل جوڑ کتگ۔"
+			],
+			"From PR #%d": [
+				"چہ پی آر #%d"
+			],
+			"From the patch": [
+				"پیچ ئا شه"
+			],
+			"Could not revert the file: %s": [
+				"فائل ءَ پدا واتر کنگ نہ بوت: %s"
+			],
+			"%s reverted.": [
+				"%s پدا واتر بوتگ۔"
+			],
+			"Revert file": [
+				"فائل ئا پذا کن"
+			],
+			"Revert %s?": [
+				"%s ءَ پدا کن اِت؟"
+			],
+			"Your edits to it are removed, and it goes back to how the patch left it.": [
+				"تئی ایشی سرا ترمیم ہلاس کنگ بنت، ءُ اے پدا ہما جاہ ءَ روت کہ پیچ ءَ چوں یلہ داتگ۔"
+			],
+			"Your edits to it are removed, and it goes back to how PR #%d has it.": [
+				"تئی ایشی ءِ تہا ترمیم ہلاس کنگ بنت ءُُ اے پدا ہمے گپ ءِ سرا روت کہ پی آر #%d ءَ چوں کتگ۔"
+			],
+			"Could not revert %1$s, so it was left as it was: %2$s": [
+				"%1$s ءَ پدا واتر کنگ نہ بوت، پمیشکا ھما وڑا یلہ دیگ بوت: %2$s"
+			],
+			"Could not revert %1$s (%2$s), and could not put it back as it was, so your changes to it may be lost: %3$s": [
+				"%1$s (%2$s) ءَ پدا نہ کت کنت، ءُ پدا ھما وڑا ایر نہ کت کہ آ بوتگ، پمیشکا تئی بدلی گار بوت کن اَنت: %3$s"
+			],
+			"%s has no changes to revert.": [
+				"%s ءَ پدا واتر کنگ ءِ ھاترا ھچ وڑیں بدلی نیست۔"
+			],
+			"The app did not keep a copy of the patch, so it cannot put %s back as the patch left it.": [
+				"ایپ ءَ پیچ ءِ کاپی نہ داشتگ ات، پمیشکا پیچ ءَ یلہ داتگیں وڑا %s ءَ پدا ایر نہ کنت۔"
+			],
+			"%s is as the patch left it, so there is nothing of yours to revert.": [
+				"%s ھما وڑا اِنت کہ پیچ ءَ یلہ داتگ، پمیشکا تئی ھچ چیز نیست کہ پدا واتر بہ کنت۔"
+			],
+			"The patch renames %s, so it can only go back with the whole patch. Use Discard your changes instead.": [
+				"پیچ %s ءِ نام ءَ بدل کنت، پمیشکا اے گوں سرجمیں پیچ ءَ پدا شت کنت۔ ایشی ئے بدلا وثی بدلی آں رد کن"
+			],
+			"No dev server output yet. What it prints as it starts and runs — including any error that stops it — appears here.": [
+				"انگت ءَ ڈیو سرور ءِ آؤٹ پٹ نیست۔ اے بندات ءُُ چلائینگ ءِ وھد ءَ چے پرنٹ کنت - ایشی ءَ ھوار ھرچ ردی یے کہ ایشی ءَ بند کنت - ادا گندگ بیت۔"
+			],
+			"Opened": [
+				"پچ بیثہ"
+			],
+			"Milestone": [
+				"بُنیاد"
+			],
+			"Component": [
+				"جزو"
+			],
+			"Type": [
+				"دروشم"
+			],
+			"Read from Trac %s": [
+				"ٹریک %s ءَ چہ بوان اِت۔"
+			],
+			"Review and submit": [
+				"چار ءُ تپاسی کن ءُ جمع کن"
+			],
+			"Review changes": [
+				"بدلیانی چار ءُ تپاسی"
+			],
+			"They stay with this pull request's local copy when you revert this PR.": [
+				"اگاں تو اے پی آر ءَ پدا واتر کن ئے گڑا آ اے پل ریکویسٹ ءِ لوکل کاپی ءِ گوما نند اَنت۔"
+			],
+			"%1$d unsubmitted change for ticket #%2$s": [
+				"%1$d ٹکٹ #%2$s ءِ واستہ دیم نہ داتگیں بدلی"
+			],
+			"%1$d unsubmitted change for issue #%2$s": [
+				"%1$d شمارہ #%2$s ءِ ھاتر ءَ دیم نہ داتگیں بدلی"
+			],
+			"Unsubmitted changes for ticket #%s": [
+				"ٹکٹ #%s ءِ واستہ دیم نہ داتگیں بدلی"
+			],
+			"Unsubmitted changes for issue #%s": [
+				"#%s ءِ شمارہ ءِ ھاتر ءَ دیم نہ داتگیں بدلی"
+			],
+			"%1$d change on top of PR #%2$d": [
+				"%1$d پی آر ءِ سر ءَ بدلی #%2$d"
+			],
+			"Changes on top of PR #%d": [
+				"پی آر ءِ سر ءَ بدلی #%d"
+			],
+			"the Window menu: make the window fill the screen, or back\u0004Zoom": [
+				"زوم"
+			],
+			"Discard edits": [
+				"ترمیماں رد کن"
+			],
+			"Discard the uncommitted edits on trunk?": [
+				"ٹرنک ءِ سرا بے پابندیں ترمیماں رد کن ئے؟"
+			],
+			"Discard changes": [
+				"بدلی آں رد کن"
+			],
+			"This can’t be undone.": [
+				"اے کار ءَ پدا ھلاس کنگ نہ بیت۔"
+			],
+			"Discard all local changes?": [
+				"کلیں دمگی بدلی آں یلہ کن؟"
+			],
+			"Stop Speaking": [
+				"گپ جنگ بند کن"
+			],
+			"Start Speaking": [
+				"گپ جنگ شروع کن"
+			],
+			"Speech": [
+				"گْوشتانک"
+			],
+			"Text Replacement": [
+				"نبشتانک ءِ بدل کنگ"
+			],
+			"Smart Dashes": [
+				"سمارٹ ڈیشز"
+			],
+			"Smart Quotes": [
+				"سمارٹ حوالہ جات"
+			],
+			"Show Substitutions": [
+				"بدلی ئا پیشدار"
+			],
+			"Substitutions": [
+				"بدلی"
+			],
+			"Paste and Match Style": [
+				"پیسٹ ءُ میچ سٹائل"
+			],
+			"Paste": [
+				"پیسٹ"
+			],
+			"Cut": [
+				"بُرّگ"
+			],
+			"Redo": [
+				"دوبارہ کن"
+			],
+			"Undo": [
+				"رد کن"
+			],
+			"Edit": [
+				"دوارچاری"
+			],
+			"Quit": [
+				"یل کن"
+			],
+			"Exit": [
+				"ڈن"
+			],
+			"Close Window": [
+				"ونڈو بند کن"
+			],
+			"File": [
+				"فائل"
+			],
+			"Quit %s": [
+				"یلہ کن %s"
+			],
+			"Show All": [
+				"درستاں پیش دار"
+			],
+			"Hide Others": [
+				"دگراں شموش"
+			],
+			"Hide %s": [
+				"%s ءَ شموش اِت۔"
+			],
+			"Services": [
+				"سروسز"
+			],
+			"About %s": [
+				"%s ئے باروا"
+			],
+			"Toggle Developer Tools": [
+				"ڈویلپر ٹولز ءَ بدل کن اِت"
+			],
+			"Help": [
+				"کمک"
+			],
+			"Bring All to Front": [
+				"درستاں دیم ئا بیار"
+			],
+			"Minimize": [
+				"کم چہ کم کن"
+			],
+			"Window": [
+				"دریگ"
+			],
+			"Toggle Full Screen": [
+				"سرجمیں اسکرین ءَ ٹگل کن اِت"
+			],
+			"Zoom Out": [
+				"زوم آؤٹ کن"
+			],
+			"Zoom In": [
+				"زوم کن"
+			],
+			"Actual Size": [
+				"اصل سائز"
+			],
+			"Force Reload": [
+				"فورس دوبارہ لوڈ کنگ"
+			],
+			"Reload": [
+				"دوبارہ لوڈ کن"
+			],
+			"View": [
+				"بِچار"
+			],
+			"Select All": [
+				"کلاں گچین کن"
+			],
+			"Delete": [
+				"گار کنگ"
+			],
+			"Choose folder…": [
+				"فولڈر ءَ گچین کن اِت..."
+			],
+			"Mail": [
+				"میل"
+			],
+			"ends a sentence that lacks a full stop\u0004%s.": [
+				"%s."
+			],
+			"Too much output to announce, navigate to rows manually to read": [
+				"اعلان کنغ واستا بازیں آؤٹ پٹ، پڑھغ واستا دستی رنگا صفاں برو"
+			],
+			"Terminal input": [
+				"ٹرمینل ان پٹ"
+			],
+			"Timed out starting web server": [
+				"ویب سرور شروع کنگ ءِ وھد ھلاس بوتگ"
+			],
+			"Server exited before becoming ready": [
+				"سرور تیار بیغ ئا شہ پیشا درکپثہ"
+			],
+			"%s directory not found.": [
+				"%s ڈائریکٹری دست نہ کپتگ۔"
+			],
+			"The patch you applied is applied. Revert it before submitting this checkout as your own work.": [
+				"ھما پیچ کہ تو ایر کتگ ات ایر کنگ بوتگ۔ اے چیک آؤٹ ءَ وتی کار ءِ رد ءَ جمع کنگ ءَ پیسر ایشی ءَ پدا واتر کن اِت۔"
+			],
+			"%s is applied. Revert it before submitting this checkout as your own work.": [
+				"%s ءِ سرا کارمرز کنگ بیت۔ اے چیک آؤٹ ءَ وتی کار ءِ رد ءَ جمع کنگ ءَ پیسر ایشی ءَ پدا واتر کن اِت۔"
+			],
+			"an action that finished\u0004Done": [
+				"بوت"
+			],
+			"No such branch: %s": [
+				"چوشیں شاخ نیست: %s"
+			],
+			"Refusing to delete a branch the app did not create": [
+				"ایپ ءَ جوڑ نہ کتگیں شاخ ءِ حذف کنگ ءَ انکار کنگ"
+			],
+			"Refusing to delete trunk": [
+				"ٹرنک حذف کنغ ئا انکار کنغیں"
+			],
+			"Trunk and this ticket's work disagree": [
+				"ٹرنک ءُ اے ٹکٹ ءِ کار ءِ تہا اختلاف انت"
+			],
+			"Trunk and this ticket's work disagree in %d file": [
+				"ٹرنک ءُ اے ٹکٹ ءِ کار %d فائل ءِ تہا اختلاف کن انت"
+			],
+			"Already working on ticket #%s in this site": [
+				"ٹکٹ #%s سرا پیسرا چہ اے سائٹ ءَ کار کنگ ءَ اِنت"
+			],
+			"Already working on issue #%s in this site": [
+				"اے سائٹ ءِ تہا پیسرا چہ #%s ءِ جیڑہ ءِ سرا کار کنگ ءَ اِنت"
+			],
+			"This site has no trunk branch": [
+				"اے سائٹ ئا ہچ وڑیں ٹرنک برانچ نیستیں"
+			],
+			"Enter a ticket number or URL.": [
+				"ٹکٹ نمبر یا URL نبشتہ کن اِت۔"
+			],
+			"Enter a ticket number like 62281, or a %s ticket URL.": [
+				"62281 ءِ وڑیں ٹکٹ نمبر یا %s ٹکٹ URL ءِ نبشتہ کن اِت۔"
+			],
+			"Only %s tickets are supported.": [
+				"ایوک ءَ %s ٹکٹانی حمایت کنگ بیت۔"
+			],
+			"Trunk and your work disagree in: %s.": [
+				"ٹرنک ءُ تئی کار ءِ تہا اے گپ ءِ تہا اختلاف اِنت: %s."
+			],
+			"Trunk added a file your work also adds, with different content: %s.": [
+				"ٹرنک ءَ یک فائلے ھوار کتگ کہ تئی کار ھم ھوار کنت، گوں جتا جتائیں مواد ءَ: %s."
+			],
+			"Deleted on one side and changed on the other: %s.": [
+				"یک نیمگے ءَ گار کنگ بوتگ ءُ دومی نیمگ ءَ بدل کنگ بوتگ: %s."
+			],
+			"Trunk changed the same lines as your work in: %s.": [
+				"ٹرنک ءَ ھما لیکہ بدل کتگ اَنت کہ تئی کار ءِ تہ ءَ بوتگ اَنت: %s."
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.": [
+				"وتی کار ءِ کاپی ءَ چہ رکّین اِت، ٹکٹ ءَ ان لنک کن اِت، آئی ءِ کار ءَ چہ سائٹ ءَ ڈیلیٹ کن اِت، پدا #%s ءَ پدا لنک کن اِت ءُ کاپی ءَ ایر کن اِت۔"
+			],
+			"Save a copy of your work, unlink the ticket, delete its work from the site, then link the ticket again and apply the copy.": [
+				"وتی کار ءِ کاپی ءَ چہ رکّین اِت، ٹکٹ ءَ ان لنک کن اِت، آئی ءِ کار ءَ چہ سائٹ ءَ ڈیلیٹ کن اِت، پدا ٹکٹ ءَ پدا لنک کن اِت ءُ کاپی ءَ ایر کن اِت۔"
+			],
+			"Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy.": [
+				"اے شمارہ ءِ شاخ ءَ بہ دار اِت ءُ ریویو ءُ بدلی جمع کنگ ءِ وسیلہ ءَ کاپی یے بہ رکّین اِت۔ یک سرپرست ءَ چہ لوٹ اِت کہ آ کار ءَ را انوگیں ٹرنک ءِ سر ءَ برگ ءَ کمک بہ کنت؛ اے ایپ جیڑہ ءَ گیش ءُ گیوار نہ کنت ءُ نہ کہ رکّینتگیں کاپی ءَ درآمد کنت۔"
+			],
+			"Update this ticket to the current trunk": [
+				"اے ٹکٹ ءَ انوگیں ٹرنک ءَ نوک کن اِت"
+			],
+			"Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.": [
+				"نوخیں پیچ صاف صاف لاگو نہ بیث کننت۔ وتی کار ءَ اد ءَ انوگیں ٹرنک ءِ سر ءَ برو اِت یا آئی ءِ کاپی ءَ چہ رکّین اِت ءُ ٹکٹ ءَ پدا بندات کن اِت۔"
+			],
+			"Trunk has moved since this ticket started.": [
+				"ٹرنک چہ اے ٹکٹ ءِ بندات ءَ چہ دیم ءَ شتگ۔"
+			],
+			"Update this issue to the current trunk": [
+				"اے جیڑہ ءَ انوگیں ٹرنک ءَ نوک کن اِت"
+			],
+			"Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.": [
+				"وتی کار ءَ ادا انوگیں ٹرنک ءِ سرا برو۔ اگر تبدیلی تنازعہ کننت، تئی شاخ برقرار مانیت تاکہ تئو آں گیشوار کنغ ئا کمک گِفتہ کنئے۔"
+			],
+			"Trunk has moved since this issue started.": [
+				"ٹرنک چہ اے جیڑہ ءِ بندات ءَ چہ دیم ءَ شتگ۔"
+			],
+			"Could not move the ticket onto the current trunk.": [
+				"ٹکٹ ءَ را انوگیں ٹرنک ءِ سرا کشّگ نہ بوت۔"
+			],
+			"Could not move the issue onto the current trunk.": [
+				"مسئلہ ءَ را انوگیں ٹرنک ءِ سرا کشّگ نہ بوت۔"
+			],
+			"Only an issue branch can be moved onto the current trunk.": [
+				"تھنا یک ایشو برانچے ءَ را انوگیں ٹرنک ءِ سر ءَ شنگ کنگ بیت کنت۔"
+			],
+			"Link a ticket first: trunk is what tickets are measured against.": [
+				"اولی ٹکٹ ءَ گوں ھمگرنچ کن اِت: ٹرنک ھما اِنت کہ ٹکٹانی پیمائش کنگ بیت۔"
+			],
+			"Link an issue first: trunk is what issues are measured against.": [
+				"اولی رند ءَ یک جیڑھے ءَ گوں ھمگرنچ کن اِت: ٹرنک ھما اِنت کہ جیڑھانی ھلاپ ءَ ماپ کنگ بیت۔"
+			],
+			"The app does not know which trunk the ticket started from, so it cannot move the work safely.": [
+				"اے ایپ ءَ اے گپ ءِ سرپدی نیست کہ ٹکٹ کجام ٹرنک ءَ چہ بندات بوتگ، پمیشکا اے کار ءَ گوں ایمنی ءَ دیم ءَ برت نہ کنت۔"
+			],
+			"The app does not know which trunk the issue started from, so it cannot move the work safely.": [
+				"اے ایپ ءَ اے گپ ءِ سرپدی نیست کہ اے جیڑھ کجام ٹرنک ءَ چہ بندات بوتگ، پمیشکا اے کار ءَ گوں ایمنی ءَ دیم ءَ برت نہ کنت۔"
+			],
+			"The app does not know which trunk #%s started from, so it cannot move the work safely.": [
+				"اے ایپ زانت نہ کنت کہ کجام ٹرنک #%s ءَ چہ بندات بوتگ، پمیشکا اے کار ءَ گوں ایمنی ءَ دیم ءَ برت نہ کنت۔"
+			],
+			"Nothing was moved.": [
+				"ہچ چیز ہلّت نہ بوت۔"
+			],
+			"Trunk and your work disagree.": [
+				"ٹرنک ءُ تئی کار ءِ تہا اختلاف اِنت۔"
+			],
+			"You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?": [
+				"تو اے سائٹ ءِ سرا %d بے پابندیں بدلی یے کتگ، انگت ءَ ہچ ٹکٹ ءِ سرا نہ۔ ایشانی چے بہ بیت؟"
+			],
+			"You have %d uncommitted change on this site, not on any issue yet. What should happen to them?": [
+				"تو اے سائٹ ءِ سرا %d بے پابندیں بدلی یے کتگ، انگت ءَ ہچ جیڑہ ءِ سرا نہ۔ ایشانی چے بہ بیت؟"
+			],
+			"Stop the dev server before updating the ticket.": [
+				"ٹکٹ اپ ڈیٹ کنگ ءَ پیسر ڈیو سرور ءَ بند کن اِت۔"
+			],
+			"Stop the dev server before updating the issue.": [
+				"مسئلہ اپ ڈیٹ کنگ ءَ پیسر ڈیو سرور ءَ بند کن اِت۔"
+			],
+			"Wait for the discard to finish before updating the ticket.": [
+				"ٹکٹ اپ ڈیٹ کنگ ءَ پیسر ڈسکارڈ ءِ آسر بوھگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Wait for the discard to finish before updating the issue.": [
+				"مسئلہ اپ ڈیٹ کنگ ءَ پیسر ڈسکارڈ ءِ آسر بوھگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Wait for the PR or patch operation to finish.": [
+				"پی آر یا پیچ آپریشن ءِ آسر بوھگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Wait for the ticket's work to finish deleting.": [
+				"ٹکٹ ءِ کار ءِ حذف کنگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Wait for the issue's work to finish deleting.": [
+				"مسئلہ ءِ کار ءِ حذف کنگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Wait for the current ticket change to finish.": [
+				"انوگیں ٹکٹ ءِ بدلی ءِ ودار ءَ بہ کن اِت کہ آسر بہ بیت۔"
+			],
+			"Wait for the current issue change to finish.": [
+				"انوگیں شمارہ ءِ بدلی ءِ آسر بوھگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"This ticket already has its own work here, so these edits cannot come along into it.": [
+				"اے ٹکٹ ءِ ادا پیسرا چہ وتی کار است انت، پمیشکا اے ترمیم ایشی ءِ تہا ہمراہی ءَ اتک نہ کن انت۔"
+			],
+			"This issue already has its own work here, so these edits cannot come along into it.": [
+				"اے تاک ءِ ادا پیسرا چہ وتی کار ھست انت پمیشکا اے ترمیم ایشی ءِ تہا ھوار نہ بنت۔"
+			],
+			"Discard them and continue on the ticket": [
+				"ایشاں یلہ کن ءُ ٹکٹ ءِ سرا دیم ءَ روان کن"
+			],
+			"Save them as a patch, then continue on the ticket…": [
+				"آنہاں یک پیچے ئے رنگا رکین، پذا ٹکٹ ئے سرا دیم روان کن۔۔۔"
+			],
+			"Discard them and continue on the issue": [
+				"ایشاں یلہ کن ءُ جیڑہ ءِ سرا دیم ءَ روان کن"
+			],
+			"Save them as a patch, then continue on the issue…": [
+				"آنہاں پیچ ئے رنگا رکھین، پذا اے مسلہ ئا دیما برو"
+			],
+			"Discard them and continue on #%s": [
+				"ایشاں یلہ کن ءُ #%s ءِ سر ءَ دیم ءَ روان کن۔"
+			],
+			"Save them as a patch, then continue on #%s…": [
+				"ایشاں یک پیچے ءِ رنگ ءَ رکّین اِت، پدا #%s ءَ دیم ءَ روان کن اِت..."
+			],
+			"Discard them and start clean": [
+				"آنہاں یلہ کن و صاف کن"
+			],
+			"Save them as a patch, then start clean…": [
+				"آنہاں یک پیچے ئے رنگا رکھین، پذا صاف شروع کن۔۔۔"
+			],
+			"Take these edits into the ticket": [
+				"اے ترمیماں ٹکٹ ئے تہا بُرو"
+			],
+			"Take these edits into the issue": [
+				"اے ترمیماں شمارہ ءِ تہا بُرو"
+			],
+			"Take these edits into #%s": [
+				"اے ترمیماں #%s ءِ تہا بُرو۔"
+			],
+			"Discard them and check out PR #%d": [
+				"ایشاں رد کن ءُ پی آر #%d ءَ بچار۔"
+			],
+			"Save them as a patch, then check out PR #%d…": [
+				"ایشاں یک پیچے ءِ رنگ ءَ رکّین اِت، پدا پی آر #%d ءَ بچار اِت..."
+			],
+			"PR #%d is a separate checkout, so these edits cannot come along into it.": [
+				"پی آر #%d یک جتاھیں چیک آؤٹے، پمیشکا اے ترمیم آئی ءِ تہ ءَ ھمراہ نہ بنت۔"
+			],
+			"You have uncommitted changes on this site, not on any ticket yet. What should happen to them?": [
+				"تئو اے سائٹ سرا بے پابندیں بدلی کتگ انت، انگت ہچ ٹکٹ سرا نہ انت۔ ایشانی چے بہ بیت؟"
+			],
+			"You have uncommitted changes on this site, not on any issue yet. What should happen to them?": [
+				"تئو اے سائٹ سرا بے پابندیں بدلی کتگ انت، انگت ہچ جیڑہ ءِ سرا نہ انت۔ ایشانی چے بہ بیت؟"
+			],
+			"Could not open the folder.": [
+				"فولڈر پچ نہ بوت۔"
+			],
+			"Could not reach the app's main process: %s": [
+				"ایپ ءِ مستریں عمل ءَ سر نہ بوت: %s"
+			],
+			"This app has no record of that folder, so it will not open it.": [
+				"اے ایپ ءَ آ فولڈر ءِ ھچ ریکارڈ نیست، پمیشکا آ ایشی ءَ پچ نہ کنت۔"
+			],
+			"The file manager would not open the folder: %s": [
+				"فائل منیجر فولڈر ءَ پچ نہ کنت: %s"
+			],
+			"The application would not start: %s": [
+				"درخواست شروع نہ بیثہ: %s"
+			],
+			"That application is no longer where it was. Choose another.": [
+				"کہ درخواست انگت ھما جاہ ءَ نہ اِنت کہ بوتگ۔ دگہ یکے گچین کن۔"
+			],
+			"That is not an application this app can open a folder in.": [
+				"اے ایپلیکیشن نہ ایں کہ اے ایپ ایشی نیاما فولڈر پچ کنت"
+			],
+			"A merge started outside the app is in progress.": [
+				"ایپ ءِ دپ ءَ بندات بوتگیں انضمام ءِ کار جاری اِنت۔"
+			],
+			"every file the patch touched, not only the ones in conflict": [
+				"ہر فائل کہ پیچ ءَ دست جتگ، نہ ایوک ءَ ھما کہ تنازعہ ءِ تہا اَنت"
+			],
+			"git add the files": [
+				"گٹ فائلاں ھوار کنت"
+			],
+			"resolve the files, then git add them": [
+				"فائلاں گیش کن، پذا گٹ آں ھوار کن"
+			],
+			"A three-way patch apply started outside the app is in progress.": [
+				"ایپ ءِ دپ ءَ بندات بوتگیں سئے راہ ءِ پیچ ءِ درخواست ءِ کار جاری اِنت۔"
+			],
+			"A revert started outside the app is in progress.": [
+				"ایپ ءِ دپ ءَ بندات بوتگیں ریورٹ ءِ کار جاری اِنت۔"
+			],
+			"A cherry-pick started outside the app is in progress.": [
+				"ایپ ءِ دپ ءَ بندات بوتگیں چیری ءِ چست کنگ ءِ کار جاری اِنت۔"
+			],
+			"A rebase started outside the app is in progress.": [
+				"ایپ ءِ دپ ءَ بندات بوتگیں ریبیس ءِ کار جاری اِنت۔"
+			],
+			"resolve the files, then git add them and run %s": [
+				"فائلاں گیش ءُ گیوار کن ات، پدا گٹ ءَ آہاں ھوار کن ات ءُ %s ءَ چلائین ات۔"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again. (%s)": [
+				"ایپ چیک نہ کت کنت کہ اے چیک آؤٹ ءَ انضمام ءِ کار بوھگ ءَ اِنت یا نہ، پمیشکا ھچ چیز بدل نہ بوتگ۔ اگاں ٹرمینل ءَ چہ ایشی ءِ تہا گٹ کمانڈ چلگ ءَ اِنت گڑا ایشی ءَ ھلاس کنگ ءَ بہ دئے ءُ پدا دوبر جھد بہ کن۔ (%s)"
+			],
+			"The app could not check whether a merge is in progress in this checkout, so nothing was changed. If a Git command is running in it from a terminal, let it finish, then try again.": [
+				"ایپ چیک نہ کت کنت کہ اے چیک آؤٹ ءِ تہا انضمام ءِ کار بوھگ ءَ اِنت یا نہ، پمیشکا ھچ بدل نہ بوتگ۔ اگاں ٹرمینل ءَ چہ ایشی ءِ تہا گٹ کمانڈ چلگ ءَ اِنت گڑا ایشی ءَ ھلاس کنگ ءَ بہ دئے ءُ پدا دوبر جھد بہ کن۔"
+			],
+			"Its conflicts are resolved but it is not finished. Finish it from a terminal (%1$s) or abandon it (%2$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"ایشی ءِ جنجال گیش ءُ گیوار بنت بلے آسر نہ بیت۔ اے سائٹ ءِ سرا ایپ ءِ کارمرز کنگ ءَ پیسر چہ ٹرمینل ءَ ھلاس کن اِت (%1$s) یا یلہ کن اِت (%2$s)۔ داں ہمے وھد ءَ ٹکٹاں گوں ہمگرنچ کنگ، پیچ ءِ ایر کنگ، بدلی ءِ رد کنگ ءُ ٹرنک ءِ اپ ڈیٹ کنگ ءَ ادا انکار کنگ بیت۔"
+			],
+			"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.": [
+				"اے %1$s ءِ تہا تنازعات داریت۔ اے سائٹ ءِ سرا ایپ ءِ کارمرز کنگ ءَ پیسر چہ ٹرمینل ءَ ھلاس کن اِت (%2$s) یا یلہ کن اِت (%3$s)۔ داں ہمے وھد ءَ ٹکٹاں گوں ہمگرنچ کنگ، پیچ ءِ ایر کنگ، بدلی ءِ رد کنگ ءُ ٹرنک ءِ اپ ڈیٹ کنگ ءَ ادا انکار کنگ بیت۔"
+			],
+			"The app now runs on a different Git engine, so linking tickets, applying patches, discarding changes and updating trunk are refused here. Export your work as a patch, create a new site, apply the patch there, then delete this one.": [
+				"اے ایپ نوں یک جتاہیں گٹ انجن ءِ سرا کار کنت، پمیشکا ٹکٹاں گوں ہمگرنچ کنگ، پیچ ءِ ایر کنگ، بدلی ءِ رد کنگ ءُ ٹرنک ءِ اپ ڈیٹ کنگ ءَ ادا انکار کنگ بیت۔ وتی کار ءَ پیچ ءِ رنگ ءَ برآمد کن ، نوکیں سائٹے جوڑ کن ، اودا پیچ ءَ ایر کن ، پدا اے یکے ءَ ڈیلیٹ کن ۔"
+			],
+			"This site was created by an earlier version of the app.": [
+				"اے سائٹ ایپ ءِ پیسریگیں ورژن ءِ وسیلہ ءَ جوڑ کنگ بوتگ۔"
+			],
+			"This site was created by an earlier version of the app and cannot be changed by this one. Create a new site to keep working; you can still export a patch of what is here, and delete this site.": [
+				"اے سائٹ ایپ ءِ پیسریگیں ورژن ءِ وسیلہ ءَ جوڑ کنگ بوتگ ءُ اے یکے ءِ وسیلہ ءَ بدل کنگ نہ بیت۔ کار کنگ ءِ ھاترا نوکیں سائٹے جوڑ کن اِت؛ تو انگت ھما چیز ءِ پیچ ءَ برآمد کن ئے کہ اِدا اِنت ءُ اے سائٹ ءَ گار کن ئے۔"
+			],
+			"Unable to copy path: %s": [
+				"راہ ءِ کاپی کنگ ءَ بے سوب اِنت: %s"
+			],
+			"Clipboard access is not available in this environment": [
+				"کلپ بورڈ ءِ رسائی اے چاگرد ءَ دست نہ کپیت"
+			],
+			"Dismiss": [
+				"دَرکنگ"
+			],
+			"Stopped": [
+				"بند کثہ"
+			],
+			"Playground web server": [
+				"گوازی ئے میدان ویب سرور"
+			],
+			"Start Playground web server": [
+				"گوازی ءِ میدان ءِ ویب سرور ءَ بندات کن اِت"
+			],
+			"Stop Playground web server": [
+				"گوازی ءِ میدان ءِ ویب سرور ءَ بند کن اِت"
+			],
+			"Starting the Playground web server": [
+				"گوازی ئے میدان ئے ویب سرور شروع کنغ ایں"
+			],
+			"Server exited with code %d": [
+				"سرور گوں کوڈ %d ءَ دراتکگ۔"
+			],
+			"Choose application…": [
+				"درخواست ءِ گچین کن اِت..."
+			],
+			"Saved to %s. The edits are still in the working tree.": [
+				"%s ءَ رکّینتگ۔ ترمیم انگت کار کنوکیں درچک ءَ اَنت۔"
+			],
+			"Your edits were saved to %s and are no longer in the working tree.": [
+				"تئی ترمیم %s ءَ رکّینگ بوتگ اَنت ءُ نوں کار کنوکیں درچک ءَ نیست اَنت۔"
+			],
+			"Your %1$d uncommitted change came along into #%2$s, and will go into its patch.": [
+				"تئی %1$d بے پابندیں بدلی #%2$s ءِ تہا اتکگ ات، ءُ آئی ءِ پیچ ءِ تہا روت۔"
+			],
+			"Could not delete the branch.": [
+				"شاخ حذف نہ بوت۔"
+			],
+			"Could not save the patch.": [
+				"پیچ ءَ رکّینت نہ کت۔"
+			],
+			"Could not discard the changes.": [
+				"تبدیلیاں رد نہ کت کنت۔"
+			],
+			"Could not save the ticket.": [
+				"ٹکٹ ءَ رکّینت نہ کت۔"
+			],
+			"Only %s issues are supported.": [
+				"ایوک ءَ %s جیڑہانی حمایت کنگ بیت۔"
+			],
+			"Enter an issue number or URL.": [
+				"مسئلہ نمبر یا URL ءِ نبشتہ کن اِت۔"
+			],
+			"Enter an issue number like 1234, or a %s issue URL.": [
+				"1234 ءِ وڑیں جیڑہ ءِ نمبر یا %s جیڑہ ءِ URL ءَ نبشتہ کن اِت۔"
+			],
+			"Only %s issues can be linked here.": [
+				"ادا ایوک ءَ %s جیڑہاں گوں ھمگرنچ کنگ بیت کنت۔"
+			],
+			"That is a pull request. Link the issue it fixes instead.": [
+				"کہ یک کشّگ ءِ لوٹ اِنت۔ ایشانی بدل ءَ ھما جیڑہ ءَ گوں ھمگرنچ کنت۔"
+			],
+			"There is no site to work on it in yet. Create one from the sidebar and the app will offer this ticket when it is ready.": [
+				"انگت ءَ ایشی ءِ سر ءَ کار کنگ ءِ ھچ وڑیں سائٹ نیست۔ سائیڈ بار ءَ چہ یکے جوڑ کن ءُ ایپ اے ٹکٹ ءَ پیش کنت کہ آ تیار بیت۔"
+			],
+			"Ticket #%s is ready to link.": [
+				"ٹکٹ #%s لنک کنگ ءِ ھاترا تیار اِنت۔"
+			],
+			"The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.": [
+				"ٹکٹ ءِ نمبر چہ لنک ءَ اتکگ ات۔ لنکنگ ءَ اے سائٹ ءِ سر ءَ ھما چیز ءَ پارک کنت ءُ اے ٹکٹ ءِ شاخ ءَ چیک کنت ، پمیشکا ایپ پیسر ءَ جُست کنت ۔"
+			],
+			"Link ticket #%1$s to %2$s?": [
+				"ٹکٹ #%1$s ءَ گوں %2$s ءَ ھمگرنچ کن اِت؟"
+			],
+			"A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.": [
+				"ٹریک ٹکٹ ورڈپریس کور سائٹ ءِ سرا اِنت۔ یکے ءَ پچ کن ءُ ایپ اودا ٹکٹ پیش کنت۔"
+			],
+			"Ticket #%1$s cannot be linked to %2$s.": [
+				"ٹکٹ #%1$s ءَ گوں %2$s ءَ ھمگرنچ کنگ نہ بیت۔"
+			],
+			"Raw": [
+				"ھامگیں"
+			],
+			"Rendered": [
+				"رینڈر کنگ بوتگ"
+			],
+			"Date:": [
+				"تاریخ:"
+			],
+			"CC:": [
+				"سی سی:"
+			],
+			"To:": [
+				"ءَ:"
+			],
+			"From:": [
+				"چہ:"
+			],
+			"You have %1$d change on top of PR #%2$d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"تئو پی آر #%2$d ئے سرا %1$d بدل کنئے۔ تو <review>آہانی سرا چمشانک دات کن ئے</review> یا <discard>وتی بدلی آں رد کن ئے</discard>. اگاں تو اے پی آر ءَ پدا واتر کن ئے گڑا آ اے پل ریکویسٹ ءِ لوکل کاپی ءِ گوما نند اَنت۔"
+			],
+			"You have changes on top of PR #%d. You can <review>review them</review> or <discard>discard your changes</discard>. They stay with this pull request's local copy when you revert this PR.": [
+				"ترا پی آر #%d ءِ سر ءَ بدلی اتکگ۔ تو <review>آہانی سرا چمشانک دات کن ئے</review> یا <discard>وتی بدلی آں رد کن ئے</discard>. اگاں تو اے پی آر ءَ پدا واتر کن ئے گڑا آ اے پل ریکویسٹ ءِ لوکل کاپی ءِ گوما نند اَنت۔"
+			],
+			"Unlinking this ticket doesn't affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.": [
+				"اے ٹکٹ ءِ ان لنک کنگ ءَ اے ٹکٹ ءِ ھاتر ءَ تئی دمگی بدلی ءِ سرا اثر نہ کپیت — آ اے سائٹ ءِ تہا ایشی ءَ گوں بندوک بنت ، ھما وھد ءَ تیار بنت کہ تو ایشی ءَ پدا لنک کن ئے۔"
+			],
+			"Unlinking this issue doesn't affect your local changes for this issue — they remain attached to it in this site, ready for when you link it again.": [
+				"اے جیڑہ ءِ ان لنک کنگ ءَ اے جیڑہ ءِ ھاتر ءَ تئی دمگی بدلی ءِ سرا اثر نہ کپیت — آ اے سائٹ ءِ تہا گوں آئی ءَ بندوک بنت ، ھما وھد ءَ کہ تو پدا لنک کن ئے ، ھما وھد ءَ تیار بنت ۔"
+			],
+			"You have %d change not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"تئو %d بدلی یے ہچ ٹکٹ ئا تفویض نہ کثہ۔ تو <review>یک پیچے جوڑ کن ئے ءُ رکّین ئے</review> یا <discard>وتی بدلی آں رد کن ئے</discard>."
+			],
+			"You have %d change not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"ترا %d بدلی یے ھچ جیڑہ ءِ سرا ھوار نہ اِنت۔ تو <review>یک پیچے جوڑ کن ئے ءُ رکّین ئے</review> یا <discard>وتی بدلی آں رد کن ئے</discard>."
+			],
+			"You have changes not assigned to any ticket. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"تئو گوں ہچ ٹکٹ ئا تفویض نہ کثغیں بدلی آں تو <review>یک پیچے جوڑ کن ئے ءُ رکّین ئے</review> یا <discard>وتی بدلی آں رد کن ئے</discard>."
+			],
+			"You have changes not assigned to any issue. You can <review>create and save a patch</review> or <discard>discard your changes</discard>.": [
+				"ترا بدلی یے است انت کہ ہچ جیڑہ ءِ سرا تفویض نہ کنگ بوتگ انت۔ تو <review>یک پیچے جوڑ کن ئے ءُ رکّین ئے</review> یا <discard>وتی بدلی آں رد کن ئے</discard>."
+			],
+			"This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.": [
+				"اے ٹکٹ ءِ ریکارڈ بوتگیں بنداتی نقطہ نیست، پمیشکا ایپ وتی کار ءَ موجودہ ٹرنک ءِ سرا دیم ءَ برت نہ کنت۔"
+			],
+			"Only a ticket branch can be moved onto the current trunk.": [
+				"تھنا ٹکٹ ءِ شاخ ءَ را انوگیں ٹرنک ءِ سر ءَ کشگ بیت کنت۔"
+			],
+			"Link a ticket first: trunk is what tickets are measured against, not a ticket.": [
+				"اولی رند ءَ ٹکٹ ءَ گوں ھمگرنچ کن اِت: ٹرنک ھما اِنت کہ ٹکٹانی پیمائش کنگ بیت، ٹکٹ نہ اِنت۔"
+			],
+			"There is uncommitted work on trunk — decide what happens to it before starting the ticket": [
+				"ٹرنک سرا بے پابندیں کارے استیں — ٹکٹ شروع کنغ ئا شہ پیشا فیصلہ کن کہ ایشی ئا گوں چے بیثغیں"
+			],
+			"the editor could not be opened (exit code %s)": [
+				"ایڈیٹر پچ کنگ نہ بوت (درآمد ءِ کوڈ %s)"
+			],
+			"the saved work\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"بحال کنگ بوتگ — جوڑ کنگ ءِ گھڑی ءَ پدا جوڑ کتگ۔ سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"the saved work\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"بحال بوتگ — بلڈ واچ انگت اے بدلی ءَ مرتب کنگ ءَ اِنت۔ سائٹ ءِ جہد کنگ ءَ پیسر آئی ءِ چپ ءُ چاگرد ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"the saved work\u0004Restored.": [
+				"بحال کنگ بوتگ۔"
+			],
+			"the saved work\u0004Restored — open the site to try it out.": [
+				"بحال بوتگ — سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"the previous branch\u0004Restored — the build watch has rebuilt. Open the site to try it out.": [
+				"بحال کنگ بوتگ — جوڑ کنگ ءِ گھڑی ءَ پدا جوڑ کتگ۔ سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"the previous branch\u0004Restored — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"بحال بوتگ — بلڈ واچ انگت اے بدلی ءَ مرتب کنگ ءَ اِنت۔ سائٹ ءِ جہد کنگ ءَ پیسر آئی ءِ چپ ءُ چاگرد ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"the previous branch\u0004Restored.": [
+				"بحال کنگ بوتگ۔"
+			],
+			"the previous branch\u0004Restored — open the site to try it out.": [
+				"بحال بوتگ — سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"Now on trunk as of %s.": [
+				"نوں %s ءِ ردا ٹرنک ءِ سرا۔"
+			],
+			"Resetting to latest trunk (%s)…": [
+				"نوکیں ٹرنک ءَ ری سیٹ کنگ (%s)..."
+			],
+			"Already up to date.": [
+				"شہ پیشا نوخیں"
+			],
+			"Fetching latest trunk…": [
+				"نوخیں ٹرنک آرگ ایں"
+			],
+			"Trac returned %s — try opening the ticket again to pass the check.": [
+				"ٹریک ءَ پدا %s — چیک ءِ گوازینگ ءِ ھاترا ٹکٹ ءَ پدا پچ کنگ ءِ جہد ءَ بکن اِت۔"
+			],
+			"Only https core.trac.wordpress.org attachments are allowed": [
+				"ایوک ءَ https کور.ٹریک.ورڈپریس.ارگ ءِ منسلکات ءِ اجازت اِنت"
+			],
+			"%s file": [
+				"%s فائل"
+			],
+			"Ready to work on %s": [
+				"%s ءِ سرا کار کنگ ءَ تیار اِنت۔"
+			],
+			"Ready to try %s": [
+				"کوشش کنغ ئا په تیار ایں %s"
+			],
+			"Checking which files change…": [
+				"چیک کنگ ءَ اِنت کہ کجام فائل بدل بنت..."
+			],
+			"Swapping files for %s…": [
+				"%s ءِ واستہ فائلانی بدل کنگ..."
+			],
+			"Swapping files…": [
+				"فائلانی بدل کنگ..."
+			],
+			"Moving your work on %s onto the current trunk…": [
+				"وتی کار ءَ %s ءِ سر ءَ انوگیں ٹرنک ءِ سر ءَ برگ ءَ ئے..."
+			],
+			"Moving your edits on %s onto the current trunk…": [
+				"%s ءِ سرا وتی ترمیماں انوگیں ٹرنک ءِ سرا کشگ..."
+			],
+			"Moving your work onto the current trunk…": [
+				"وتی کار ءَ انوگیں ٹرنک ءِ سرا کشگ ءَ ئے..."
+			],
+			"Saving your work on %s…": [
+				"وتی کار ءَ %s ءِ سر ءَ رکّینگ ءَ اِنت..."
+			],
+			"Saving your edits on %s…": [
+				"وتی ترمیماں %s ءِ سر ءَ رکّینگ ءَ آں..."
+			],
+			"Saving your work…": [
+				"وتی کار ءَ رکّینگ ءَ آں..."
+			],
+			"The build watch is rebuilding after this change. Wait for it to be watching again before trying the site.": [
+				"بلڈ واچ اے بدلی ءَ پد دوبر جوڑ کنگ ءَ اِنت۔ سائٹ ءِ جہد کنگ ءَ پیسر پدا چارگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Start the build watch, or run %s in the Terminal.": [
+				"بلڈ واچ ءَ بندات کن اِت یا ٹرمینل ءَ %s ءَ چلائین اِت۔"
+			],
+			"The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"بلڈ واچ انگت اے بدلی ءَ مرتب کنگ ءَ اِنت۔ سائٹ ءِ جہد کنگ ءَ پیسر آئی ءِ چپ ءُ چاگرد ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"PR #%s is applied.": [
+				"پی آر #%s ءِ سرا کارمرز کنگ بیت۔"
+			],
+			"The build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"بلڈ واچ ءَ دوبارہ جوڑ کنگ ءَ پیسر بند کتگ ات، پمیشکا سائٹ انگت ءَ پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"PR #%s is applied but not built.": [
+				"پی آر #%s ءِ سرا کارمرز کنگ بیت بلے جوڑ کنگ نہ بیت۔"
+			],
+			"PR #%s is applied. The site is rebuilding.": [
+				"پی آر #%s ءِ سرا کارمرز کنگ بیت۔ سائٹ ءِ دوبر جوڑ کنگ بوھگ ءَ اِنت۔"
+			],
+			"Update incomplete — the build watch stopped before it finished rebuilding.": [
+				"اپ ڈیٹ نامکمل — بلڈ واچ ءِ دوبارہ جوڑ کنگ ءَ پیسر بند بوتگ۔"
+			],
+			"Update complete — the build watch has rebuilt, and this site is now on the latest trunk.": [
+				"اپ ڈیٹ مکمل — بلڈ واچ ءَ دوبارہ جوڑ کتگ ، ءُ اے سائٹ نوں نوکیں ٹرنک ءِ سرا انت۔"
+			],
+			"Update incomplete — the build watch was stopped, so nothing rebuilt.": [
+				"اپ ڈیٹ نامکمل — بلڈ واچ بند کنگ بوتگ ات، پمیشکا ہچ چیز دوبارہ جوڑ نہ بوتگ ات۔"
+			],
+			"The code is new but the built assets are old; retry install & build from the banner above.": [
+				"کوڈ نوک اِنت بلے جوڑ بوتگیں اثاثہ کوھن اَنت؛ بُرز ءِ بینر ءَ چہ انسٹال ءُ جوڑ کنگ ءِ پدا جہد کن اِت۔"
+			],
+			"The patch is applied but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"پیچ لاگو کنگ بیت بلے بلڈ واچ ءَ دوبارہ جوڑ کنگ ءَ پیسر بند کتگ ات، پمیشکا سائٹ انگت ءَ پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"The patch is applied but the build watch was stopped, so the site still runs the old assets.": [
+				"پیچ لاگو کنگ بیت بلے بلڈ واچ بند کنگ بوتگ ات، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"%s failed, so the build was skipped. The patch is applied but dependencies are stale.": [
+				"%s ناکام بوتگ، پمیشکا جوڑ کنگ ءِ سرا یلہ داتگ۔ پیچ لاگو کنگ بیت بلے انحصار باسی انت۔"
+			],
+			"The patch is applied but the build failed, so the site still runs the old assets.": [
+				"پیچ لاگو کنگ بیت بلے جوڑ کنگ ناکام بوتگ، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ اِنت۔"
+			],
+			"The patch changes %1$s — running %2$s…": [
+				"پیچ بدل بیت %1$s — چلائینگ ءَ اِنت %2$s..."
+			],
+			"Applied — the build watch has rebuilt. Open the site to try it out.": [
+				"لاگو کنگ بوتگ — جوڑ کنگ ءِ گھڑی ءَ پدا جوڑ کتگ۔ سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"Applied — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"لاگو — بلڈ واچ انگت اے بدلی ءَ مرتب کنگ ءَ اِنت۔ سائٹ ءِ جہد کنگ ءَ پیسر آئی ءِ چپ ءُ چاگرد ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Applied.": [
+				"لاگو کنگ بوتگ۔"
+			],
+			"Applied — open the site to try it out.": [
+				"لاگو کنگ بوتگ — سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"The saved work is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"بچائینتگیں کار بحال کنگ بیت بلے دوبارہ جوڑ کنگ ءَ پیسر بلڈ واچ بند بوتگ، پمیشکا سائٹ انگت ءَ پرانے اثاثہاں چلائینگ ءَ اِنت۔"
+			],
+			"The saved work is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"بچت کتگیں کار بحال کنگ بیت بلے بلڈ واچ بند کنگ بوتگ ات، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"%s failed, so the build was skipped. The saved work is restored but dependencies are stale.": [
+				"%s ناکام بوتگ، پمیشکا جوڑ کنگ ءِ سرا یلہ داتگ۔ بچائینتگیں کار بحال کنگ بیت بلے انحصار باسی انت۔"
+			],
+			"The saved work is restored but the build failed, so the site still runs the old assets.": [
+				"بچتیں کار بحال کنگ بیت بلے جوڑ کنگ ناکام بوتگ، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ اِنت۔"
+			],
+			"The saved work changes %1$s — running %2$s…": [
+				"رکّینتگیں کار بدل بیت %1$s — چلائینگ ءَ اِنت %2$s..."
+			],
+			"The previous branch is restored but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"سابقہ ​​شاخ بحال کنگ بوتگ بلے دوبارہ جوڑ کنگ ءَ پیسر بلڈ واچ بند بوتگ، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"The previous branch is restored but the build watch was stopped, so the site still runs the old assets.": [
+				"سابقہ ​​شاخ بحال کنگ بوتگ بلے بلڈ واچ بند کنگ بوتگ ات، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"%s failed, so the build was skipped. The previous branch is restored but dependencies are stale.": [
+				"%s ناکام بوتگ، پمیشکا جوڑ کنگ ءِ سرا یلہ داتگ۔ پیسریگیں شاخ بحال کنگ بیت بلے انحصار باسی انت۔"
+			],
+			"The previous branch is restored but the build failed, so the site still runs the old assets.": [
+				"سابقہ ​​شاخ بحال کنگ بوتگ بلے بلڈ ناکام بوتگ، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"The previous branch changes %1$s — running %2$s…": [
+				"چہ پیسریگیں شاخ ءَ %1$s بدل بیت — %2$s ءَ کار کنگ ءَ اِنت..."
+			],
+			"The pull request is checked out but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"پل ءِ درخواست چیک آؤٹ کنگ بیت بلے بلڈ واچ ءَ دوبارہ جوڑ کنگ ءَ پیسر بند کتگ ، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"The pull request is checked out but the build watch was stopped, so the site still runs the old assets.": [
+				"پل ءِ درخواست چیک آؤٹ کنگ بیت بلے بلڈ واچ بند کنگ بوتگ ات، پمیشکا سائٹ انگت ءَ پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"%s failed, so the build was skipped. The pull request is checked out but dependencies are stale.": [
+				"%s ناکام بوتگ، پمیشکا جوڑ کنگ ءِ سرا یلہ داتگ۔ پل ریکویسٹ چیک آؤٹ کنگ بیت بلے انحصار باسی انت۔"
+			],
+			"The pull request is checked out but the build failed, so the site still runs the old assets.": [
+				"پل ءِ درخواست چیک آؤٹ کنگ بیت بلے بلڈ ناکام بوتگ، پمیشکا سائٹ انگت ءَ پرانے اثاثہاں چلائینگ ءَ اِنت۔"
+			],
+			"The pull request changes %1$s — running %2$s…": [
+				"کشّگ ءِ لوٹ بدل بیت %1$s — چلگ ءَ اِنت %2$s..."
+			],
+			"Checked out — the build watch has rebuilt. Open the site to try it out.": [
+				"چیک آؤٹ کت — بلڈ واچ ءَ پدا جوڑ کتگ۔ سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"Checked out — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"چیک آؤٹ — بلڈ واچ انگت اے بدلی ءَ مرتب کنگ ءَ اِنت۔ سائٹ ءِ جہد کنگ ءَ پیسر آئی ءِ چپ ءُ چاگرد ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Checked out.": [
+				"چیک آؤٹ کثہ۔"
+			],
+			"Checked out — open the site to try it out.": [
+				"چیک آؤٹ کتگ — سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"The patch is reverted but the build watch stopped before it finished rebuilding, so the site still runs the old assets.": [
+				"پیچ ءِ پدا واتر کنگ بیت بلے بلڈ واچ ءَ دوبارہ جوڑ کنگ ءَ پیسر بند کتگ ات، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"The patch is reverted but the build watch was stopped, so the site still runs the old assets.": [
+				"پیچ ءِ پدا واتر کنگ بیت بلے بلڈ واچ بند کنگ بوتگ ات، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ انت۔"
+			],
+			"%s failed, so the build was skipped. The patch is reverted but dependencies are stale.": [
+				"%s ناکام بوتگ، پمیشکا جوڑ کنگ ءِ سرا یلہ داتگ۔ پیچ پدا واتر کنگ بیت بلے انحصار باسی انت۔"
+			],
+			"The patch is reverted but the build failed, so the site still runs the old assets.": [
+				"پیچ ءِ پدا واتر کنگ بیت بلے بلڈ ناکام بوتگ، پمیشکا سائٹ انگت پرانے اثاثہاں چلائینگ ءَ اِنت۔"
+			],
+			"Reverted — the build watch has rebuilt. Open the site to try it out.": [
+				"پدا واتر بوتگ — جوڑ کنگ ءِ گھڑی ءَ پدا جوڑ کتگ۔ سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"Reverted — The build watch is still compiling this change. Wait for it to go quiet before trying the site.": [
+				"ریورٹڈ — بلڈ واچ انگت اے بدلی ءَ مرتب کنگ ءَ اِنت۔ سائٹ ءِ جہد کنگ ءَ پیسر آئی ءِ چپ ءُ چاگرد ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Reverted.": [
+				"پدا واتر کنگ بوتگ۔"
+			],
+			"Reverted — open the site to try it out.": [
+				"رِورٹ بوتگ — سائٹ ءَ پچ کن اِت کہ آزمائش ءَ بہ کن اِت۔"
+			],
+			"The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.": [
+				"بلڈ واچ %s ءَ چہ بندات ءَ پدا جوڑ کنت — لاگ ءِ تہا پیداوار ، بلڈ واچ ءِ چیر ءَ۔ اپ ڈیٹ ھما وھد ءَ سرجم بیت کہ آ پدا چارگ ءَ اِنت۔"
+			],
+			"This pull request is closed. You can still check out its last head to investigate it.": [
+				"اے کشّگ ءِ لوٹ بند اِنت۔ تو انگت آئی ءِ گڈی سر ءَ چیک کن ئے کہ آئی ءِ پٹ ءُ پول ءَ بہ کن ئے۔"
+			],
+			"Return to saved copy": [
+				"محفوظ کثغیں کاپی ئا پذا رو"
+			],
+			"PR #%d is already on this site; you will switch to your local copy.": [
+				"پی آر #%d پیسرا چہ اے سائٹ ءِ سرا اِنت؛ تئو وثی دمگی کاپی ئا بدل کنئے۔"
+			],
+			"PR #%d has moved on GitHub; your local copy will be updated.": [
+				"پی آر #%d گٹ ہب ءِ سرا دیم ءَ شتگ؛ شمئے لوکل کاپی نوک کنگ بیت۔"
+			],
+			"PR #%d has moved on GitHub, but your copy has edits on top.": [
+				"پی آر #%d گٹ ہب ءِ سرا شُتگ بلے تئی کاپی ءِ سر ءَ ترمیم ھست اَنت۔"
+			],
+			"PR #%1$d changes %2$d file.": [
+				"پی آر #%1$d %2$d فائل ءَ بدل کنت۔"
+			],
+			"Could not switch this pull request. Check the log and try again.": [
+				"اے کشّگ ءِ لوٹ ءَ بدل نہ کُت۔ لاگ چیک کن ءُ پدا جہد کن۔"
+			],
+			"This pull request has no recorded starting point, so the app cannot safely save its edits. Save a patch before changing branches.": [
+				"اے پل ءِ لوٹ ءِ ھچ ریکارڈ بوتگیں بنداتی نقطہ نیست، پمیشکا اے ایپ وتی ترمیماں پہ ایمنی رکّینت نہ کنت۔ شاخاں بدل کنغ ئا شه پیشا یک پیچے ئا بہ رکّین"
+			],
+			"No pull request is checked out on this site.": [
+				"اے سائٹ سرا ہچ وڑیں پل ریکویسٹ چیک آؤٹ نہ بیت۔"
+			],
+			"Enter a positive whole pull request number.": [
+				"یک مثبت کلیں کش ئے درخواست نمبرے درج کن۔"
+			],
+			"PR #%d is already checked out. Revert it before applying it again.": [
+				"پی آر #%d پیسرا چیک آؤٹ کنگ بوتگ۔ پدا ایر کنگ ءَ پیسر آئی ءَ پدا واتر کن اِت۔"
+			],
+			"This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.": [
+				"اے سائٹ ءَ پیسر ءَ چہ pr/%d نامیں شاخے است کہ ایپ ءَ جوڑ نہ کتگ۔ دوبارہ جہد کنگ ءَ پیسر ٹرمینل ءَ چہ ہما شاخ ءَ نام بدل کن یا حذف کن۔"
+			],
+			"PR #%d has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.": [
+				"پی آر #%d گٹ ہب ءِ سرا شتگ ءُ تئی کاپی ءِ سرا ترمیم بوتگ انت۔ اپ ڈیٹ کنگ ءَ پیسر آ ترمیماں رد کن اِت یا ھما کاپی ءَ کہ شمئے گور ءَ اِنت وتی گور ءَ بہ دار اِت۔"
+			],
+			"Revert this PR": [
+				"اے پی آر ءَ پدا دیم ءَ بیار"
+			],
+			"Edits you make here stay with your local copy of the PR.": [
+				"ھما ترمیم کہ تو ادا کن ئے آ وتی پی آر ءِ دمگی کاپی ءِ ھمراھی ءَ بہ نند اَنت۔"
+			],
+			"Your edits here stay with your local copy of the PR.": [
+				"ادا تئی ترمیم تئی پی آر ءِ دمگی کاپی ءِ گوما مانیت۔"
+			],
+			"Your ticket changes are saved separately and return when you revert this PR.": [
+				"شمئے ٹکٹ ءِ بدلی الگ الگ ءَ رکّینگ بنت ءُ ھما وھد ءَ پدا واتر کن اَنت کہ شما اے پی آر ءَ پدا واتر کن اِت۔"
+			],
+			"Your issue changes are saved separately and return when you revert this PR.": [
+				"شمئے جیڑہ ءِ بدلی الگ الگ ءَ چہ رکّینگ بنت ءُ ھما وھد ءَ کہ شما اے پی آر ءَ پدا واتر کن اِت گڑا پدا کاینت۔"
+			],
+			"Reverting this PR returns to trunk.": [
+				"اے پی آر ءَ پدا ٹرنک ءَ پدا واتر کنت۔"
+			],
+			"Setup failed: %s": [
+				"سیٹ اپ بے سوب بوت: %s"
+			],
+			"Site setup request completed.": [
+				"سائٹ سیٹ اپ ءِ لوٹ سرجم بوتگ۔"
+			],
+			"Starting site setup…": [
+				"سائٹ ءِ جوڑ کنگ بندات کنگ ءَ اِنت..."
+			],
+			"Cloning repository…": [
+				"کلوننگ ذخیرہ..."
+			],
+			"Setup finished.": [
+				"سیٹ اپ ختم بیثہ۔"
+			],
+			"Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.": [
+				"حمایت کتگیں کمانڈانی لسٹ کنگ ءِ ھاترا <code><command /></code> نبشتہ کن اِت۔ <code><keys /></code> ءَ دپ ءَ بہ کن اِت کہ انوگیں کمانڈ ءَ بند بہ کن اِت۔"
+			],
+			"Added a dependency to <code><file /></code>? Run <command />.": [
+				"<code><file /></code> ءِ تہا انحصار ءِ ھوار کنگ بوتگ؟ <command /> ءَ بہ جن اِت۔"
+			],
+			"Edited files in <code><folder /></code>? Run <command /> so the site picks them up.": [
+				"<code><folder /></code> ءِ تہا فائلاں ترمیم کتگ؟ <command /> ءَ چلائین اِت پمیشکا سائٹ آیاں چست کنت۔"
+			],
+			"Setting this site up — running %s…": [
+				"اے سائٹ ءِ جوڑ کنگ — %s ءِ چلائینگ..."
+			],
+			"Stopping setup…": [
+				"سیٹ اپ بند کنگ..."
+			],
+			"Debug.log": [
+				"ڈیبگ۔لاگ"
+			],
+			"Debug.log (%d)": [
+				"ڈیبگ۔لاگ (%d)"
+			],
+			"Discarded local changes.": [
+				"مقامی بدلی آں رد کثہ۔"
+			],
+			"Saved your changes to %s and reset the working tree.": [
+				"وتی بدلی آں %s ءَ رکّینتگ ءُ کار کنوکیں درچک ءَ پدا جوڑ کتگ۔"
+			],
+			"Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.": [
+				"اپ ڈیٹ نامکمل — %s ناکام بوتگ۔ کوڈ نوک اِنت بلے انحصار ءُ جوڑ کتگیں اثاثہ کوھن اَنت؛ بُرز ءِ بینر ءَ چہ انسٹال ءُ جوڑ کنگ ءِ پدا جہد کن اِت۔"
+			],
+			"%1$s changed — running %2$s (only the changed packages are downloaded)…": [
+				"%1$s بدل کنگ بوتگ — چلگ ءَ اِنت %2$s (تہنا بدل بوتگیں پیکج ڈاؤن لوڈ کنگ بنت)..."
+			],
+			"Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.": [
+				"اپ ڈیٹ نامکمل — بلڈ ناکام بوت۔ کوڈ نوک اِنت بلے جوڑ بوتگیں اثاثہ کوھن اَنت؛ بُرز ءِ بینر ءَ چہ انسٹال ءُ جوڑ کنگ ءِ پدا جہد کن اِت۔"
+			],
+			"Update complete — this site is now on the latest trunk.": [
+				"اپ ڈیٹ مکمل — اے سائٹ نوں نوکیں ٹرنک ءِ سرا انت۔"
+			],
+			"WordPress npm helper terminal.": [
+				"ورڈپریس npm کمکار ٹرمینل۔"
+			],
+			"A command is already running. Press %s to stop it.": [
+				"یک کمانڈے پیسرا چہ چلگ ءَ اِنت۔ %s ءَ دپ ءَ بہ کن اِت کہ ایشی ءَ بند بہ کن اِت۔"
+			],
+			"Try \"%s\" for the list of supported commands.": [
+				"حمایت کتگیں کمانڈانی لسٹ ءِ واستہ \"%s\" ءِ جہد ءَ بکن اِت۔"
+			],
+			"Unsupported command: %s": [
+				"حمایت نہ کثغیں کمانڈ: %s"
+			],
+			"Unsupported script \"%1$s\". Allowed scripts: %2$s": [
+				"بے حمایتیں نبشتانک \"%1$s\"۔ اجازت داتگیں نبشتانک: %2$s"
+			],
+			"Missing script name. Example: %s": [
+				"سکرپٹ ءِ نام گار اِنت۔ مثال: %s"
+			],
+			"Run them here whenever you change files or add a dependency afterwards.": [
+				"ہر وھد ءَ کہ تو فائلاں بدل کن ئے یا پد ءَ انحصار ءِ ھوار کن ئے گڑا آھاں ادا چلائین۔"
+			],
+			"The setup checklist runs %1$s and %2$s once.": [
+				"سیٹ اپ چیک لسٹ یک رندے %1$s ءُ %2$s ءَ چلائین ایت۔"
+			],
+			"%1$s Run one of: %2$s": [
+				"%1$s چہ: %2$s ءَ یکے ءَ بہ جن اِت۔"
+			],
+			"%1$s Run %2$s in the site directory": [
+				"%1$s %2$s ءَ سائٹ ءِ ڈائریکٹری ءَ چلائین اِت"
+			],
+			"%s Show this help text": [
+				"%s اے کمکی نبشتانک ءَ پیش دار اِت"
+			],
+			"Available commands:": [
+				"دستیابیں کمانڈز:"
+			],
+			"Could not show the log file: %s": [
+				"لاگ فائل ءَ پیش دارگ نہ بوت: %s"
+			],
+			"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was not.": [
+				"%1$s ءِ ڈیبگ۔لاگ: %2$s ءَ چہ ھلاس نہ بوت۔ پینل ءِ سرا چہ ھلاس بوتگ ات؛ فائل نہ ات۔"
+			],
+			"Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.": [
+				"دیو سرور ءِ بندات منسوخ کنگ بوتگ: %s ءِ سرجم بوھگ ءَ پیسر بلڈ واچ بند بوتگ۔ گھڑی ءِ چلگ ءَ پد پدا بندات کن اِت۔"
+			],
+			"%s is complete: starting the server without the build watch. Start build watch to compile edits on save.": [
+				"%s سرجم اِنت: بلڈ واچ ءِ ھست نہ بوھگ ءَ سرور ءِ بندات کنگ۔ سیو ءِ سرا ترمیماں مرتب کنگ ءِ ھاترا بلڈ واچ بندات کن اِت۔"
+			],
+			"Failed to start PHP server: %s": [
+				"PHP سرور ءِ بندات کنگ ءَ بے سوب بوت: %s"
+			],
+			"unknown error": [
+				"نامعلومیں ردی"
+			],
+			"Dev server failed to start: %s": [
+				"دیو سرور شروع کنگ ءَ بے سوب بوت: %s"
+			],
+			"Dev server stopped unexpectedly (see Help → %s for details).": [
+				"دیو سرور نا متوقع طور ءَ بند بوتگ (تفصیلات ءِ ھاتر ءَ کمک → %s ءَ بچار اِت)۔"
+			],
+			"Resumed.": [
+				"دوبارہ بندات کثہ۔"
+			],
+			"Paused while another operation uses the build.": [
+				"دگہ آپریشن ءِ جوڑ کنگ ءِ وھد ءَ بند کنگ بوتگ۔"
+			],
+			"%1$s failed with code %2$s — build watch not started.": [
+				"%1$s گوں کوڈ ءَ ناکام بوتگ %2$s — جوڑ کنگ ءِ گھڑیال بندات نہ بوتگ۔"
+			],
+			"%s was stopped — build watch not started.": [
+				"%s بند کنگ بوتگ — جوڑ کنگ ءِ گھڑیال بندات نہ بوتگ۔"
+			],
+			"No completed build found — running %s first…": [
+				"ھچ سرجمیں جوڑشت نہ رستگ — اولی %s ءَ چلائینگ ءَ اِنت..."
+			],
+			"A command is already running in the terminal — stop it before starting the build watch.": [
+				"ٹرمینل ءِ تہا پیسر ءَ چہ یک کمانڈے چلگ ءَ اِنت — بلڈ واچ ءِ بندات کنگ ءَ پیسر ایشی ءَ بند کن اِت۔"
+			],
+			"%1$s exited with code %2$s": [
+				"%1$s گوں کوڈ %2$s ءَ درکپتگ۔"
+			],
+			"%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for \"%3$s\".": [
+				"%1$s چہ چارگ ءَ پیسر %2$s ءَ پدا جوڑ کنت۔ ڈیو سرور، اگاں تو بندات کتگ، \"%3$s\" ءِ ودار ءَ کنت۔"
+			],
+			"The patch could not be applied.": [
+				"پیچ ایر کنگ نہ بوت۔"
+			],
+			"%s The record of it could not be cleared, so this site still thinks it is applied.": [
+				"%s ایشی ءِ ریکارڈ ءِ ھلاس کنگ نہ بوتگ، پمیشکا اے سائٹ انگت ءَ اے گپ ءَ لیکیت کہ اے کارمرز کنگ بیت۔"
+			],
+			"%s The applied-patch record has been cleared.": [
+				"%s اپلائیڈ-پیچ ریکارڈ ءِ سرا چہ ھلاس کنگ بوتگ۔"
+			],
+			"A command is already running. Stop it before switching tickets.": [
+				"یک کمانڈے پیسرا چہ چلگ ءَ اِنت۔ ٹکٹاں بدل کنغ ئا شہ پیشا ایشی ئا بند کن"
+			],
+			"Could not read that patch.": [
+				"آ پیچ ءَ وانگ نہ بوت۔"
+			],
+			"Could not download %s.": [
+				"%s ڈاؤن لوڈ نہ بوت۔"
+			],
+			"Could not read that file: %s": [
+				"آ فائل ءَ وانگ نہ بوت: %s"
+			],
+			"Running %s…": [
+				"چلغیں %s..."
+			],
+			"Build watch (exited %d)": [
+				"گھڑی ءِ جوڑ کنگ (دراتکگیں %d)"
+			],
+			"Build watch (stopped)": [
+				"گھڑی جوڑ کن (بند اث)"
+			],
+			"Build watch (paused)": [
+				"گھڑی جوڑ کن (مکث)"
+			],
+			"Build watch (building)": [
+				"گھڑی (بلڈنگ) جوڑ کن"
+			],
+			"Build watch (watching)": [
+				"گھڑی جوڑ کن (چارغ)"
+			],
+			"Build watch (compiling)": [
+				"گھڑی جوڑ کن (کمپائل کنگ)"
+			],
+			"Could not copy": [
+				"کاپی نہ بوت"
+			],
+			"The build failed — dependencies are installed. Its output is above; retry the build from the checklist.": [
+				"تعمیر ناکام بوت — انحصار انسٹال کنگ بوتگ انت۔ ایشی ءِ پیداوار ءِ سرا اِنت؛ چیک لسٹ ءَ چہ بلڈ ءَ پدا جہد کن اِت۔"
+			],
+			"%s failed — setup stopped here. Its output is above; retry the install from the checklist.": [
+				"%s ناکام بوت — سیٹ اپ ادا بند بوت۔ ایشی ءِ پیداوار ءِ سرا اِنت؛ چیک لسٹ ءَ چہ انسٹال کنگ ءِ پدا جہد کن اِت۔"
+			],
+			"Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.": [
+				"سیٹ اپ بند بوت۔ باقی گامگیج بُرز ءِ چیک لسٹ ءَ اَنت — ہر وھد ءَ کہ شما تیار اِت آیاں چلائین اِت۔"
+			],
+			"Setup complete — start the dev server when you are ready.": [
+				"سیٹ اپ مکمل — ڈیو سرور ءَ بندات کن ات کہ شما تیار بہ بئے۔"
+			],
+			"Status update": [
+				"حالت نوخ کنغ"
+			],
+			"Status: done": [
+				"جاور: کنگ بوتگ"
+			],
+			"Status: cloning": [
+				"جاور: کلوننگ"
+			],
+			"Clear": [
+				"ساپ"
+			],
+			"Show in folder": [
+				"فولڈر نیاما پیش دار"
+			],
+			"The log file appears once the dev server has run.": [
+				"دیو سرور ءِ رند ءَ لاگ فائل گندگ بیت۔"
+			],
+			"No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.": [
+				"انگت ءَ PHP ءِ ھچ وڑیں نوٹس یا ردی نہ بوتگ۔ ہرچی کہ ورڈپریس یا تئی کوڈ نبشتہ کنت — <code><function /></code>، نوٹس، رد کنگ، مہلک — ڈیو سرور ءِ چلگ ءِ وھد ءَ ادا گندگ بیت۔"
+			],
+			"The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.": [
+				"بلڈ واچ <code><source /></code> ءَ <code><build /></code> ءَ ترمیم کنت۔ اے ڈیو سرور ءَ چہ آزاتیں رنگے ءَ کار کنت — ایشی ءِ آؤٹ پٹ ، ءُُ اے چارگ ءَ اِنت ، رکّینگ ءَ اِنت یا بند کنگ ءَ اِنت ، ادا گندگ بیت ۔"
+			],
+			"it no longer fits": [
+				"اے پذا فٹ نہ بیث"
+			],
+			"Open the pull request": [
+				"کش ئے لوٹ ئا پچ کن"
+			],
+			"the code around it has changed": [
+				"ایشی ئے کش ءُ گور ئے کوڈ بدل بیثہ"
+			],
+			"looks like that change is not in your checkout any more": [
+				"انچو سما بیت کہ اے بدلی تئی چیک آؤٹ نیاما نیستیں"
+			],
+			"It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"اے تئی بدلیانی بہر اِنت نوں۔ ھما لیکہانی سر ءَ وتی ترمیماں رد کنگ ءَ ریورٹ پدا کیت؛ ورنہ وتی کار ءِ کاپی ءَ چہ رکّین ءُ ٹکٹ ءَ وتی بُن ءَ یلہ بہ کن — اے منصوبہ ءِ سرا کہ دیم ءَ روگ ءِ یک نارملیں راہ یے ، نہ کہ گاریں دوپہر ءِ۔"
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change, across %3$d files.": [
+				"کہ پیچ وتی وس ءَ پدا چست کنگ نہ بیت: تئی وتی ترمیم وتی %2$d بدلی ءِ %1$d ءِ سر ءَ اَنت، %3$d فائلانی سر ءَ۔"
+			],
+			"That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d change.": [
+				"کہ پیچ وتی سرا پدا چست کنگ نہ بیت: تئی وتی ترمیم آئی ءِ %2$d بدلی ءِ %1$d ءِ سرا انت۔"
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change, across %4$d files.": [
+				"%1$s وتی وس ءَ پدا چست کنگ نہ بیت: تئی وتی ترمیم وتی %3$d بدلی ءِ %2$d ءِ سر ءَ اَنت، %4$d فائلانی سر ءَ۔"
+			],
+			"%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d change.": [
+				"%1$s وتی وس ءَ پدا چست کنگ نہ بیت: تئی وتی ترمیم آئی ءِ %3$d بدلی ءِ %2$d ءِ سر ءَ اَنت۔"
+			],
+			"Ask its author for a rebase": [
+				"ریبیس ئے واستہ ایشی ئے نبشتہ کار ئا گوئش"
+			],
+			"Bringing it up to date is its author's work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.": [
+				"اے روچ ءَ آرگ ءِ ھاتر ءَ ایشی ءِ نبشتہ کار ءِ کار اِنت — یک ریبیس ، یا ٹرنک ءِ ھوار کنگ ءِ تہ ءَ کش ءِ درخواست ءِ سر ءَ تبصرہ ءِ یلہ دیگ کہ آھاں سرپد بہ کنت ، وت ءَ یک راستیں شرپے ۔"
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"اے کشّگ ءِ لوٹ یک کوھنیں ٹرنک ءِ ھلاپ ءَ نبشتہ کنگ بوتگ ءُ دگہ آئی ءَ گوں ھمگرنچ نہ اِنت: %1$d ءِ %2$d بدلی ءِ، %3$d فائلانی تہ ءَ، دوبر کار کنگ لوٹ اِیت۔"
+			],
+			"This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"اے کشّگ ءِ لوٹ یک کوھنیں ٹرنک ءِ ھلاپ ءَ نبشتہ کنگ بوتگ ءُ دگہ آئی ءَ گوں ھمگرنچ نہ اِنت: %1$d ءِ %2$d بدلی ءِ، %3$d فائل ءِ تہ ءَ، دوبر کار کنگ لوٹ اِیت۔"
+			],
+			"looks like it is already in your checkout": [
+				"انچو گندگ ءَ کیت کہ اے پیسرا چہ تئی چیک آؤٹ ءَ اِنت"
+			],
+			"Your own work is also in %s, so it may be part of why the pull request does not fit.": [
+				"تئی وتی کار ھم %s ءِ تہ ءَ اِنت، پمیشکا اے ھما بھر بوت کنت کہ کشّگ ءِ لوٹ پرچا ھوار نہ اِنت۔"
+			],
+			"%s includes changes from the patch you applied and may also contain your own edits.": [
+				"%s ءِ تہ ءَ ھما پیچ ءِ بدلی ھوار اَنت کہ تو ایر کتگ اَنت ءُ ترا وتی ترمیم ھم ھوار بوت کن اَنت۔"
+			],
+			"%1$s includes changes from %2$s and may also contain your own edits.": [
+				"%1$s ءَ %2$s ءِ بدلی ھوار اَنت ءُ شمئے وتی ترمیم ھم ھوار بوت کن اَنت۔"
+			],
+			"Other failures are in %s.": [
+				"دگہ ناکامی %s ءِ تہا اَنت۔"
+			],
+			"Your own work is also in %s and may be part of the failure.": [
+				"تئی وتی کار ھم %s ءِ تہ ءَ اِنت ءُ ناکامی ءِ بھر بوت کنت۔"
+			],
+			"Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.": [
+				"کاپی یے دارگ ءِ ھاترا اولی رند ءَ وتی کار ءِ یک پیچے ءَ چہ رکّین اِت، پدا اے پل ءِ لوٹ ءَ یک ساپیں ٹکٹے ءِ سر ءَ چکاس اِت۔ اگاں اے انگت اودا فٹ نہ بیت گڑا پل ءِ درخواست ءَ پچ کن ءُ ایشی ءِ نبشتہ کار ءَ بہ زان کہ ایشی ءَ اپ ڈیٹ کنگ ءِ زلورت بوت کنت۔"
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"اے کشّگ ءِ لوٹ شمئے چیک آؤٹ ءَ گوں ھمگرنچ نہ اِنت: %1$d ءِ %2$d بدلی ءِ، %3$d فائلانی تہ ءَ، دوبر کار کنگ لوٹ اِیت۔"
+			],
+			"This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"اے کشّگ ءِ لوٹ شمئے چیک آؤٹ ءَ گوں ھمگرنچ نہ اِنت: %1$d ءِ %2$d بدلی ءِ، %3$d فائل ءِ تہ ءَ، دوبر کار کنگ لوٹ اِیت۔"
+			],
+			"See why it was closed": [
+				"بچار پرچا بند کنگ بوتگ"
+			],
+			"Nobody is coming back to update a closed pull request — its discussion may say why it ended.": [
+				"بندیں کش ءِ درخواست ءِ اپ ڈیٹ کنگ ءَ کس پدا نہ آیگ ءَ اِنت — آئی ءِ بحث ءَ بوت کنت کہ آ پرچا ھلاس بوتگ۔"
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d files, would need rework.": [
+				"اے کشّگ ءِ لوٹ بند اِنت ءُ یک کوھنیں ٹرنک ءِ ھلاپ ءَ نبشتہ کنگ بوتگ — اے دگہ ھچ وڑ ءَ ھوار نہ اِنت: %1$d ءِ %2$d بدلی ءِ، %3$d فائلانی تہ ءَ، دوبر کار کنگ لوٹ اِیت۔"
+			],
+			"This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d change, in %3$d file, would need rework.": [
+				"اے کشّگ ءِ لوٹ بند اِنت ءُ یک کوھنیں ٹرنک ءِ ھلاپ ءَ نبشتہ کنگ بوتگ — اے دگہ ھچ وڑ ءَ ھوار نہ اِنت: %1$d ءِ %2$d بدلی ءِ، %3$d فائل ءِ تہ ءَ، دوبر کار کنگ لوٹ اِیت۔"
+			],
+			"All %d of this pull request's change look like they are already in trunk — there is nothing left to apply.": [
+				"اے کشّگ ءِ لوٹ ءِ بدلی ءِ درستیں %d انچوش گندگ ءَ کاینت کہ آ پیسرا چہ ٹرنک ءَ اَنت — ھچ چیز ءِ کارمرز کنگ ءِ ھاترا ھست نہ اِنت۔"
+			],
+			"All %d of this pull request's change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.": [
+				"اے کشّگ ءِ لوٹ ءِ بدلی ءِ درستیں %d انچوش گندگ ءَ کاینت کہ آ پیسر ءَ چہ ٹرنک ءَ اَنت — اے کور ءِ سرا پابند بوتگ ات ، ھمے ھاتر ءَ بند اِنت ۔ درخواست دیگ ءِ ھاترا ھچ ھست نہ اِنت۔"
+			],
+			"All %d of this pull request's change look like they are already in your checkout — there is nothing left to apply.": [
+				"اے کشّگ ءِ لوٹ ءِ بدلی ءِ درستیں %d انچوش گندگ ءَ کاینت کہ آ پیسرا چہ تئی چیک آؤٹ ءَ اَنت — ھچ چیز ءِ سرا عمل کنگ ءِ ھاترا ھست نہ اِنت۔"
+			],
+			"%1$s and %2$d more file": [
+				"%1$s ءُ %2$d گیشتر فائل"
+			],
+			"%1$d of this patch's %2$d change across %3$d files no longer fit — the other %4$d do.": [
+				"%1$d ءِ اے پیچ ءِ %2$d بدلی ءِ سرجمیں %3$d فائلانی تہا دگہ فٹ نہ بنت — دگہ %4$d کن انت۔"
+			],
+			"%1$d of this patch's %2$d change no longer fit — the other %3$d do.": [
+				"%1$d ءِ اے پیچ ءِ %2$d بدلی ءِ ھچ وڑیں ھساب ءُ کتاب نہ بیت — دگہ %3$d ءِ ھساب ءَ ھست۔"
+			],
+			"None of this patch's %1$d change across %2$d files still fit your checkout.": [
+				"%2$d فائلانی تہا اے پیچ ءِ %1$d بدلی ءِ تہا ہچ یکے انگت تئی چیک آؤٹ ءَ گوں ہمگرنچ نہ اِنت۔"
+			],
+			"None of this patch's %d change still fit your checkout.": [
+				"اے پیچ ءِ %d بدلی ءِ تہا ہچ یکے انگت تئی چیک آؤٹ ءَ گوں ہمگرنچ نہ اِنت۔"
+			],
+			"%1$d of this patch's %2$d change across %3$d files look like they are already in your checkout — the other %4$d still fit.": [
+				"%1$d ءِ اے پیچ ءِ %2$d بدلی ءِ سرجمیں %3$d فائلانی تہا انچوش گندگ ءَ کیت کہ آ پیسرا چہ تئی چیک آؤٹ ءَ اَنت — دگہ %4$d انگت ءَ فٹ اِنت۔"
+			],
+			"%1$d of this patch's %2$d change look like they are already in your checkout — the other %3$d still fit.": [
+				"%1$d اے پیچ ءِ %2$d بدلی ءِ انچوش گندگ ءَ کیت کہ آ پیسرا چہ تئی چیک آؤٹ ءَ اَنت — دگہ %3$d انگت ءَ فٹ اِنت۔"
+			],
+			"All %1$d of this patch's change across %2$d files look like they are already in your checkout.": [
+				"%2$d فائلانی تہا اے پیچ ءِ بدلی ءِ درستیں %1$d انچوش گندگ ءَ کیت کہ آ پیسرا چہ تئی چیک آؤٹ ءَ اَنت۔"
+			],
+			"All %d of this patch's change look like they are already in your checkout.": [
+				"اے پیچ ءِ درستیں %d بدلی انچوش گندگ ءَ کاینت کہ آ پیسرا چہ تئی چیک آؤٹ ءَ اَنت۔"
+			],
+			"The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.": [
+				"پیچ ہما بدلیانی سر ءَ ایر کنگ بیت: اگاں آ اوورلیپ نہ بنت گڑا سوبمند بیت ءُُ اگاں آ ہچ چیز ءَ دست نہ جنت گڑا ناکام بیت۔"
+			],
+			"%s includes changes from the patch you applied, which you applied. The file may also contain your own edits.": [
+				"%s ءَ چہ ھما پیچ ءَ بدلی ھوار اِنت کہ تو ایر کتگ، کہ تو ایر کتگ۔ فائل ءِ تہا تئی وتی ترمیم ہم بوت کن انت۔"
+			],
+			"%1$s includes changes from %2$s, which you applied. The file may also contain your own edits.": [
+				"%1$s ءِ تہا %2$s ءِ بدلی ھوار انت کہ تو ایشانی سرا عمل کتگ۔ فائل ءِ تہا تئی وتی ترمیم ہم بوت کن انت۔"
+			],
+			"You have your own edits to %s. Save a patch of your work first if you want a copy.": [
+				"تو وتی وتی ترمیماں %s ءَ کن ئے۔ اگاں تو کاپی یے لوٹ ئے گڑا پیسر ءَ وتی کار ءِ یک پیچے ءَ چہ رکّین۔"
+			],
+			"%1$s and %2$s": [
+				"%1$s ءُ %2$s ءِ سرا۔"
+			],
+			"It still counts as this ticket's one applied patch, so another cannot be applied until this ticket is reverted or discarded.": [
+				"اے انگت اے ٹکٹ ءِ یک لاگو بوتگیں پیچے ءِ رد ءَ شمار بیت، پمیشکا دگہ یکے لاگو کنگ نہ بیت داں کہ اے ٹکٹ پدا واتر کنگ یا رد کنگ نہ بیت۔"
+			],
+			"Save a copy of your work first and the ticket is safe to discard back to its base — on this project that is a normal way forward, not a lost afternoon.": [
+				"اولی وتی کار ءِ کاپی ءَ بچار اِت ءُ ٹکٹ ءَ وتی بیس ءَ پدا رد کنگ ءَ محفوظ اِنت — اے منصوبہ ءِ سرا کہ دیم ءَ روگ ءِ یک نارملیں راہ یے ، نہ کہ گاریں دوپہر ءِ۔"
+			],
+			"The copy could not be saved: %s": [
+				"کاپی ءِ رکّینگ نہ بوتگ: %s"
+			],
+			"%s was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"%s باز مزن ات کہ پہ رد کنگ ءَ آئی ءِ کاپی یے بہ دار ایت، پمیشکا اے وتی وس ءَ پدا چست کنگ نہ بیت۔"
+			],
+			"A patch was too large to keep a copy of for an undo, so it cannot be lifted back out on its own.": [
+				"یک پیچے چہ رد کنگ ءَ کاپی یے دارگ ءِ واستہ سک مزن ات، پمیشکا اے وتی وس ءَ پدا چست کنگ نہ بیت۔"
+			],
+			"A patch is applied — %d file.": [
+				"یک پیچے ءِ سرا کارمرز کنگ بیت — %d فائل۔"
+			],
+			"A patch is applied — %1$d file, %2$s.": [
+				"یک پیچے ءِ سرا کارمرز کنگ بیت — %1$d فائل، %2$s."
+			],
+			"%1$s is applied — %2$d file.": [
+				"%1$s ءِ سرا کارمرز کنگ بیت — %2$d فائل۔"
+			],
+			"%1$s is applied — %2$d file, %3$s.": [
+				"%1$s ءِ کارمرز کنگ بیت — %2$d فائل، %3$s۔"
+			],
+			"Only %s pull requests can be applied here.": [
+				"ادا ایوک ءَ %s کشّگ ءِ لوٹ کارمرز کنگ بیت کن اَنت۔"
+			],
+			"That does not look like a pull request URL.": [
+				"کہ پل ریکویسٹ URL ءِ وڑا نہ گندگ ءَ کیت۔"
+			],
+			"Only github.com pull requests are supported.": [
+				"ایوک ءَ github.com ءِ کشگ ءِ لوٹانی حمایت کنگ بیت۔"
+			],
+			"That is not a pull request URL or number.": [
+				"کہ کشگ ءِ لوٹ ءِ URL یا نمبر نہ اِنت۔"
+			],
+			"Enter a pull request URL or number.": [
+				"پل ریکویسٹ URL یا نمبرے درج کن اِت۔"
+			],
+			"That does not look like a patch — no file changes found.": [
+				"کہ پیچ ءِ وڑا نہ گندگ ءَ کیت — ھچ فائل ءِ بدلی نہ رستگ۔"
+			],
+			"No file changes found in the patch.": [
+				"پیچ ءِ تہا ہچ وڑیں فائل ءِ بدلی گندگ نہ بوتگ۔"
+			],
+			"The patch is empty.": [
+				"پیچ ھالیگ اِنت۔"
+			],
+			"The empty file path is quoted or ambiguous.": [
+				"فائل ءِ ھالیگیں راہ نقل یا مبہم اِنت۔"
+			],
+			"Applied %d file.": [
+				"%d فائل ءِ سرا عمل کنگ بوتگ۔"
+			],
+			"Reverted %d file.": [
+				"%d فائل ءَ پدا واتر کتگ۔"
+			],
+			"The patch could not be written, so the checkout was put back as it was: %s": [
+				"پیچ نبشتہ کنگ نہ بوتگ ات، پمیشکا چیک آؤٹ پدا ہما وڑا ایر کنگ بوتگ ات: %s"
+			],
+			"The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s": [
+				"پیچ نبشتہ نہ بوتگ ات، ءُ چیک آؤٹ ءَ سرجمی ءَ پدا ایر نہ کتگ ات — اے نامعلومیں حالتے ءَ انت۔ رد کنگ نہ بوت: %s"
+			],
+			"writing could not verify %1$s after git apply: %2$s": [
+				"نبشتہ کنگ ءَ چہ پد %1$s ءِ تصدیق نہ بوت گٹ ءِ لاگو کنگ ءَ پد: %2$s"
+			],
+			"writing git apply exited %s": [
+				"گٹ ایپلائی نبشتہ کنگ ءَ چہ دراتکگ %s"
+			],
+			"writing %s": [
+				"نبشتہ کنگ %s"
+			],
+			"Could not snapshot the checkout before applying the patch: %s": [
+				"پیچ ءِ ایر کنگ ءَ پیسر چیک آؤٹ ءِ اسنیپ شاٹ نہ بوت: %s"
+			],
+			"The patch was not applied — the checkout is unchanged.": [
+				"پیچ لاگو نہ بوتگ ات — چیک آؤٹ بدل نہ بوتگ۔"
+			],
+			"That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.": [
+				"کہ پیچ ءِ اے چیک آؤٹ ءَ گیشتر نہ اِنت — چیزے ری سیٹ کنت، بوت کنت کہ ٹرنک اپ ڈیٹ یا ڈسکارڈ۔ ہچ چیز پدا واتر نہ بوتگ ات۔"
+			],
+			"The patch does not apply.": [
+				"پیچ لاگو نہ بیت۔"
+			],
+			"a file has moved on since the patch was written, so it no longer applies": [
+				"پیچ نبشتہ کنگ ءَ پد یک فائلے دیم ءَ شتگ، پمیشکا اے دگہ کارمرز نہ بیت"
+			],
+			"%s has moved on since the patch was written, so it no longer applies": [
+				"%s پیچ ءِ نبشتہ کنگ ءَ پد دیم ءَ شتگ، پمیشکا اے دگہ کارمرز نہ بیت"
+			],
+			"%d more file was not checked one by one": [
+				"%d گیشتریں فائل یک پہ یک ءَ چیک نہ بوتگ اَنت"
+			],
+			"The patch does not change any files.": [
+				"پیچ ہچ وڑیں فائلاں بدل نہ کنت۔"
+			],
+			"(unnamed binary file)": [
+				"(بے نامیں بائنری فائل)"
+			],
+			"Could not read the patch: %s": [
+				"پیچ ءَ وانگ نہ بوت: %s"
+			],
+			"Skipped %1$d binary file the app cannot apply: %2$s": [
+				"%1$d بائنری فائل ءِ سرا یلہ داتگ کہ ایپ ءِ سرا عمل کنگ نہ بیت: %2$s"
+			],
+			"%s is not in this checkout, so the patch does not fit it": [
+				"%s اے چیک آؤٹ ءِ تہا نیست، پمیشکا پیچ ایشی ءِ تہا فٹ نہ بیت"
+			],
+			"%1$s already exists, so the patch cannot move %2$s onto it": [
+				"%1$s پیسرا چہ است انت، پمیشکا پیچ %2$s ایشی ءِ سرا شُت نہ کنت"
+			],
+			"%s is not in this checkout, so the patch cannot move it": [
+				"%s اے چیک آؤٹ ءِ تہا نیست، پمیشکا پیچ ایشی ءَ کشّ اِت نہ کنت"
+			],
+			"%s could not be created from the patch": [
+				"%s چہ پیچ ءَ جوڑ کنگ نہ بوتگ"
+			],
+			"%s already exists, so the patch cannot add it": [
+				"%s پیسرا چہ است انت، پمیشکا پیچ ایشی ءَ ھوار کنگ نہ بیت"
+			],
+			"%s is already gone, so the patch cannot remove it": [
+				"%s پیسرا شتگ، پمیشکا پیچ ایشی ءَ گار نہ کنت"
+			],
+			"%s points outside the site folder": [
+				"%s سائٹ ءِ پوشاک ءِ دپ ءَ نشان دنت"
+			],
+			"%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do": [
+				"%1$s چہ پیچ ءِ نبشتہ کنگ ءَ پد دیم ءَ شتگ: %2$d چہ آئی ءِ %3$d بدلی ءَ دگہ فٹ نہ بیت، ءُ دومی %4$d کنت"
+			],
+			"%1$s has moved on since the patch was written, so none of its %2$d change still fits": [
+				"%1$s پیچ ءِ نبشتہ کنگ ءَ پد دیم ءَ شتگ، پمیشکا آئی ءِ %2$d بدلی ءِ ھچ یکے انگت ءَ ھوار نہ اِنت"
+			],
+			"Server did not start within %d second": [
+				"سرور %d سیکنڈ ءِ تہا شروع نہ بوت"
+			],
+			"Server exited with code %s before reporting a URL": [
+				"سرور ءَ URL ءِ رپورٹ کنگ ءَ پیسر گوں کوڈ %s ءَ درکپتگ"
+			],
+			"Server exited with code %1$s (signal %2$s) before reporting a URL": [
+				"سرور URL ءِ رپورٹ کنگ ءَ پیسر گوں کوڈ %1$s (سگنل %2$s) ءَ درکپتگ"
+			],
+			"Failed to start: %s": [
+				"شروع کنگ ءَ بے سوب بوت: %s"
+			],
+			"Retrying with engine checks relaxed…": [
+				"آرام دہ انجن چیک ئا گوں دوبر کوشش کنغیں"
+			],
+			"This site requires a newer Node.js than this app bundles.": [
+				"اے سائٹ ءَ اے ایپ ءِ بنڈلاں چہ نوکیں Node.js ءِ لوٹ اِنت۔"
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm گوں کوڈ %s ءَ دراتکگ ات، بلے چیزے کہ آئی ءَ بندات کتگ ات انگت ءَ کار ءَ انت ءُ وتی آؤٹ پٹ ءَ دارگ ءَ انت۔ یلہ دیگ ءُ ھلاس کنگ۔"
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.": [
+				"npm گوں کوڈ %1$s (سگنل %2$s) ءَ دراتکگ، بلے چیزے کہ آئی ءَ بندات کتگ انگت ءَ کار ءَ اِنت ءُ وتی آؤٹ پٹ ءَ دارگ ءَ اِنت۔ یلہ دیگ ءُ ھلاس کنگ۔"
+			],
+			"npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm گوں کوڈ %s ءَ دراتکگ ات، بلے چیزے کہ آئی ءَ بندات کتگ ات انگت ءَ کار ءَ انت ءُ وتی آؤٹ پٹ ءَ دارگ ءَ انت۔ یلہ دیگ؛ کہ عمل ھما وھد ءَ برجاہ بیت کہ آ وتی وس ءَ ھلاس بہ بیت۔"
+			],
+			"npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.": [
+				"npm گوں کوڈ %1$s (سگنل %2$s) ءَ دراتکگ، بلے چیزے کہ آئی ءَ بندات کتگ انگت ءَ کار ءَ اِنت ءُ وتی آؤٹ پٹ ءَ دارگ ءَ اِنت۔ یلہ دیگ؛ کہ عمل ھما وھد ءَ برجاہ بیت کہ آ وتی وس ءَ ھلاس بہ بیت۔"
+			],
+			"Applying the patch failed: %s": [
+				"پیچ ءِ ایر کنگ ناکام بوت: %s"
+			],
+			"The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s": [
+				"پیچ لاگو بوتگ بلے آئی ءِ ریورٹ ریکارڈ ءَ را رکّینگ نہ بوتگ ءُُ آئی ءَ را رد کنگ نہ بوتگ — چیک آؤٹ ءَ پیچ ھست ءُُ ایپ آئی ءَ را ریورٹ نہ کنت۔ %s"
+			],
+			"The patch applied but its revert record could not be saved, so it was undone. %s": [
+				"پیچ لاگو بوت بلے آئی ءِ ریورٹ ریکارڈ ءَ را رکّینگ نہ بوت، پمیشکا اے رد کنگ بوت۔ %s"
+			],
+			"This patch is too large to keep for an undo, so Revert will not be offered.": [
+				"اے پیچ باز مزن انت پہ رد کنگ ءَ، پمیشکا ریورٹ پیش نہ کنگ بیت۔"
+			],
+			"Applying %s…": [
+				"درخواست دیگ %s..."
+			],
+			"Reverting %s…": [
+				"پدا واتر کنگ ءَ اِنت %s..."
+			],
+			"%s is already applied. Revert it before applying another patch.": [
+				"%s پیسرا چہ کارمرز کنگ بوتگ۔ دگہ پیچے ایر کنگ ءَ پیسر ایشی ءَ پدا واتر کن اِت۔"
+			],
+			"There is no stored patch to revert.": [
+				"پدا واتر کنگ ءِ ھاترا ھچ وڑیں سٹورڈ پیچ نیست۔"
+			],
+			"Could not check your work for conflicts, so the preview was not shown.": [
+				"تنازعات ءِ ھاتر ءَ تئی کار ءَ چیک نہ کت، پمیشکا پیش نظارہ پیش دارگ نہ بوت۔"
+			],
+			"Restoring the files of your previous branch…": [
+				"وتی پیسریگیں شاخ ءِ فائلانی پدا جوڑ کنگ..."
+			],
+			"Could not remove the unused branch: %s": [
+				"بے کاریں شاخ ءَ گار کنگ نہ بوت: %s"
+			],
+			"Downloading the pull request's files and switching to its branch…": [
+				"پل ریکویسٹ ءِ فائلانی ڈاؤن لوڈ کنگ ءُ آئی ءِ شاخ ءَ روگ..."
+			],
+			"Returning to your saved copy of the pull request…": [
+				"پل ریکویسٹ ءِ وتی رکّینتگیں کاپی ءَ پدا واتر کنگ ءَ آں..."
+			],
+			"Your work is safe — it is committed on %s. Apply that pull request again to return to it.": [
+				"تئی کار ایمن اِنت — اے %s ءِ سر ءَ پابند اِنت۔ کہ پل ریکویسٹ ءَ پدا لاگو کن اِت کہ آئی ءِ نیمگ ءَ پدا واتر بہ بئے۔"
+			],
+			"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.": [
+				"#%1$s ءِ سرا تئی کار امن اِنت — %2$s ءِ سرا پابند اِنت۔ آ ٹکٹ ءَ پدا لنک کن اِت کہ آئی ءِ نیمگ ءَ واتر بہ بئے۔"
+			],
+			"Update failed during fetch: %s": [
+				"اپ ڈیٹ آرگ ءِ وھد ءَ بے سوب بوت: %s"
+			],
+			"Update failed during checkout: %s": [
+				"چیک آؤٹ ءِ وھد ءَ نوک کنگ بے سوب بوت: %s"
+			],
+			"Returning to your work on %s…": [
+				"%s ءِ سر ءَ وتی کار ءَ پدا واتر کناں..."
+			],
+			"Parking your work on %s before updating…": [
+				"اپ ڈیٹ کنگ ءَ پیسر وتی کار ءَ %s ءَ پارک کنگ..."
+			],
+			"Fetch latest trunk": [
+				"نوخیں ٹرنک بیار"
+			],
+			"The build watch is rebuilding — output in the Logs, under Build watch": [
+				"بلڈ واچ دوبر جوڑ کنگ ءَ اِنت — لاگ ءِ تہ ءَ پیداوار ، بلڈ واچ ءِ چیر ءَ"
+			],
+			"Dependencies unchanged — skipping %s": [
+				"انحصار بدل نہ بوتگ — یلہ دیگ %s"
+			],
+			"Dependencies unchanged, rebuilt.": [
+				"انحصار بدل نہ بوتگ انت، پدا جوڑ بوتگ انت۔"
+			],
+			"Dependencies updated, rebuilt.": [
+				"انحصار اپ ڈیٹ کنگ بوتگ انت، دوبارہ جوڑ کنگ بوتگ انت۔"
+			],
+			"Dependencies unchanged, rebuilt in %s.": [
+				"انحصار بدل نہ بوتگ انت، %s ءَ پدا جوڑ کنگ بوتگ انت۔"
+			],
+			"Dependencies updated, rebuilt in %s.": [
+				"انحصار نوک کنگ بوتگ انت، %s ءَ پدا جوڑ کنگ بوتگ انت۔"
+			],
+			"Install dependencies": [
+				"انحصار انسٹال کن"
+			],
+			"Download WordPress": [
+				"ورڈپریس ءَ ڈاؤن لوڈ کن اِت"
+			],
+			"Rebuild": [
+				"دوبارہ جوڑ کن"
+			],
+			"Apply the patch": [
+				"پیچ ئا ایر کن"
+			],
+			"Revert the pull request": [
+				"کش ئے لوٹ ئا پذا کن"
+			],
+			"Apply the pull request": [
+				"کش ئے درخواست ئا ایر کن"
+			],
+			"The build watch rebuilds when it resumes": [
+				"بلڈ واچ دوبارہ جوڑ بیثہ ہرکذیں کہ آں پذا شروع بیثہ"
+			],
+			"The build watch will recompile the change": [
+				"بلڈ واچ بدلی ئا دوبر جوڑ کنت"
+			],
+			"Rebuilt": [
+				"دوبارہ جوڑ کثہ"
+			],
+			"Rebuilding — output in the Terminal": [
+				"دوبارہ جوڑ کنگ — ٹرمینل ئے تہا پیداوار"
+			],
+			"Dependencies changed — installing the difference…": [
+				"انحصار بدل بوتگ انت — فرق ءِ انسٹال کنگ..."
+			],
+			"Fetched and reset to trunk": [
+				"ٹرنک ءَ آرگ ءُ ری سیٹ کنگ بوتگ"
+			],
+			"Fetching and resetting to trunk…": [
+				"ٹرنک ءَ آرگ ءُ ری سیٹ کنگ..."
+			],
+			"Fetch and reset to trunk": [
+				"ٹرنک ءَ بیار ءُ ری سیٹ کن"
+			],
+			"The build did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"بلڈ ءِ کار ھلاس نہ بوت۔ آئی ءِ آؤٹ پٹ ٹرمینل ءَ اِنت — وھدے کہ تو آئی ءَ ونتگ گڑا پدا جھد کن۔"
+			],
+			"Retry the build": [
+				"جوڑ کنغ ئا پذا کوشش کن"
+			],
+			"Build complete": [
+				"سرجم کن"
+			],
+			"The install did not finish. Its output is in the Terminal — retry when you have read it.": [
+				"انسٹال ھلاس نہ بوت۔ آئی ءِ آؤٹ پٹ ٹرمینل ءَ اِنت — وھدے کہ تو آئی ءَ ونتگ گڑا پدا جھد کن۔"
+			],
+			"Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.": [
+				"انسٹال کنگ بوتگ۔ %1$s ءَ چہ پد یک انحصارے گیش کتگ؟ ٹرمینل ءِ تہا %2$s ءَ چلائین اِت۔"
+			],
+			"Install npm packages so commands can run.": [
+				"‏npm پیکجاں انسٹال کن ات کہ کمانڈز چلائینگ بہ بنت۔"
+			],
+			"Retry %s": [
+				"دوبر کوشش کن %s"
+			],
+			"Dependencies installed": [
+				"انحصار انسٹال کنگ بوتگ انت"
+			],
+			"Ready": [
+				"آمادَگ"
+			],
+			"In progress": [
+				"پیشرفت ئے تہا"
+			],
+			"Locked": [
+				"بند ایں"
+			],
+			"Pending": [
+				"اوشتاتگیں"
+			],
+			"Failed": [
+				"بے سوب"
+			],
+			"Completed": [
+				"سرجم بیثہ"
+			],
+			"The trunk snapshot is old; update before making a patch.": [
+				"ٹرنک ءِ سنیپ شاٹ پرانے اِنت؛ پیچ جوڑ کنغ ئا شہ پیشا نوخ کن"
+			],
+			"The update left the build stale; install and build to recover.": [
+				"اپ ڈیٹ ءَ بلڈ باسی یلہ داتگ ات؛ ریکوری ءِ ھاترا انسٹال ءُ جوڑ کن اِت۔"
+			],
+			"A patch is staged — apply and rebuild, or cancel.": [
+				"یک پیچے مرحلہ بندی کنگ بیت — لاگو ءُ دوبارہ جوڑ کنگ، یا منسوخ کنگ۔"
+			],
+			"The trunk update in progress.": [
+				"ٹرنک اپ ڈیٹ ءِ سرا کار بوھگ ءَ اِنت۔"
+			],
+			"A patch is being applied or reverted.": [
+				"یک پیچے ایر کنگ بوھگ ءَ اِنت یا پدا واتر کنگ بوھگ ءَ اِنت۔"
+			],
+			"The next step in the setup checklist.": [
+				"سیٹ اپ چیک لسٹ ءِ دیمتر ءِ گامگیج۔"
+			],
+			"Link a Trac ticket to give your work a home.": [
+				"وتی کار ءَ لوگے دیگ ءِ ھاترا ٹریک ٹکٹ ءَ لنک کن اِت۔"
+			],
+			"Link a GitHub issue to give your work a home.": [
+				"وتی کار ءَ لوگے دیگ ءِ ھاترا گٹ ہب ءِ جیڑھے ءَ گوں ھمگرنچ کن اِت۔"
+			],
+			"You have uncommitted changes ready to review and submit.": [
+				"تئو گوں بے پابندیں بدلی آں پہ چار ءُ تپاسی ءُ جمع کنگ ءَ تیار اَنت۔"
+			],
+			"PR #%d is applied; revert it before applying another change.": [
+				"پی آر #%d ءِ سرا کارمرز کنگ بیت؛ دگہ بدلی یے ایر کنگ ءَ پیسر آئی ءَ پدا واتر کن اِت۔"
+			],
+			"Start the dev server to work on the site.": [
+				"سائٹ سرا کار کنگ ءِ ھاترا ڈیو سرور ءَ بندات کن اِت۔"
+			],
+			"Setting up new site…": [
+				"نوکیں سائٹ ءِ جوڑ کنگ..."
+			],
+			"Finish setting this site up first.": [
+				"اولی رندا اے سائٹ ءِ جوڑ کنگ ءَ سرجم کن اِت۔"
+			],
+			"Hide": [
+				"چیر دے"
+			],
+			"Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.": [
+				"سرجمیں جوڑیشت ءِ چلائینگ ءَ اِنت۔ ونڈوز ءِ سرا اے کار ءَ نیم کلاک ءِ وھد لگت کنت؛ ٹرمینل ءَ چہ پدر بیت کہ آ چے کنگ ءَ اِنت۔"
+			],
+			"Installing dependencies. You can leave this running — the build follows on its own.": [
+				"انحصار ءِ انسٹال کنگ۔ تو اے رند ءَ یلہ دات کن ئے — جوڑ کنگ وتی وڑا رند ءَ کپیت۔"
+			],
+			"Setting this site up for you — step %1$d of %2$d": [
+				"اے سائٹ ءِ ترا جوڑ کنگ — %2$d ءِ %1$d ءِ گامگیج۔"
+			],
+			"Your changes were saved to %s before the reset.": [
+				"تئی بدلی چہ ری سیٹ کنگ ءَ پیسر %s ءَ رکّینگ بوتگ اَنت۔"
+			],
+			"Up to date with trunk as of today.": [
+				"مرچی ءِ ھساب ءَ ٹرنک ءِ گوما نوکیں وھد ءَ۔"
+			],
+			"Most packages are already cached, so this is a download of the difference — not the whole tree.": [
+				"گیشتریں پیکج پیسر ءَ چہ کیش کنگ بوتگ اَنت، پمیشکا اے فرق ءِ ڈاؤن لوڈ اِنت — سرجمیں درچک نہ اِنت۔"
+			],
+			"step %1$d of %2$d": [
+				"step %1$d of %2$d"
+			],
+			"Patches you create now may not apply on Trac. Updating takes a few minutes.": [
+				"پیچ کہ تو نوں جوڑ کن ئے ٹریک ءِ سرا لاگو نہ بنت۔ اپ ڈیٹ کنگ ءَ لھتیں منٹ لگ اَنت۔"
+			],
+			"This site's WordPress code is %d day old": [
+				"اے سائٹ ئے ورڈپریس کوڈ %d روش ئے کوھن ایں"
+			],
+			"Retry install & build": [
+				"انسٹال ءُ جوڑ کنگ ءِ پدا جہد کن"
+			],
+			"The code is new but the built assets are old. The site may not run correctly until install and build succeed.": [
+				"کوڈ نوک اِنت بلے جوڑ بوتگیں اثاثہ کوھن اَنت۔ انسٹال ءُ جوڑ کنگ ءِ سوبمند بوھگ ءَ سائٹ ءِ سرا ھچ وڑیں کار نہ بیت۔"
+			],
+			"Update incomplete": [
+				"اپ ڈیٹ نامکمل ایں"
+			],
+			"Next step: %s": [
+				"دیمتر ئے گام: %s"
+			],
+			"Starting… (%s)": [
+				"شروع کنغیں۔۔۔ (%s)"
+			],
+			"Start dev server and finish the wizard": [
+				"ڈیو سرور شروع کن ءُ وزرڈ ءَ آسر کن"
+			],
+			"Stop dev server": [
+				"ڈیو سرور ءَ بند کن اِت"
+			],
+			"Start dev server & finish wizard": [
+				"ڈیو سرور شروع کن ءُ جادوگر ءَ آسر کن"
+			],
+			"Run full build": [
+				"سرجمیں جوڑیشت ءَ چلائین اِت"
+			],
+			"Install npm dependencies": [
+				"‏npm انحصار انسٹال کن"
+			],
+			"Cloning the repository… install and build start on their own when it finishes.": [
+				"ذخیرہ ءِ کلون کنگ... انسٹال ءُ جوڑ کنگ ءِ وتی سرا بندات کنت کہ آ ھلاس بیت۔"
+			],
+			"Failed to discard changes: %s": [
+				"بدلی آں رد کنغ ئا بے سوب بیثہ: %s"
+			],
+			"Saved your changes to %1$s, but resetting the working tree failed: %2$s": [
+				"وتی بدلی %1$s ءَ رکّینتگ اَنت، بلے کار کنوکیں درچک ءِ پدا جوڑ کنگ بے سوب بوتگ: %2$s"
+			],
+			"Error saving diff: %s": [
+				"فرق ءِ رکّینگ ءَ ردی: %s"
+			],
+			"Please complete the full build before starting the dev server. You can also skip the wizard.": [
+				"دیو سرور شروع کنغ ئا شہ پیشا سرجمیں بلڈ ئا سرجم کن تئو وزرڈ ئا ھم یلہ دات کنئے۔"
+			],
+			"Updating to latest trunk": [
+				"نوخیں ٹرنک ئا نوخ کنغ ایں"
+			],
+			"Skip initialization wizard": [
+				"شروع کنگ ءِ وزرڈ ءَ یلہ بہ کن اِت"
+			],
+			"Nothing was lost — pick it back up with the buttons below whenever you want.": [
+				"ہچ چیز گار نہ بوتگ — ہر وھد ءَ کہ تو لوٹ ئے چہ جھل ءِ بٹناں پدا چست کن۔"
+			],
+			"Setup stopped.": [
+				"سیٹ اپ بند بوت۔"
+			],
+			"Stop setup": [
+				"سیٹ اپ بند کن"
+			],
+			"Complete each step to prepare this site for development.": [
+				"ہر گام ءَ سرجم کن اِت کہ اے سائٹ ءَ پہ دیمروئی ءَ تیار بہ کن اِت۔"
+			],
+			"Initial setup checklist": [
+				"بنداتی سیٹ اپ چیک لسٹ"
+			],
+			"Save patch & update": [
+				"پیچ ءُ اپ ڈیٹ ءَ رکّین اِت"
+			],
+			"Discard & update": [
+				"رد کن ءُ نوک کن"
+			],
+			"— your changes are lost; this cannot be undone": [
+				"— تئی بدلی گار بوتگ اَنت؛ اے کار ءَ پدا کنگ نہ بیت"
+			],
+			"Discard them": [
+				"آنہاں یلہ کن"
+			],
+			"— a .diff on your machine — nothing is sent to Trac": [
+				"— تئی مشین سرا یک .diff یے — ٹریک ءَ ہچ دیم دیگ نہ بیت"
+			],
+			"Save them as a patch first (as a local file)": [
+				"اولی ایشاں پیچ ءِ رنگ ءَ رکّین اِت (لوکل فائل ءِ رنگ ءَ)"
+			],
+			"You've changed %d file in this site. Resetting to trunk would throw them away.": [
+				"تو اے سائٹ ءِ تہا %d فائل بدل کتگ۔ ٹرنک ءِ سرا ری سیٹ کنگ ءَ آہاں دور کش ات۔"
+			],
+			"Update to latest trunk?": [
+				"نوکیں ٹرنک ءَ اپ ڈیٹ کن ئے؟"
+			],
+			"Launch the development server once to complete the WordPress setup wizard.": [
+				"ورڈپریس سیٹ اپ وزرڈ ءِ سرجم کنگ ءِ ھاترا یک رندے دیمروئی سرور ءَ لانچ کن اِت۔"
+			],
+			"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.": [
+				"بندگ. چہ %1$s ءَ فائلاں ترمیم کتگ؟ ٹرمینل ءِ تہا %2$s ءَ چلائین اِت تاں سائٹ آہاں چست کنت — اپ ڈیٹ ءُُ لاگو بوتگیں پیچ وتی وس ءَ دوبارہ جوڑ کن اَنت۔"
+			],
+			"Compile WordPress Core to generate the dist files. Later updates rebuild automatically.": [
+				"ڈسٹ فائلانی جوڑ کنگ ءِ ھاترا ورڈپریس کور ءَ کمپائل کن اِت۔ پذا اپ ڈیٹ وت ماں وت دوبر جوڑ بنت۔"
+			],
+			"Clone the WordPress develop repository.": [
+				"ورڈپریس ءِ دیمروئی ءِ ذخیرہ ءَ کلون کن اِت۔"
+			],
+			"Download WordPress development version": [
+				"ورڈپریس ءِ دیمروی ءِ ورژن ءَ ڈاؤن لوڈ کن اِت"
+			],
+			"Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.": [
+				"اے چیک آؤٹ ءِ گوں ورڈپریس ءَ وتی گٹنبرگ پلگ ان ءِ دروشم ءَ بندات کن اِت، یک رندے، سیٹ اپ ءَ آسر کنگ ءِ ھاترا۔"
+			],
+			"Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.": [
+				"بندگ. چہ ھما وھد ءَ یک پیکجے ءَ ترمیم کتگ؟ ٹرمینل ءِ تہا %s ءَ چلائین اِت کہ سائٹ آئی ءَ چست بہ کنت؛ اپ ڈیٹ وتی سرا دوبارہ جوڑ کن انت۔"
+			],
+			"Compile the Gutenberg packages. Later updates rebuild automatically.": [
+				"گٹنبرگ ءِ پیکجاں جوڑ کن اِت۔ پذا اپ ڈیٹ وت ماں وت دوبر جوڑ بنت۔"
+			],
+			"Clone the Gutenberg repository.": [
+				"گٹنبرگ ءِ ذخیرہ ءَ کلون کن اِت۔"
+			],
+			"Download Gutenberg": [
+				"گٹنبرگ ءَ ڈاؤن لوڈ کن اِت"
+			],
+			"the window’s theme: two colours of one’s own\u0004Custom": [
+				"وتی مرضی ءَ"
+			],
+			"Choose a colour as six hex digits, like #3858e9.": [
+				"یک رنگے ءَ شش ہیکس ہندسہ ءِ رنگ ءَ گچین کن اِت، چو کہ #3858e9۔"
+			],
+			"Choose light, dark, your system’s theme, or custom.": [
+				"رُژن، سیاہ، وتی سسٹم ءِ تھیم، یا وتی مرضی ءِ گچین کن اِت۔"
+			],
+			"Some text may be hard to read with these colours. They are kept as they are; choose others if it is.": [
+				"لہتیں نبشتانک گوں اے رنگاں وانگ ءَ گران بوت کنت۔ ھما وڑا کہ اَنت ھما وڑا دارگ بنت؛ اگاں اے ھست گڑا دگراں گچین کن اِت۔"
+			],
+			"Primary": [
+				"بُنگێجی"
+			],
+			"Background": [
+				"پژدر"
+			],
+			"System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.": [
+				"سسٹم شمئے آپریٹنگ سسٹم ءِ رُژن یا سیاہیں ترتیب ءِ رندگیری ءَ کنت۔ کسٹم چہ وتی دو رنگاں تھیم جوڑ کنت۔"
+			],
+			"%s colour picker": [
+				"%s رنگ چنوک"
+			],
+			"Working…": [
+				"کار کنگ…"
+			],
+			"Opening the pull request…": [
+				"کشّگ ءِ لوٹ ءَ پچ کنگ ءَ اِنت..."
+			],
+			"Uploading your changes…": [
+				"وتی بدلی اپلوڈ کنگ ءَ اَنت..."
+			],
+			"Bringing your fork up to date…": [
+				"وتی کانٹا ءَ نوکیں وھد ءِ سر ءَ آرگ ..."
+			],
+			"Creating your fork of %s…": [
+				"%s ءِ وتی کانٹا جوڑ کنگ..."
+			],
+			"Could not start sign-in.": [
+				"سائن ان بندات نہ بوت۔"
+			],
+			"Sign-in did not complete.": [
+				"سائن ان سرجم نہ بوت۔"
+			],
+			"The authorization was declined on GitHub. Nothing was changed.": [
+				"گٹ ہب ءِ سرا اجازت رد کنگ بوتگ۔ ہچ چیز بدل نہ بوت۔"
+			],
+			"The pull request could not be opened.": [
+				"کشّگ ءِ لوٹ پچ کنگ نہ بوت۔"
+			],
+			"Your checkout was behind trunk, so the branch was based on today's trunk. None of your files were changed upstream in between — the pull request shows only your work.": [
+				"تئی چیک آؤٹ ٹرنک ءِ پُشت ءَ ات، پمیشکا شاخ مرچی ءِ ٹرنک ءِ بنیاد ءَ ات۔ شمئے ھچ فائل ءِ میان ءَ اپ سٹریم بدل نہ بوتگ — پل ریکویسٹ ءَ شمئے کار ایوک ءَ پیش دارگ بیت۔"
+			],
+			"Opened <link>pull request #%s</link> from <branch />.": [
+				"چہ <branch /> ءَ <link> کشّگ ءِ لوٹ #%s</link> پچ کنگ بوتگ۔"
+			],
+			"Dry run — branch <branch /> was created on your fork; no pull request was opened.": [
+				"ھشکیں رند — شاخ <branch /> تئی چنگال ءِ سرا جوڑ کنگ بوتگ؛ ہچ وڑیں کشّگ ءِ لوٹ پچ نہ بوتگ۔"
+			],
+			"Save the patch file instead": [
+				"پیچ فائل ئے بدلا رکّین"
+			],
+			"Pull requests go to <target />, not to <upstream />.": [
+				"کشّگ ءِ لوٹ <target /> ءَ رو اَنت، <upstream /> ءَ نہ رو اَنت۔"
+			],
+			"Dry run — a branch is pushed to your fork, no pull request is opened.": [
+				"خشک رن — یک شاخے تئی چنگال ءَ کشّگ بیت، ھچ کشّگ ءِ لوٹ پچ نہ بیت۔"
+			],
+			"Test mode": [
+				"ٹیسٹ موڈ"
+			],
+			"Open a pull request": [
+				"کش ئے لوٹ ئا پچ کن"
+			],
+			"Not now": [
+				"انّوں ناں"
+			],
+			"Sign in with GitHub": [
+				"گٹ ہب ئا گوں سائن ان کن"
+			],
+			"Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.": [
+				"سائن ان کنگ ءَ چہ ایپ %s ءَ وتی اکاؤنٹ ءَ فورک کنت، اے پیچ ءَ اودا یک شاخے ءَ کشیت ءُ پل ریکویسٹ ءَ پچ کنت۔ اے ترا چہ تئی براؤزر ءَ سائن ان کنت، تئی پاسورڈ ءَ ھچبر نہ لوٹ ایت ءُ وھدے کہ تو یلہ دئے ئے گڑا اجازت ءَ شموشیت۔"
+			],
+			"Show this again": [
+				"اے گپ ءَ پدا پیش دار"
+			],
+			"Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.": [
+				"نہ ہچ چیز سائن ان بوتگ ءُ نہ ہچ چیز دیم دیگ بوتگ۔ پیچ فائل انگت تئی اِنت کہ تو رکّین ئے ءُ دگہ منزل بدل نہ بنت۔"
+			],
+			"Signed in as <login /> — the fork and branch go to <fork />.": [
+				"<login /> ءِ نام ءَ سائن ان کنگ بوتگ — چنگال ءُ شاخ <fork /> ءَ رو اَنت۔"
+			],
+			"Open pull request": [
+				"اوپن پل ئے درخواست"
+			],
+			"Push branch (dry run)": [
+				"شاخ ءَ کشّ اِت (ھشکیں رند)"
+			],
+			"Anything you are unsure about.": [
+				"ہرچیزے کہ تئو ایشی باروا دلجم نہ ئے۔"
+			],
+			"How to see it working — the steps you used.": [
+				"چوں کار کنگ ءَ گندگ بہ بیت — ھما گامگیج کہ شما کارمرز کتگ اَنت۔"
+			],
+			"What the change does, and why.": [
+				"تبدیلی چے کنت، ءُ پرچا۔"
+			],
+			"Notes for reviewers (optional)": [
+				"جائزہ کارانی واستہ نوٹ (اختیاری)"
+			],
+			"Left empty, it will be titled <strong><title /></strong>.": [
+				"اگاں ھالیگ بہ بیت گڑا ایشی ءِ سرھال <strong><title /></strong> بیت۔"
+			],
+			"What the change does, in one line. Reviewers scan these.": [
+				"بدلی چے کنت، یک لیکہے ءِ تہا۔ جائزہ کار اے اسکین کن انت۔"
+			],
+			"Title": [
+				"سرھال"
+			],
+			"Reject a theme zip in the plugin installer": [
+				"پلگ ان انسٹالر ءِ تہا تھیم زپ ءَ رد کن"
+			],
+			"No connection to GitHub.": [
+				"گٹ ہب ئا گوں ہچ سیادی نیستیں"
+			],
+			"GitHub is rate-limiting this connection. It usually clears within the hour.": [
+				"گٹ ہب اے کنکشن ءِ شرح ءَ محدود کنگ ءَ اِنت۔ اے گیشتر کلاک ئے تہا صاف بیثغیں"
+			],
+			"Waiting for you to finish in the browser…": [
+				"براؤزر ءِ تہا تئی آسر کنگ ءِ ودار ءَ آں..."
+			],
+			"That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.": [
+				"کہ گٹ ہب ءِ سائن ان ءِ سرا ہچ وڑیں رد ءُ بند نیست۔ پدا سائن ان کن اِت یا ایشی ءِ بدل ءَ پیچ فائل ءَ سیو کن اِت۔"
+			],
+			"Copy the code": [
+				"کوڈ کاپی کن"
+			],
+			"Code copied": [
+				"کوڈ کاپی کنگ بوتگ"
+			],
+			"Enter this code at <strong><address /></strong>, which has been opened in your browser.": [
+				"اے کوڈ ءَ <strong><address /></strong> ءَ نبشتہ کن اِت کہ شمئے براؤزر ءَ پچ بوتگ۔"
+			],
+			"This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.": [
+				"اے بلڈ ءَ گٹ ہب ءِ ہچ وڑیں ایپلی کیشن ترتیب نہ داتگ، پمیشکا اے پل ریکویسٹ ءَ پچ نہ کنت۔ دگہ منزل انگت کار کن اَنت۔"
+			],
+			"Checking…": [
+				"چیک کنگ ءَ آں..."
+			],
+			"Open #%s to comment": [
+				"تبصرہ کنغ واستا #%s ئا پچ کن"
+			],
+			"Copy the link": [
+				"لنک ءَ کاپی کن اِت"
+			],
+			"Link copied": [
+				"لنک کاپی کنگ بوتگ"
+			],
+			"Triage and props live on the ticket, so the link belongs there too.": [
+				"ٹکٹ ءِ سرا ٹرائیج ءُ پراپز زندگ انت، پمیشکا لنک ہم اودا انت۔"
+			],
+			"Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.": [
+				"تفصیل ءِ سر ءَ روت۔ ٹکٹ ءِ لنک ءُ تئی WordPress.org ءِ کارمرز کنوک ءِ نام ءِ چیر ءَ ھوار کنگ بوتگ۔"
+			],
+			"It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.": [
+				"اے تئی واستہ گٹ ہب اکاؤنٹ جوڑ نہ کنت، ءُ اے تئی نیمگ ءَ ٹریک ءَ پوسٹ نہ کنت۔"
+			],
+			"Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.": [
+				"آٹومیٹک چیک ایشی سرا چل انت۔ گٹ ہب ءَ کس نہ چاریت، اگاں چہ — ٹکٹ ءِ سرا لنک ءِ پوسٹ کنگ ہما چیز اِنت کہ آئی ءَ گندگ بیت۔"
+			],
+			"No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.": [
+				"ہچ ٹکٹ اے سائٹ ءَ گوں ہمگرنچ نہ اِنت۔ یک کش ءِ درخواست ءَ یکے ءِ حوالہ دیگی اِنت — ٹریک کارڈ ءَ لنک کن اِت۔"
+			],
+			"Link a GitHub issue to this site first. A pull request has to cite one.": [
+				"گٹ ہب ءِ جیڑہ ءَ پیسر ءَ اے سائٹ ءَ گوں ہمگرنچ کن اِت۔ یک کش ءِ درخواست ءَ یکے ءِ حوالہ دیگی اِنت۔"
+			],
+			"The Gutenberg contributing guide": [
+				"گٹنبرگ ءِ شریکیں رہشونی"
+			],
+			"Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.": [
+				"جائزہ کار ٹیسٹنگ ءِ گامگیج لوٹ اَنت۔ نوٹانی تہا ایشاں ایر کن: چے پچ کنگ بہ بیت، چے کلک کنگ بہ بیت، چے بہ بیت۔"
+			],
+			"The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.": [
+				"پل ریکویسٹ ہما جاہ اِنت کہ اودا بدلی ءِ سرا چار ءُ تپاسی کنگ بیت ءُ یک رندے کہ منظور کنگ بیت گڑا یکجاہ کنگ بیت۔ دگہ جاہے ءَ ھچ چیز ءِ پوسٹ کنگ نہ لوٹیت کہ آ گندگ بہ بیت۔"
+			],
+			"How pull requests work in Gutenberg": [
+				"گٹنبرگ ئے تہا پل ریکویسٹ چوں کار کننت"
+			],
+			"The Fixes line already lists it on the issue. A comment there still tells the people watching it.": [
+				"فکسز لائن ءَ پیسر ءَ چہ اے جیڑھ ءِ سر ءَ لسٹ کتگ۔ اودا یک تبصرہ یے انگت ہما مردماں گشیت کہ آئی ءَ چارگ ءَ انت۔"
+			],
+			"Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.": [
+				"تفصیل ءِ سر ءَ روت۔ فکسز لائن کہ جیڑہ ءَ گوں ہمگرنچ کنت ءُ تئی WordPress.org ءِ کارمرز کنوک ءِ نام ءِ چیر ءَ ھوار کنگ بیت۔"
+			],
+			"It cannot create the GitHub account for you.": [
+				"اے تئی واستہ گٹ ہب اکاؤنٹ جوڑ نہ کنت۔"
+			],
+			"Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.": [
+				"خودکار چیک ایشی ءِ سرا چل اَنت ءُُ ایشی ءِ سرا چار ءُُ تپاسی کنگ بیت ءُُ ہمے جاہ ءَ ضم کنگ بیت: گٹنبرگ ءِ سرا پل ءِ درخواست ءِ جاہ اِنت۔"
+			],
+			"A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.": [
+				"گٹ ہب ءِ اکاؤنٹ۔ چنگال پہ تو جوڑ کنگ بوتگ؛ اے ایپ ءِ تہا ہچ وڑیں پاسورڈ ٹائپ نہ بیت ءُ ڈسک ءِ سرا ہچ وڑیں اسناد نبشتہ نہ بیت۔"
+			],
+			"No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.": [
+				"ہچ جیڑہ اے سائٹ ءَ گوں ہمگرنچ نہ اِنت۔ یک کش ءِ درخواست ءَ یکے ءِ حوالہ دیگی اِنت: گیٹ ہب ءِ ایشو کارڈ ءَ لنک بہ کنت۔"
+			],
+			"Link a Trac ticket to this site first. A pull request has to cite one.": [
+				"ٹریک ٹکٹ ءَ پیسر ءَ اے سائٹ ءَ گوں بندوک کن اِت۔ یک کش ءِ درخواست ءَ یکے ءِ حوالہ دیگی اِنت۔"
+			],
+			"The handbook page on pull requests": [
+				"کش ءِ لوٹانی سرا دستی کتاب ءِ تاک"
+			],
+			"Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.": [
+				"گٹ ہب ءِ سرا ہم ہچ چیز ضم کنگ نہ بیت۔ یک کمیٹرے وت بدلی ءَ لاگو کنت ءُ ٹکٹ ہما جاہ اِنت کہ آ فیصلہ کن اَنت۔"
+			],
+			"Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.": [
+				"کش ءِ لوٹ ءِ لسٹ ءَ کس نہ چاریت۔ تئی گندگ بیت پرچا کہ آئی ءِ لنک ٹکٹ ءِ سرا اِنت — ہمے سبب اِنت کہ اے روانی ترا اودا پدا روان دیگ ءَ گوں آسر بیت۔"
+			],
+			"How pull requests work in core": [
+				"کور ئے تہا پل ریکویسٹ چوں کار کننت"
+			],
+			"Sign in to GitHub first.": [
+				"اولی رندا گٹ ہب ءَ سائن ان کن اِت۔"
+			],
+			"Could not read the base commit": [
+				"بیس کمٹ پڑھغ نہ بیثہ"
+			],
+			"Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.": [
+				"ٹرنک ھما فائل ءِ چیر ءَ شُتگ کہ تو ترمیم کتگ (%s)۔ اے سائٹ ءَ نوکیں ٹرنک ءَ اپ ڈیٹ کن اِت، وتی بدلی انگت ءَ لاگو بوھگ ءَ چیک کن اِت ءُ پدا جھد کن اِت۔"
+			],
+			"There are no changes to open a pull request with.": [
+				"پل ریکویسٹ ءِ پچ کنگ ءِ ھاترا ھچ وڑیں بدلی نیست۔"
+			],
+			"Could not open the pull request": [
+				"پل ریکویسٹ پچ نہ بوت"
+			],
+			"Could not find an unused branch name": [
+				"بے کاریں شاخ ئے نام ئے شوہاز نہ بیثہ"
+			],
+			"Could not create the branch": [
+				"شاخ جوڑ نہ بیثہ"
+			],
+			"Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s": [
+				"تئی فورک انگت گٹ ہب سرا جوڑ کنگ بوھگ ءَ اِنت۔ یک منٹ ءَ پدا جہد کن — پیچ فائل انگت کار کنت۔%s"
+			],
+			"Could not create the commit": [
+				"زمہ واری جوڑ کنگ نہ بوت"
+			],
+			"Could not assemble the change": [
+				"تبدیلی یکجاہ نہ کثہ"
+			],
+			"Could not upload %s": [
+				"اپلوڈ کنگ نہ بوت %s"
+			],
+			"Could not read your fork’s %s": [
+				"تئی فورک ئے %s وانگ نہ بوت"
+			],
+			"Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.": [
+				"شمئے فورک انگت گٹ ہب ءِ سرا جوڑ کنگ بوھگ ءَ اِنت — اے کساس ءِ ذخیرہ ءِ ھاترا کہ لہتیں منٹ لگ اِت کنت۔ تھوڑی دیر ءَ پد پدا جھد کن اِت؛ پیچ فائل انگت کار کنت۔"
+			],
+			"Could not read your fork": [
+				"تئی کانٹا وانگ نہ بوت"
+			],
+			"Could not fork %s": [
+				"فورک نہ کت کنت %s"
+			],
+			"Could not check for your fork": [
+				"تئی کانٹا چیک نہ کثہ"
+			],
+			"You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.": [
+				"تو پیسرا %1$s نامیں ذخیرہ یے داریت کہ %2$s ءِ چنگال نہ اِنت، پمیشکا اے گپ ءَ دیم ءَ برگ ءِ ھچ جاہ نیست۔ پیچ فائل انگت کار کنت۔"
+			],
+			"%1$s: %2$s%3$s": [
+				"%1$s: %2$s%3$s"
+			],
+			"This build has no GitHub application configured, so it cannot sign you in.": [
+				"اے جوڑیشت ئے تہا گٹ ہب ایپلی کیشن ئے ترتیب نیستیں، پمیشا اے تئو سائن ان کنغ نہ ایں"
+			],
+			"GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke \"%1$s\" under %2$s, then sign in here again.": [
+				"گیٹ ہب ءَ اے سائن ان ءَ را پل ریکویسٹ ءِ پچ کنگ ءِ لوٹاں چہ کم رسائی داتگ — اے ایپ ءِ یک کوھنیں اجازت ءِ امکان دوبارہ کارمرز کنگ بوتگ۔ %2$s ءِ چیر ءَ \"%1$s\" ءَ رد کن اِت ءُ پدا ادا سائن ان کن اِت۔"
+			],
+			"GitHub returned %s": [
+				"گٹ ہب ءَ پدا %s دات۔"
+			],
+			"That sign-in is no longer valid.": [
+				"کہ سائن ان ءِ ھچ وڑیں ھک نیست۔"
+			],
+			"The authorization was declined on GitHub.": [
+				"گٹ ہب ءِ سرا اجازت رد کنگ بوتگ۔"
+			],
+			"The code expired before it was entered.": [
+				"کوڈ ءِ داخل کنگ ءَ پیسر ھلاس بوتگ۔"
+			],
+			"Sign-in was canceled.": [
+				"سائن ان منسوخ کنگ بوتگ۔"
+			],
+			"GitHub does not recognise this application, or device flow is not enabled on it.": [
+				"گٹ ہب اے ایپلی کیشن ءَ نہ زانت، یا ڈیوائس فلو ایشی ءِ سرا فعال نہ اِنت۔"
+			],
+			"Revert the patch you applied before opening a pull request from this checkout.": [
+				"اے چیک آؤٹ ءَ چہ پل ریکویسٹ ءِ پچ کنگ ءَ پیسر ھما پیچ ءَ پدا واتر کن اِت۔"
+			],
+			"Revert %s before opening a pull request from this checkout.": [
+				"اے چیک آؤٹ ءَ چہ پل ریکویسٹ ءِ پچ کنگ ءَ پیسر %s ءَ پدا واتر کن اِت۔"
+			],
+			"PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.": [
+				"پی آر #%d ءِ سرا کارمرز کنگ بیت۔ ایشی ئے نبشتہ کار ئے زمہ واری اے چیک آؤٹ ئے راجدپتر انت، پمیشا اے تئی کار ئے رنگا پیش کنگ نہ بیث کنت۔ اول اے پی آر ءَ پدا واتر کن اِت۔"
+			],
+			"Unknown error": [
+				"نامعلومیں ردی"
+			],
+			"Trac ticket number or URL": [
+				"ٹریک ٹکٹ نمبر یا URL"
+			],
+			"Ticket number or URL, e.g. 62281": [
+				"ٹکٹ نمبر یا URL، چوش کہ 62281"
+			],
+			"No ticket is linked to this site, so there is nowhere to attach it yet.": [
+				"ہچ ٹکٹ اے سائٹ ءَ گوں ہمگرنچ نہ اِنت، پمیشکا انگت ءَ ایشی ءَ گوں ہمگرنچ کنگ ءِ جاہ نیست۔"
+			],
+			"Save, then open #%d": [
+				"رکّین اِت، پدا #%d ءَ پچ کن اِت۔"
+			],
+			"No automated checks. Often followed by a request to open a pull request.": [
+				"ہچ وڑیں خودکار چیک نہ بیت۔ اکثر کش ءِ درخواست ءِ پچ کنگ ءِ درخواست ءِ پد ءَ۔"
+			],
+			"A WordPress.org account — needed anyway, for props and to comment.": [
+				"یک WordPress.org اکاؤنٹ — ہر وڑ ءَ لوٹ اِنت، پہ پراپس ءُ تبصرہ کنگ ءَ۔"
+			],
+			"Attach to Trac": [
+				"ٹریک ئا گوں منسلک کن"
+			],
+			"The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.": [
+				"ایپ وتی نبشتہ کار ءِ بدلی ءَ چہ پد ءَ کتگیں ترمیماں چہ حفاظت ءَ جتا نہ کنت، پمیشکا اے یکجاھیں پیچ ءَ شمئے کار ءِ رد ءَ پیش کنگ نہ بیت۔ تو انگت <strong>Save</strong> ءَ کارمرز کن ئے کہ بے منسوبیں کاپی یے بہ دار ئے؛ جمع کنگ ءَ پیسر ایر کنگ بوتگیں پیچ ءَ پدا واتر کن اِت۔"
+			],
+			"<strong>The patch you applied is part of this checkout.</strong>": [
+				"<strong>آ پیچ کہ تو ایر کتگ اے چیک آؤٹ ءِ بہر اِنت۔</strong>"
+			],
+			"<strong><label /> is part of this checkout.</strong>": [
+				"<strong><label /> اے چیک آؤٹ ءِ بہر اِنت۔</strong>"
+			],
+			"You can still use <strong>Save</strong> to keep an unattributed copy of your edits.": [
+				"تو انگت <strong>Save</strong> ءَ کارمرز کن ئے کہ وتی ترمیم ءِ بے منسوبیں کاپی یے بہ دار ئے۔"
+			],
+			"The pull request is the one the app sends for you. The others save a file for you to send.": [
+				"پل ریکویسٹ ہما انت کہ ایپ ترا دیم دنت۔ دگہ یک فائلے پہ شما دیم دیگ ءَ رکّین اَنت۔"
+			],
+			"Where this patch goes": [
+				"اے پیچ کجا روت"
+			],
+			"Could not load your changes. Close this panel and try again. The error is shown below.": [
+				"تئی بدلی لوڈ نہ بوت انت۔ اے پینل ءَ بند کن ءُ پدا جہد کن۔ ردی ءِ رد ءَ دیم ءَ پیش دارگ بوتگ۔"
+			],
+			"This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.": [
+				"اے سائٹ ءِ ورڈپریس کوڈ %d روچ ءِ کوھن اِنت — اے پیچ ٹریک ءِ سر ءَ کارمرز نہ بیت۔ اولی نوخیں ٹرنک ئا نوخ کنغ ئا ھیال کن"
+			],
+			"Saved to %s": [
+				"%s ءَ رکّینتگ۔"
+			],
+			"Discard your changes": [
+				"وتی بدلی آں رد کن"
+			],
+			"(<discard />)": [
+				"(<discard />)"
+			],
+			"Failed to generate patch": [
+				"پیچ پیدا کنغ ئا ناکام بیثہ"
+			],
+			"Error: %s": [
+				"ردی: %s"
+			],
+			"No changes.": [
+				"ہچ وڑیں بدلی نہ بوتگ۔"
+			],
+			"Generating patch…": [
+				"پیچ پیدا کنگ ءَ اِنت..."
+			],
+			"Could not save the patch: %s": [
+				"پیچ ءَ رکّینت نہ کت: %s"
+			],
+			"Change these": [
+				"اے بدل کن"
+			],
+			"No event on the patch.": [
+				"پیچ ءِ سرا ہچ وڑیں مراگش نہ بوتگ۔"
+			],
+			"The patch will say it was written at <strong><event /></strong>.": [
+				"پیچ ءِ سرا گشگ بیت کہ اے <strong><event /></strong> ءَ نبشتہ کنگ بوتگ۔"
+			],
+			"Save patch as %s": [
+				"پیچ ءَ %s ءِ رنگ ءَ رکّین اِت۔"
+			],
+			"Someone else pushes it; the props still land on you.": [
+				"دگہ کسے ءَ کشّ اِیت؛ پراپس انگت تئی سرا ایر کپنت۔"
+			],
+			"No accounts at all. The patch carries your WordPress.org username, and the event you are at.": [
+				"ہچ اکاؤنٹ نیستیں پیچ ءِ تہا تئی WordPress.org ءِ کارمرز کنوک ءِ نام ءُُ ہما مراگش ءِ سرا نبشتہ اِنت کہ تو اودا ئے۔"
+			],
+			"Hand it to a mentor": [
+				"اے یک سروک ئے دستا دئے"
+			],
+			"Remember this": [
+				"اے گپ ءَ یات بہ کن اِت"
+			],
+			"Event this patch was written at": [
+				"ایونٹ اے پیچ 2019 ءَ نبشتہ کنگ بوتگ۔"
+			],
+			"Event, e.g. WordCamp Europe 2026 (optional)": [
+				"واقعہ، چوشکہ ورڈ کیمپ یورپ 2026 (اختیاری)"
+			],
+			"WordPress.org username, e.g. janedoe": [
+				"WordPress.org ءِ کارمرز کنوک ءِ نام ، چوش کہ جینڈو"
+			],
+			"Asked once and remembered for every site — these are facts about you, not about this checkout.": [
+				"یک رندے جُست کنگ ءُ ھر سائٹ ءِ ھاترا یات کنگ — اے تئی باروا راستی اَنت، اے چیک آؤٹ ءِ باروا نہ اَنت۔"
+			],
+			"There is nothing to send yet — this site has no changes against its copy of trunk.": [
+				"انگت ءَ دیم دیگ ءِ ھچ چیز نیست — اے سائٹ ءِ ٹرنک ءِ کاپی ءِ ھلاپ ءَ ھچ وڑیں بدلی نیست۔"
+			],
+			"Everything this site has that its copy of trunk does not.": [
+				"ہرچی کہ اے سائٹ ءَ است کہ آئی ءِ ٹرنک ءِ کاپی ءَ نیست۔"
+			],
+			"Your changes": [
+				"تئی بدلی"
+			],
+			"There are no changes on top of PR #%d.": [
+				"پی آر #%d ءِ سر ءَ ھچ وڑیں بدلی نیست۔"
+			],
+			"Edits to this local copy, compared with the original PR commits.": [
+				"اے لوکل کاپی ءِ تہا ترمیم، اصل پی آر ءِ ارتکابانی مقابلہ ءَ۔"
+			],
+			"Your changes on top of PR #%d": [
+				"تئی بدلی پی آر #%d ءِ سر ءَ اَنت۔"
+			],
+			"Your changes for ticket #%d": [
+				"ٹکٹ #%d ءِ واستہ تئی بدلی"
+			],
+			"Your changes for issue #%d": [
+				"تئی بدلی پہ شمارہ #%d"
+			],
+			"Stop the dev server before discarding changes.": [
+				"تبدیلیاں رد کنگ ءَ پیسر ڈیو سرور ءَ بند کن اِت۔"
+			],
+			"Wait for the build to finish before discarding changes.": [
+				"تبدیلیاں رد کنغ ئا شہ پیشا جوڑیشت ئے آسر بیغ ئے ودار ئا کن"
+			],
+			"Wait for the installation to finish before discarding changes.": [
+				"تبدیلیانی رد کنگ ءَ پیسر انسٹالیشن ءِ آسر بوھگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Wait for the trunk update to finish before discarding changes.": [
+				"تبدیلیاں رد کنغ ئا شہ پیشا ٹرنک اپ ڈیٹ ئے ودار ئا کن"
+			],
+			"There are no changes to discard.": [
+				"رد کنگ ءِ ھاترا ھچ وڑیں بدلی نیست۔"
+			],
+			"Changes could not be loaded.": [
+				"بدلی لوڈ کنگ نہ بوتگ انت۔"
+			],
+			"Wait for your changes to finish loading.": [
+				"وتی بدلیانی لوڈنگ ءِ آسر بوھگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Changes are already being discarded.": [
+				"بدلی پیسر ءَ چہ رد کنگ بوھگ ءَ اَنت۔"
+			],
+			"the window’s theme: the operating system’s\u0004System": [
+				"راہبند"
+			],
+			"the window’s theme\u0004Dark": [
+				"تہاری"
+			],
+			"the window’s theme\u0004Light": [
+				"روشنائی"
+			],
+			"Theme": [
+				"ھیال"
+			],
+			"Choose what happens when the app quits.": [
+				"ایپ ءِ یلہ دیگ ءَ پد چے بیت۔"
+			],
+			"Stop them, and start them again next time": [
+				"آنہاں بند کن، و آؤخیں وختا آنہاں پذا شروع کن"
+			],
+			"Stop them": [
+				"آنہاں بند کن"
+			],
+			"So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.": [
+				"تو سائٹ ءُ wp-admin ءِ سرا پریس ءِ ھست نہ بوھگ ءِ سبب ءَ تیار انت۔ ورڈپریس کور ءِ سرا بلڈ واچ ایشی ءَ گوں بندات بیت۔"
+			],
+			"Start the server when I open a site": [
+				"سرور شروع کن ہرکذیں کہ من سائٹے پچ کناں"
+			],
+			"Opening and quitting": [
+				"پچ کنگ ءُ یلہ دیگ"
+			],
+			"Quitting always stops them; they can be started again when the app next opens.": [
+				"یلہ دیگ مدام آہاں بند کنت؛ ایپ دیمترا پچ بیت گڑا آں پذا شروع کثہ بیث کننت۔"
+			],
+			"When I quit, running servers and build watches": [
+				"وھدے کہ من یلہ دات، سرور چلائینگ ءُ گھڑی جوڑ کنگ"
+			],
+			"So edits are compiled as they are saved.": [
+				"تو ترمیم ھما وڑا مرتب کنگ بنت کہ آ رکّینگ بنت۔"
+			],
+			"Start the build watch when I open a site": [
+				"من سائٹے پچ کناں گڑا بلڈ واچ شروع کن"
+			],
+			"The app does not have that PHP version.": [
+				"ایپ ءِ تہا ہما PHP ورژن نیست۔"
+			],
+			"Choose on or off.": [
+				"چالو یا بند ءِ گچین کن اِت۔"
+			],
+			"Off": [
+				"بند"
+			],
+			"Debugging": [
+				"ڈیبگ کنگ"
+			],
+			"%1$s · PHP %2$s": [
+				"%1$s · PHP %2$s"
+			],
+			"PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.": [
+				"PHP %1$s گچین کنگ بوتگ بلے اے ایپ ءِ ورژن ءَ اے نیست؛ سرور PHP %2$s ءِ سرا بندات کن انت۔"
+			],
+			"Sites": [
+				"سائٹ"
+			],
+			"Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.": [
+				"کور وتی جاوا سکرپٹ ءُ CSS ءَ بے کمیں کار کنت، پمیشکا آ براؤزر ءِ تہا وانگ ءُ قدم چست کنگ بوت کن انت۔"
+			],
+			"Use unminified scripts (SCRIPT_DEBUG)": [
+				"بے کمیں نبشتانک کارمرز کن اِت (SCRIPT_DEBUG)"
+			],
+			"Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.": [
+				"آف، نوٹس ءُ رد کنگ ءِ ھال دیگ نہ بیت۔ ھال ءُ اھوال ءُ ردی انگت debug.log ءُ براؤزر ءَ سر بنت ءُ error_log() کال انگت debug.log ءَ سر بنت۔"
+			],
+			"Report notices and deprecations (WP_DEBUG)": [
+				"رپورٹ ءِ ھال ءُ اھوال ءُ رد کنگ (WP_DEBUG)"
+			],
+			"PHP version": [
+				"PHP ءِ ورژن"
+			],
+			"Applies the next time a site’s server starts. A server that is running keeps what it started with.": [
+				"اگاں سائٹ ءِ سرور بندات بیت گڑا دیمتر ءَ لاگو بیت۔ یک سرورے کہ چلگ ءَ اِنت آ ھما چیز ءَ دار اِیت کہ آئی ءَ گوں بندات کتگ۔"
+			],
+			"Development server": [
+				"دیمروی ءِ سرور ."
+			],
+			"The PHP versions could not be read. Quit the app and open it again.": [
+				"PHP ءِ ورژن وانگ نہ بوتگ اَنت۔ ایپ ءَ یلہ کن ءُ پدا پچ کن۔"
+			],
+			"Could not keep that.": [
+				"کہ نہ داشت کنت۔"
+			],
+			"The app has no translation for that language.": [
+				"اے ایپ ءَ پہ آ زبان ءَ ھچ وڑیں رجانک نیست۔"
+			],
+			"Choose a language.": [
+				"زبانے گچین کن اِت۔"
+			],
+			"Your system’s language": [
+				"تئی نظام ئے زبان"
+			],
+			"Relaunch now": [
+				"نوں پدا بندات کن"
+			],
+			"The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.": [
+				"اے ایپ ءَ یک رندے کہ دوبر بندات کتگ گڑا نوکیں زبان ءَ پیش دار ایت۔ سرورز ءِ چلائینگ ءُ جوڑ کنگ بند بنت، چو کہ ایپ ءِ یلہ دیگ ءِ وھد ءَ آ کن اَنت۔"
+			],
+			"Which language the app is shown in. A change applies after a relaunch.": [
+				"اے ایپ کجام زبان ءَ پیش دارگ بیت دوبارہ بندات کنگ ءَ پد یک بدلی یے لاگو بیت۔"
+			],
+			"Language": [
+				"زبان"
+			],
+			"The app could not relaunch. Quit it and open it again.": [
+				"اے ایپ دوبارہ لانچ نہ بوت۔ یلہ کن ءُ پدا پچ کن۔"
+			],
+			"Could not keep that language.": [
+				"کہ زبان ءَ وتی سرا داشت نہ کت۔"
+			],
+			"Appearance": [
+				"پیداک"
+			],
+			"Enter your WordPress.org username.": [
+				"وتی WordPress.org ءِ کارمرز کنوک ءِ نام ءَ درج کن اِت۔"
+			],
+			"Enter your WordPress.org username, like janedoe, or your profiles.wordpress.org URL.": [
+				"وتی WordPress.org ءِ کارمرز کنوک ءِ نام ءَ درج کن اِت، چو کہ janedoe، یا وتی پروفائلز۔ورڈپریس۔ارگ ءِ URL ءَ۔"
+			],
+			"Only %s profile links are supported.": [
+				"ایوک ءَ %s پروفائل ءِ لنک ءِ حمایت کنگ بیت۔"
+			],
+			"There is no such setting.": [
+				"چوشیں ترتیبے نیست۔"
+			],
+			"That folder does not exist.": [
+				"آں فولڈر نیستیں"
+			],
+			"Choose a folder by its full path.": [
+				"یک فولڈرے ءَ آئی ءِ سرجمیں راہ ءِ رد ءَ گچین کن اِت۔"
+			],
+			"Choose a folder.": [
+				"یک فولڈرے ءِ گچین کن اِت۔"
+			],
+			"Not set: the create-site dialog asks each time.": [
+				"سیٹ نہ اِنت: سائٹ ءِ جوڑ کنگ ءِ ڈائیلاگ ہر وھد ءَ جُست کنت۔"
+			],
+			"Reading…": [
+				"وانگ…"
+			],
+			"Not signed in. The app asks you to sign in when you open a pull request.": [
+				"سائن ان نہ بوتگ۔ ایپ چہ شما سائن ان کنگ ءِ لوٹ کنت کہ شما پل ریکویسٹ ءَ پچ کن اِت۔"
+			],
+			"Signed in as %s.": [
+				"%s ءِ نام ءَ سائن ان کنگ بوتگ۔"
+			],
+			"Sign-in is not set up in this build.": [
+				"اے بلڈ ءِ تہا سائن ان جوڑ کنگ نہ بوتگ۔"
+			],
+			"Could not save that event.": [
+				"آنہی واقعہ ئا را رکّینت نہ کثہ۔"
+			],
+			"Could not save that username.": [
+				"آں کارمرز کنوخ ئے نام ئا رکّینگ نہ بیثہ۔"
+			],
+			"Forget this folder": [
+				"اے پوشاک ءَ شموش اِت"
+			],
+			"Each new site is created in a subfolder of this location.": [
+				"ہر نوکیں سائٹ اے جاہ ءِ ذیلی فولڈر ءَ جوڑ کنگ بیت۔"
+			],
+			"New sites go here": [
+				"نوخیں سائٹ ایذا رونت"
+			],
+			"New sites": [
+				"نوخیں سائٹ"
+			],
+			"Could not keep that folder.": [
+				"آنہی پوشاک ئا داث نہ کثہ۔"
+			],
+			"Account": [
+				"کھاتہ"
+			],
+			"General": [
+				"لس"
+			],
+			"Sign out": [
+				"سائن آؤٹ کن"
+			],
+			"GitHub": [
+				"گٹ ہب"
+			],
+			"Save": [
+				"دیمپان کن"
+			],
+			"Saving": [
+				"بچت کنگ"
+			],
+			"Saved.": [
+				"رکّینتگ۔"
+			],
+			"Where you are contributing from, if you are at an event. Leave it empty otherwise.": [
+				"اگاں تو یک مراگشے ءَ ئے گڑا تو کجا چہ شریک بوھگ ءَ ئے۔ اگاں نہ گڑا ایشی ءَ ھالیگ بہ کن اِت۔"
+			],
+			"Event": [
+				"مراگاہ"
+			],
+			"Goes on a patch you hand to a mentor, so the props land on you.": [
+				"یک پیچے ءِ سرا روت کہ تو یک سرپرستے ءِ دست ءَ دئے ئے، پمیشکا پراپس تئی سرا ایر کپنت۔"
+			],
+			"WordPress.org username": [
+				"WordPress.org ءِ کارمرز کنوک ءِ نام"
+			],
+			"How you contribute": [
+				"تئو چوں شرپ کنئے"
+			],
+			"Settings": [
+				"ترتیبات"
+			],
+			"The event name has to fit on one line.": [
+				"ایونٹ ءِ نام ءَ یک لیکہے ءِ سرا فٹ کنگی اِنت۔"
+			],
+			"Enter the event name, or leave it empty.": [
+				"ایونٹ ءِ نام ءَ درج کن اِت یا ایشی ءَ ھالیگ بہ کن اِت۔"
+			],
+			"Keep the event name under %d characters.": [
+				"ایونٹ ءِ نام ءَ %d ءِ چیر ءَ بہ دار اِت۔"
+			],
+			"Settings…": [
+				"ترتیبات..."
+			],
+			"Show Logs Folder": [
+				"لاگ فولڈر ئا پیش دار"
+			],
+			"Open App Log": [
+				"ایپ لاگ ءَ پچ کن"
+			],
+			"Choose the application to open this folder in": [
+				"اے پوشاک ئے پچ کنغ واستا ایپلیکیشن ئا گچین کن"
+			],
+			"Programs": [
+				"پروگرام"
+			],
+			"Applications": [
+				"درخواست"
+			],
+			"All Files": [
+				"کلیں فائل"
+			],
+			"Patch Files": [
+				"پیچ فائلز"
+			],
+			"Choose a patch file": [
+				"یک پیچ فائلے گچین کن"
+			],
+			"Save Diff File": [
+				"ڈف فائل ءَ رکّین اِت"
+			],
+			"Save Patch for Handoff": [
+				"پیچ ءَ پہ دیم دیگ ءَ رکّین اِت"
+			],
+			"Email": [
+				"ای میل"
+			],
+			"Logs": [
+				"لاگ"
+			],
+			"Terminal": [
+				"ٹرمینل"
+			],
+			"Closed": [
+				"بند ایں"
+			],
+			"Merged": [
+				"یکجا کنگ بوتگ"
+			],
+			"No pull requests cite this ticket yet.": [
+				"ہچ پل ریکویسٹ انگت ءَ اے ٹکٹ ءِ حوالہ نہ دنت۔"
+			],
+			"See the work that already exists on this ticket before adding your own.": [
+				"وتی ٹکٹ ءِ ھوار کنگ ءَ پیسر ھما کار ءَ بچار کہ پیسر ءَ چہ اے ٹکٹ ءِ سر ءَ ھست اِنت۔"
+			],
+			"Open in Trac": [
+				"ٹریک نیاما پچ کن"
+			],
+			"Browse good first bugs on Trac": [
+				"ٹریک سرا جوانیں اولی کیڑے براؤز کن"
+			],
+			"Linking ticket": [
+				"ٹکٹ ئے ہمگرنچ کنغ"
+			],
+			"Link ticket": [
+				"لنک ٹکٹ"
+			],
+			"e.g. 62281": [
+				"چوش کہ 62281"
+			],
+			"Ticket number or URL": [
+				"ٹکٹ نمبر یا URL"
+			],
+			"Link the ticket you’re working on.": [
+				"ٹکٹ ءَ لنک کن اِت کہ شما آئی ءِ سر ءَ کار کنگ ءَ اِت۔"
+			],
+			"Trac ticket": [
+				"ٹریک ٹکٹ"
+			],
+			"No pull requests cite this issue yet.": [
+				"ہچ کش ءِ درخواست ءَ انگت اے جیڑہ ءِ حوالہ نہ داتگ۔"
+			],
+			"See the work that already exists on this issue before adding your own.": [
+				"وتی وتی ھوار کنگ ءَ پیسر ھما کار ءَ بچار کہ اے جیڑھ ءِ سر ءَ پیسر ءَ ھست اِنت۔"
+			],
+			"Open on GitHub": [
+				"گٹ ہب سرا پچ کن"
+			],
+			"Browse good first issues on GitHub": [
+				"گٹ ہب سرا جوانیں اولی جیڑہاں براؤز کن"
+			],
+			"Linking issue": [
+				"ہمگرنچ کنگ ءِ جیڑہ"
+			],
+			"Link issue": [
+				"لنک ءِ جیڑہ"
+			],
+			"e.g. 71234": [
+				"چوش کہ 71234"
+			],
+			"Issue number or URL": [
+				"مسئلہ نمبر یا URL"
+			],
+			"Link the issue you’re working on.": [
+				"ھما جیڑہ ءَ گوں ھمگرنچ کن اِت کہ شما آئی ءِ سر ءَ کار کنگ ءَ اِت۔"
+			],
+			"GitHub issue": [
+				"گٹ ہب ئے جنجال"
+			],
+			"Could not read the attachments from Trac. (%s)": [
+				"ٹریک ءِ نیمگ ءَ چہ منسلکات وانگ نہ بوت۔ (%s)"
+			],
+			"Could not read the attachments from Trac.": [
+				"ٹریک ءِ نیمگ ءَ چہ منسلکات وانگ نہ بوت۔"
+			],
+			"The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.": [
+				"ٹریک ونڈو بند کنگ بوتگ ات کہ منسلکات ءِ لوڈنگ ءَ چہ پیسر۔ دوبارہ جہد کنگ ءِ ھاترا “ریفریش” ءَ کلک کن اِت۔"
+			],
+			"Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.": [
+				"ٹریک ءِ انسانی چیک وھد ءِ سر ءَ سرجم نہ بوت۔ دوبارہ جہد کن، ءُ اگاں دیم ءَ اتک گڑا “من انسان آں” ءِ سر ءَ کلک کن۔"
+			],
+			"by %s": [
+				"%s ءِ نیمگ ءَ"
+			],
+			"Showing what was last seen %s.": [
+				"آخری رند ءَ چے گندگ بوتگ %s ءِ درشان کنگ۔"
+			],
+			"No cached list to fall back on.": [
+				"ہچ کیشڈ لسٹ ءِ سرا پدا کپگ ءِ ہاترا۔"
+			],
+			"Could not reach GitHub.": [
+				"گٹ ہب ءَ سر نہ بوت۔"
+			],
+			"GitHub is rate-limiting this connection.": [
+				"گٹ ہب اے کنکشن ءِ شرح ءَ محدود کنگ ءَ اِنت۔"
+			],
+			"Could not read the pull requests from GitHub.": [
+				"گٹ ہب ءِ نیمگ ءَ چہ پل ءِ لوٹاں وانگ نہ بوت۔"
+			],
+			"Updated %s": [
+				"نوخ کثغیں %s"
+			],
+			"Last commit %s": [
+				"گڈی زمہ واری %s"
+			],
+			"Open": [
+				"پچ"
+			],
+			"Edited on %s": [
+				"%s ءِ روچ ءَ ترمیم کنگ بوتگ۔"
+			],
+			"Edited %d day ago": [
+				"%d روچ پیسر ترمیم کنگ بوتگ"
+			],
+			"Edited %d hour ago": [
+				"%d کلاک پیش ترمیم کثغیں"
+			],
+			"Edited %d minute ago": [
+				"%d منٹ پیسر ترمیم کنگ بوتگ"
+			],
+			"Edited just now": [
+				"ھما وھد ءَ ترمیم کنگ بوتگ"
+			],
+			"Delete this ticket’s work": [
+				"اے ٹکٹ ئے کارا حذف کن"
+			],
+			"This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.": [
+				"اے سائٹ ءِ سرا اے ٹکٹ ءِ ھاترا کتگیں ھرچ بدلی ءَ پہ دائمی ھلاس کنت، اگاں اے ٹکٹ دیم دیگ بوتگ یا نہ بوتگ۔ اے کار ءَ پدا ھلاس کنگ نہ بیت۔"
+			],
+			"Delete all work on ticket #%d?": [
+				"ٹکٹ #%d ءِ سرا درستیں کاراں گار کن اِت؟"
+			],
+			"Delete this issue’s work": [
+				"اے جیڑہ ءِ کار ءَ گار کن اِت"
+			],
+			"This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.": [
+				"اے چہ اے سائٹ ءِ سرا اے جیڑہ ءِ ھاترا کتگیں ھرچ بدلی ءَ پہ دائمی گار کنت، اگاں اے جیڑہ دیم دیگ بوتگ یا نہ بوتگ۔ اے کار ءَ پدا ھلاس کنگ نہ بیت۔"
+			],
+			"Delete all work on issue #%d?": [
+				"مسئلہ #%d ءِ سرا درستیں کاراں گار کن اِت؟"
+			],
+			"Your tickets on this site": [
+				"تئی ٹکٹ اے سائٹ سرا انت"
+			],
+			"Other tickets on this site": [
+				"اے سائٹ سرا دگہ ٹکٹ"
+			],
+			"Your issues on this site": [
+				"اے سائٹ سرا تئی جیڑہ"
+			],
+			"Other issues on this site": [
+				"اے سائٹ ئے دگہ جیڑہ"
+			],
+			"Deleting": [
+				"حذف کنگ"
+			],
+			"Continue working": [
+				"کار ءَ برجاہ دار اِت"
+			],
+			"Switch": [
+				"بٹن"
+			],
+			"Deleting site…": [
+				"سائٹ حذف کنگ ءَ انت..."
+			],
+			"WordPress code is %d day old — update to latest trunk": [
+				"ورڈپریس ءِ کوڈ %d روچ ءِ کوھن اِنت — نوکیں ٹرنک ءَ اپ ڈیٹ کنگ بیت"
+			],
+			"Update incomplete — code is new, built assets are old": [
+				"اپ ڈیٹ نامکمل انت — کوڈ نوک انت، جوڑ کتگیں اثاثہ کوہن انت"
+			],
+			"Build watching": [
+				"چارغ ئا جوڑ کن"
+			],
+			"Build compiling": [
+				"کمپائلنگ جوڑ کن"
+			],
+			"Edits in %s are compiled as they are saved.": [
+				"%s ءِ تہ ءَ ترمیم ھما وھد ءَ جوڑ کنگ بنت کہ آ رکّینگ بنت۔"
+			],
+			"Start build watch": [
+				"گھڑی جوڑ کنغ شروع کن"
+			],
+			"Start": [
+				"بندات"
+			],
+			"Stop build watch": [
+				"گھڑی جوڑ کنغ ئا بند کن"
+			],
+			"Stop": [
+				"اوشت"
+			],
+			"The development server could not start. Its last lines are in the Logs.": [
+				"دیمروئی سرور شروع نہ بوت۔ ایشی ءِ گڈی لیکہ لاگ ءِ تہا اَنت۔"
+			],
+			"The development server stopped by itself. Its last lines are in the Logs.": [
+				"دیمروئی سرور ءَ وت ءَ بند کت۔ ایشی ءِ گڈی لیکہ لاگ ءِ تہا اَنت۔"
+			],
+			"Start development server": [
+				"دیمروئی سرور شروع کن"
+			],
+			"Server stopped": [
+				"سرور بند بیثہ"
+			],
+			"Stop development server": [
+				"دیمروئی سرور ءَ بند کن اِت"
+			],
+			"Server running": [
+				"سرور چلغیں"
+			],
+			"Starting…": [
+				"شروع کنغیں"
+			],
+			"Server starting…": [
+				"سرور شروع بیغ ایں"
+			],
+			"Dev server is starting… (%s)": [
+				"دیو سرور شروع کنگ ءَ اِنت... (%s)"
+			],
+			"Database": [
+				"ڈیٹا بیس"
+			],
+			"wp-admin": [
+				"ڈبلیو پی ایڈمن"
+			],
+			"View site": [
+				"سائٹ ئا بہ گند"
+			],
+			"Build stopped": [
+				"جوڑ کنگ بند بیثہ"
+			],
+			"The build watch ended by itself, with exit code %d. Its last lines are in the Logs.": [
+				"بلڈ واچ وت ءَ چہ درآھگ ءِ کوڈ %d ءَ گوں ھلاس بوت۔ ایشی ءِ گڈی لیکہ لاگ ءِ تہا اَنت۔"
+			],
+			"The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.": [
+				"گھڑی شروع کنگ ءَ پیسر ھما جوڑشت کہ ھلاس کنگی اِنت ناکام بوتگ، پمیشکا گھڑی شروع نہ بوتگ۔ ایشی ءِ گڈی لیکہ لاگ ءِ تہا اَنت۔"
+			],
+			"The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.": [
+				"گھڑی ءِ بندات کنگ ءَ پیسر ھما جوڑشت کہ ھلاس کنگی اِنت ناکام بوتگ، گوں ایگزٹ کوڈ %d ءَ، پمیشکا گھڑی بندات نہ بوتگ۔ ایشی ءِ گڈی لیکہ لاگ ءِ تہا اَنت۔"
+			],
+			"The build watch ended by itself. Its last lines are in the Logs.": [
+				"بلڈ واچ وت ءَ ھلاس بوت۔ ایشی ءِ گڈی لیکہ لاگ ءِ تہا اَنت۔"
+			],
+			"Paused while another operation builds the site. It comes back by itself.": [
+				"دگہ آپریشن ءِ سائٹ ءِ جوڑ کنگ ءِ وھد ءَ رکاوٹ بوتگ۔ اے وت پدا کیت۔"
+			],
+			"Build paused": [
+				"جوڑیشت بند کثہ"
+			],
+			"Building the site before watching it.": [
+				"سائٹ ءِ چارگ ءَ پیسر جوڑ کنگ۔"
+			],
+			"Build building": [
+				"بلڈنگ جوڑ کن"
+			],
+			"Wait for the build to finish.": [
+				"بلڈ ءِ آسر بوھگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Wait for the installation to finish.": [
+				"تنصیب ءِ آسر بوھگ ءِ ودار ءَ بہ کن اِت۔"
+			],
+			"Wait for the trunk update to finish.": [
+				"ٹرنک اپ ڈیٹ ءِ ودار ءَ بہ کن اِت کہ آسر بہ بیت۔"
+			],
+			"Looking for applications…": [
+				"درخواستانی شوھاز ءَ آں..."
+			],
+			"Other application…": [
+				"دگہ درخواست"
+			],
+			"Show in file manager": [
+				"فائل مینیجر ئا پیش دار"
+			],
+			"Show in Explorer": [
+				"ایکسپلورر ئا پیش دار"
+			],
+			"Show in Finder": [
+				"فائنڈر نیاما پیش دار"
+			],
+			"Deleting…": [
+				"حذف کنگ ءَ ایں..."
+			],
+			"Open in": [
+				"ماں پچ کن"
+			],
+			"Copy path": [
+				"کاپی ئے راہ"
+			],
+			"Rename…": [
+				"نام بدل کن"
+			],
+			"Update to latest trunk": [
+				"نوخیں ٹرنک ئا نوخ کن"
+			],
+			"(no subject)": [
+				"(ہچ مضمون نیست)"
+			],
+			"No mail yet. WordPress transactional email will appear here once the site sends any.": [
+				"انگت ءَ میل نہ بوتگ۔ ورڈپریس لین دین ای میل یک رندے کہ سائٹ ءَ دیم دنت گڑا ادا گندگ بیت۔"
+			],
+			"SMTP listening on 127.0.0.1:%d": [
+				"SMTP 127.0.0.1 سرا گوشدارگ ءَ اِنت:%d"
+			],
+			"SMTP will start with the dev server.": [
+				"SMTP ڈیو سرور ءَ گوں بندات بیت۔"
+			],
+			"Delete site": [
+				"سائٹ حذف کن"
+			],
+			"This will permanently delete the site and all of its files from your computer. This can’t be undone.": [
+				"اے سائٹ ءُ آئی ءِ درستیں فائلاں چہ تئی کمپیوٹر ءَ پہ دائمی گار کنت۔ اے کار ءَ پدا ھلاس کنگ نہ بیت۔"
+			],
+			"Delete %s?": [
+				"%s ءَ گار کن اِت؟"
+			],
+			"Site name cannot be empty.": [
+				"سائٹ ءِ نام ھالیگ نہ بیت۔"
+			],
+			"Checkout": [
+				"چیک آؤٹ"
+			],
+			"Local path": [
+				"دمگی راہ"
+			],
+			"%d day old": [
+				"%d روچ ءِ پیریں"
+			],
+			"Trunk as of": [
+				"ءِ ردا ٹرنک"
+			],
+			"Created": [
+				"جوڑ کثہ"
+			],
+			"Uninitialized": [
+				"بے بندات"
+			],
+			"Initialized": [
+				"بندات کنگ بوتگ"
+			],
+			"Setup": [
+				"جوڑ کن"
+			],
+			"Show sites list": [
+				"سائٹانی لسٹ ءَ پیشدار اِت"
+			],
+			"Hide sites list": [
+				"سائٹانی لسٹ ءَ شموش اِت"
+			],
+			"Site": [
+				"ھَند"
+			],
+			"Create your first site to begin contributing": [
+				"شریک بوھگ ءِ بندات کنگ ءِ ھاترا وتی اولی سائٹ جوڑ کن اِت"
+			],
+			"No sites": [
+				"ہچ سائٹ نیستیں"
+			],
+			"All changes discarded.": [
+				"کلیں بدلی رد کثغ انت۔"
+			],
+			"This site is ready to work on": [
+				"اے سائٹ کار کنغ واستا تیار ایں"
+			],
+			"Copied the path": [
+				"راہ کاپی کثہ"
+			],
+			"Updated to the latest trunk": [
+				"نوکیں ٹرنک ءَ نوک کنگ بوتگ"
+			],
+			"Local changes discarded.": [
+				"مقامی بدلی رد کنگ بوتگ انت۔"
+			],
+			"Already up to date with trunk": [
+				"ٹرنک ئا گوں شہ پیشا نوخیں"
+			],
+			"%d unseen line in Debug.log": [
+				"%d ڈیبگ ڈاٹ لاگ ءِ تہا نادیدہ لیکہ"
+			],
+			"A site’s project cannot be changed later.": [
+				"سائٹ ءِ منصوبہ ءَ پد ءَ بدل کنگ نہ بیت۔"
+			],
+			"Opened pull request #%1$s on %2$s": [
+				"کشگ ءِ لوٹ #%1$s %2$s ءِ سر ءَ پچ کنگ بوت۔"
+			],
+			"Dry run — branch created, no pull request opened": [
+				"ھشکیں رند — شاخ جوڑ کنگ بوتگ، کشّگ ءِ لوٹ پچ نہ بوتگ"
+			],
+			"Saved your changes to %s and reset the working tree": [
+				"وتی بدلی آں %s ءَ رکّینتگ ءُ کار کنوکیں درچک ءَ پدا جوڑ کتگ"
+			],
+			"Patch saved to %s": [
+				"پیچ %s ءَ رکّینتگ۔"
+			],
+			"Restored the saved work": [
+				"محفوظ کثغیں کار بحال کثہ"
+			],
+			"Restored the previous branch": [
+				"پیسریگیں شاخ بحال کثہ"
+			],
+			"Checked out the pull request": [
+				"پل ریکویسٹ چیک کثہ"
+			],
+			"Reverted the patch": [
+				"پیچ پذا کثہ"
+			],
+			"Applied the patch": [
+				"پیچ ایر کثہ"
+			],
+			"The site could not be created. %s": [
+				"سائٹ جوڑ کنگ نہ بوت۔ %s"
+			],
+			"The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s": [
+				"سائٹ انگت درج اِنت پرچا کہ آئی ءِ فولڈر گار کنگ نہ بوتگ۔ ھرچ چیزے کہ کارمرز کنان ءَ بند کن اِت، پدا پدا جھد کن اِت۔ پوشاک: %s"
+			],
+			"The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s": [
+				"سائٹ انگت ءَ ھما وھد ءَ ھوار اِنت کہ آئی ءِ پوشاک ھلاس کنگ نہ بوتگ (%1$s)۔ ھرچ چیزے کہ کارمرز کنان ءَ بند کن اِت، پدا پدا جھد کن اِت۔ پوشاک: %2$s"
+			],
+			"Opened pull request #%s": [
+				"کش ئے لوٹ پچ بیثہ #%s"
+			],
+			"Notifications": [
+				"نوٹیفکیشن"
+			],
+			"Checking GitHub…": [
+				"گٹ ہب ءِ چیک کنگ ءَ آں..."
+			],
+			"Checking GitHub": [
+				"گٹ ہب چیک کنگ ءَ اِنت"
+			],
+			"Linked pull requests": [
+				"لنک کثغیں کشغ ئے لوٹ"
+			],
+			"Keywords": [
+				"کلیدی گال"
+			],
+			"Apply…": [
+				"دزبندی بہ دے…"
+			],
+			"The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.": [
+				"اے ٹکٹ ءِ سرا نوکیں پیچ فائل ءِ ضمیمہ اِنت، پل ءِ درخواست نہ اِنت — ٹریک ءِ ضمیمہ ءِ چیر ءَ بچار اِت۔"
+			],
+			"Read details from Trac": [
+				"ٹریک ءِ نیمگ ءَ چہ تفصیل ءَ بوان اِت"
+			],
+			"Reading the ticket on Trac": [
+				"ٹریک ءِ سرا ٹکٹ ءِ وانگ"
+			],
+			"Unlink": [
+				"ان لنک"
+			],
+			"Refresh": [
+				"تازہ کن"
+			],
+			"Not sure yet?": [
+				"انگت ءَ پکّا نہ ​​اِنت؟"
+			],
+			"If you have edited anything already, you will be asked what should happen to those edits.": [
+				"اگاں شما پیسرا چہ چیزے ءَ ترمیم کتگ گڑا چہ شما جُست کنگ بیت کہ آ ترمیماں چے بہ بیت۔"
+			],
+			"Latest": [
+				"نوکتریں"
+			],
+			"No patch files attached to this ticket.": [
+				"اے ٹکٹ ئا گوں ہچ وڑیں پیچ فائل ہمگرنچ نہ انت۔"
+			],
+			"Opening the ticket on Trac…": [
+				"ٹریک ءِ سرا ٹکٹ ءِ پچ کنگ..."
+			],
+			"Show Trac attachments": [
+				"ٹریک ءِ منسلکاتاں پیشدار اِت"
+			],
+			"Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.": [
+				"پیچ فائلیں برے برے پی آر ءِ بدل ءَ ٹریک ءِ سرا ھوار کنگ بنت۔ ایشانی وانگ ءَ ٹکٹ پچ بیت کہ تو یک رندے آئی ءِ انسانی چیک ءَ گوازینت کن ئے۔"
+			],
+			"Opening the ticket on Trac": [
+				"ٹریک ءِ سرا ٹکٹ ءِ پچ کنگ"
+			],
+			"Trac attachments": [
+				"ٹریک ءِ منسلکات"
+			],
+			"Applied": [
+				"لاگو کنگ بوتگ"
+			],
+			"My sites": [
+				"منی سائٹ"
+			],
+			"Create new site": [
+				"نوخیں سائٹ جوڑ کن"
+			],
+			"(Deleting)": [
+				"(حذف کنگ)"
+			],
+			"(%s)": [
+				"(%s)"
+			],
+			"Name": [
+				"نام"
+			],
+			"Site actions": [
+				"سائٹ ءِ کارروائی"
+			],
+			"Show details": [
+				"تفصیل ئا پیشدار"
+			],
+			"Hide details": [
+				"تفصیل ئا شُوم کن"
+			],
+			"Review & submit changes": [
+				"جائزہ ءُ بدلی جمع کن"
+			],
+			"Review": [
+				"چَمشانک"
+			],
+			"Show password": [
+				"پاسورڈ ئا پیش دار"
+			],
+			"Hide password": [
+				"پاسورڈ ءَ شموش اِت"
+			],
+			"Password": [
+				"پاس ورڈ"
+			],
+			"Username": [
+				"کارمرز کنوخ ئے نام"
+			],
+			"Admin credentials": [
+				"ایڈمن ءِ اسناد"
+			],
+			"Server": [
+				"سرور"
+			],
+			"Copied": [
+				"کاپی کنگ بوتگ"
+			],
+			"Copy": [
+				"کاپی کن"
+			],
+			"Details": [
+				"سرجمیں"
+			],
+			"Details of %s": [
+				"%s ءِ تفصیل"
+			],
+			"Build watch offline": [
+				"آف لائن گھڑی جوڑ کن"
+			],
+			"Build watch": [
+				"گھڑی جوڑ کن"
+			],
+			"Development server offline": [
+				"دیمروئی سرور آف لائن ."
+			],
+			"Rename": [
+				"نام بدل کن"
+			],
+			"Renaming the site": [
+				"سائٹ ئے نام بدل کنغ"
+			],
+			"Rename site": [
+				"سائٹ ئے نام بدل کن"
+			],
+			"Clear emails": [
+				"ای میلاں صاف کن"
+			],
+			"Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.": [
+				"پیرنٹ فولڈر ءَ گچین کن اِت کہ اودا شما اے نوکیں سائٹ ءَ جوڑ کنگ لوٹ اِت۔ سائٹ ءِ واستہ نوکیں ذیلی ڈائریکٹری جوڑ کنگ بیت۔"
+			],
+			"Location": [
+				"جاہ"
+			],
+			"Setting up a site": [
+				"سائٹ ءِ جوڑ کنگ"
+			],
+			"Project": [
+				"پروجیکٹ"
+			],
+			"Close": [
+				"بند"
+			],
+			"Resize tray": [
+				"ٹرے ئے سائز بدل کن"
+			],
+			"This patch is applied to your current work. Removing it may require undoing overlapping edits.": [
+				"اے پیچ تئی انوگیں کارانی سرا ایر کنگ بیت۔ ایشی ئا ہلاس کنغ واستا اوور لیپنگ ترمیماں ہلاس کنغی لوٹ بیث کنت"
+			],
+			"Discard this ticket to its base": [
+				"اے ٹکٹ ءَ وتی بنجاہ ءَ یلہ کن"
+			],
+			"Save a copy of your work": [
+				"وتی کار ءِ کاپی یے رکّین اِت"
+			],
+			"Revert this PR before applying another PR or patch file.": [
+				"دگہ پی آر یا پیچ فائل ءِ ایر کنگ ءَ پیسر اے پی آر ءَ پدا واتر کن اِت۔"
+			],
+			"Try another patch on this ticket": [
+				"اے ٹکٹ سرا دگہ پیچے ءِ جہد ءَ بکن اِت"
+			],
+			"Revert this patch": [
+				"اے پیچ ئا پذا کن"
+			],
+			"Give feedback": [
+				"رائے ئا دئے"
+			],
+			"It changes package-lock.json, so dependencies will be installed before the rebuild.": [
+				"اے package-lock.json ءَ بدل کنت، پمیشکا دوبر جوڑ کنگ ءَ پیسر انحصار انسٹال کنگ بنت۔"
+			],
+			"Apply and rebuild": [
+				"درخواست کن ءُ پدا جوڑ کن"
+			],
+			"%1$s changes %2$d file.": [
+				"%1$s %2$d فائل ءَ بدل کنت۔"
+			],
+			"Apply %s": [
+				"لاگو کن %s"
+			],
+			"%s is a binary file and will be skipped.": [
+				"%s یک بائنری فائلے ءُ یلہ دیگ بیت۔"
+			],
+			"Apply PR #%d": [
+				"پی آر #%d ءَ کارمرز کن اِت۔"
+			],
+			"A .diff or .patch file is applied to the current branch as a removable layer.": [
+				".diff یا .patch فائل ءِ سرا چہ ہٹائینگ ءِ لائکیں تہہ ءِ دروشم ءَ انوگیں شاخ ءِ سرا ایر کنگ بیت۔"
+			],
+			"Choose a .diff or .patch file…": [
+				".diff یا .patch فائل ءِ گچین کن اِت..."
+			],
+			"Diff": [
+				"فرق"
+			],
+			"Pull request": [
+				"درخواست کش"
+			],
+			"Test changes in this checkout. Your own changes are preserved.": [
+				"اے چیک آؤٹ ءِ تہا بدلی ءِ چکاس ءَ بکن اِت۔ تئی وتی بدلی ءِ رکّینگ بیت۔"
+			],
+			"Apply a patch or PR": [
+				"یک پیچے یا پی آر ءِ سرا کارمرز کن اِت"
+			],
+			"Test a pull request in this checkout. Your own changes are preserved.": [
+				"اے چیک آؤٹ ءِ تہا پل ءِ لوٹ ءِ چکاس ءَ بکن اِت۔ تئی وتی بدلی ءِ رکّینگ بیت۔"
+			],
+			"Check out a pull request": [
+				"یک کش ئے درخواست ئا بہ گند"
+			],
+			"A pull request is checked out with its author’s commits.": [
+				"یک کش ءِ درخواست ءِ نبشتہ کار ءِ ارتکاباں گوں چیک آؤٹ کنگ بیت۔"
+			],
+			"Apply PR": [
+				"پی آر ءِ درخواست ءَ بہ کن"
+			],
+			"Pull request URL or number": [
+				"درخواست URL یا نمبر کش"
+			],
+			"line %d of the patch": [
+				"پیچ ئے لیکہ %d"
+			],
+			"… %d more line": [
+				"... %d گیشتر لیکہ"
+			],
+			"Near %s": [
+				"نزیک ءَ %s"
+			],
+			"%1$s — %2$d of %3$d change": [
+				"%1$s — %2$d ءِ %3$d ءِ بدلی"
+			],
+			"The checkout was not changed.": [
+				"چیک آؤٹ بدل نہ بوتگ ات۔"
+			],
+			"Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.": [
+				"اے سائٹ ءِ سرا دگہ کمانڈے کار کنگ ءَ اِنت۔ صبر کن کہ آ ھلاس بہ بیت، یا ٹرمینل ءَ Ctrl+C ءَ گوں بند کن۔"
+			],
+			"text direction\u0004ltr": [
+				"rtl"
+			],
+			"Finish creating the current site first": [
+				"اولی رند ءَ انوگیں سائٹ ءِ جوڑ کنگ ءَ ھلاس کن اِت"
+			],
+			"Open the feedback form ↗": [
+				"رائے ءِ فارم ءَ پچ کن اِت ↗"
+			],
+			"Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.": [
+				"جوابات یک مشترکہ فارم ءِ تہا رونت کہ ٹیم باقاعدگی ءَ جائزہ زوریت۔ جمع کنگ گمنام انت داں کہ تو وتی ای میل ءَ ھوار مہ کن ئے۔"
+			],
+			"Your feedback helps decide what to build next.": [
+				"شمئے ھیال ءُ لیکہ اے فیصلہ کنگ ءَ کمک کنت کہ دیمترا چے جوڑ کنگ بہ بیت۔"
+			],
+			"WordPress Contributor Toolkit": [
+				"ورڈپریس ءِ شریکیں ٹول کٹ"
+			],
+			"Please choose where to create the site.": [
+				"سائٹ ءِ جوڑ کنگ ءِ جاہ ءَ گچین بہ کن اِت۔"
+			],
+			"Please provide a site name.": [
+				"سائٹ ءِ نام ءَ بہ دئے اِت۔"
+			],
+			"Create site": [
+				"سائٹ جوڑ کن"
+			],
+			"Cancel": [
+				"کوتاه کنگ"
+			],
+			"No folder selected yet.": [
+				"انگت ہچ فولڈر گچین نہ بوتگ۔"
+			],
+			"My WordPress site": [
+				"منی ورڈپریس سائٹ"
+			],
+			"Site name": [
+				"سائٹ ئے نام"
+			],
+			"The wordpress-develop repository: Trac tickets, patches and pull requests.": [
+				"ورڈپریس ءِ دیمروئی ءِ ذخیرہ: ٹریک ٹکٹ، پیچ ءُ پل ءِ لوٹ۔"
+			],
+			"The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.": [
+				"بلاک ایڈیٹر، اسٹاک ورڈپریس ءِ تہا پلگ ان ءِ دروشم ءَ جوڑ ءُُ چلائینگ بوتگ: گٹ ہب ءِ جیڑہ، ءُُ چیک آؤٹ ءِ وسیلہ ءَ درخواستاں کشگ۔"
+			]
+		}
+	}
+}

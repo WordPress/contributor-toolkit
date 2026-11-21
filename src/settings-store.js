@@ -29,11 +29,52 @@ async function getStore() {
 					// about them, asked once, not properties of each checkout.
 					defaults: { sites: [], siteMeta: {}, preferences: {} }
 				});
+				// Before anyone else holds the store, so no handler can read
+				// the old shape and nothing yields between this read and write.
+				const siteMeta = store.get('siteMeta');
+				const lifted = liftUpdateIncomplete(siteMeta);
+				if (lifted !== siteMeta) store.set('siteMeta', lifted);
 			});
 		}
 		await storeReady;
 	}
 	return store;
+}
+
+/**
+ * Moves the incomplete-update flag that versions up to 2.0.0 kept per branch
+ * onto the site, where it lives now (#475). It describes the one node_modules
+ * and build/ every branch of a site shares, so a `true` on any branch means
+ * the site's build is behind. Lifting one that was stale costs at most one
+ * extra rebuild prompt; dropping one that was real leaves new code over old
+ * assets with nothing saying so.
+ *
+ * @param {Object} siteMeta The stored `siteMeta` map, keyed by site path.
+ * @return {Object} The same object when nothing needed moving, a new one otherwise.
+ */
+function liftUpdateIncomplete(siteMeta) {
+	let changed = false;
+	const next = {};
+	for (const [sitePath, record] of Object.entries(siteMeta || {})) {
+		const branches = (record && record.branches) || {};
+		const carrying = Object.keys(branches).filter((ref) => branches[ref] && 'updateIncomplete' in branches[ref]);
+		if (carrying.length === 0) {
+			next[sitePath] = record;
+			continue;
+		}
+		changed = true;
+		const cleaned = { ...branches };
+		for (const ref of carrying) {
+			cleaned[ref] = { ...cleaned[ref] };
+			delete cleaned[ref].updateIncomplete;
+		}
+		next[sitePath] = {
+			...record,
+			branches: cleaned,
+			updateIncomplete: Boolean(record.updateIncomplete) || carrying.some((ref) => branches[ref].updateIncomplete === true)
+		};
+	}
+	return changed ? next : siteMeta;
 }
 
 /**
@@ -47,4 +88,4 @@ function peekStore() {
 	return store || null;
 }
 
-module.exports = { getStore, peekStore };
+module.exports = { getStore, peekStore, liftUpdateIncomplete };
