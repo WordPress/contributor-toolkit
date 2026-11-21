@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-10-21 06:06:24+0000",
+	"translation-revision-date": "2026-11-14 13:33:07+0000",
 	"generator": "GlotPress/4.1.0",
 	"domain": "messages",
 	"locale_data": {
@@ -9,6 +9,205 @@
 				"plural-forms": "nplurals=3; plural=(n % 10 == 1 && n % 100 != 11) ? 0 : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 1 : 2);",
 				"lang": "sr_RS"
 			},
+			"Set up Xdebug for %s": [
+				"Подеси Xdebug за %s"
+			],
+			"Link #%d": [
+				"Успостави везу са #%d"
+			],
+			"#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use Check out a pull request to test it.": [
+				"#%1$d је захтев за повлачење. Поправља %2$s. Уместо тога успоставите везу са тим проблемом или користите „Преузми захтев за повлачење“ да га испробате.",
+				"#%1$d је захтев за повлачење. Поправља %2$s. Уместо тога успоставите везу са једним од тих проблема или користите „Преузми захтев за повлачење“ да га испробате.",
+				"#%1$d је захтев за повлачење. Поправља %2$s. Уместо тога успоставите везу са једним од тих проблема или користите „Преузми захтев за повлачење“ да га испробате."
+			],
+			"#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.": [
+				"#%d је захтев за повлачење, а не проблем, и у његовом опису није наведено који овдашњи проблем поправља. Да бисте га испробали, користите „Преузми захтев за повлачење“."
+			],
+			"What “Open in” in the site’s menu and the files under “Changed files” open in, and which editor’s Xdebug setup the site’s details offer. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.": [
+				"Одређује у ком програму се отварају „Отвори у“ у изборнику сајта и датотеке у одељку „Измењене датотеке“, као и за који уређивач детаљи сајта нуде подешавање Xdebug-а. Уз „Питај сваки пут“ или уређивач који више није инсталиран, апликација пита који уређивач да користи."
+			],
+			"Zed": [
+				"Zed"
+			],
+			"PhpStorm": [
+				"PhpStorm"
+			],
+			"Cursor": [
+				"Cursor"
+			],
+			"VS Code": [
+				"VS Code"
+			],
+			"Xdebug is turned on, but this site started before that. Restart the server to use it.": [
+				"Xdebug је укључен, али је овај сајт покренут пре тога. Поново покрените сервер да бисте га користили."
+			],
+			"This site started without Xdebug because another site’s server had it. Restart the server to use it.": [
+				"Овај сајт је покренут без Xdebug-а јер га је већ користио сервер другог сајта. Поново покрените сервер да бисте га користили."
+			],
+			"Xdebug is on for %s. Stop that site’s server, then restart this one to use it here.": [
+				"Xdebug је укључен за %s. Зауставите сервер тог сајта, а затим поново покрените овај да бисте га користили овде."
+			],
+			"Xdebug is still on for this site until you restart the server.": [
+				"Xdebug је и даље укључен за овај сајт док поново не покренете сервер."
+			],
+			"Absolute path on the server": [
+				"Апсолутна путања на серверу"
+			],
+			"File/Directory": [
+				"Датотека/директоријум"
+			],
+			"Port": [
+				"Порт"
+			],
+			"Host": [
+				"Хост"
+			],
+			"Cancel the development server start": [
+				"Откажи покретање развојног сервера"
+			],
+			"Dev server start cancelled.": [
+				"Покретање развојног сервера је отказано."
+			],
+			"Copy debug.json": [
+				"Копирај debug.json"
+			],
+			"Open the site’s folder, and put this in <code>.zed/debug.json</code>:": [
+				"Отворите фасциклу сајта и ставите ово у <code>.zed/debug.json</code>:"
+			],
+			"Run <b>zed: extensions</b> from the command palette, and install <b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with.": [
+				"Покрените <b>zed: extensions</b> из палете команди и инсталирајте <b>PHP</b>. Његов Xdebug адаптер је оно чиме Zed отклања грешке у PHP-у."
+			],
+			"In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"У одељку <b>Run and Debug</b> покрените „Listen for Xdebug“, поставите тачку прекида и учитајте сајт."
+			],
+			"Copy launch.json": [
+				"Копирај launch.json"
+			],
+			"Open the site’s folder, and put this in <code>.vscode/launch.json</code>:": [
+				"Отворите фасциклу сајта и ставите ово у <code>.vscode/launch.json</code>:"
+			],
+			"Install the <b>PHP Debug</b> extension by Xdebug.": [
+				"Инсталирајте екстензију <b>PHP Debug</b> од Xdebug-а."
+			],
+			"Every site’s server sends Xdebug to port %d, so only one running site has Xdebug at a time: the first one started with it.": [
+				"Сервер сваког сајта шаље Xdebug на порт %d, па само један покренут сајт у исто време има Xdebug: први који је са њим покренут."
+			],
+			"Couldn’t copy to clipboard.": [
+				"Копирање у привремену меморију није успело."
+			],
+			"Copied to clipboard": [
+				"Копирано у привремену меморију"
+			],
+			"If the site starts on another port, PhpStorm asks which server it is; update the Host above.": [
+				"Ако се сајт покрене на другом порту, PhpStorm пита који је то сервер; ажурирајте ставку „Хост“ изнад."
+			],
+			"Set up %s": [
+				"Подеси %s"
+			],
+			"Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a breakpoint, and load the site.": [
+				"Укључите <b>Run → Start Listening for PHP Debug Connections</b>, поставите тачку прекида и учитајте сајт."
+			],
+			"In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:": [
+				"У одељку <b>Settings → PHP → Servers</b> додајте сервер са Xdebug-ом као алатом за отклањање грешака, укључите „Use path mappings“ и унесите:"
+			],
+			"In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options.": [
+				"У одељку <b>Settings → PHP → Debug</b> проверите да ли порт за отклањање грешака обухвата %d и искључите обе могућности „Force break at first line“."
+			],
+			"If Zed says no debug tasks were found, the PHP extension is not installed.": [
+				"Ако Zed пријави да нису пронађени задаци за отклањање грешака, PHP екстензија није инсталирана."
+			],
+			"Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"Покрените <b>debugger: start</b> из палете команди, изаберите „Listen for Xdebug“, поставите тачку прекида и учитајте сајт."
+			],
+			"Set up Xdebug for your editor": [
+				"Подесите Xdebug за свој уређивач"
+			],
+			"Stop on breakpoints in VS Code. Slows every request, so leave it off unless you are debugging. The site’s details show how to connect.": [
+				"Зауставља извршавање на тачкама прекида у програму VS Code. Успорава сваки захтев, па га оставите искљученог осим када отклањате грешке. Детаљи сајта приказују како да се повежете."
+			],
+			"Step debugging (Xdebug)": [
+				"Корачно отклањање грешака (Xdebug)"
+			],
+			"Choose one of the editors the app found.": [
+				"Изаберите један од уређивача које је апликација пронашла."
+			],
+			"Open in %s": [
+				"Отвори у %s"
+			],
+			"Ask each time": [
+				"Питај сваки пут"
+			],
+			"Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.": [
+				"Док не изаберете други уређивач, „Отвори у“ и датотеке у одељку „Измењене датотеке“ питаће који уређивач да користе."
+			],
+			"%s is no longer installed": [
+				"%s више није инсталиран"
+			],
+			"Code editor": [
+				"Уређивач кода"
+			],
+			"Could not keep that editor.": [
+				"Задржавање тог уређивача није успело."
+			],
+			"Could not look for editors on this machine, so none can be chosen here.": [
+				"Претраживање уређивача на овом рачунару није успело, па овде ниједан не може бити изабран."
+			],
+			"e.g. 71210": [
+				"нпр. 71210"
+			],
+			"e.g. 9000": [
+				"нпр. 9000"
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.": [
+				"Ваше измене на %1$d датотеци остају уз захтев #%2$d и враћају се када му се вратите.",
+				"Ваше измене на %1$d датотеке остају уз захтев #%2$d и враћају се када му се вратите.",
+				"Ваше измене на %1$d датотека остају уз захтев #%2$d и враћају се када му се вратите."
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you revert this PR.": [
+				"Ваше измене на %1$d датотеци остају уз захтев #%2$d и враћају се када вратите овај PR.",
+				"Ваше измене на %1$d датотеке остају уз захтев #%2$d и враћају се када вратите овај PR.",
+				"Ваше измене на %1$d датотека остају уз захтев #%2$d и враћају се када вратите овај PR."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you return to it.": [
+				"Ваше измене на %1$d датотеци остају уз проблем #%2$d и враћају се када му се вратите.",
+				"Ваше измене на %1$d датотеке остају уз проблем #%2$d и враћају се када му се вратите.",
+				"Ваше измене на %1$d датотека остају уз проблем #%2$d и враћају се када му се вратите."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you revert this PR.": [
+				"Ваше измене на %1$d датотеци остају уз проблем #%2$d и враћају се када вратите овај PR.",
+				"Ваше измене на %1$d датотеке остају уз проблем #%2$d и враћају се када вратите овај PR.",
+				"Ваше измене на %1$d датотека остају уз проблем #%2$d и враћају се када вратите овај PR."
+			],
+			"Attachment (%d)": [
+				"Прилог (%d)",
+				"Прилози (%d)",
+				"Прилози (%d)"
+			],
+			"Other attachment (%d)": [
+				"Други прилог (%d)",
+				"Други прилози (%d)",
+				"Други прилози (%d)"
+			],
+			"Closed PR (%d)": [
+				"Затворени PR (%d)",
+				"Затворени PR-ови (%d)",
+				"Затворени PR-ови (%d)"
+			],
+			"Other closed PR (%d)": [
+				"Други затворени PR (%d)",
+				"Други затворени PR-ови (%d)",
+				"Други затворени PR-ови (%d)"
+			],
+			"Open PR (%d)": [
+				"Отворени PR (%d)",
+				"Отворени PR-ови (%d)",
+				"Отворени PR-ови (%d)"
+			],
+			"Other open PR (%d)": [
+				"Други отворени PR (%d)",
+				"Други отворени PR-ови (%d)",
+				"Други отворени PR-ови (%d)"
+			],
 			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
 				"Преузимање најновије гране trunk није успело, па овај списак може да укључује и измене из гране trunk које нису део овог захтева за повлачење."
 			],
@@ -2919,9 +3118,6 @@
 			],
 			"Starting…": [
 				"Покретање…"
-			],
-			"Starting development server…": [
-				"Покретање развојног сервера…"
 			],
 			"Server starting…": [
 				"Покретање сервера…"

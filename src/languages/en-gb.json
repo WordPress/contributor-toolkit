@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-10-20 15:37:10+0000",
+	"translation-revision-date": "2026-11-13 20:27:36+0000",
 	"generator": "GlotPress/4.1.0",
 	"domain": "messages",
 	"locale_data": {
@@ -9,6 +9,194 @@
 				"plural-forms": "nplurals=2; plural=n != 1;",
 				"lang": "en_GB"
 			},
+			"Set up Xdebug for %s": [
+				"Set up Xdebug for %s"
+			],
+			"Link #%d": [
+				"Link #%d"
+			],
+			"#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use Check out a pull request to test it.": [
+				"#%1$d is a pull request. It fixes %2$s. Link that issue instead, or use Check out a pull request to test it.",
+				"#%1$d is a pull request. It fixes %2$s. Link one of those issues instead, or use Check out a pull request to test it."
+			],
+			"#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request.": [
+				"#%d is a pull request, not an issue, and its description does not say which issue here it fixes. To test it, use Check out a pull request."
+			],
+			"What “Open in” in the site’s menu and the files under “Changed files” open in, and which editor’s Xdebug setup the site’s details offer. With “Ask each time”, or an editor that is no longer installed, the app asks which to use.": [
+				"What “Open in” in the site’s menu and the files under “Changed files” open in, and which editor’s Xdebug setup the site’s details offer. With “Ask each time”, or an editor that is no longer installed, the app asks which to use."
+			],
+			"Zed": [
+				"Zed"
+			],
+			"PhpStorm": [
+				"PhpStorm"
+			],
+			"Cursor": [
+				"Cursor"
+			],
+			"VS Code": [
+				"VS Code"
+			],
+			"Xdebug is turned on, but this site started before that. Restart the server to use it.": [
+				"Xdebug is turned on, but this site started before that. Restart the server to use it."
+			],
+			"This site started without Xdebug because another site’s server had it. Restart the server to use it.": [
+				"This site started without Xdebug because another site’s server had it. Restart the server to use it."
+			],
+			"Xdebug is on for %s. Stop that site’s server, then restart this one to use it here.": [
+				"Xdebug is on for %s. Stop that site’s server, then restart this one to use it here."
+			],
+			"Xdebug is still on for this site until you restart the server.": [
+				"Xdebug is still on for this site until you restart the server."
+			],
+			"Absolute path on the server": [
+				"Absolute path on the server"
+			],
+			"File/Directory": [
+				"File/Directory"
+			],
+			"Port": [
+				"Port"
+			],
+			"Host": [
+				"Host"
+			],
+			"Cancel the development server start": [
+				"Cancel the development server start"
+			],
+			"Dev server start cancelled.": [
+				"Dev server start cancelled."
+			],
+			"Copy debug.json": [
+				"Copy debug.json"
+			],
+			"Open the site’s folder, and put this in <code>.zed/debug.json</code>:": [
+				"Open the site’s folder, and put this in <code>.zed/debug.json</code>:"
+			],
+			"Run <b>zed: extensions</b> from the command palette, and install <b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with.": [
+				"Run <b>zed: extensions</b> from the command palette, and install <b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with."
+			],
+			"In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site."
+			],
+			"Copy launch.json": [
+				"Copy launch.json"
+			],
+			"Open the site’s folder, and put this in <code>.vscode/launch.json</code>:": [
+				"Open the site’s folder, and put this in <code>.vscode/launch.json</code>:"
+			],
+			"Install the <b>PHP Debug</b> extension by Xdebug.": [
+				"Install the <b>PHP Debug</b> extension by Xdebug."
+			],
+			"Every site’s server sends Xdebug to port %d, so only one running site has Xdebug at a time: the first one started with it.": [
+				"Every site’s server sends Xdebug to port %d, so only one running site has Xdebug at a time: the first one started with it."
+			],
+			"Couldn’t copy to clipboard.": [
+				"Couldn’t copy to clipboard."
+			],
+			"Copied to clipboard": [
+				"Copied to clipboard"
+			],
+			"If the site starts on another port, PhpStorm asks which server it is; update the Host above.": [
+				"If the site starts on another port, PhpStorm asks which server it is; update the Host above."
+			],
+			"Set up %s": [
+				"Set up %s"
+			],
+			"Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a breakpoint, and load the site.": [
+				"Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a breakpoint, and load the site."
+			],
+			"In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:": [
+				"In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its debugger, turn on “Use path mappings”, and enter:"
+			],
+			"In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options.": [
+				"In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and turn off both “Force break at first line” options."
+			],
+			"If Zed says no debug tasks were found, the PHP extension is not installed.": [
+				"If Zed says no debug tasks were found, the PHP extension is not installed."
+			],
+			"Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site.": [
+				"Run <b>debugger: start</b> from the command palette, choose “Listen for Xdebug”, set a breakpoint, and load the site."
+			],
+			"Set up Xdebug for your editor": [
+				"Set up Xdebug for your editor"
+			],
+			"Stop on breakpoints in VS Code. Slows every request, so leave it off unless you are debugging. The site’s details show how to connect.": [
+				"Stop on breakpoints in VS Code. Slows every request, so leave it off unless you are debugging. The site’s details show how to connect."
+			],
+			"Step debugging (Xdebug)": [
+				"Step debugging (Xdebug)"
+			],
+			"Choose one of the editors the app found.": [
+				"Choose one of the editors the app found."
+			],
+			"Open in %s": [
+				"Open in %s"
+			],
+			"Ask each time": [
+				"Ask each time"
+			],
+			"Until you choose another editor, “Open in” and the files under “Changed files” ask which to use.": [
+				"Until you choose another editor, “Open in” and the files under “Changed files” ask which to use."
+			],
+			"%s is no longer installed": [
+				"%s is no longer installed"
+			],
+			"Code editor": [
+				"Code editor"
+			],
+			"Could not keep that editor.": [
+				"Could not keep that editor."
+			],
+			"Could not look for editors on this machine, so none can be chosen here.": [
+				"Could not look for editors on this machine, so none can be chosen here."
+			],
+			"e.g. 71210": [
+				"e.g. 71210"
+			],
+			"e.g. 9000": [
+				"e.g. 9000"
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.": [
+				"Your edits to %1$d file stay with ticket #%2$d and come back when you return to it.",
+				"Your edits to %1$d files stay with ticket #%2$d and come back when you return to it."
+			],
+			"Your edits to %1$d file stay with ticket #%2$d and come back when you revert this PR.": [
+				"Your edits to %1$d file stay with ticket #%2$d and come back when you revert this PR.",
+				"Your edits to %1$d files stay with ticket #%2$d and come back when you revert this PR."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you return to it.": [
+				"Your edits to %1$d file stay with issue #%2$d and come back when you return to it.",
+				"Your edits to %1$d files stay with issue #%2$d and come back when you return to it."
+			],
+			"Your edits to %1$d file stay with issue #%2$d and come back when you revert this PR.": [
+				"Your edits to %1$d file stay with issue #%2$d and come back when you revert this PR.",
+				"Your edits to %1$d files stay with issue #%2$d and come back when you revert this PR."
+			],
+			"Attachment (%d)": [
+				"Attachment (%d)",
+				"Attachments (%d)"
+			],
+			"Other attachment (%d)": [
+				"Other attachment (%d)",
+				"Other attachments (%d)"
+			],
+			"Closed PR (%d)": [
+				"Closed PR (%d)",
+				"Closed PRs (%d)"
+			],
+			"Other closed PR (%d)": [
+				"Other closed PR (%d)",
+				"Other closed PRs (%d)"
+			],
+			"Open PR (%d)": [
+				"Open PR (%d)",
+				"Open PRs (%d)"
+			],
+			"Other open PR (%d)": [
+				"Other open PR (%d)",
+				"Other open PRs (%d)"
+			],
 			"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request.": [
 				"Could not download the latest trunk, so this list may also include changes from trunk that are not part of this pull request."
 			],
@@ -2860,9 +3048,6 @@
 			],
 			"Starting…": [
 				"Starting…"
-			],
-			"Starting development server…": [
-				"Starting development server…"
 			],
 			"Server starting…": [
 				"Server starting…"
