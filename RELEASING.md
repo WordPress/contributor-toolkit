@@ -106,7 +106,7 @@ The merged commit has the same content as that build, and it is the one you tag.
 gh pr view <number> --json mergeCommit --jq .mergeCommit.oid
 ```
 
-Check that it matches the build: after `git fetch origin trunk`, `git diff --stat <head commit you checked> <merged commit>` prints nothing. If it prints anything, trunk moved before the merge, and the artifacts are not the merged code. Do not tag yet: the release needs artifacts built from the merged commit. Buildkite builds every push to trunk, so open its trunk build for the merged commit, download its three files and repeat section 2 on them, comparing the build's commit with the merged commit instead of `headRefOid`. Tag only once they pass.
+Check that it matches the build: after `git fetch origin trunk`, `git diff --stat <head commit you checked> <merged commit>` prints nothing. If it prints anything, trunk moved before the merge, and the artifacts are not the merged code. Do not tag yet: the release needs artifacts built from the merged commit. Buildkite builds every push to trunk, so open its trunk build for the merged commit, download its five files and repeat section 2 on them, comparing the build's commit with the merged commit instead of `headRefOid`. Tag only once they pass.
 
 ## 4. Publish the GitHub release
 
@@ -118,7 +118,7 @@ The guide's screenshots use `/screenshots/…` paths, which resolve only on the 
 ![Alt text describing the screenshot](https://raw.githubusercontent.com/WordPress/contributor-toolkit/<commit SHA>/docs/public/screenshots/<name>.png)
 ```
 
-They cover everything since the previous stable release for a stable release, the betas' changes included, and since the previous tag of any kind for a beta. Find the base tag, and the commit count since it that the opening paragraph gives (it includes the bump commit):
+The notes cover everything since the previous stable release for a stable release, the betas' changes included, and since the previous tag of any kind for a beta. Find the base tag, and the commit count since it that the opening paragraph gives (it includes the bump commit):
 
 ```bash
 git fetch origin trunk --tags
@@ -181,7 +181,7 @@ The first two list the issues and pull requests still open, the third finds the 
 
 ## 7. Check the result
 
-- `gh release view vX.Y.Z` lists the five files under the names from step 2, and shows the release as a pre-release only for a beta.
+- `gh release view vX.Y.Z` lists the five files under the names from section 2, and shows the release as a pre-release only for a beta.
 - `gh api repos/WordPress/contributor-toolkit/releases/latest --jq .tag_name` prints `vX.Y.Z` for a stable release, and the previous stable tag for a beta.
 - `git ls-remote origin refs/tags/vX.Y.Z` points at the bump commit.
 - For a stable release, the docs run from step 5 finished with its deploy job.
