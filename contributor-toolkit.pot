@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-11-17T19:13:32+00:00\n"
+"POT-Creation-Date: 2026-11-23T18:10:50+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -146,211 +146,211 @@ msgstr[1] ""
 msgid "Could not read the base commit"
 msgstr ""
 
-#: src/main.js:1211
+#: src/main.js:1224
 msgid "Save Patch for Handoff"
 msgstr ""
 
-#: src/main.js:1211
+#: src/main.js:1224
 msgid "Save Diff File"
 msgstr ""
 
-#: src/main.js:1331
+#: src/main.js:1344
 msgid "Sign in to GitHub first."
 msgstr ""
 
-#: src/main.js:1821
+#: src/main.js:1834
 #. %s: the name of the patch or pull request, such as 60001.diff or PR #6717.
 msgid "%s is applied. Revert it before submitting this checkout as your own work."
 msgstr ""
 
-#: src/main.js:1824
+#: src/main.js:1837
 msgid ""
 "The patch you applied is applied. Revert it before submitting this checkout "
 "as your own work."
 msgstr ""
 
-#: src/main.js:2207
+#: src/main.js:2220
 #. %s: the path of a file in the site.
 msgid ""
 "The patch renames %s, so it can only go back with the whole patch. Use "
 "Discard your changes instead."
 msgstr ""
 
-#: src/main.js:2213
+#: src/main.js:2226
 #. %s: the path of a file in the site.
 msgid "%s is as the patch left it, so there is nothing of yours to revert."
 msgstr ""
 
-#: src/main.js:2217
+#: src/main.js:2230
 #. %s: the path of a file in the site.
 msgid ""
 "The app did not keep a copy of the patch, so it cannot put %s back as the "
 "patch left it."
 msgstr ""
 
-#: src/main.js:2221
+#: src/main.js:2234
 #. %s: the path of a file in the site.
 msgid "%s has no changes to revert."
 msgstr ""
 
-#: src/main.js:2240
+#: src/main.js:2253
 #. 1: the path of a file in the site. 2: why it could not be reverted. 3: why it could not be put back as it was.
 msgid ""
 "Could not revert %1$s (%2$s), and could not put it back as it was, so your "
 "changes to it may be lost: %3$s"
 msgstr ""
 
-#: src/main.js:2244
+#: src/main.js:2257
 #. 1: the path of a file in the site. 2: why it could not be reverted.
 msgid "Could not revert %1$s, so it was left as it was: %2$s"
 msgstr ""
 
-#: src/main.js:2333
+#: src/main.js:2346
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Parking your work on %s before updating…"
 msgstr ""
 
-#: src/main.js:2395
+#: src/main.js:2408
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Returning to your work on %s…"
 msgstr ""
 
-#: src/main.js:2460
+#: src/main.js:2473
 #. %s: the error the checkout failed with.
 msgid "Update failed during checkout: %s"
 msgstr ""
 
-#: src/main.js:2463
+#: src/main.js:2476
 #. %s: the error the fetch failed with.
 msgid "Update failed during fetch: %s"
 msgstr ""
 
-#: src/main.js:2478
+#: src/main.js:2491
 #. 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
 msgid ""
 "Your work on #%1$s is safe — it is committed on %2$s. Link that ticket "
 "again to return to it."
 msgstr ""
 
-#: src/main.js:2481
+#: src/main.js:2494
 #. %s: the branch the work is committed on, such as pr/7701.
 msgid ""
 "Your work is safe — it is committed on %s. Apply that pull request again to "
 "return to it."
 msgstr ""
 
-#: src/main.js:2629
+#: src/main.js:2642
 msgid "Returning to your saved copy of the pull request…"
 msgstr ""
 
-#: src/main.js:2629
+#: src/main.js:2642
 msgid "Downloading the pull request's files and switching to its branch…"
 msgstr ""
 
-#: src/main.js:2644
+#: src/main.js:2657
 #. %s: the error Git gave.
 msgid "Could not remove the unused branch: %s"
 msgstr ""
 
-#: src/main.js:2665
+#: src/main.js:2678
 msgid "Restoring the files of your previous branch…"
 msgstr ""
 
-#: src/main.js:2841
+#: src/main.js:2854
 msgid "Could not check your work for conflicts, so the preview was not shown."
 msgstr ""
 
-#: src/main.js:2852
+#: src/main.js:2865
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2855
+#: src/main.js:2868
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2856
+#: src/main.js:2869
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:2900
+#: src/main.js:2913
 msgid "There is no stored patch to revert."
 msgstr ""
 
-#: src/main.js:2911
+#: src/main.js:2924
 #. %s: the name of the applied patch, such as a file name.
 msgid "%s is already applied. Revert it before applying another patch."
 msgstr ""
 
-#: src/main.js:2917
+#: src/main.js:2930
 #. %s: the name of the patch, such as a file name.
 msgid "Reverting %s…"
 msgstr ""
 
-#: src/main.js:2920
+#: src/main.js:2933
 #. %s: the name of the patch, such as a file name.
 msgid "Applying %s…"
 msgstr ""
 
-#: src/main.js:2950
+#: src/main.js:2963
 msgid "This patch is too large to keep for an undo, so Revert will not be offered."
 msgstr ""
 
-#: src/main.js:2976
+#: src/main.js:2989
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved, so it was "
 "undone. %s"
 msgstr ""
 
-#: src/main.js:2979
+#: src/main.js:2992
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved and it could not "
 "be undone — the checkout has the patch and the app cannot revert it. %s"
 msgstr ""
 
-#: src/main.js:2988
+#: src/main.js:3001
 #. %s: what went wrong, as the system said it.
 msgid "Applying the patch failed: %s"
 msgstr ""
 
-#: src/main.js:3602
+#: src/main.js:3615
 msgid ""
 "There is uncommitted work on trunk — decide what happens to it before "
 "starting the ticket"
 msgstr ""
 
-#: src/main.js:3702
+#: src/main.js:3715
 msgid ""
 "Link a ticket first: trunk is what tickets are measured against, not a "
 "ticket."
 msgstr ""
 
-#: src/main.js:3704
+#: src/main.js:3717
 #: src/renderer/ticket-trunk-notice.cjs:147
 msgid "Only a ticket branch can be moved onto the current trunk."
 msgstr ""
 
-#: src/main.js:3706
+#: src/main.js:3719
 msgid ""
 "This ticket has no recorded starting point, so the app cannot move its work "
 "onto the current trunk."
 msgstr ""
 
-#: src/main.js:3866
+#: src/main.js:3879
 #: src/renderer/components/settings-dialog.jsx:364
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3867
+#: src/main.js:3880
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3873
+#: src/main.js:3886
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/main.js:4036
+#: src/main.js:4049
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
@@ -358,7 +358,7 @@ msgid ""
 "finishes on its own."
 msgstr ""
 
-#: src/main.js:4039
+#: src/main.js:4052
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
@@ -366,60 +366,60 @@ msgid ""
 "its own."
 msgstr ""
 
-#: src/main.js:4043
+#: src/main.js:4056
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
 "running and holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:4046
+#: src/main.js:4059
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
 "holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:4050
+#: src/main.js:4063
 msgid "This site requires a newer Node.js than this app bundles."
 msgstr ""
 
-#: src/main.js:4050
+#: src/main.js:4063
 msgid "Retrying with engine checks relaxed…"
 msgstr ""
 
-#: src/main.js:4137
+#: src/main.js:4150
 #. %s: why npm could not be started.
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4490
+#: src/main.js:4503
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4493
+#: src/main.js:4506
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4528
+#: src/main.js:4541
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.js:4594
+#: src/main.js:4607
 #. %s: the name of the folder the web server serves, local-playground-web.
 msgid "%s directory not found."
 msgstr ""
 
-#: src/main.js:4642
+#: src/main.js:4655
 msgid "Server exited before becoming ready"
 msgstr ""
 
-#: src/main.js:4674
+#: src/main.js:4687
 msgid "Timed out starting web server"
 msgstr ""
 
@@ -558,7 +558,7 @@ msgstr ""
 
 #: src/menu.js:78
 #: src/renderer/components/site-details.jsx:430
-#: src/renderer/components/xdebug-setup-dialog.jsx:21
+#: src/renderer/components/xdebug-setup-dialog.jsx:22
 #: src/renderer/confirmations.cjs:185
 msgid "Copy"
 msgstr ""
@@ -2920,90 +2920,113 @@ msgstr ""
 msgid "Updating to latest trunk"
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:102
+#: src/renderer/components/xdebug-setup-dialog.jsx:103
 msgid ""
 "Run <b>debugger: start</b> from the command palette, choose “Listen for "
 "Xdebug”, set a breakpoint, and load the site."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:106
+#: src/renderer/components/xdebug-setup-dialog.jsx:107
 msgid "If Zed says no debug tasks were found, the PHP extension is not installed."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:133
+#: src/renderer/components/xdebug-setup-dialog.jsx:134
+msgid ""
+"Sublime Text debugs PHP with the <b>Debugger</b> package and its PHP "
+"adapter, which needs Node.js. If you haven’t set them up, follow the "
+"<link>Debugger package’s setup guide</link>."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:138
+msgid ""
+"Save this in the site’s folder as <code>xdebug.sublime-project</code>, and "
+"open it with <b>Project → Open Project</b>:"
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:142
+msgid "Copy project file"
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:146
+msgid ""
+"Press the Debugger’s play button, choose “Listen for Xdebug”, then press "
+"play again. Set a breakpoint, and load the site."
+msgstr ""
+
+#: src/renderer/components/xdebug-setup-dialog.jsx:173
 #. %d: the port Xdebug connects to. <b> marks the name of a settings page.
 msgid ""
 "In <b>Settings → PHP → Debug</b>, make sure Debug port includes %d, and "
 "turn off both “Force break at first line” options."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:137
+#: src/renderer/components/xdebug-setup-dialog.jsx:177
 msgid ""
 "In <b>Settings → PHP → Servers</b>, add a server with Xdebug as its "
 "debugger, turn on “Use path mappings”, and enter:"
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:142
+#: src/renderer/components/xdebug-setup-dialog.jsx:182
 msgid ""
 "Turn on <b>Run → Start Listening for PHP Debug Connections</b>, set a "
 "breakpoint, and load the site."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:181
+#: src/renderer/components/xdebug-setup-dialog.jsx:223
 #. %s: an editor's name, such as VS Code or PhpStorm.
 msgid "Set up %s"
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:191
+#: src/renderer/components/xdebug-setup-dialog.jsx:233
 msgid ""
 "If the site starts on another port, PhpStorm asks which server it is; "
 "update the Host above."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:28
+#: src/renderer/components/xdebug-setup-dialog.jsx:29
 msgid "Copied to clipboard"
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:28
+#: src/renderer/components/xdebug-setup-dialog.jsx:29
 msgid "Couldn’t copy to clipboard."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:60
+#: src/renderer/components/xdebug-setup-dialog.jsx:61
 #. %d: the port Xdebug connects to.
 msgid ""
 "Every site’s server sends Xdebug to port %d, so only one running site has "
 "Xdebug at a time: the first one started with it."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:73
+#: src/renderer/components/xdebug-setup-dialog.jsx:74
 msgid "Install the <b>PHP Debug</b> extension by Xdebug."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:74
+#: src/renderer/components/xdebug-setup-dialog.jsx:75
 msgid "Open the site’s folder, and put this in <code>.vscode/launch.json</code>:"
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:78
+#: src/renderer/components/xdebug-setup-dialog.jsx:79
 msgid "Copy launch.json"
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:82
+#: src/renderer/components/xdebug-setup-dialog.jsx:83
 msgid ""
 "In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and "
 "load the site."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:93
+#: src/renderer/components/xdebug-setup-dialog.jsx:94
 msgid ""
 "Run <b>zed: extensions</b> from the command palette, and install "
 "<b>PHP</b>. Its Xdebug adapter is what Zed debugs PHP with."
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:94
+#: src/renderer/components/xdebug-setup-dialog.jsx:95
 msgid "Open the site’s folder, and put this in <code>.zed/debug.json</code>:"
 msgstr ""
 
-#: src/renderer/components/xdebug-setup-dialog.jsx:98
+#: src/renderer/components/xdebug-setup-dialog.jsx:99
 msgid "Copy debug.json"
 msgstr ""
 
@@ -5495,62 +5518,66 @@ msgid ""
 "again before trying the site."
 msgstr ""
 
-#: src/renderer/xdebug.cjs:107
+#: src/renderer/xdebug.cjs:130
 msgid "Host"
 msgstr ""
 
-#: src/renderer/xdebug.cjs:108
+#: src/renderer/xdebug.cjs:131
 msgid "Port"
 msgstr ""
 
-#: src/renderer/xdebug.cjs:109
+#: src/renderer/xdebug.cjs:132
 msgid "File/Directory"
 msgstr ""
 
-#: src/renderer/xdebug.cjs:110
+#: src/renderer/xdebug.cjs:133
 msgid "Absolute path on the server"
 msgstr ""
 
-#: src/renderer/xdebug.cjs:131
+#: src/renderer/xdebug.cjs:154
 msgid "Xdebug is still on for this site until you restart the server."
 msgstr ""
 
-#: src/renderer/xdebug.cjs:137
+#: src/renderer/xdebug.cjs:160
 #. %s: the name of the site whose server has Xdebug.
 msgid ""
 "Xdebug is on for %s. Stop that site’s server, then restart this one to use "
 "it here."
 msgstr ""
 
-#: src/renderer/xdebug.cjs:142
+#: src/renderer/xdebug.cjs:165
 msgid ""
 "This site started without Xdebug because another site’s server had it. "
 "Restart the server to use it."
 msgstr ""
 
-#: src/renderer/xdebug.cjs:143
+#: src/renderer/xdebug.cjs:166
 msgid ""
 "Xdebug is turned on, but this site started before that. Restart the server "
 "to use it."
 msgstr ""
 
-#: src/renderer/xdebug.cjs:205
+#: src/renderer/xdebug.cjs:229
 msgid "VS Code"
 msgstr ""
 
-#: src/renderer/xdebug.cjs:206
+#: src/renderer/xdebug.cjs:230
 msgid "Cursor"
 msgstr ""
 
-#: src/renderer/xdebug.cjs:207
+#: src/renderer/xdebug.cjs:231
 msgid "PhpStorm"
 msgstr ""
 
-#: src/renderer/xdebug.cjs:208
+#: src/renderer/xdebug.cjs:232
 msgid "Zed"
 msgstr ""
 
-#: src/renderer/xdebug.cjs:229
+#: src/renderer/xdebug.cjs:233
+msgid "Sublime Text"
+msgstr ""
+
+#: src/renderer/xdebug.cjs:254
 #. %s: the name of an editor, for example "VS Code".
 msgid "Set up Xdebug for %s"
 msgstr ""
