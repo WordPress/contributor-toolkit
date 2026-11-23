@@ -17,7 +17,8 @@
 # No `playwright install` step in either job. These tests launch Electron; no
 # browser is ever downloaded.
 #
-# A pull request that changes only Markdown files skips both jobs. Their checks are
+# A pull request that changes only documentation (Markdown, docs/public/ and
+# scripts/screenshots/, as unit-tests.yml lists) skips both jobs. Their checks are
 # required, so the `*-skipped` jobs report the same names as passed on a cheap Linux
 # runner; unit-tests.yml explains why it is done this way and not with `paths-ignore`,
 # and how base-change.yml re-runs both workflows when a PR's base moves.
@@ -51,7 +52,8 @@ jobs:
       code: ${{ steps.files.outputs.code }}
     steps:
       # A push to trunk always runs both jobs. On a pull request, any file that is
-      # not Markdown (including the old name of a renamed file) counts as code. The
+      # not Markdown and not under docs/public/ or scripts/screenshots/ (including
+      # the old name of a renamed file) counts as code. The
       # list is read live, so a re-run after the base moves sees the new diff.
       - id: files
         env:
@@ -64,7 +66,7 @@ jobs:
           fi
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
             --jq '.[] | .filename, (.previous_filename // empty)')
-          if printf '%s\n' "$files" | grep -v '\.md$' > /dev/null; then
+          if printf '%s\n' "$files" | grep -v -E '\.md$|^docs/public/|^scripts/screenshots/' > /dev/null; then
             echo code=true >> "$GITHUB_OUTPUT"
           else
             echo code=false >> "$GITHUB_OUTPUT"
@@ -79,7 +81,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     steps:
-      - run: echo "Only Markdown changed; the journey suite does not run."
+      - run: echo "Only documentation changed; the journey suite does not run."
 
   journeys:
     name: Journeys (${{ matrix.os }})
@@ -133,7 +135,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     steps:
-      - run: echo "Only Markdown changed; the packaged smoke test does not run."
+      - run: echo "Only documentation changed; the packaged smoke test does not run."
 
   packaged:
     name: Packaged smoke (${{ matrix.os }})
