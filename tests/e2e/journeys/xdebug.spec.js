@@ -319,8 +319,8 @@ test( 'a setup dialog closed by the server going does not open again by itself a
 } );
 
 // The menu offers the editors found on this machine that have a setup (#723):
-// Cursor gets VS Code's, Zed its own, and Sublime Text none. Finding none of
-// them, there is nothing to set up, and no setup is offered.
+// Cursor gets VS Code's, and Zed and Sublime Text their own (#758). Finding
+// none of them, there is nothing to set up, and no setup is offered.
 test( 'the setup menu offers the detected editors that have a setup, and no setup when it finds none', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
@@ -334,7 +334,7 @@ test( 'the setup menu offers the detected editors that have a setup, and no setu
 	await ui.startDevServerButton( page ).click();
 	await setup.click();
 	// INVARIANT — only the detected editors with a setup, in a fixed order.
-	await expect.poll( items ).toEqual( [ 'Cursor', 'Zed' ] );
+	await expect.poll( items ).toEqual( [ 'Cursor', 'Zed', 'Sublime Text' ] );
 
 	// INVARIANT — Cursor's is VS Code's launch.json, under Cursor's name.
 	await page.getByRole( 'menuitem', { name: 'Cursor', exact: true } ).click();
@@ -362,9 +362,39 @@ test( 'the setup menu offers the detected editors that have a setup, and no setu
 	await page.keyboard.press( 'Escape' );
 	await expect( zed ).toHaveCount( 0 );
 
+	// INVARIANT — Sublime Text's is a .sublime-project for the Debugger
+	// package's PHP adapter, with the same listener and mapping. Setting the
+	// package up is its own guide's to say; the dialog links to it and names
+	// the Node.js that guide leaves out.
+	await setup.click();
+	await page.getByRole( 'menuitem', { name: 'Sublime Text', exact: true } ).click();
+	const sublime = page.getByRole( 'dialog', { name: 'Set up Sublime Text', exact: true } );
+	await expect( sublime ).toBeVisible();
+	await expect( sublime ).toContainText( 'Sublime Text debugs PHP with the Debugger package and its PHP adapter, which needs Node.js.' );
+	// The link opens the guide in the browser; the function that would open it
+	// records the address instead.
+	await app.evaluate( ( { shell } ) => {
+		global.e2eOpened = [];
+		shell.openExternal = async ( url ) => { global.e2eOpened.push( url ); };
+	} );
+	const guide = sublime.getByRole( 'link', { name: /^Debugger package’s setup guide/ } );
+	await expect( guide ).toHaveAttribute( 'href', 'https://github.com/daveleroy/SublimeDebugger' );
+	await guide.click();
+	await expect.poll( () => app.evaluate( () => global.e2eOpened ) ).toEqual( [ 'https://github.com/daveleroy/SublimeDebugger' ] );
+	// INVARIANT — the file has a name before its extension: a file named only
+	// .sublime-project is hidden on macOS, and Open Project cannot choose it.
+	await expect( sublime.locator( '.xdebug-setup-step' ).first() ).toContainText( 'Save this in the site’s folder as xdebug.sublime-project' );
+	const project = JSON.parse( await sublime.locator( '.xdebug-launch-config' ).textContent() );
+	expect( project.folders ).toEqual( [ { path: '.' } ] );
+	expect( project.debugger_configurations[ 0 ] ).toMatchObject( { type: 'php', request: 'launch', port: 9003, hostname: '127.0.0.1' } );
+	expect( project.debugger_configurations[ 0 ].pathMappings ).toEqual( { '/wordpress': path.join( site.dir, 'src' ) } );
+	await expect( sublime.getByRole( 'button', { name: 'Copy project file', exact: true } ) ).toBeVisible();
+	await page.keyboard.press( 'Escape' );
+	await expect( sublime ).toHaveCount( 0 );
+
 	// INVARIANT — with nothing detected that has a setup, the row still names
 	// Xdebug and offers no setup.
-	await app.evaluate( () => { global.e2eEditors = [ 'sublime' ]; } );
+	await app.evaluate( () => { global.e2eEditors = []; } );
 	await ui.stopDevServerButton( page ).click();
 	await ui.startDevServerButton( page ).click();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();

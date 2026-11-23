@@ -2,7 +2,7 @@
 
 A site's PHP can run with Xdebug, so you can stop on a breakpoint in your editor and step through Core one line at a time. It is off unless you turn it on, because it slows every request.
 
-This is a proof of concept. It has setup for VS Code, Cursor, PhpStorm and Zed, and one running site has Xdebug at a time.
+This is a proof of concept. It has setup for VS Code, Cursor, PhpStorm, Zed and Sublime Text, and one running site has Xdebug at a time.
 
 ## Turn it on
 
@@ -14,7 +14,7 @@ The **Debugging** row of the site's details then names *Xdebug*, and while the s
 
 ![The site's details with the Debugging row reading WP_DEBUG · SCRIPT_DEBUG · Xdebug, and the Set up Xdebug for your editor menu open under it, listing VS Code and PhpStorm](/screenshots/xdebug-setup-menu.png)
 
-The menu lists the editors the app finds on your computer that it has setup for. If it finds none of them, there is no menu. The app looks in each editor's usual install location, so it can miss one installed elsewhere, such as PhpStorm from JetBrains' own installer on Windows. Sublime Text has no setup: its PHP debugger needs Node.js installed on your computer.
+The menu lists the editors the app finds on your computer that it has setup for. If it finds none of them, there is no menu. The app looks in each editor's usual install location, so it can miss one installed elsewhere, such as PhpStorm from JetBrains' own installer on Windows.
 
 If you chose one of these editors as your **Code editor** on the **General** tab of **Settings**, and the app finds it, the button is named for it instead, such as **Set up Xdebug for Zed**, and opens that editor's setup without the menu. In the steps below, select that button where they say to choose your editor from the menu. To set up a different editor, change the **Code editor** setting, or set it to **Ask each time** to have the menu back.
 
@@ -56,6 +56,17 @@ Like the launch.json, the debug.json listens on `127.0.0.1` only.
 
 If Zed says no debug tasks were found, the PHP extension is not installed: Zed leaves out a debug task whose adapter it does not have.
 
+## Connect Sublime Text
+
+Sublime Text debugs PHP with the **Debugger** package and its PHP adapter, which needs [Node.js](https://nodejs.org/) installed on your computer. If you have not set them up, follow the [Debugger package's setup guide](https://github.com/daveleroy/SublimeDebugger). The app does not install Node.js or check for it.
+
+1. In the site's details, select **Set up Xdebug for your editor**, choose **Sublime Text**, then select **Copy project file**.
+2. Save it in the site's folder as `xdebug.sublime-project`, and open it with **Project → Open Project**. The app keeps it out of your patch.
+3. Press the Debugger's play button, choose **Listen for Xdebug**, then press play again.
+4. Set a breakpoint, and load a page of the site in the browser.
+
+Like the launch.json, the project file listens on `127.0.0.1` only.
+
 ## Where to set breakpoints
 
 On a Core site, set breakpoints in `src/`, the files you edit. The server runs WordPress from `build/`, but the build copies the PHP from `src/` line for line, and the launch.json maps one to the other.
@@ -76,7 +87,7 @@ A site you start while another site's server has Xdebug starts without it. Its *
 ## If your editor does not stop
 
 - Check that the site's details show **Set up Xdebug for your editor**, or **Set up Xdebug for** and your code editor's name, under **Debugging**. If they do not, restart the server. If they still do not, the app found no editor it has setup for.
-- Check that **Listen for Xdebug** is running in VS Code, Cursor or Zed, or that PhpStorm is listening for debug connections, and that no other program uses port 9003.
+- Check that **Listen for Xdebug** is running in VS Code, Cursor, Zed or Sublime Text, or that PhpStorm is listening for debug connections, and that no other program uses port 9003.
 - On a Core site, check that the breakpoint is in `src/`, not `build/`, and not in one of the three files above.
 - On a Gutenberg site, check that the breakpoint is in one of the checkout's own PHP files.
 - Check that no other site's server is running with Xdebug.
