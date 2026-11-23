@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { speak } from '@wordpress/a11y';
-import { Button as LinkButton } from '@wordpress/components';
+import { ExternalLink } from '@wordpress/components';
 import { createInterpolateElement } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import { check as checkIcon, copy as copyIcon, error as errorIcon } from '@wordpress/icons';
@@ -120,7 +120,14 @@ function ZedSteps({ config, onCopy }) {
 const SUBLIME_DEBUGGER_URL = 'https://github.com/daveleroy/SublimeDebugger';
 
 function SublimeSteps({ config, onCopy }) {
-  const link = <LinkButton variant="link" onClick={() => window.api.openExternal(SUBLIME_DEBUGGER_URL)} />;
+  // A real link, so it is announced as one and its address can be copied;
+  // the browser opens it, not the window.
+  const link = (
+    <ExternalLink
+      href={SUBLIME_DEBUGGER_URL}
+      onClick={(event) => { event.preventDefault(); window.api.openExternal(SUBLIME_DEBUGGER_URL); }}
+    />
+  );
   return (
     <>
       <Text variant="body-md">{createInterpolateElement(

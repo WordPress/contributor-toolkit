@@ -218,8 +218,8 @@ function xdebugHolder({ sitePath, servers }) {
  * The editors the setup menu offers: those found on this machine that have a
  * setup, in this order. Cursor reads VS Code's launch.json, so it gets that
  * setup under its own name. Sublime Text's Debugger package needs Node.js
- * on the computer, which its setup says (#758). With none found that has a setup, there
- * is nothing to set up, and the list is empty.
+ * on the computer, which its setup says (#758). With none found that has a
+ * setup, there is nothing to set up, and the list is empty.
  *
  * @param {Array<{id: string}>} [detected] From `editor:list`.
  * @return {Array<{id: string, name: string, setup: string}>} `setup` is 'vscode', 'phpstorm', 'zed' or 'sublime'.

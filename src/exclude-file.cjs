@@ -3,7 +3,8 @@
 /**
  * The one writer of the app's blocks in a site's `.git/info/exclude` (#523):
  * the machine-local excludes and the generated Gutenberg download main.js
- * seeds (#19), the editor folders (#737), and the files another branch
+ * seeds (#19), the editor folders (#737), the link Xdebug leaves (#723),
+ * Sublime Text's project files (#758), and the files another branch
  * ignored that a switch leaves behind (#521). No Electron, so
  * ticket-branches.js can use it too.
  *

@@ -32,7 +32,7 @@ The **Changed files** section of the site's details lists, as folder trees, the 
 - With **Ask each time**, a menu labelled **Open in** opens next to the file, with the same editors and **Other application…**. Press Escape to close it without opening anything.
 - If the app found no editor, the file is shown in your file manager.
 
-Folders that editors create for their own settings are not listed: `.idea`, `.vscode`, `.vs`, `.fleet`, `.zed` and `.nova`. The app adds them to the site's local Git excludes (`.git/info/exclude`), so they also stay out of your patch. If you remove a rule from that file, the app does not add it again. A file that the project itself tracks in one of these folders, such as Gutenberg's own `.vscode` files, is still listed when you change it.
+Folders that editors create for their own settings are not listed: `.idea`, `.vscode`, `.vs`, `.fleet`, `.zed` and `.nova`. The app adds them to the site's local Git excludes (`.git/info/exclude`), so they also stay out of your patch. If you remove a rule from that file, the app does not add it again. A file that the project itself tracks in one of these folders, such as Gutenberg's own `.vscode` files, is still listed when you change it. Sublime Text project files at the top of the site's folder, `*.sublime-project` and the `*.sublime-workspace` beside each, are left out the same way, in a block of their own.
 
 ## How detection works
 

@@ -377,7 +377,9 @@ test( 'the setup menu offers the detected editors that have a setup, and no setu
 		global.e2eOpened = [];
 		shell.openExternal = async ( url ) => { global.e2eOpened.push( url ); };
 	} );
-	await sublime.getByRole( 'button', { name: 'Debugger package’s setup guide', exact: true } ).click();
+	const guide = sublime.getByRole( 'link', { name: /^Debugger package’s setup guide/ } );
+	await expect( guide ).toHaveAttribute( 'href', 'https://github.com/daveleroy/SublimeDebugger' );
+	await guide.click();
 	await expect.poll( () => app.evaluate( () => global.e2eOpened ) ).toEqual( [ 'https://github.com/daveleroy/SublimeDebugger' ] );
 	// INVARIANT — the file has a name before its extension: a file named only
 	// .sublime-project is hidden on macOS, and Open Project cannot choose it.
