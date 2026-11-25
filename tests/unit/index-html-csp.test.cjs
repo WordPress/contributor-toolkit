@@ -45,10 +45,31 @@ const startTags = (html) =>
 	});
 
 // A <script> whose type is not JavaScript is a data block: the browser never
-// runs it, so the policy has nothing to block.
+// runs it, so the policy has nothing to block. "JavaScript" is the HTML
+// standard's list of JavaScript MIME type essences, legacy names included, and
+// a type runs only when it matches one of them exactly, ignoring case.
+const JAVASCRIPT_TYPES = new Set([
+	'application/ecmascript',
+	'application/javascript',
+	'application/x-ecmascript',
+	'application/x-javascript',
+	'text/ecmascript',
+	'text/javascript',
+	'text/javascript1.0',
+	'text/javascript1.1',
+	'text/javascript1.2',
+	'text/javascript1.3',
+	'text/javascript1.4',
+	'text/javascript1.5',
+	'text/jscript',
+	'text/livescript',
+	'text/x-ecmascript',
+	'text/x-javascript',
+]);
+
 const runsAsScript = (attrs) => {
-	const type = (attrs.get('type') ?? '').trim();
-	return type === '' || /^(module|(text|application)\/(java|ecma)script)$/i.test(type);
+	const type = (attrs.get('type') ?? '').trim().toLowerCase();
+	return type === '' || type === 'module' || JAVASCRIPT_TYPES.has(type);
 };
 
 const inlineScripts = (html) =>
@@ -87,6 +108,9 @@ test('the inline script and handler checks read attributes the way the browser d
 	assert.equal(inlineScripts('<script data-type="application/json">run()</script>').length, 1, 'data-type is not type');
 	assert.equal(inlineScripts('<script data-src="a.js">run()</script>').length, 1, 'data-src is not src');
 	assert.equal(inlineScripts('<script title="a > b">run()</script>').length, 1);
+	assert.equal(inlineScripts('<script type="application/x-javascript">run()</script>').length, 1, 'legacy JavaScript types run');
+	assert.equal(inlineScripts('<script type="TEXT/JScript">run()</script>').length, 1, 'types match ignoring case');
+	assert.deepEqual(inlineScripts('<script type="text/plain">run()</script>'), []);
 	assert.deepEqual(inlineScripts('<script type="application/json">{"a":1}</script>'), []);
 	assert.deepEqual(inlineScripts('<script type="module" src="./a.js"></script>'), []);
 	assert.deepEqual(inlineScripts(stripComments('<!-- <script>run()</script> -->')), []);
