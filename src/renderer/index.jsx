@@ -1431,6 +1431,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const setupEditors = useMemo(() => xdebugEditors(detectedEditors), [detectedEditors]);
   // The editor chosen in Settings opens its setup without the menu (#767).
   const setupEditor = xdebugSetupEditor({ editors: setupEditors, preferred: settings?.editor ?? null });
+  const xdebugEditorPath = detectedEditors.find((entry) => entry.id === xdebugEditor)?.path ?? null;
   // A copy that failed says so on its button, and why in the log.
   const copyXdebugConfig = useCallback(async (text) => {
     try {
@@ -2614,7 +2615,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onClose={() => setDirtyModalOpen(false)}
         />
       ) : null}
-      <XdebugSetupDialog editor={xdebugOn ? setupEditors.find((entry) => entry.id === xdebugEditor) || null : null} config={xdebug ? xdebug.config : ''} zed={xdebug ? xdebug.zed : ''} sublime={xdebug ? xdebug.sublime : ''} phpStorm={xdebug ? xdebug.phpStorm : []} onCopy={copyXdebugConfig} onClose={() => setXdebugEditor(null)} />
+      <XdebugSetupDialog editor={xdebugOn ? setupEditors.find((entry) => entry.id === xdebugEditor) || null : null} config={xdebug ? xdebug.config : ''} zed={xdebug ? xdebug.zed : ''} sublime={xdebug ? xdebug.sublime : ''} phpStorm={xdebug ? xdebug.phpStorm : []} sitePath={sitePath} editorPath={xdebugEditorPath} onCopy={copyXdebugConfig} onClose={() => setXdebugEditor(null)} />
       <RenameSiteDialog open={renameModalOpen} sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
       <ConfirmDialog question={asking ? asking.question : null} onConfirm={() => asking.action()} onClose={() => setAsking(null)} />
       {isPatchOpen && (

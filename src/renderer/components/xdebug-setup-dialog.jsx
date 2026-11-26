@@ -41,11 +41,11 @@ function CopyButton({ text, label = __('Copy'), describedBy, onCopy }) {
 }
 
 // One numbered step: its words, and what goes with them, under the words.
-function Step({ children, words }) {
+function Step({ children, words, markup = STEP_MARKUP }) {
   return (
     <li className="xdebug-setup-step">
       <Stack direction="column" gap="md">
-        <Text variant="body-md">{createInterpolateElement(words, STEP_MARKUP)}</Text>
+        <Text variant="body-md">{createInterpolateElement(words, markup)}</Text>
         {children}
       </Stack>
     </li>
@@ -66,18 +66,104 @@ function OneSiteNote() {
   );
 }
 
-// VS Code reads its debug setup from a file in the project, so it gets the
-// whole file to paste.
-function VsCodeSteps({ config, onCopy }) {
+const PHP_DEBUG_EXTENSION_URL = 'https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug';
+
+// VS Code reads its debug setup from a file in the project. The app can create
+// it when missing, and opens an existing file without replacing its contents.
+function VsCodeSteps({ config, onCopy, sitePath, editorPath, editorName, isOpen }) {
+  const [fileStatus, setFileStatus] = useState('checking');
+  const [fileBusy, setFileBusy] = useState(false);
+  const [fileError, setFileError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    let cancelled = false;
+    setFileStatus('checking');
+    window.api.xdebugLaunchConfigFile(sitePath, config, false)
+      .then((result) => {
+        if (cancelled) return;
+        if (result?.ok) setFileStatus(result.exists ? 'exists' : 'missing');
+        else setFileStatus('unknown');
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setFileStatus('unknown');
+          // eslint-disable-next-line no-console -- reaches the log file through spyRendererConsole.
+          console.error('Could not check the Xdebug launch file:', error);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [config, isOpen, sitePath]);
+
+  const openLaunchFile = useCallback(async () => {
+    setFileBusy(true);
+    setFileError('');
+    try {
+      const prepared = await window.api.xdebugLaunchConfigFile(sitePath, config, true);
+      if (!prepared?.ok) {
+        setFileError(__('Could not create .vscode/launch.json. You can still copy the configuration below.'));
+        return;
+      }
+      setFileStatus('exists');
+      const opened = await window.api.openInEditor(sitePath, editorPath, '.vscode/launch.json');
+      if (!opened?.ok) {
+        setFileError(sprintf(
+          // translators: %s: an editor's name, such as VS Code.
+          __('The file is ready, but %s could not open it. Open .vscode/launch.json from the site folder instead.'),
+          editorName
+        ));
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console -- reaches the log file through spyRendererConsole.
+      console.error('Could not create or open the Xdebug launch file:', error);
+      setFileError(__('Could not create or open .vscode/launch.json. You can still copy the configuration below.'));
+    } finally {
+      setFileBusy(false);
+    }
+  }, [config, editorName, editorPath, sitePath]);
+
+  const fileButtonLabel = () => {
+    if (fileStatus === 'checking') return __('Checking launch.json…');
+    if (fileStatus === 'exists') {
+      return sprintf(
+        // translators: %s: an editor's name, such as VS Code.
+        __('Open launch.json in %s to edit'),
+        editorName
+      );
+    }
+    if (fileStatus === 'unknown') {
+      return sprintf(
+        // translators: %s: an editor's name, such as VS Code.
+        __('Add or open launch.json in %s'),
+        editorName
+      );
+    }
+    return sprintf(
+      // translators: %s: an editor's name, such as VS Code.
+      __('Add launch.json and open in %s'),
+      editorName
+    );
+  };
+  const extensionLink = (
+    <ExternalLink
+      href={PHP_DEBUG_EXTENSION_URL}
+      onClick={(event) => { event.preventDefault(); window.api.openExternal(PHP_DEBUG_EXTENSION_URL); }}
+    />
+  );
+
   return (
     <ol className="xdebug-setup-steps">
-      <Step words={__('Install the <b>PHP Debug</b> extension by Xdebug.')} />
+      <Step words={__('Install the <link>PHP Debug</link> extension for VS Code.')} markup={{ ...STEP_MARKUP, link: extensionLink }} />
       <Step words={__('Open the site’s folder, and put this in <code>.vscode/launch.json</code>:')}>
         <div className="xdebug-launch-config-box">
           <pre className="xdebug-launch-config">{config}</pre>
-          <Stack direction="row" justify="end">
+          <Stack direction="row" justify="space-between" gap="sm">
+            <Button variant="outline" tone="neutral" size="compact" disabled={fileBusy || fileStatus === 'checking' || !editorPath} onClick={() => openLaunchFile()}>
+              {fileBusy ? __('Opening…') : fileButtonLabel()}
+            </Button>
             <CopyButton text={config} label={__('Copy launch.json')} onCopy={onCopy} />
           </Stack>
+          {fileError ? <Text variant="body-sm" className="error-text" role="status">{fileError}</Text> : null}
         </div>
       </Step>
       <Step words={__('In <b>Run and Debug</b>, start “Listen for Xdebug”, set a breakpoint, and load the site.')} />
@@ -189,19 +275,21 @@ function PhpStormSteps({ values, onCopy }) {
  * one editor, picked from the Debugging row's menu: VS Code or Cursor, with
  * the launch.json they need, Zed, with its debug.json, Sublime Text, with its
  * project file, or PhpStorm, with the values its settings need. The app
- * shows and copies them, and never writes them into the checkout, where they
- * would end up in a patch.
+ * shows and copies them; for VS Code it can add the launch file if it is
+ * missing, but never replaces one already there.
  *
  * @param {Object}   props
- * @param {?Object}  props.editor   The editor while open, from `xdebugEditors`: `{id, name, setup}`; or null.
- * @param {string}   props.config   The launch.json, from `xdebugLaunchConfig`.
- * @param {string}   props.zed      The debug.json, from `zedDebugConfig`.
- * @param {string}   props.sublime  The .sublime-project, from `sublimeProjectConfig`.
- * @param {Array}    props.phpStorm The PhpStorm values, from `phpStormSettings`.
- * @param {Function} props.onCopy   Copies a text, resolving to whether it worked.
+ * @param {?Object}  props.editor     The editor while open, from `xdebugEditors`: `{id, name, setup}`; or null.
+ * @param {string}   props.config     The launch.json, from `xdebugLaunchConfig`.
+ * @param {string}   props.sitePath   The site's folder.
+ * @param {?string}  props.editorPath The detected application path to open the setup file in.
+ * @param {string}   props.zed        The debug.json, from `zedDebugConfig`.
+ * @param {string}   props.sublime    The .sublime-project, from `sublimeProjectConfig`.
+ * @param {Array}    props.phpStorm   The PhpStorm values, from `phpStormSettings`.
+ * @param {Function} props.onCopy     Copies a text, resolving to whether it worked.
  * @param {Function} props.onClose
  */
-export function XdebugSetupDialog({ editor, config, zed, sublime, phpStorm, onCopy, onClose }) {
+export function XdebugSetupDialog({ editor, config, zed, sublime, phpStorm, sitePath, editorPath, onCopy, onClose }) {
   // The editor stays drawn while the dialog closes, when `editor` is already
   // null.
   const [shown, setShown] = useState(editor);
@@ -227,7 +315,7 @@ export function XdebugSetupDialog({ editor, config, zed, sublime, phpStorm, onCo
         </Dialog.Header>
         <Dialog.Content>
           <Stack direction="column" gap="lg">
-            {steps[setup] || <VsCodeSteps config={config} onCopy={onCopy} />}
+            {steps[setup] || <VsCodeSteps config={config} onCopy={onCopy} sitePath={sitePath} editorPath={editorPath} editorName={drawn ? drawn.name : ''} isOpen={Boolean(editor)} />}
             {phpStormShown ? (
               <Notice.Root intent="info" spokenMessage={SILENT}>
                 <Notice.Description>{__('If the site starts on another port, PhpStorm asks which server it is; update the Host above.')}</Notice.Description>

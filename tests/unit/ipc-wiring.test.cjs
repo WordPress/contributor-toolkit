@@ -7101,6 +7101,32 @@ test('editor:list asks editor-launch what is installed, without a shell', async 
 	assert.equal(result.names.cursor, 'Cursor');
 });
 
+test('xdebug:launch-config-file delegates with the registered sites and generated config', async () => {
+	const xdebugLaunchConfigFile = spy(async () => ({ ok: true, exists: true, created: true }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [SITE] }).stubs,
+			'./xdebug-launch-file.cjs': { xdebugLaunchConfigFile }
+		}
+	});
+	const config = '{"version":"0.2.0"}';
+
+	assert.deepEqual(await main.invoke('xdebug:launch-config-file', SITE, config, true), { ok: true, exists: true, created: true });
+
+	assert.equal(xdebugLaunchConfigFile.calls.length, 1);
+	const [sitePath, options] = xdebugLaunchConfigFile.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.deepEqual(options.sites, [SITE]);
+	assert.ok(Array.isArray(options.pending));
+	assert.equal(options.config, config);
+	assert.equal(options.create, true);
+	assert.equal(typeof options.realPath, 'function');
+	assert.equal(typeof options.stat, 'function');
+	assert.equal(typeof options.mkdir, 'function');
+	assert.equal(typeof options.writeFile, 'function');
+});
+
 test('dir:show asks site-registry whether the path may be revealed', async () => {
 	const revealRegisteredSite = spy(async () => ({ ok: true }));
 	const main = loadMain({
@@ -8374,6 +8400,7 @@ const WIRED = new Set([
 	'trac:list-attachments',
 	'editor:list',
 	'editor:open',
+	'xdebug:launch-config-file',
 	'dir:show',
 	'wordpress:setup',
 	'wp-debug:clear',

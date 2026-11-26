@@ -102,6 +102,7 @@ const { editorCandidates, detectEditors, matchDetectedEditor, openSiteInEditor, 
 const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
 const { mainWindowSize } = require('./window-size.cjs');
 const { appendExcludeBlock } = require('./exclude-file.cjs');
+const { xdebugLaunchConfigFile } = require('./xdebug-launch-file.cjs');
 
 const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
 const LOCAL_EXCLUDES = [
@@ -3843,6 +3844,22 @@ ipcMain.handle('editor:list', async () => ({
 	detected: await detectEditors(detectionDeps()),
 	names: Object.fromEntries(editorCandidates({ platform: process.platform }).map(({ id, name }) => [id, name]))
 }));
+
+ipcMain.handle('xdebug:launch-config-file', async (_e, sitePath, config, create) => {
+	const s = await getStore();
+	const result = await xdebugLaunchConfigFile(sitePath, {
+		sites: s.get('sites'),
+		pending: setupTracker.paths(),
+		realPath: (target) => fs.promises.realpath(target),
+		stat: (target) => fs.promises.stat(target),
+		mkdir: (target, options) => fs.promises.mkdir(target, options),
+		writeFile: (target, content, options) => fs.promises.writeFile(target, content, options),
+		config,
+		create
+	});
+	if (!result.ok) logEvent('xdebug', `could not prepare .vscode/launch.json (${result.reason})`);
+	return result;
+});
 
 // The application the contributor just named, or null for "one this list does
 // not have" — which opens the file dialog, and is the reason no editor is ever
