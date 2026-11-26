@@ -108,6 +108,15 @@ for ( const target of TARGETS ) {
 					expect( html ).toContain( 'id="loginform"' );
 					expect( html ).toContain( 'name="log"' );
 				} ).toPass( { timeout: 60_000, intervals: [ 2_000, 5_000 ] } );
+				// INVARIANT: the wp-admin link opens the dashboard logged in (#743),
+				// which takes the constant the server sets and the query the link
+				// carries to both be the names Playground's auto-login reads. A
+				// rename on either side lands on the login form instead.
+				const dashboard = await request.get( adminUrl.href, { timeout: 15_000 } );
+				expect( dashboard.status() ).toBe( 200 );
+				const dashboardHtml = await dashboard.text();
+				expect( dashboardHtml ).toContain( 'id="wpadminbar"' );
+				expect( dashboardHtml ).not.toContain( 'id="loginform"' );
 				if ( target.servedAsPlugin ) {
 					// INVARIANT: the served WordPress runs the checkout as its active
 					// Gutenberg plugin, and cannot delete it. Read off the Plugins

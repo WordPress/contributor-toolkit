@@ -81,7 +81,8 @@ test('a plugin-mount slug that is not a plain name is refused before it becomes 
 test('a Core site runs as a local environment in core development mode', () => {
 	assert.deepEqual(planServeConstants({ strategy: 'docroot', docroot: '/sites/wp/build' }), {
 		WP_ENVIRONMENT_TYPE: 'local',
-		WP_DEVELOPMENT_MODE: 'core'
+		WP_DEVELOPMENT_MODE: 'core',
+		PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED: true
 	});
 	// The default strategy is docroot, so it gets the same.
 	assert.deepEqual(planServeConstants({}), planServeConstants({ strategy: 'docroot' }));
@@ -93,6 +94,7 @@ test('a Gutenberg site runs as a local environment in plugin development mode, w
 	assert.deepEqual(planServeConstants({ strategy: 'plugin-mount', pluginDir: '/sites/gutenberg', pluginSlug: 'gutenberg' }), {
 		WP_ENVIRONMENT_TYPE: 'local',
 		WP_DEVELOPMENT_MODE: 'plugin',
+		PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED: true,
 		DISALLOW_FILE_MODS: true,
 		DISALLOW_FILE_EDIT: true
 	});

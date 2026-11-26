@@ -20,7 +20,7 @@ The server's dot shows its state, in the header and next to the site in the side
 
 When the server is running, the details list **View site**, **wp-admin** and **Database** under **Server**, with the admin username and password. The header's server menu has **View site** and **wp-admin** too. Each opens in your default browser.
 
-![The site view with the dev server running: in the details, under Server, a Stop button, the View site, wp-admin and Database links, and the admin credentials with the password hidden](/screenshots/dev-server-running.png)
+![The site view with the dev server running: in the details, under Server, a Stop button, the View site, wp-admin and Database links, and the admin credentials](/screenshots/dev-server-running.png)
 
 **Start** is disabled while a trunk update is running, and while `npm run build` is running, whether you typed it in the terminal or a patch, a pull request or a trunk update started it: the server would serve a `build/` that is still being written. A site set to start its server or watch when opened waits for that build to end. The reverse is no longer true: an update can run with the server up, because it pauses the build watch for the rebuild and leaves the server serving — see [Applying patches and PRs](./applying-patches) and [Staying up to date with trunk](./trunk-updates).
 
@@ -31,7 +31,7 @@ Every site uses the same credentials, shown under **Server** in the details:
 - Username: `admin`
 - Password: `password`
 
-The **wp-admin** link opens the dashboard directly.
+The **wp-admin** link opens the dashboard already logged in as `admin`. The site itself, and `wp-login.php`, stay logged out until you log in, so you can still test what a visitor sees.
 
 ## What the dev server actually runs
 

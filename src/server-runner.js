@@ -92,10 +92,10 @@ async function main() {
 					'WP_MAIL_SMTP_SECURE': process.env.WP_MAIL_SMTP_SECURE || '', // '', 'ssl', or 'tls'
 					'WP_MAIL_SMTP_USER': process.env.WP_MAIL_SMTP_USER || '',
 					'WP_MAIL_SMTP_PASS': process.env.WP_MAIL_SMTP_PASS || '',
-					// Last: the environment type and development mode every site
-					// gets, and, for a strategy that has to protect the host
-					// directory it mounted, the constants that do, which the shared
-					// sets above must not override.
+					// Last: the environment type, development mode and forced
+					// auto-login every site gets, and, for a strategy that has to
+					// protect the host directory it mounted, the constants that do,
+					// which the shared sets above must not override.
 					...serveConstants
 				}
 			}

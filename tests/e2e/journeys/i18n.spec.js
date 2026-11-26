@@ -317,8 +317,6 @@ test( 'the open site\'s two processes are fully translatable, in the header and 
 	await tell( 'playground:url', { sitePath: site.dir, url: URL } );
 	await expect( details.getByRole( 'link', { name: pseudoLocalize( 'Database' ), exact: true } ) ).toBeVisible();
 	await expect( menuButton( 'Build watching' ) ).toBeVisible();
-	await details.getByRole( 'button', { name: pseudoLocalize( 'Show password' ), exact: true } ).click();
-	await expect( details.getByRole( 'button', { name: pseudoLocalize( 'Hide password' ), exact: true } ) ).toBeVisible();
 	expect( ( await inDetails() ).filter( ( text ) => text !== 'password' ) ).toEqual( [] );
 	await menuButton( 'Server running' ).click();
 	await expect( item( 'Stop development server' ) ).toBeVisible();

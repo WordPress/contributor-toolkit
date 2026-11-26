@@ -610,7 +610,7 @@ test( 'the header\'s menu starts and stops the same server, and the server\'s se
 	// INVARIANT — the section says where the site, its admin and its
 	// database are.
 	await expect( link( 'View site' ) ).toHaveAttribute( 'href', URL );
-	await expect( link( 'wp-admin' ) ).toHaveAttribute( 'href', `${ URL }wp-admin/` );
+	await expect( link( 'wp-admin' ) ).toHaveAttribute( 'href', `${ URL }wp-admin/?playground_force_auto_login_as_user=admin` );
 	await expect( link( 'Database' ) ).toHaveAttribute( 'href', `${ URL }adminer.php` );
 
 	// INVARIANT — a link is opened in the browser, by the main process, and
@@ -621,7 +621,7 @@ test( 'the header\'s menu starts and stops the same server, and the server\'s se
 	const windowAddress = () => app.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows()[ 0 ].webContents.getURL() );
 	const appAddress = await windowAddress();
 	await link( 'wp-admin' ).click();
-	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL, `${ URL }wp-admin/` ] );
+	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL, `${ URL }wp-admin/?playground_force_auto_login_as_user=admin` ] );
 	await server.heard();
 	await expect( ui.siteHeading( page, 'e2e-site' ) ).toBeVisible();
 	expect( await windowAddress() ).toBe( appAddress );
@@ -632,19 +632,15 @@ test( 'the header\'s menu starts and stops the same server, and the server\'s se
 	await headerMenu( 'Server running' ).click();
 	await expect( page.getByRole( 'menuitem' ) ).toHaveText( [ 'View site', 'wp-admin', 'Stop development server' ] );
 	await page.getByRole( 'menuitem', { name: 'View site', exact: true } ).click();
-	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL, `${ URL }wp-admin/`, URL ] );
+	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL, `${ URL }wp-admin/?playground_force_auto_login_as_user=admin`, URL ] );
 	await server.heard();
 	expect( await windowAddress() ).toBe( appAddress );
 
-	// INVARIANT — it says what to log in with, and shows the password only
-	// when asked to.
+	// INVARIANT — it says what to log in with, the password included: it is
+	// `password` on every site, so there is nothing to hide (#743).
 	const credentials = page.getByRole( 'complementary' ).filter( { visible: true } );
 	await expect( credentials.getByText( 'admin', { exact: true } ) ).toBeVisible();
-	await expect( credentials.getByText( 'password', { exact: true } ) ).toHaveCount( 0 );
-	await credentials.getByRole( 'button', { name: 'Show password', exact: true } ).click();
 	await expect( credentials.getByText( 'password', { exact: true } ) ).toBeVisible();
-	await credentials.getByRole( 'button', { name: 'Hide password', exact: true } ).click();
-	await expect( credentials.getByText( 'password', { exact: true } ) ).toHaveCount( 0 );
 
 	// INVARIANT — the header's menu stops it, and both places say so.
 	await headerMenu( 'Server running' ).click();
