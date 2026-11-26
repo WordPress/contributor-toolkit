@@ -236,6 +236,10 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	expect( await updated.count() ).toBe( 0 );
 	await expect( ui.stopBuildWatchButton( page ) ).toBeEnabled();
 	await expect( ui.startDevServerButton( page ) ).toBeDisabled();
+	// INVARIANT — and the header's are held the same way: stopping the watch
+	// is the one way out of a watch that never gets ready (#507).
+	await expect( ui.processToggle( page, 'Stop build' ) ).toBeEnabled();
+	await expect( ui.processToggle( page, 'Start server' ) ).toBeDisabled();
 
 	// INVARIANT — the watch saying it is ready is what completes the update.
 	await runs.scriptPrints( 2, 'Watching for changes\n' );

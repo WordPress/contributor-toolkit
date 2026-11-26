@@ -163,9 +163,10 @@ const stopBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Stop
 // pressing it does: "Start server", "Stop build" (#741). With little room the
 // header shows its dot alone; its name is the same.
 const processToggle = ( page, name ) => page.locator( '.site-header-actions' ).getByRole( 'button', { name, exact: true } );
-// The same button, by what it says to a pointer over it the process is doing:
-// "Server stopped", "Build watching".
-const processState = ( page, label ) => page.locator( '.site-header-actions' ).getByTitle( label, { exact: true } );
+// The same button, by what its tooltip says the process is doing: "Server
+// stopped", "Build watching". The tooltip's first line; the second is what a
+// press does.
+const processState = ( page, label ) => page.locator( '.site-header-actions' ).getByTitle( new RegExp( `^${ label.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ) }\n` ) );
 // The link to the running site's dashboard, shown once the server is up.
 const adminLink = ( page ) => page.getByRole( 'link', { name: 'wp-admin', exact: true } );
 // In the page's header.

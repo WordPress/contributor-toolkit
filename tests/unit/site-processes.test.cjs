@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { serverProcess, watchProcess, buildHoldsStarts, serverLinks, serverSection, ADMIN_CREDENTIALS } = require('../../src/renderer/site-processes.cjs');
+const { serverProcess, watchProcess, processTip, buildHoldsStarts, serverLinks, serverSection, ADMIN_CREDENTIALS } = require('../../src/renderer/site-processes.cjs');
 
 test('a stopped server offers to start', () => {
 	assert.deepEqual(serverProcess(), { status: 'offline', label: 'Server stopped', action: 'Start development server', short: 'Start', toggle: 'Start server', pending: false, disabled: false, detail: '' });
@@ -191,4 +191,11 @@ test('the section of a server that is starting says how long it has been', () =>
 test('the section of a stopped server shows nothing, which is drawn as offline', () => {
 	assert.deepEqual(serverSection(), { state: 'offline', links: [], credentials: null, text: '' });
 	assert.deepEqual(serverSection({ running: true }), { state: 'offline', links: [], credentials: null, text: '' });
+});
+
+test('the header\'s tooltip says what the process is doing and what a press does', () => {
+	assert.equal(processTip(serverProcess({ active: true })), 'Server running\nStop server');
+	assert.equal(processTip(serverProcess({ starting: true })), 'Server starting…\nCancel start');
+	assert.equal(processTip(watchProcess({ state: 'watching', compiling: true })), 'Build compiling\nStop build');
+	assert.equal(processTip(watchProcess({ state: 'paused' })), 'Build paused\nStart build');
 });

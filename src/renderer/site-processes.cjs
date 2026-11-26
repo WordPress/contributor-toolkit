@@ -133,6 +133,19 @@ function watchProcess({ state = 'idle', compiling = false, exitCode = null, exit
 }
 
 /**
+ * What the header's button says to a pointer over it (#741): what the
+ * process is doing, and what a press does. The words on the button are the
+ * second, and give way to the dot alone when the header is short of room, so
+ * the tooltip says both.
+ *
+ * @param {{label: string, toggle: string}} process What serverProcess or watchProcess returned.
+ * @return {string} The two, one to a line.
+ */
+function processTip({ label, toggle }) {
+	return `${label}\n${toggle}`;
+}
+
+/**
  * Whether a build running now holds the server's start and the watch's
  * (#503): it is writing build/, so a server would serve it half written and a
  * watch would run over it. The watch's own first build is the exception. A
@@ -200,4 +213,4 @@ function serverSection({ url = '', running = false, starting = false, elapsed = 
 	return { state: 'offline', links: [], credentials: null, text: '' };
 }
 
-module.exports = { serverProcess, watchProcess, buildHoldsStarts, serverLinks, serverSection, ADMIN_CREDENTIALS };
+module.exports = { serverProcess, watchProcess, processTip, buildHoldsStarts, serverLinks, serverSection, ADMIN_CREDENTIALS };

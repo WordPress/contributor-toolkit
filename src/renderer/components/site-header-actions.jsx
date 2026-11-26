@@ -4,6 +4,7 @@ import { __ } from '@wordpress/i18n';
 import { drawerRight, moreVertical } from '@wordpress/icons';
 import { Button, IconButton, Menu } from '@wordpress/ui';
 import { openInItems, siteMenuItems } from '../site-menu.cjs';
+import { processTip } from '../site-processes.cjs';
 
 // The page's header belongs to the window, and what goes in it belongs to the
 // site that is open (#556). The window leaves a slot in the header, and the
@@ -153,18 +154,20 @@ export function ProcessStatus({ status, title }) {
 
 // One of the site's two processes, in the header (#557): a button that says
 // what pressing it does, with the dot beside the words saying what the
-// process is doing, and the same in words for a pointer over it. One press
+// process is doing, and both in words for a pointer over it. One press
 // starts or stops it (#741); where the running site can be gone to is in the
 // details. What it says is decided in site-processes.cjs.
 function ProcessToggle({ process, onToggle }) {
   return (
-    <Button className="process-toggle" variant="minimal" tone="neutral" size="compact" title={process.label} disabled={process.disabled} onClick={onToggle}>
+    <Button className="process-toggle" variant="minimal" tone="neutral" size="compact" title={processTip(process)} disabled={process.disabled} onClick={onToggle} aria-label={process.toggle}>
       {/* The dot and the words are one line, so that the dot can sit on the
-          words' x-height (shell.css). The words give way to the dot when the
-          header is short of room; they are still the button's name. */}
+          words' x-height (shell.css). One name, of which the header shows
+          the first word when it is short of room, as the review button
+          does. */}
       <span className="process-toggle-state">
         <ProcessStatus status={process.status} />
-        <span className="header-wide-only">{process.toggle}</span>
+        <span className="header-narrow-only" aria-hidden="true">{process.short}</span>
+        <span className="header-wide-only" aria-hidden="true">{process.toggle}</span>
       </span>
     </Button>
   );

@@ -337,9 +337,12 @@ test( 'a build typed in the terminal holds the server\'s start and the watch\'s 
 	await expect.poll( async () => ( await scripts.asked() ).scripts ).toEqual( [ { dir: site.dir, name: 'build', args: [] } ] );
 
 	// INVARIANT — while it writes build/, a server would serve it half
-	// written and a watch would run over it: neither can be started.
+	// written and a watch would run over it: neither can be started, from
+	// the details or from the header.
 	await expect( ui.startDevServerButton( page ) ).toBeDisabled();
 	await expect( ui.startBuildWatchButton( page ) ).toBeDisabled();
+	await expect( ui.processToggle( page, 'Start server' ) ).toBeDisabled();
+	await expect( ui.processToggle( page, 'Start build' ) ).toBeDisabled();
 
 	// INVARIANT — once it has ended, both can again, and nothing else was run.
 	await scripts.ends( 1, 0 );
