@@ -161,10 +161,17 @@ test('a server with no address has nowhere to send anyone', () => {
 test('a server with an address offers the site and its admin, and its database once it is running', () => {
 	assert.deepEqual(serverLinks({ url: URL }), [
 		{ id: 'site', label: 'View site', href: URL },
-		{ id: 'admin', label: 'wp-admin', href: `${URL}wp-admin/` }
+		{ id: 'admin', label: 'wp-admin', href: `${URL}wp-admin/?playground_force_auto_login_as_user=admin` }
 	]);
 	assert.deepEqual(serverLinks({ url: URL, running: true }).at(-1), { id: 'database', label: 'Database', href: `${URL}adminer.php` });
 	assert.equal(serverLinks({ url: URL, running: true }).length, 3);
+});
+
+// The wp-admin link logs in as a user by name (#743): a link naming a user the
+// credentials do not would land on the login screen without a word.
+test('the wp-admin link logs in as the user the credentials name', () => {
+	const admin = serverLinks({ url: URL }).find((link) => link.id === 'admin');
+	assert.equal(new globalThis.URL(admin.href).searchParams.get('playground_force_auto_login_as_user'), serverSection({ url: URL }).credentials.username);
 });
 
 test('the section of a server with an address shows where the site is and what to log in with', () => {

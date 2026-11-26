@@ -36,17 +36,29 @@ function siteUrl(serverUrl, relativePath) {
 	return `${base.replace(/\/+$/, '')}/${rel}`;
 }
 
+// The admin user every site is set up with. The credentials the details show
+// are built from it (site-processes.cjs), so the user the wp-admin link logs
+// in as is always the one they name.
+const ADMIN_USERNAME = 'admin';
+
 /**
- * The admin dashboard.
+ * The admin dashboard, already logged in (#743).
  *
  * The trailing slash matters: WordPress redirects `/wp-admin` to `/wp-admin/`,
  * and asking for the canonical form directly saves the round trip.
+ *
+ * The query is Playground's own: with PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED,
+ * which every site is served with (playground-plan.cjs), its auto-login
+ * mu-plugin logs the browser in as the named user on that request. Only this
+ * link does it: the site's front end and wp-login.php stay logged out until
+ * the contributor logs in, so a ticket about either can still be tested.
  *
  * @param {string} serverUrl
  * @return {string}
  */
 function adminUrl(serverUrl) {
-	return siteUrl(serverUrl, 'wp-admin/');
+	const url = siteUrl(serverUrl, 'wp-admin/');
+	return url ? `${url}?playground_force_auto_login_as_user=${ADMIN_USERNAME}` : '';
 }
 
 /**
@@ -62,5 +74,6 @@ function adminerUrl(serverUrl) {
 module.exports = {
 	siteUrl,
 	adminUrl,
-	adminerUrl
+	adminerUrl,
+	ADMIN_USERNAME
 };

@@ -61,7 +61,7 @@ test( 'a middle click on a link to the site opens it in the browser, and not in 
 	// INVARIANT — a middle click goes to the browser, to the address the link
 	// names.
 	await admin.click( { button: 'middle' } );
-	await expect.poll( opened ).toEqual( [ SERVER_URL, `${ SERVER_URL }wp-admin/` ] );
+	await expect.poll( opened ).toEqual( [ SERVER_URL, `${ SERVER_URL }wp-admin/?playground_force_auto_login_as_user=admin` ] );
 
 	// INVARIANT — and the app opened no window of its own and went nowhere.
 	expect( await app.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows().length ) ).toBe( 1 );

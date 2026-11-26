@@ -506,13 +506,6 @@ body {
   align-items: center;
 }
 
-.credential-value {
-  display: flex;
-  align-items: center;
-  gap: var(--wpds-dimension-gap-xs);
-  min-width: 0;
-}
-
 /* What a line of text is about, where a notice would be too much: said
    quietly, something that went well, something to mind, something that went
    wrong. One class each, for every card and dialog. */

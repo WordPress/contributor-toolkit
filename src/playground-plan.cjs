@@ -109,17 +109,23 @@ function planPlaygroundLaunch(config) {
 // The cost is real and deliberate: DISALLOW_FILE_MODS also blocks installing a
 // second plugin or theme into the preview. Losing an afternoon of uncommitted
 // work is worse than restarting a preview you can restart.
+//
+// Every strategy also turns on Playground's forced auto-login (#743), which
+// the app's wp-admin link asks for (site-urls.cjs), so that link opens the
+// dashboard logged in. It logs in whoever asks, but the server listens on the
+// loopback only, and the admin password is `password` on every site anyway.
 function planServeConstants(config) {
 	const cfg = config || {};
 	if (cfg.strategy === 'plugin-mount') {
 		return {
 			WP_ENVIRONMENT_TYPE: 'local',
 			WP_DEVELOPMENT_MODE: 'plugin',
+			PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED: true,
 			DISALLOW_FILE_MODS: true,
 			DISALLOW_FILE_EDIT: true
 		};
 	}
-	return { WP_ENVIRONMENT_TYPE: 'local', WP_DEVELOPMENT_MODE: 'core' };
+	return { WP_ENVIRONMENT_TYPE: 'local', WP_DEVELOPMENT_MODE: 'core', PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED: true };
 }
 
 module.exports = { planPlaygroundLaunch, planServeConstants, WORDPRESS_VFS_ROOT, PLUGINS_VFS_BASE };

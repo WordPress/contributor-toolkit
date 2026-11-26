@@ -7,18 +7,18 @@ const { siteUrl, adminUrl, adminerUrl } = require('../../src/renderer/site-urls.
 // The shape server-runner.js actually produces: `http://127.0.0.1:${port}/`.
 const RUNNING = 'http://127.0.0.1:8881/';
 
-test('adminUrl: the admin of a running site (issue #248)', () => {
-	assert.strictEqual(adminUrl(RUNNING), 'http://127.0.0.1:8881/wp-admin/');
+test('adminUrl: the admin of a running site, asking Playground to log the browser in (issues #248, #743)', () => {
+	assert.strictEqual(adminUrl(RUNNING), 'http://127.0.0.1:8881/wp-admin/?playground_force_auto_login_as_user=admin');
 });
 
 test('adminUrl: keeps the trailing slash WordPress would redirect to (issue #248)', () => {
-	assert.ok(adminUrl(RUNNING).endsWith('/wp-admin/'));
+	assert.strictEqual(new URL(adminUrl(RUNNING)).pathname, '/wp-admin/');
 });
 
 // The bug the old inline `.replace(/\/$/, '/')` could not catch: it swapped a
 // trailing slash for a trailing slash.
 test('adminUrl: a base without a trailing slash does not run the path together (issue #248)', () => {
-	assert.strictEqual(adminUrl('http://127.0.0.1:8881'), 'http://127.0.0.1:8881/wp-admin/');
+	assert.strictEqual(adminUrl('http://127.0.0.1:8881'), 'http://127.0.0.1:8881/wp-admin/?playground_force_auto_login_as_user=admin');
 });
 
 test('adminerUrl: matches what the Open Adminer button produced before (issue #248)', () => {

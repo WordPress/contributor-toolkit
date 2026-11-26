@@ -7,7 +7,7 @@
 'use strict';
 
 const { __, sprintf } = require('@wordpress/i18n');
-const { adminUrl, adminerUrl } = require('./site-urls.cjs');
+const { adminUrl, adminerUrl, ADMIN_USERNAME } = require('./site-urls.cjs');
 const { formatElapsed } = require('./dev-server-command.cjs');
 
 /**
@@ -172,7 +172,7 @@ function serverLinks({ url = '', running = false } = {}) {
 }
 
 // What the app's server is set up with. Fixed, and the same on every site.
-const ADMIN_CREDENTIALS = Object.freeze({ username: 'admin', password: 'password' });
+const ADMIN_CREDENTIALS = Object.freeze({ username: ADMIN_USERNAME, password: 'password' });
 
 /**
  * What the server's section of the details shows under its heading: where

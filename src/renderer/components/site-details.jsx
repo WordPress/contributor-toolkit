@@ -5,8 +5,8 @@ import { __, sprintf } from '@wordpress/i18n';
 // given its final export yet, like the segmented control.
 // eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- see above.
 import { __experimentalTreeGrid as TreeGrid, __experimentalTreeGridCell as TreeGridCell, __experimentalTreeGridRow as TreeGridRow } from '@wordpress/components';
-import { chevronDown, chevronRight, globe, offline, page, pencil, plus, seen, table, undo, unseen, wordpress } from '@wordpress/icons';
-import { Button, EmptyState, Icon, IconButton, Link, Menu, Notice, Stack, Text, Tooltip, VisuallyHidden } from '@wordpress/ui';
+import { chevronDown, chevronRight, globe, offline, page, pencil, plus, table, undo, wordpress } from '@wordpress/icons';
+import { Button, EmptyState, Icon, Link, Menu, Notice, Stack, Text, Tooltip, VisuallyHidden } from '@wordpress/ui';
 import { affectedFileTree, visibleAffectedRows } from '../affected-files.cjs';
 import { siteDetailsRows } from '../site-details.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
@@ -73,7 +73,6 @@ const LINK_ICONS = { site: globe, admin: wordpress, database: table };
 // and what to log in with. Which of the three things it shows is decided in
 // site-processes.cjs.
 function ServerSection({ server }) {
-  const [showPassword, setShowPassword] = useState(false);
   const { section } = server;
   return (
     <Stack direction="column" gap="md">
@@ -91,17 +90,7 @@ function ServerSection({ server }) {
               <Text variant="body-md" className="muted-label">{__('Username')}</Text>
               <Text variant="body-md">{section.credentials.username}</Text>
               <Text variant="body-md" className="muted-label">{__('Password')}</Text>
-              <div className="credential-value">
-                <Text variant="body-md">{showPassword ? section.credentials.password : '••••••••'}</Text>
-                <IconButton
-                  icon={showPassword ? unseen : seen}
-                  label={showPassword ? __('Hide password') : __('Show password')}
-                  variant="minimal"
-                  tone="neutral"
-                  size="small"
-                  onClick={() => setShowPassword((current) => !current)}
-                />
-              </div>
+              <Text variant="body-md">{section.credentials.password}</Text>
             </div>
           </Stack>
         </Stack>
