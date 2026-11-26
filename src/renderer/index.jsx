@@ -2296,10 +2296,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             watch: watchProcessState,
             onToggleServer: toggleDevServer,
             onToggleWatch: toggleWatch,
-            // The site and its admin, while there is a server to go to: the
-            // details have them too, and can be put away.
-            serverLinks: serverSectionState.menuLinks,
-            onOpenLink: openSiteLink,
             onReview: openPatchModal,
             reviewDisabled: isUpdating,
             serverCue: cueProps('start-dev'),

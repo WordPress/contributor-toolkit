@@ -150,8 +150,7 @@ const confirmYesButton = ( page, name ) => confirmDialog( page ).getByRole( 'but
 const confirmNoButton = ( page ) => confirmDialog( page ).getByRole( 'button', { name: 'Cancel', exact: true } );
 
 // The server's button, in the open site's details. It shows one word and is
-// named by what pressing it does. The header's menu has an item of the same
-// name, which is a menu item and not this.
+// named by what pressing it does.
 const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Start development server', exact: true } );
 // The same button once the server has an address; while it is still starting it reads neither.
 const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop development server', exact: true } );
@@ -160,10 +159,13 @@ const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop 
 // the rest of the time.
 const startBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Start build watch', exact: true } );
 const stopBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Stop build watch', exact: true } );
-// The header's menu for one of the open site's two processes, by what it says
-// the process is doing: "Server stopped", "Build watching". With little room
-// the header shows its dot alone; its name is the same.
-const processMenuButton = ( page, label ) => page.getByRole( 'button', { name: label, exact: true } );
+// The header's button for one of the open site's two processes, by what
+// pressing it does: "Start server", "Stop build" (#741). With little room the
+// header shows its dot alone; its name is the same.
+const processToggle = ( page, name ) => page.locator( '.site-header-actions' ).getByRole( 'button', { name, exact: true } );
+// The same button, by what it says to a pointer over it the process is doing:
+// "Server stopped", "Build watching".
+const processState = ( page, label ) => page.locator( '.site-header-actions' ).getByTitle( label, { exact: true } );
 // The link to the running site's dashboard, shown once the server is up.
 const adminLink = ( page ) => page.getByRole( 'link', { name: 'wp-admin', exact: true } );
 // In the page's header.
@@ -554,7 +556,8 @@ module.exports = {
 	stopDevServerButton,
 	startBuildWatchButton,
 	stopBuildWatchButton,
-	processMenuButton,
+	processToggle,
+	processState,
 	adminLink,
 	reviewChangesButton,
 	retryInstallButton,

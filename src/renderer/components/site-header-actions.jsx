@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { createSlotFill } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { Icon, chevronDown, drawerRight, moreVertical } from '@wordpress/icons';
+import { drawerRight, moreVertical } from '@wordpress/icons';
 import { Button, IconButton, Menu } from '@wordpress/ui';
 import { openInItems, siteMenuItems } from '../site-menu.cjs';
 
@@ -151,40 +151,22 @@ export function ProcessStatus({ status, title }) {
   return <span className={`process-status is-${status}`} title={title} aria-hidden="true" />;
 }
 
-// One of the site's two processes, in the header (#557): what it is doing, and
-// under it what can be done about that. For the server that is also where
-// the running site can be gone to, since the details, which say the same and
-// more, can be put away. What it says is decided in site-processes.cjs.
-function ProcessMenu({ process, onToggle, links = [], onOpenLink = null }) {
+// One of the site's two processes, in the header (#557): a button that says
+// what pressing it does, with the dot beside the words saying what the
+// process is doing, and the same in words for a pointer over it. One press
+// starts or stops it (#741); where the running site can be gone to is in the
+// details. What it says is decided in site-processes.cjs.
+function ProcessToggle({ process, onToggle }) {
   return (
-    <Menu.Root>
-      <Menu.Trigger
-        render={
-          <Button className="process-menu-trigger" variant="minimal" tone="neutral" size="compact" title={process.label}>
-            {/* The dot and the words are one line, so that the dot can sit
-                on the words' x-height (shell.css). The words give way to
-                the dot when the header is short of room; they are still the
-                button's name. */}
-            <span className="process-menu-state">
-              <ProcessStatus status={process.status} />
-              <span className="header-wide-only">{process.label}</span>
-            </span>
-            <Icon icon={chevronDown} size={16} />
-          </Button>
-        }
-      />
-      <Menu.Popup>
-        {links.map((link) => (
-          <Menu.Item key={link.id} onClick={() => onOpenLink(link.href)}>
-            <Menu.ItemLabel>{link.label}</Menu.ItemLabel>
-          </Menu.Item>
-        ))}
-        {links.length ? <Menu.Separator /> : null}
-        <Menu.Item disabled={process.disabled} onClick={onToggle}>
-          <Menu.ItemLabel>{process.action}</Menu.ItemLabel>
-        </Menu.Item>
-      </Menu.Popup>
-    </Menu.Root>
+    <Button className="process-toggle" variant="minimal" tone="neutral" size="compact" title={process.label} disabled={process.disabled} onClick={onToggle}>
+      {/* The dot and the words are one line, so that the dot can sit on the
+          words' x-height (shell.css). The words give way to the dot when the
+          header is short of room; they are still the button's name. */}
+      <span className="process-toggle-state">
+        <ProcessStatus status={process.status} />
+        <span className="header-wide-only">{process.toggle}</span>
+      </span>
+    </Button>
   );
 }
 
@@ -193,7 +175,7 @@ function ProcessMenu({ process, onToggle, links = [], onOpenLink = null }) {
  * its setup is done; the button that shows and hides its details; and its
  * menu. Rendered by the site's view, and only by the one that is open.
  *
- * The next-action cue (#252) can point at the server's menu or at the review
+ * The next-action cue (#252) can point at the server's button or at the review
  * button. Each takes the props the site's view makes for the step it is, which
  * put the glow on it when it is the next one.
  *
@@ -204,7 +186,7 @@ function ProcessMenu({ process, onToggle, links = [], onOpenLink = null }) {
  * @param {Object}   props.menu            What `siteMenuItems` takes.
  * @param {Function} props.onMenuOpen      Called as the menu opens, to look for applications.
  * @param {Function} props.onAction        Called with the chosen item.
- * @param {Object}   [props.work]          The processes and the review, or null while the site's setup is not done: `{ server, watch, onToggleServer, onToggleWatch, serverLinks, onOpenLink, onReview, reviewDisabled, serverCue, reviewCue }`.
+ * @param {Object}   [props.work]          The processes and the review, or null while the site's setup is not done: `{ server, watch, onToggleServer, onToggleWatch, onReview, reviewDisabled, serverCue, reviewCue }`.
  */
 export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, menu, onMenuOpen, onAction, work = null }) {
   return (
@@ -212,9 +194,9 @@ export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, men
       {work ? (
         <>
           <span {...work.serverCue}>
-            <ProcessMenu process={work.server} onToggle={work.onToggleServer} links={work.serverLinks} onOpenLink={work.onOpenLink} />
+            <ProcessToggle process={work.server} onToggle={work.onToggleServer} />
           </span>
-          <ProcessMenu process={work.watch} onToggle={work.onToggleWatch} />
+          <ProcessToggle process={work.watch} onToggle={work.onToggleWatch} />
           <span {...work.reviewCue}>
             {/* One name, of which the header shows the first word when it is
                 short of room. */}

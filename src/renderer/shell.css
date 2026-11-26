@@ -259,7 +259,7 @@ body {
 }
 
 @container app-page (max-width: 900px) {
-  .process-menu-trigger .header-wide-only {
+  .process-toggle .header-wide-only {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -386,25 +386,24 @@ body {
   color: var(--wpds-color-foreground-content-error-weak);
 }
 
-.process-menu-trigger {
+.process-toggle {
   font-weight: var(--wpds-typography-font-weight-default);
 }
 
 /* The dot on the x-height of the words, as in the sites list: an inline box,
    not a flex item of the button, which would centre it on the line box. The
    space between them is the words' own, so that it goes with the words when
-   they give way to the dot in a short header, leaving the button's one gap
-   between the dot and the chevron. */
-.process-menu-state {
+   they give way to the dot in a short header. */
+.process-toggle-state {
   white-space: nowrap;
 }
 
-.process-menu-state .process-status {
+.process-toggle-state .process-status {
   display: inline-block;
   vertical-align: middle;
 }
 
-.process-menu-state .header-wide-only {
+.process-toggle-state .header-wide-only {
   margin-inline-start: var(--wpds-dimension-gap-sm);
 }
 

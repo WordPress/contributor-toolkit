@@ -91,7 +91,7 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	const line = ( text ) => logs.getByText( text, { exact: true } );
 	const buildHint = ui.terminalHint( page, 'npm run build' );
 
-	const headerMenu = ( label ) => ui.processMenuButton( page, label );
+	const headerState = ( label ) => ui.processState( page, label );
 
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
 	// The hint under the terminal is a link only once the site's status has
@@ -106,7 +106,7 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	// CHARACTERISATION — nothing is watching until it is asked to, and the
 	// watch's tab, the header and the details all say so.
 	await expect( tab( 'Build watch' ) ).toBeVisible();
-	await expect( headerMenu( 'Build stopped' ) ).toBeVisible();
+	await expect( headerState( 'Build stopped' ) ).toBeVisible();
 	await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toBeVisible();
 
 	// INVARIANT — its button starts the watcher in this site's directory, and
@@ -120,7 +120,7 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
 	// INVARIANT — the header says it is watching, and the details say what:
 	// the two are one watch (#557).
-	await expect( headerMenu( 'Build watching' ) ).toBeVisible();
+	await expect( headerState( 'Build watching' ) ).toBeVisible();
 	await expect( page.getByText( 'Edits in src/ are compiled as they are saved.', { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toHaveCount( 0 );
 
@@ -132,14 +132,13 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	await expect( buildHint ).toBeVisible();
 	await ui.openTray( page, 'Logs' );
 
-	// INVARIANT — the header's menu stops that run, by the run it was given,
-	// and the tab, the button and the header say it has stopped.
-	await headerMenu( 'Build watching' ).click();
-	await page.getByRole( 'menuitem', { name: 'Stop build watch', exact: true } ).click();
+	// INVARIANT — one press of the header's button stops that run, by the run
+	// it was given, and the tab, the button and the header say it has stopped.
+	await ui.processToggle( page, 'Stop build' ).click();
 	await expect.poll( async () => ( await scripts.asked() ).kills ).toEqual( [ { runId: 'e2e-run-1', directoryPath: site.dir } ] );
 	await expect( tab( 'Build watch' ) ).toBeVisible();
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
-	await expect( headerMenu( 'Build stopped' ) ).toBeVisible();
+	await expect( headerState( 'Build stopped' ) ).toBeVisible();
 
 	// INVARIANT — a run started straight after is not told it has exited when
 	// the stopped one finally goes (#488): the old run's last words are
@@ -291,7 +290,7 @@ test( 'a build stopped before the watch could start is not a failure, stopped by
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.startBuildWatchButton( page ).click();
 	await expect.poll( async () => ( await scripts.asked() ).scripts ).toHaveLength( 1 );
-	await expect( ui.processMenuButton( page, 'Build building' ) ).toBeVisible();
+	await expect( ui.processState( page, 'Build building' ) ).toBeVisible();
 
 	// INVARIANT — the watch's button stops the build, and a build that was
 	// stopped did not fail: the details go back to saying there is no watch,
@@ -303,21 +302,21 @@ test( 'a build stopped before the watch could start is not a failure, stopped by
 	await expect( stopped ).toHaveCount( 1 );
 	await expect( offline ).toBeVisible();
 	await expect( failure ).toHaveCount( 0 );
-	await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
+	await expect( ui.processState( page, 'Build stopped' ) ).toBeVisible();
 
 	// INVARIANT — so does Ctrl+C in the terminal, which that build holds.
 	// On Windows a killed process ends with a code, which is what is said
 	// here: it is the asking that makes it a stop, not the code.
 	await ui.startBuildWatchButton( page ).click();
 	await expect.poll( async () => ( await scripts.asked() ).scripts ).toHaveLength( 2 );
-	await expect( ui.processMenuButton( page, 'Build building' ) ).toBeVisible();
+	await expect( ui.processState( page, 'Build building' ) ).toBeVisible();
 	await ui.terminalInput( page ).press( 'Control+c' );
 	await expect.poll( async () => ( await scripts.asked() ).kills ).toHaveLength( 2 );
 	await scripts.ends( 2, 1 );
 	await expect( stopped ).toHaveCount( 2 );
 	await expect( offline ).toBeVisible();
 	await expect( failure ).toHaveCount( 0 );
-	await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
+	await expect( ui.processState( page, 'Build stopped' ) ).toBeVisible();
 } );
 
 test( 'a build typed in the terminal holds the server\'s start and the watch\'s until it ends (#503)', async ( { session } ) => {

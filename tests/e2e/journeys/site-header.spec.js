@@ -361,7 +361,7 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	// INVARIANT — a site still in its setup has no server or build watch to
 	// offer, in the header or in its details: the checklist is what starts
 	// them the first time.
-	await expect( ui.processMenuButton( page, 'Server stopped' ) ).toHaveCount( 0 );
+	await expect( ui.processState( page, 'Server stopped' ) ).toHaveCount( 0 );
 	await expect( ui.reviewChangesButton( page ) ).toHaveCount( 0 );
 	await expect( details( page, 'in-setup' ).getByRole( 'heading', { name: 'Server', exact: true } ) ).toHaveCount( 0 );
 
@@ -439,15 +439,15 @@ test( 'a header short of room keeps the site\'s name, and every action in it by 
 		await resizeTo( width );
 		await expect.poll( () => page.evaluate( () => window.innerWidth ) ).toBeLessThanOrEqual( Math.max( width, 800 ) );
 
-		// INVARIANT — the site's name is still there. With two menus and a
-		// button beside it (#557) it was the name that gave way, to nothing.
+		// INVARIANT — the site's name is still there. With three buttons
+		// beside it (#557) it was the name that gave way, to nothing.
 		await expect( ui.siteHeading( page, 'a-site-with-a-name-longer-than-most' ) ).toBeVisible();
 		// INVARIANT — and everything in the header is still there under the
 		// name it has with room: what gives way is clipped for the eye, and
 		// nothing is taken from a screen reader or from a journey.
-		const server = ui.processMenuButton( page, 'Server stopped' );
+		const server = ui.processToggle( page, 'Start server' );
 		await expect( server ).toBeVisible();
-		await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
+		await expect( ui.processToggle( page, 'Start build' ) ).toBeVisible();
 		await expect( ui.reviewChangesButton( page ) ).toBeVisible();
 		await expect( hideDetailsButton( page ) ).toBeVisible();
 		await expect( ui.siteMenuButton( page ) ).toBeVisible();

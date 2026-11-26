@@ -155,17 +155,15 @@ test( 'the dev server\'s button starts one server and offers to cancel it while 
 	await expect.poll( async () => ( await server.asked() ).scripts ).toEqual( [ { name: 'grunt', args: [ '--', '_watch' ] } ] );
 	await expect( starting ).toBeVisible();
 	await expect( page.getByText( /^Dev server is starting… \(/ ) ).toBeVisible();
-	await expect( ui.processMenuButton( page, 'Server starting…' ) ).toBeVisible();
+	await expect( ui.processState( page, 'Server starting…' ) ).toBeVisible();
 	// INVARIANT — the sites list says it too, before the site's name.
 	await expect( listDot( 'e2e-site (Server starting…)', 'busy' ) ).toHaveCount( 1 );
 
-	// INVARIANT — while it starts the button, and the header's menu, offer to
+	// INVARIANT — while it starts the button, and the header's, offer to
 	// cancel the start, by a name that is not Stop's (#723): a press is never
 	// a second start (#488). Cancelling is the next journey's.
 	await expect( starting ).toBeEnabled();
-	await ui.processMenuButton( page, 'Server starting…' ).click();
-	await expect( page.getByRole( 'menuitem', { name: 'Cancel the development server start', exact: true } ) ).toBeEnabled();
-	await page.keyboard.press( 'Escape' );
+	await expect( ui.processToggle( page, 'Cancel start' ) ).toBeEnabled();
 	expect( ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 
 	// INVARIANT — once the server has an address the site is opened in the
@@ -173,7 +171,7 @@ test( 'the dev server\'s button starts one server and offers to cancel it while 
 	await server.serverHasAddress();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 	await expect( siteLink ).toHaveAttribute( 'href', URL );
-	await expect( ui.processMenuButton( page, 'Server running' ) ).toBeVisible();
+	await expect( ui.processState( page, 'Server running' ) ).toBeVisible();
 	await expect( listDot( 'e2e-site (Server running)', 'online' ) ).toHaveCount( 1 );
 	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL ] );
 	expect( ( await server.asked() ).starts ).toEqual( [ site.dir ] );
@@ -184,7 +182,7 @@ test( 'the dev server\'s button starts one server and offers to cancel it while 
 	await expect.poll( async () => ( await server.asked() ).stops ).toEqual( [ site.dir ] );
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( siteLink ).toHaveCount( 0 );
-	await expect( ui.processMenuButton( page, 'Server stopped' ) ).toBeVisible();
+	await expect( ui.processState( page, 'Server stopped' ) ).toBeVisible();
 	// INVARIANT — a stopped server is the grey every site starts with, and
 	// the entry is named by the site alone again.
 	await expect( listDot( 'e2e-site', 'offline' ) ).toHaveCount( 1 );
@@ -196,7 +194,7 @@ test( 'the dev server\'s button starts one server and offers to cancel it while 
 	await server.serverHasGone( 0 );
 	await server.heard();
 	await expect( line( 'Dev server stopped unexpectedly (see Help → Open App Log for details).' ) ).toHaveCount( 0 );
-	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
+	await expect( ui.processState( page, 'Build watching' ) ).toBeVisible();
 	expect( ( await server.asked() ).kills ).toEqual( [] );
 
 	// INVARIANT — a server that goes without being asked is said to have
@@ -580,30 +578,29 @@ test( 'a start that rejects (rather than answering ok: false) goes back to offer
 	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir, site.dir ] );
 } );
 
-test( 'the header\'s menu starts and stops the same server, and the server\'s section says where the site is, opens it in the browser and not here, and says what to log in with', async ( { session } ) => {
+test( 'the header\'s button starts and stops the same server, and the server\'s section says where the site is, opens it in the browser and not here, and says what to log in with', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	// The terminal is in the tray, which is closed when the window opens.
 	await ui.openTray( page, 'Terminal' );
 	const server = await standIn( app, page, site.dir );
-	const headerMenu = ( label ) => ui.processMenuButton( page, label );
+	const headerState = ( label ) => ui.processState( page, label );
 	const link = ( name ) => page.getByRole( 'link', { name, exact: true } );
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 
 	// INVARIANT — a stopped server says so in both places, and its section
 	// has nowhere to send anyone.
-	await expect( headerMenu( 'Server stopped' ) ).toBeVisible();
+	await expect( headerState( 'Server stopped' ) ).toBeVisible();
 	await expect( page.getByText( 'Development server offline', { exact: true } ) ).toBeVisible();
 	await expect( link( 'View site' ) ).toHaveCount( 0 );
 
-	// INVARIANT — the header's menu starts this site's server, once, and with
-	// no server there is nothing else in it.
-	await headerMenu( 'Server stopped' ).click();
-	await expect( page.getByRole( 'menuitem' ) ).toHaveText( [ 'Start development server' ] );
-	await page.getByRole( 'menuitem', { name: 'Start development server', exact: true } ).click();
+	// INVARIANT — one press of the header's button starts this site's
+	// server, once, with no menu to choose from (#741).
+	await ui.processToggle( page, 'Start server' ).click();
+	await expect( page.getByRole( 'menu' ) ).toHaveCount( 0 );
 	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 	await server.serverHasAddress();
-	await expect( headerMenu( 'Server running' ) ).toBeVisible();
+	await expect( headerState( 'Server running' ) ).toBeVisible();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 	await expect( page.getByText( 'Development server offline', { exact: true } ) ).toHaveCount( 0 );
 
@@ -626,16 +623,6 @@ test( 'the header\'s menu starts and stops the same server, and the server\'s se
 	await expect( ui.siteHeading( page, 'e2e-site' ) ).toBeVisible();
 	expect( await windowAddress() ).toBe( appAddress );
 
-	// INVARIANT — the header's menu goes to the site and its admin too, the
-	// same way, since the details can be put away. A stopped server's menu
-	// offers neither, which is how this journey opened it.
-	await headerMenu( 'Server running' ).click();
-	await expect( page.getByRole( 'menuitem' ) ).toHaveText( [ 'View site', 'wp-admin', 'Stop development server' ] );
-	await page.getByRole( 'menuitem', { name: 'View site', exact: true } ).click();
-	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL, `${ URL }wp-admin/`, URL ] );
-	await server.heard();
-	expect( await windowAddress() ).toBe( appAddress );
-
 	// INVARIANT — it says what to log in with, and shows the password only
 	// when asked to.
 	const credentials = page.getByRole( 'complementary' ).filter( { visible: true } );
@@ -646,11 +633,11 @@ test( 'the header\'s menu starts and stops the same server, and the server\'s se
 	await credentials.getByRole( 'button', { name: 'Hide password', exact: true } ).click();
 	await expect( credentials.getByText( 'password', { exact: true } ) ).toHaveCount( 0 );
 
-	// INVARIANT — the header's menu stops it, and both places say so.
-	await headerMenu( 'Server running' ).click();
-	await page.getByRole( 'menuitem', { name: 'Stop development server', exact: true } ).click();
+	// INVARIANT — one press of the header's button stops it, and both places
+	// say so.
+	await ui.processToggle( page, 'Stop server' ).click();
 	await expect.poll( async () => ( await server.asked() ).stops ).toEqual( [ site.dir ] );
-	await expect( headerMenu( 'Server stopped' ) ).toBeVisible();
+	await expect( headerState( 'Server stopped' ) ).toBeVisible();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( link( 'View site' ) ).toHaveCount( 0 );
 	await expect( page.getByText( 'Development server offline', { exact: true } ) ).toBeVisible();

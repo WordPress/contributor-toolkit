@@ -2,23 +2,23 @@
 
 Once the [setup wizard](./setup-wizard) is complete, you can start the site's development server. It starts a local WordPress that runs your site's code, so you can see your changes running: for a WordPress Core site, the WordPress built into its `build/` directory; for a Gutenberg site, a stock WordPress with your checkout as its Gutenberg plugin.
 
-![The site view, with the server's and the build watch's menus and Review & submit changes in the page's header, and a Start button beside Server and beside Build watch in the details](/screenshots/site-view.png)
+![The site view, with the server's and the build watch's buttons and Review & submit changes in the page's header, and a Start button beside Server and beside Build watch in the details](/screenshots/site-view.png)
 
 ## Start and stop
 
 There are two places to start the server:
 
 - In the site's details, click **Start** next to **Server**.
-- In the header, open the server's menu (the first dot with a chevron) and choose **Start development server**.
+- In the header, click **Start server**.
 
-The server's dot shows its state, in the header and next to the site in the sidebar:
+The server's dot shows its state, in the header and next to the site in the sidebar. In the header, pointing at the button shows the same in words:
 
 - Grey: **Server stopped**.
-- Amber: **Server starting…**. The details show how long it has been starting, and **Cancel** stops the start.
-- Green: **Server running**. **Stop** in the details, or **Stop development server** in the menu, stops it.
+- Amber: **Server starting…**. The details show how long it has been starting, and **Cancel** in the details, or **Cancel start** in the header, stops the start.
+- Green: **Server running**. **Stop** in the details, or **Stop server** in the header, stops it.
 - Red: the server stopped by itself or could not start. Its last lines are in the **Server** tab of the [Logs](./logs-and-debugging).
 
-When the server is running, the details list **View site**, **wp-admin** and **Database** under **Server**, with the admin username and password. The header's server menu has **View site** and **wp-admin** too. Each opens in your default browser.
+When the server is running, the details list **View site**, **wp-admin** and **Database** under **Server**, with the admin username and password. Each opens in your default browser.
 
 ![The site view with the dev server running: in the details, under Server, a Stop button, the View site, wp-admin and Database links, and the admin credentials with the password hidden](/screenshots/dev-server-running.png)
 
@@ -45,7 +45,7 @@ The dev server is not a stub — it is WordPress Playground running your checkou
 
 ## The build watch
 
-The build watcher compiles what you edit into what the server actually serves: `src/` into `build/` on a WordPress Core site, the packages into their `build/` directories on a Gutenberg site, where the watcher is Gutenberg's own `npm run dev` and rebuilds everything once before it starts watching. It has its own **Start** button under **Build watch** in the details, its own menu in the header with **Start build watch**, and its own status dot:
+The build watcher compiles what you edit into what the server actually serves: `src/` into `build/` on a WordPress Core site, the packages into their `build/` directories on a Gutenberg site, where the watcher is Gutenberg's own `npm run dev` and rebuilds everything once before it starts watching. It has its own **Start** button under **Build watch** in the details, its own button in the header, **Start build** (**Stop build** while it runs), and its own status dot:
 
 | Dot | State |
 | --- | --- |

@@ -3,7 +3,7 @@ import { __, sprintf } from '@wordpress/i18n';
 import { serveWithoutWatch } from '../dev-server-command.cjs';
 
 // The site's dev server (#554): whether it is starting or up, its address, and
-// what starts and stops it, which the header's menu and the details each
+// what starts and stops it, which the header and the details each
 // have a control for (#557), as the setup checklist has before them.
 //
 // Starting is a sequence. The server serves build/, so a start first makes
