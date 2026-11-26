@@ -22,6 +22,7 @@
  */
 
 const path = require( 'node:path' );
+const fs = require( 'node:fs' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
@@ -78,6 +79,7 @@ async function setXdebug( page, on ) {
 }
 
 test( 'the Debugging row says when Xdebug is on, and a server started with it offers the editor setup', async ( { session } ) => {
+	test.setTimeout( 90_000 );
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	const followSetting = await stubServer( app, session );
@@ -126,6 +128,39 @@ test( 'the Debugging row says when Xdebug is on, and a server started with it of
 	expect( launch.configurations[ 0 ].pathMappings ).toEqual( { '/wordpress': path.join( site.dir, 'src' ) } );
 	// INVARIANT — the launch.json listens on this machine only.
 	expect( launch.configurations[ 0 ].hostname ).toBe( '127.0.0.1' );
+
+	// INVARIANT — the extension link opens the requested Marketplace page, and
+	// a missing launch.json can be created and opened in the detected editor.
+	await app.evaluate( ( { ipcMain, shell } ) => {
+		global.e2eOpened = [];
+		global.e2eEditorOpens = [];
+		shell.openExternal = async ( url ) => { global.e2eOpened.push( url ); };
+		ipcMain.removeHandler( 'editor:open' );
+		ipcMain.handle( 'editor:open', ( _event, sitePath, editorPath, relPath ) => {
+			global.e2eEditorOpens.push( { sitePath, editorPath, relPath } );
+			return { ok: true };
+		} );
+	} );
+	const extension = vscode.getByRole( 'link', { name: /PHP Debug/ } );
+	await expect( extension ).toHaveAttribute( 'href', 'https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug' );
+	await extension.click();
+	await expect.poll( () => app.evaluate( () => global.e2eOpened ) ).toEqual( [ 'https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug' ] );
+	const addLaunch = vscode.getByRole( 'button', { name: 'Add launch.json and open in VS Code', exact: true } );
+	await expect( addLaunch ).toBeEnabled();
+	await addLaunch.click();
+	const launchFile = path.join( site.dir, '.vscode', 'launch.json' );
+	expect( fs.readFileSync( launchFile, 'utf8' ) ).toBe( await vscode.locator( '.xdebug-launch-config' ).textContent() );
+	await expect.poll( () => app.evaluate( () => global.e2eEditorOpens ) ).toEqual( [ { sitePath: site.dir, editorPath: '/e2e/vscode', relPath: '.vscode/launch.json' } ] );
+
+	// INVARIANT — reopening an existing file offers the edit action and does
+	// not replace the contributor's configuration.
+	const contributorConfig = '{"myConfiguration":true}\n';
+	fs.writeFileSync( launchFile, contributorConfig );
+	const editLaunch = vscode.getByRole( 'button', { name: 'Open launch.json in VS Code to edit', exact: true } );
+	await expect( editLaunch ).toBeEnabled();
+	await editLaunch.click();
+	await expect.poll( () => app.evaluate( () => global.e2eEditorOpens ) ).toHaveLength( 2 );
+	expect( fs.readFileSync( launchFile, 'utf8' ) ).toBe( contributorConfig );
 
 	// INVARIANT — copying follows the design system's pattern: the button
 	// keeps its name, shows a check for two seconds after the copy, an error

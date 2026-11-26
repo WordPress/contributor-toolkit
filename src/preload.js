@@ -91,6 +91,8 @@ contextBridge.exposeInMainWorld('api', {
 	// `relPath` is a file of the site to open with it (#669).
 	openInEditor: (sitePath, editorPath = null, relPath = null) => ipcRenderer.invoke('editor:open', sitePath, editorPath, relPath)
 ,
+	xdebugLaunchConfigFile: (sitePath, config, create = false) => ipcRenderer.invoke('xdebug:launch-config-file', sitePath, config, create)
+,
 	// Who the patch came from and where, app-wide (#166). An empty ref forgets
 	// the field it is passed to.
 	getProvenance: () => ipcRenderer.invoke('provenance:get')

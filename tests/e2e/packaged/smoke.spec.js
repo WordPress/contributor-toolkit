@@ -117,6 +117,7 @@ const EXPECTED_API_KEYS = [
 	'switchBranch',
 	'takeResumeList',
 	'updateTrunk',
+	'xdebugLaunchConfigFile',
 ];
 
 /**
