@@ -53,8 +53,9 @@ for ( const target of TARGETS ) {
 		try {
 			await test.step( 'Create a site in an isolated temporary directory', async () => {
 				await session.answerFileDialog( [ parent ] );
-				await ui.createFirstSiteButton( page ).click();
+				// An empty launch opens the dialog itself (#730).
 				const modal = ui.createSiteDialog( page );
+				await expect( modal ).toBeVisible( { timeout: 30_000 } );
 				const choice = modal.getByRole( 'radio', { name: target.choice, exact: true } );
 				await choice.click();
 				await expect( choice ).toBeChecked();

@@ -75,6 +75,9 @@ test( 'a site is deleted only after a question that names it, and nothing but a 
 	await ui.confirmYesButton( page, 'Delete site' ).click();
 	await expect( question ).toHaveCount( 0 );
 	await expect( ui.noSitesTitle( page ) ).toBeVisible( { timeout: 30_000 } );
+	// INVARIANT — the dialog an empty launch opens is for the launch, not for
+	// a window that has just been emptied (#730).
+	await expect( ui.createSiteDialog( page ) ).toHaveCount( 0 );
 	expect( fs.existsSync( site.dir ) ).toBe( false );
 	expect( session.readSettings().sites ).toEqual( [] );
 } );
