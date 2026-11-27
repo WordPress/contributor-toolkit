@@ -90,6 +90,7 @@ import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx
 import { useSettings } from './hooks/use-settings.jsx';
 import { phpVersionChoice, resumeFor } from './settings-view.cjs';
 import { autoStartPlan } from './auto-start.cjs';
+import { launchCreateOffer } from './launch-create-offer.cjs';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
@@ -114,7 +115,7 @@ const SILENT = '';
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
 function App({ settingsState }) {
-  const { sites, siteMeta, refresh, setSiteMeta, applySetup } = useSites();
+  const { sites, siteMeta, loaded: sitesLoaded, refresh, setSiteMeta, applySetup } = useSites();
   // The confirmation queue for the whole window. It lives here, above every
   // SiteRow, because only one row is visible at a time and a per-row toast would
   // be hidden along with its inactive row. See ConfirmationContext in hooks/use-confirmation.jsx.
@@ -377,6 +378,15 @@ function App({ settingsState }) {
     if (createSubmitting) return;
     setCreateModalOpen(true);
   }, [createSubmitting]);
+
+  // A window that opens with no site in it opens the dialog that makes one
+  // (#730). When, and that it happens once, is launch-create-offer.cjs's.
+  const offeredCreateRef = useRef(false);
+  useEffect(() => {
+    const offer = launchCreateOffer({ offered: offeredCreateRef.current, sitesLoaded, settings, siteCount: sites.length });
+    if (offer.consume) offeredCreateRef.current = true;
+    if (offer.open) setCreateModalOpen(true);
+  }, [sitesLoaded, settings, sites]);
 
   // What the create-site dialog hands over once it has every answer: the name,
   // trimmed, the parent folder and the project. The dialog closes here, and the

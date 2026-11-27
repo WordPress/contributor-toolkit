@@ -199,7 +199,12 @@ const shots = [
 		slug: 'empty-state',
 		tier: 'fixture',
 		variant: 'empty',
+		// What is behind the dialog an empty launch opens by itself (#730),
+		// once it is closed.
 		prepare: async (page) => {
+			await ui.createSiteDialog(page).waitFor();
+			await page.keyboard.press('Escape');
+			await ui.createSiteDialog(page).waitFor({ state: 'detached' });
 			await ui.noSitesTitle(page).waitFor();
 		}
 	},
@@ -207,8 +212,8 @@ const shots = [
 		slug: 'create-site-modal',
 		tier: 'fixture',
 		variant: 'empty',
+		// An empty launch opens it by itself (#730).
 		prepare: async (page) => {
-			await ui.createFirstSiteButton(page).click();
 			await ui.createSiteDialog(page).getByText('Site name').waitFor();
 		}
 	},

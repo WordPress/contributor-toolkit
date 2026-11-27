@@ -73,8 +73,22 @@ async function unwrapped( locator ) {
 	return found.filter( ( text ) => text && ! /^\[[\s\S]*\]$/.test( text ) && ! UNTRANSLATED.has( text ) && ! CONSTANT_NAMES.test( text ) );
 }
 
+/**
+ * Closes the create-site dialog a launch with no site opens by itself (#730),
+ * for a journey that is about what is behind it.
+ *
+ * @param {Object} page
+ */
+async function closeLaunchDialog( page ) {
+	const dialog = page.getByRole( 'dialog', { name: pseudoLocalize( 'Create site' ), exact: true } );
+	await expect( dialog ).toBeVisible( { timeout: 30_000 } );
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
+}
+
 test( 'the first-run screen and the create-site dialog are fully translatable', async ( { session } ) => {
 	const { page } = await session.start( undefined, { lang: 'en-XA' } );
+	await closeLaunchDialog( page );
 
 	const createButton = page.getByRole( 'button', { name: pseudoLocalize( 'Create site' ), exact: true } );
 	await expect( createButton ).toBeVisible( { timeout: 30_000 } );
@@ -115,6 +129,7 @@ test( 'the first-run screen and the create-site dialog are fully translatable', 
 
 test( 'the settings dialog is fully translatable, on both of its tabs', async ( { session } ) => {
 	const { page } = await session.start( undefined, { lang: 'en-XA' } );
+	await closeLaunchDialog( page );
 	await page.getByRole( 'button', { name: pseudoLocalize( 'Settings' ), exact: true } ).click();
 	const dialog = page.getByRole( 'dialog', { name: pseudoLocalize( 'Settings' ), exact: true } );
 	await expect( dialog ).toBeVisible();
@@ -1279,6 +1294,7 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 
 test( 'what a ticket from a link says is fully translatable, with no site to put it in', async ( { session } ) => {
 	const { app, page } = await session.start( undefined, { lang: 'en-XA' } );
+	await closeLaunchDialog( page );
 	await expect( page.getByRole( 'button', { name: pseudoLocalize( 'Create site' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await app.evaluate( ( { app: electronApp }, url ) => {
 		electronApp.emit( 'open-url', { preventDefault() {} }, url );
@@ -1509,6 +1525,7 @@ test( 'the Playground web server is fully translatable, stopped, starting, runni
 	}, [ channel, payload ] );
 	const notices = page.locator( '.page-body-notices' );
 	const SERVER_OUTPUT = 'listening for requests';
+	await closeLaunchDialog( page );
 
 	await page.getByRole( 'button', { name: pseudoLocalize( 'Start Playground web server' ), exact: true } ).click( { timeout: 30_000 } );
 	await expect( page.getByText( pseudoLocalize( 'Playground web server' ), { exact: true } ) ).toBeVisible();
