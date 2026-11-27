@@ -90,6 +90,7 @@ import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx
 import { useSettings } from './hooks/use-settings.jsx';
 import { phpVersionChoice, resumeFor } from './settings-view.cjs';
 import { autoStartPlan } from './auto-start.cjs';
+import { launchCreateOffer } from './launch-create-offer.cjs';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
@@ -379,16 +380,12 @@ function App({ settingsState }) {
   }, [createSubmitting]);
 
   // A window that opens with no site in it opens the dialog that makes one
-  // (#730): an empty window with a button nobody knew the meaning of was where
-  // newcomers stopped. Once per window, and only once both reads have
-  // answered: the list, since it is empty until then for everyone, and the
-  // settings, since the dialog takes its folder from them as it opens (#559).
-  // Closing it, or deleting the last site later, leaves the empty state.
+  // (#730). When, and that it happens once, is launch-create-offer.cjs's.
   const offeredCreateRef = useRef(false);
   useEffect(() => {
-    if (offeredCreateRef.current || !sitesLoaded || !settings) return;
-    offeredCreateRef.current = true;
-    if (!sites.length) setCreateModalOpen(true);
+    const offer = launchCreateOffer({ offered: offeredCreateRef.current, sitesLoaded, settings, siteCount: sites.length });
+    if (offer.consume) offeredCreateRef.current = true;
+    if (offer.open) setCreateModalOpen(true);
   }, [sitesLoaded, settings, sites]);
 
   // What the create-site dialog hands over once it has every answer: the name,

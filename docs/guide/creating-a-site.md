@@ -4,13 +4,13 @@ A site is your own copy of the project you contribute to, cloned into a folder y
 
 You do not need one, though, for every work item. A site holds as many Core tickets or Gutenberg issues as you like, each on its own branch, and moving between them costs seconds rather than another clone and another build — see [Working on several work items](./ticket-branches). Create a second site when you want a genuinely separate environment: a different snapshot of trunk, or somewhere to test somebody else's work without disturbing the site you are working in.
 
-When the app starts with no sites, the main area shows a short prompt to create your first one.
+When the app starts with no sites, it opens the dialog that creates one for you. If you close the dialog, the main area shows a short prompt to create your first site.
 
 ![The app before any site exists: No sites, Create your first site to begin contributing, and a Create site button in the middle of the window](/screenshots/empty-state.png)
 
 ## Start the creation flow
 
-Click **Create site** in the middle of the window when there are no sites yet, or **Create new site** at the top of the sites list once there are. A dialog opens with three fields.
+When the app starts with no sites, the dialog is already open. Otherwise, click **Create site** in the middle of the window when there are no sites yet, or **Create new site** at the top of the sites list once there are. The dialog has three fields.
 
 ![The Create site dialog, with a Site name text field, a Project choice between WordPress Core and Gutenberg, with lines under it that describe the one selected and say it cannot be changed later, and a Location folder picker](/screenshots/create-site-modal.png)
 

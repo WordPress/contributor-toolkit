@@ -275,8 +275,10 @@ test( 'the dialog an empty launch opens starts in the folder the settings say ne
 	const parent = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-parent-' ) ) );
 	const { page } = await session.start( { sites: [], siteMeta: {}, preferences: { newSiteLocation: parent } } );
 
-	// INVARIANT — opened before the settings were read, the dialog would have
-	// started with no folder (#559, #730).
+	// INVARIANT — the dialog a launch opens by itself starts where the
+	// settings say new sites go, as the one the button opens does (#559, #730).
+	// That it waits for the settings to be read is launch-create-offer.cjs's,
+	// and its unit tests': here they are read before the window is drawn.
 	const dialog = ui.createSiteDialog( page );
 	await expect( dialog ).toBeVisible( { timeout: 30_000 } );
 	await expect( dialog.getByText( parent, { exact: true } ) ).toBeVisible();
