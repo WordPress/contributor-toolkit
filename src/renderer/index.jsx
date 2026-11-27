@@ -1400,12 +1400,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, building: buildHolds, failure: serverFailure });
   const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, building: buildHolds, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
-  // The sites list draws this server's dot before the site's name whether or
+  // The sites list draws this server's icon before the site's name whether or
   // not the site is open, and this is how it learns what to draw: what the
   // report says is decided in sites-list.cjs. Reported on each change, and
   // taken back when the view goes: the report before a change is taken back
   // in the same commit as the new one is made, so the list sees one change,
-  // not a grey dot in between.
+  // not a stopped icon in between.
   // The report also says whether the server has Xdebug (#723), for the other
   // sites' details to say whose server has it.
   const { status: serverDotStatus, text: serverDotText } = serverReport(serverState);

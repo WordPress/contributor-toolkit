@@ -13,12 +13,13 @@ const { formatElapsed } = require('./dev-server-command.cjs');
 /**
  * The development server.
  *
- * `status` is the word for the dot: `online` when the server has an address,
+ * `status` is the word for the status icon: `online` when the server has an address,
  * `busy` while it is starting, `offline` otherwise. `label` says the same in
  * words, for a pointer over the header's button. `action` is what pressing
  * does, as the name of the details' button, and `short` is the word that
  * button shows; `toggle` is what pressing does in the words the header's
- * button shows (#741).
+ * button shows (#741), and `name` the one word it shows in their place when
+ * the header is short of room, which says which process the button is for.
  *
  * While the server starts, the button cancels the start (#723). With Xdebug
  * a start can be paused on a breakpoint in the editor, and the time limit
@@ -43,16 +44,16 @@ const { formatElapsed } = require('./dev-server-command.cjs');
  * @param {boolean} [root0.isUpdating] An update of trunk is under way.
  * @param {boolean} [root0.building]   A build holds the starts (buildHoldsStarts).
  * @param {string}  [root0.failure]    'stopped' for a server that went by itself, 'start' for one that could not start, '' otherwise.
- * @return {{status: string, label: string, action: string, short: string, toggle: string, pending: boolean, disabled: boolean, detail: string}}
+ * @return {{status: string, label: string, action: string, short: string, toggle: string, name: string, pending: boolean, disabled: boolean, detail: string}}
  */
 function serverProcess({ active = false, starting = false, isUpdating = false, building = false, failure = '' } = {}) {
 	if (starting) {
-		return { status: 'busy', label: __('Server starting…'), action: __('Cancel the development server start'), short: __('Cancel'), toggle: __('Cancel start'), pending: false, disabled: isUpdating, detail: '' };
+		return { status: 'busy', label: __('Server starting…'), action: __('Cancel the development server start'), short: __('Cancel'), toggle: __('Cancel start'), name: __('Server'), pending: false, disabled: isUpdating, detail: '' };
 	}
 	if (active) {
-		return { status: 'online', label: __('Server running'), action: __('Stop development server'), short: __('Stop'), toggle: __('Stop server'), pending: false, disabled: isUpdating, detail: '' };
+		return { status: 'online', label: __('Server running'), action: __('Stop development server'), short: __('Stop'), toggle: __('Stop server'), name: __('Server'), pending: false, disabled: isUpdating, detail: '' };
 	}
-	const stopped = { label: __('Server stopped'), action: __('Start development server'), short: __('Start'), toggle: __('Start server'), pending: false, disabled: isUpdating || building };
+	const stopped = { label: __('Server stopped'), action: __('Start development server'), short: __('Start'), toggle: __('Start server'), name: __('Server'), pending: false, disabled: isUpdating || building };
 	if (failure === 'stopped') {
 		return { status: 'failed', ...stopped, detail: __('The development server stopped by itself. Its last lines are in the Logs.') };
 	}
@@ -91,13 +92,13 @@ function serverProcess({ active = false, starting = false, isUpdating = false, b
  * @param {boolean} [root0.updateWaitingOnWatch] And it is waiting for this watch.
  * @param {boolean} [root0.building]             A build holds the starts (buildHoldsStarts).
  * @param {string}  [root0.sourceDir]            What the watch compiles, such as `src/`.
- * @return {{status: string, label: string, action: string, short: string, toggle: string, disabled: boolean, detail: string}}
+ * @return {{status: string, label: string, action: string, short: string, toggle: string, name: string, disabled: boolean, detail: string}}
  */
 function watchProcess({ state = 'idle', compiling = false, exitCode = null, exitOf = 'watch', isUpdating = false, updateWaitingOnWatch = false, building = false, sourceDir = '' } = {}) {
 	const running = state === 'watching' || state === 'building';
 	const press = running
-		? { action: __('Stop build watch'), short: __('Stop'), toggle: __('Stop build') }
-		: { action: __('Start build watch'), short: __('Start'), toggle: __('Start build') };
+		? { action: __('Stop build watch'), short: __('Stop'), toggle: __('Stop build'), name: __('Build') }
+		: { action: __('Start build watch'), short: __('Start'), toggle: __('Start build'), name: __('Build') };
 	const disabled = (isUpdating && !updateWaitingOnWatch) || (building && !running);
 	// translators: %s: a folder of the checkout, such as src/.
 	const watching = sourceDir ? sprintf(__('Edits in %s are compiled as they are saved.'), sourceDir) : '';
@@ -135,8 +136,8 @@ function watchProcess({ state = 'idle', compiling = false, exitCode = null, exit
 /**
  * What the header's button says to a pointer over it (#741): what the
  * process is doing, and what a press does. The words on the button are the
- * second, and give way to the dot alone when the header is short of room, so
- * the tooltip says both.
+ * second, and give way to the process's name when the header is short of
+ * room, so the tooltip says both.
  *
  * @param {{label: string, toggle: string}} process What serverProcess or watchProcess returned.
  * @return {string} The two, one to a line.

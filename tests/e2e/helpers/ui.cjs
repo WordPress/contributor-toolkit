@@ -161,7 +161,7 @@ const startBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Sta
 const stopBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Stop build watch', exact: true } );
 // The header's button for one of the open site's two processes, by what
 // pressing it does: "Start server", "Stop build" (#741). With little room the
-// header shows its dot alone; its name is the same.
+// header shows its icon and "Server" or "Build"; its name is the same.
 const processToggle = ( page, name ) => page.locator( '.site-header-actions' ).getByRole( 'button', { name, exact: true } );
 // The same button, by what its tooltip says the process is doing: "Server
 // stopped", "Build watching". The tooltip's first line; the second is what a

@@ -144,7 +144,7 @@ export function SiteContextMenu({ position, menu, onMenuOpen, onAction, onClose 
 // library has no plain circle, and "not allowed" would put a warning on every
 // site that is simply not running.
 const STOPPED = (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style={{ fill: 'none' }} stroke="currentColor" strokeWidth="1.5">
     <path d="M12 19.25C16.0041 19.25 19.25 16.0041 19.25 12C19.25 7.99594 16.0041 4.75 12 4.75C7.99594 4.75 4.75 7.99594 4.75 12C4.75 16.0041 7.99594 19.25 12 19.25Z" vectorEffect="non-scaling-stroke" />
   </svg>
 );
@@ -179,11 +179,13 @@ function ProcessToggle({ process, onToggle }) {
   return (
     <Button className="process-toggle" variant="minimal" tone="neutral" size="compact" title={processTip(process)} disabled={process.disabled} onClick={onToggle} aria-label={process.toggle}>
       {/* The icon and the words are one line, so that the icon can sit on
-          the words' x-height (shell.css). The words give way to the icon
-          when the header is short of room, and the tooltip still says both
-          what the process is doing and what a press does. */}
+          the words' x-height (shell.css). When the header is short of room
+          the words give way to the process's name, so that the two buttons
+          can still be told apart, and the tooltip says what the process is
+          doing and what a press does. */}
       <span className="process-toggle-state">
         <ProcessStatus status={process.status} />
+        <span className="header-narrow-only" aria-hidden="true">{process.name}</span>
         <span className="header-wide-only" aria-hidden="true">{process.toggle}</span>
       </span>
     </Button>

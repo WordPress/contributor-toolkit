@@ -11,7 +11,7 @@ There are two places to start the server:
 - In the site's details, click **Start** next to **Server**.
 - In the header, click **Start server**.
 
-The server's status icon shows its state, in the header and next to the site in the sidebar. In the header, pointing at the button shows the same in words. When the window is narrow, the header shows the icon without the words:
+The server's status icon shows its state, in the header and next to the site in the sidebar. In the header, pointing at the button shows the same in words. When the window is narrow, the header's buttons shorten to the icon and **Server** or **Build**, and pointing at them still says what a click does:
 
 - Empty circle (grey): **Server stopped**.
 - Part-filled circle (amber): **Server starting…**. The details show how long it has been starting, and **Cancel** in the details, or **Cancel start** in the header, stops the start.
