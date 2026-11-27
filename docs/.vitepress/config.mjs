@@ -84,6 +84,7 @@ export default defineConfig( {
 					{ text: 'Step debugging with Xdebug', link: '/guide/step-debugging' },
 					{ text: 'Catching outgoing email', link: '/guide/mail' },
 					{ text: 'Browsing the database', link: '/guide/database' },
+					{ text: 'The toolkit command', link: '/guide/toolkit-command' },
 				],
 			},
 			{

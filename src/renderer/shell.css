@@ -1477,6 +1477,15 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* The toolkit command's path in the settings (#764): a line to be read into
+   a terminal, so in the terminal's type, selectable, and broken anywhere
+   since a path has no spaces to break at. */
+.toolkit-command {
+  font-family: var(--wpds-typography-font-family-mono);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 /* The custom theme's two colours (#560), side by side, each typed as hex in
    the terminal's type after a swatch of the colour kept. The swatch is the
    system's colour input itself, which draws the colour it holds, with the
