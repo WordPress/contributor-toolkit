@@ -135,9 +135,17 @@ test( 'the dev server\'s button starts one server and offers to cancel it while 
 	const starting = page.getByRole( 'button', { name: 'Cancel the development server start', exact: true } );
 	const line = ( text ) => ui.tray( page, 'Logs' ).getByText( text, { exact: true } );
 	const siteLink = page.getByRole( 'link', { name: 'View site', exact: true } );
-	// The site's dot in the sites list, with what the list says of it: the
-	// entry is named by the site and what the dot stands for.
+	// The site's status icon in the sites list, with what the list says of
+	// it: the entry is named by the site and what the icon stands for.
 	const listDot = ( entryName, status ) => page.getByRole( 'row' ).filter( { has: ui.sidebarEntry( page, entryName ) } ).locator( `.process-status.is-${ status }` );
+	// What the icon draws, so that each state can be seen to have a shape of
+	// its own and not only a colour (#776).
+	const shapes = [];
+	const shapeOf = async ( entryName, status ) => {
+		const shape = await listDot( entryName, status ).locator( 'svg' ).innerHTML();
+		expect( shapes ).not.toContain( shape );
+		shapes.push( shape );
+	};
 
 	// The hint under the terminal is a link only once the site's status has
 	// been read and says the site is built: the server's button needs to know
@@ -158,6 +166,7 @@ test( 'the dev server\'s button starts one server and offers to cancel it while 
 	await expect( ui.processState( page, 'Server starting…' ) ).toBeVisible();
 	// INVARIANT — the sites list says it too, before the site's name.
 	await expect( listDot( 'e2e-site (Server starting…)', 'busy' ) ).toHaveCount( 1 );
+	await shapeOf( 'e2e-site (Server starting…)', 'busy' );
 
 	// INVARIANT — while it starts the button, and the header's, offer to
 	// cancel the start, by a name that is not Stop's (#723): a press is never
@@ -173,6 +182,7 @@ test( 'the dev server\'s button starts one server and offers to cancel it while 
 	await expect( siteLink ).toHaveAttribute( 'href', URL );
 	await expect( ui.processState( page, 'Server running' ) ).toBeVisible();
 	await expect( listDot( 'e2e-site (Server running)', 'online' ) ).toHaveCount( 1 );
+	await shapeOf( 'e2e-site (Server running)', 'online' );
 	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL ] );
 	expect( ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 
@@ -183,9 +193,11 @@ test( 'the dev server\'s button starts one server and offers to cancel it while 
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( siteLink ).toHaveCount( 0 );
 	await expect( ui.processState( page, 'Server stopped' ) ).toBeVisible();
-	// INVARIANT — a stopped server is the grey every site starts with, and
-	// the entry is named by the site alone again.
+	// INVARIANT — a stopped server is the empty ring every site starts with,
+	// and the entry is named by the site alone again. Stopped, starting and
+	// running are three different shapes.
 	await expect( listDot( 'e2e-site', 'offline' ) ).toHaveCount( 1 );
+	await shapeOf( 'e2e-site', 'offline' );
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
 
 	// INVARIANT — the exit that follows a stop that was asked for is not a
@@ -220,6 +232,7 @@ test( 'the dev server\'s button starts one server and offers to cancel it while 
 	await expect( wentByItself ).toBeVisible();
 	// INVARIANT — and the sites list, with the sentence, from any site.
 	await expect( listDot( 'e2e-site (The development server stopped by itself. Its last lines are in the Logs.)', 'failed' ) ).toHaveCount( 1 );
+	await shapeOf( 'e2e-site (The development server stopped by itself. Its last lines are in the Logs.)', 'failed' );
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
 	await server.heard();

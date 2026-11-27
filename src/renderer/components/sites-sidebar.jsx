@@ -2,21 +2,27 @@ import { useMemo } from 'react';
 import { Page } from '@wordpress/admin-ui';
 import { DataViews } from '@wordpress/dataviews';
 import { __, sprintf } from '@wordpress/i18n';
-import { Icon, wordpress } from '@wordpress/icons';
+import { Icon, backup, error, wordpress } from '@wordpress/icons';
 import { Button, VisuallyHidden } from '@wordpress/ui';
 import { resolveContextMenuPosition } from '../context-menu-position.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
 
 // The list's two fields: the name, which is the row's title and so its
-// accessible name, and the line under it. Every site wears its server's dot
+// accessible name, and the line under it. Every site wears its server's icon
 // before its name, the one the page header draws for the open site, so that
-// which site is running can be seen without opening each: grey until the
+// which site is running can be seen without opening each: stopped until the
 // view has said otherwise. A site with something to report (#94) wears a
-// second dot after it. Both say what they mean in words after the name, so
+// second icon after it. Both say what they mean in words after the name, so
 // that the name is what a screen reader says first, and the server's only
-// when it is not the grey every site starts with. A site on its way out says
+// when it is not the stopped every site starts with. A site on its way out says
 // so the same way, since pressing its entry opens nothing. Built on first
 // render and not as the module loads, which is before the locale has.
+//
+// What a site has to report is a shape as well as a colour (#776): a clock
+// turned back for a trunk that is old, a warning for an update left
+// incomplete.
+const ATTENTION_ICONS = { stale: backup, incomplete: error };
+
 const buildFields = () => [
   {
     id: 'name',
@@ -26,7 +32,11 @@ const buildFields = () => [
     render: ({ item }) => (
       <span className="sites-sidebar-name" data-site-path={item.path}>
         <ProcessStatus status={item.server.status} title={item.server.text || undefined} />
-        {item.attention ? <span className={`sites-sidebar-dot is-${item.attention.kind}`} title={item.attention.text} aria-hidden="true" /> : null}
+        {item.attention ? (
+          <span className={`sites-sidebar-dot is-${item.attention.kind}`} title={item.attention.text} aria-hidden="true">
+            <Icon icon={ATTENTION_ICONS[item.attention.kind] || error} size={16} />
+          </span>
+        ) : null}
         <span className="sites-sidebar-name-text">{item.name}</span>
         {item.server.text ? (
           <VisuallyHidden render={<span />}>

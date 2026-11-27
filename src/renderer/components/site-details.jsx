@@ -15,7 +15,7 @@ import { ProcessStatus } from './site-header-actions.jsx';
 // contributor has just done themselves: nothing to announce.
 const SILENT = '';
 
-// A section's heading, with its process's dot and the button that starts and
+// A section's heading, with its process's status icon and the button that starts and
 // stops it. The button shows one word and is named by the whole of what it
 // does.
 function SectionHeading({ title, process, onToggle }) {

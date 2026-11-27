@@ -167,12 +167,11 @@ body {
   pointer-events: none;
 }
 
-/* One line, the dots then the name, cut with an ellipsis when the name is
-   too long. The dots are inline boxes and not flex items so that
+/* One line, the status icons then the name, cut with an ellipsis when the
+   name is too long. The icons are inline boxes and not flex items so that
    `vertical-align: middle` can place them: it centres a box on the parent's
-   x-height, which is where a dot beside lowercase letters belongs, whatever
-   the font. Centred on the line box instead, as a flex item is, each sat
-   1.5px above the letters. */
+   x-height, whatever the font. Centred on the line box instead, as a flex
+   item is, each sat 1.5px above the letters. */
 .sites-sidebar-name {
   display: block;
   min-width: 0;
@@ -183,7 +182,6 @@ body {
 
 .sites-sidebar-name .process-status,
 .sites-sidebar-dot {
-  display: inline-block;
   vertical-align: middle;
   margin-inline-end: var(--wpds-dimension-gap-sm);
 }
@@ -193,15 +191,8 @@ body {
   font-size: var(--wpds-typography-font-size-sm);
 }
 
-/* What a site has to report before it is opened (#94). A dot is a glyph,
-   as an icon is, so it takes the foreground role the icons beside it do, and
-   is filled with that colour. */
-.sites-sidebar-dot {
-  width: var(--wpds-dimension-size-4xs);
-  height: var(--wpds-dimension-size-4xs);
-  border-radius: 50%;
-  background: currentColor;
-}
+/* What a site has to report before it is opened (#94), in the foreground
+   role the icons beside it take. */
 
 .sites-sidebar-dot.is-stale {
   color: var(--wpds-color-foreground-content-warning-weak);
@@ -239,9 +230,9 @@ body {
    smallest and the sites list is open. The name must not be the thing that
    gives way: it was squeezed to nothing. So the page's width decides what
    the actions show, and the name, cut short with an ellipsis, has what is
-   left. With room, everything; short of it, the two processes and the
-   review button show their first word. Each keeps its whole name for a
-   screen reader. */
+   left. With room, everything; short of it, the two processes are their
+   status icons and the review button is its first word. Each keeps its whole
+   name for a screen reader. */
 .app-page {
   container: app-page / inline-size;
 }
@@ -254,6 +245,12 @@ body {
 
 .header-narrow-only {
   display: none;
+}
+
+@container app-page (max-width: 900px) {
+  .process-toggle .header-wide-only {
+    display: none;
+  }
 }
 
 @container app-page (max-width: 620px) {
@@ -348,16 +345,23 @@ body {
   transform: translateX(-100%);
 }
 
-/* A process's dot: grey for stopped, green for running, amber while it is
-   getting there, red for one that ended with an error. Painted as the
-   sites list's dots are, in the foreground role. */
-.process-status {
-  display: block;
+/* A status is an icon, its shape saying the state and its colour saying it
+   again (#776): grey for stopped, green for running, amber while it is
+   getting there, red for one that ended with an error. The icons draw in
+   currentColor, in the foreground role. */
+.process-status,
+.sites-sidebar-dot {
+  display: inline-block;
   flex-shrink: 0;
-  width: var(--wpds-dimension-size-4xs);
-  height: var(--wpds-dimension-size-4xs);
-  border-radius: 50%;
-  background: currentColor;
+  line-height: 0;
+}
+
+.process-status svg,
+.sites-sidebar-dot svg {
+  display: block;
+}
+
+.process-status {
   color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
@@ -377,7 +381,7 @@ body {
   font-weight: var(--wpds-typography-font-weight-default);
 }
 
-/* The dot on the x-height of the words, as in the sites list: an inline box,
+/* The icon on the x-height of the words, as in the sites list: an inline box,
    not a flex item of the button, which would centre it on the line box. The
    space between them is the words' own, whichever words the header has room
    for. */
@@ -386,12 +390,10 @@ body {
 }
 
 .process-toggle-state .process-status {
-  display: inline-block;
   vertical-align: middle;
 }
 
-.process-toggle-state .header-wide-only,
-.process-toggle-state .header-narrow-only {
+.process-toggle-state .header-wide-only {
   margin-inline-start: var(--wpds-dimension-gap-sm);
 }
 

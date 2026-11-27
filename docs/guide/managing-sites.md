@@ -10,7 +10,7 @@ The **Details** column lists:
 
 - **Setup**: **Initialized** once the site's dependencies are installed, and **Uninitialized** before that.
 - **Created**: when the site was created.
-- **Trunk as of**: the date of the site's copy of trunk. When it gets old, a coloured dot appears next to the site in the sidebar. See [Staying up to date with trunk](./trunk-updates).
+- **Trunk as of**: the date of the site's copy of trunk. When it gets old, a clock icon appears next to the site in the sidebar. See [Staying up to date with trunk](./trunk-updates).
 - **Local path**: the site's folder, with a **Copy** button.
 - **Checkout**: the project and the PHP version the server runs.
 - **Debugging**: which debug settings are on. See [Settings](./settings).
