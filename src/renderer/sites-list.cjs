@@ -15,7 +15,7 @@ const { pathBasename } = require('./path-basename.cjs');
 const { trunkAgeInfo } = require('./update-plan.cjs');
 
 /**
- * What a site's dot reports, before the site is even opened (#94): an update
+ * What a site's attention icon reports, before the site is even opened (#94): an update
  * that moved trunk and never finished its install and build, or a trunk that
  * is old. The first wins, since it is the one that leaves the site not
  * working. Null when there is nothing to report.
@@ -39,17 +39,17 @@ function siteAttention(meta = {}, now = Date.now()) {
 	return null;
 }
 
-// The words a server's dot can be, as `serverProcess` in site-processes.cjs
-// says them: grey, green, amber and red.
+// The words a server's status icon can be, as `serverProcess` in
+// site-processes.cjs says them: stopped, running, busy and failed.
 const SERVER_STATUSES = new Set(['offline', 'online', 'busy', 'failed']);
 
 /**
- * What a site's server dot reports, from what the site's own view last said
- * of its server: the word for the dot's colour, and the words the dot stands
- * for, which are said after the site's name. A site whose view has said
- * nothing, which every site is until its view has rendered, is offline, and
- * so is a report with a word the dot has no colour for. An offline server is
- * the state every site opens in and the grey dot says it, so its words are
+ * What a site's server icon reports, from what the site's own view last said
+ * of its server: the word for the icon, and the words the icon stands for,
+ * which are said after the site's name. A site whose view has said nothing,
+ * which every site is until its view has rendered, is offline, and so is a
+ * report with a word the icon has no shape for. An offline server is the
+ * state every site opens in and the empty ring says it, so its words are
  * '': said after every name, "Server stopped" would be the thing a reader of
  * the list hears most and needs least.
  *
@@ -76,10 +76,10 @@ function siteDisplayName(sitePath, label) {
 }
 
 /**
- * What a site's view reports of its server: the word the header's own dot
+ * What a site's view reports of its server: the word the header's own icon
  * is drawn from, and the words to say beside it, which for a server that
  * went by itself or could not start are the sentence that says so, since
- * "Server stopped" would not say what the red dot means.
+ * "Server stopped" would not say what the failed icon means.
  *
  * @param {{status: string, label: string, detail?: string}} process From `serverProcess` in site-processes.cjs.
  * @return {{status: string, text: string}}

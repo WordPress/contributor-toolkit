@@ -1,15 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { serverProcess, watchProcess, buildHoldsStarts, serverLinks, serverSection, ADMIN_CREDENTIALS } = require('../../src/renderer/site-processes.cjs');
+const { serverProcess, watchProcess, processTip, buildHoldsStarts, serverLinks, serverSection, ADMIN_CREDENTIALS } = require('../../src/renderer/site-processes.cjs');
 
 test('a stopped server offers to start', () => {
-	assert.deepEqual(serverProcess(), { status: 'offline', label: 'Server stopped', action: 'Start development server', short: 'Start', pending: false, disabled: false, detail: '' });
+	assert.deepEqual(serverProcess(), { status: 'offline', label: 'Server stopped', action: 'Start development server', short: 'Start', toggle: 'Start server', name: 'Server', pending: false, disabled: false, detail: '' });
 	assert.deepEqual(serverProcess({ active: false, starting: false }), serverProcess());
 });
 
 test('a running server offers to stop', () => {
-	assert.deepEqual(serverProcess({ active: true }), { status: 'online', label: 'Server running', action: 'Stop development server', short: 'Stop', pending: false, disabled: false, detail: '' });
+	assert.deepEqual(serverProcess({ active: true }), { status: 'online', label: 'Server running', action: 'Stop development server', short: 'Stop', toggle: 'Stop server', name: 'Server', pending: false, disabled: false, detail: '' });
 });
 
 // A server that is starting can be cancelled (#723): with Xdebug a start can
@@ -18,7 +18,7 @@ test('a running server offers to stop', () => {
 // running server's Stop takes a starting one for it.
 test('a server that is starting offers to cancel the start, and says what it is doing', () => {
 	const starting = serverProcess({ active: true, starting: true });
-	assert.deepEqual(starting, { status: 'busy', label: 'Server starting…', action: 'Cancel the development server start', short: 'Cancel', pending: false, disabled: false, detail: '' });
+	assert.deepEqual(starting, { status: 'busy', label: 'Server starting…', action: 'Cancel the development server start', short: 'Cancel', toggle: 'Cancel start', name: 'Server', pending: false, disabled: false, detail: '' });
 	// Starting is what is said even when "active" has not caught up.
 	assert.deepEqual(serverProcess({ active: false, starting: true }), starting);
 	// An update of trunk holds this too.
@@ -27,7 +27,7 @@ test('a server that is starting offers to cancel the start, and says what it is 
 
 test('a server that went by itself, or could not start, says so and where its last lines are, and offers to start', () => {
 	const stopped = serverProcess({ failure: 'stopped' });
-	assert.deepEqual(stopped, { status: 'failed', label: 'Server stopped', action: 'Start development server', short: 'Start', pending: false, disabled: false, detail: 'The development server stopped by itself. Its last lines are in the Logs.' });
+	assert.deepEqual(stopped, { status: 'failed', label: 'Server stopped', action: 'Start development server', short: 'Start', toggle: 'Start server', name: 'Server', pending: false, disabled: false, detail: 'The development server stopped by itself. Its last lines are in the Logs.' });
 	const start = serverProcess({ failure: 'start' });
 	assert.equal(start.status, 'failed');
 	assert.equal(start.detail, 'The development server could not start. Its last lines are in the Logs.');
@@ -46,7 +46,7 @@ test('an update of trunk holds the server\'s button, started or stopped', () => 
 
 test('a watch that is watching offers to stop, and says what it watches', () => {
 	assert.deepEqual(watchProcess({ state: 'watching', sourceDir: 'src/' }), {
-		status: 'online', label: 'Build watching', action: 'Stop build watch', short: 'Stop', disabled: false,
+		status: 'online', label: 'Build watching', action: 'Stop build watch', short: 'Stop', toggle: 'Stop build', name: 'Build', disabled: false,
 		detail: 'Edits in src/ are compiled as they are saved.'
 	});
 	assert.equal(watchProcess({ state: 'watching' }).detail, '');
@@ -79,7 +79,7 @@ test('a paused watch is busy, says it will come back, and offers to start as it 
 
 test('a watch that was never started, or was stopped, offers to start and has nothing to add', () => {
 	for (const state of [undefined, 'idle', 'something-else']) {
-		assert.deepEqual(watchProcess({ state }), { status: 'offline', label: 'Build stopped', action: 'Start build watch', short: 'Start', disabled: false, detail: '' });
+		assert.deepEqual(watchProcess({ state }), { status: 'offline', label: 'Build stopped', action: 'Start build watch', short: 'Start', toggle: 'Start build', name: 'Build', disabled: false, detail: '' });
 	}
 });
 
@@ -171,7 +171,6 @@ test('the section of a server with an address shows where the site is and what t
 	assert.deepEqual(serverSection({ url: URL, running: true }), {
 		state: 'online',
 		links: serverLinks({ url: URL, running: true }),
-		menuLinks: serverLinks({ url: URL, running: true }).slice(0, 2),
 		credentials: ADMIN_CREDENTIALS,
 		text: ''
 	});
@@ -180,24 +179,23 @@ test('the section of a server with an address shows where the site is and what t
 	assert.equal(serverSection({ url: URL, starting: true }).state, 'online');
 });
 
-test('the header\'s menu is given the site and its admin, and never the database', () => {
-	assert.deepEqual(serverSection({ url: URL, running: true }).menuLinks.map((link) => link.id), ['site', 'admin']);
-	assert.deepEqual(serverSection({ url: URL }).menuLinks.map((link) => link.id), ['site', 'admin']);
-	assert.deepEqual(serverSection({ starting: true }).menuLinks, []);
-	assert.deepEqual(serverSection().menuLinks, []);
-});
-
 test('the section of a server that is starting says how long it has been', () => {
 	const section = serverSection({ starting: true, elapsed: 65 });
 	assert.equal(section.state, 'starting');
 	assert.deepEqual(section.links, []);
-	assert.deepEqual(section.menuLinks, []);
 	assert.equal(section.credentials, null);
 	assert.match(section.text, /^Dev server is starting… \(.+\)$/);
 	assert.notEqual(serverSection({ starting: true, elapsed: 5 }).text, section.text);
 });
 
 test('the section of a stopped server shows nothing, which is drawn as offline', () => {
-	assert.deepEqual(serverSection(), { state: 'offline', links: [], menuLinks: [], credentials: null, text: '' });
-	assert.deepEqual(serverSection({ running: true }), { state: 'offline', links: [], menuLinks: [], credentials: null, text: '' });
+	assert.deepEqual(serverSection(), { state: 'offline', links: [], credentials: null, text: '' });
+	assert.deepEqual(serverSection({ running: true }), { state: 'offline', links: [], credentials: null, text: '' });
+});
+
+test('the header\'s tooltip says what the process is doing and what a press does', () => {
+	assert.equal(processTip(serverProcess({ active: true })), 'Server running\nStop server');
+	assert.equal(processTip(serverProcess({ starting: true })), 'Server starting…\nCancel start');
+	assert.equal(processTip(watchProcess({ state: 'watching', compiling: true })), 'Build compiling\nStop build');
+	assert.equal(processTip(watchProcess({ state: 'paused' })), 'Build paused\nStart build');
 });

@@ -131,7 +131,7 @@ for ( const target of TARGETS ) {
 					// header says it never went "building". Core's watch starts with
 					// the server.
 					await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
-					await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
+					await expect( ui.processState( page, 'Build stopped' ) ).toBeVisible();
 					// Stopped and never started, which the header's word alone does not
 					// say: it says the same of a watch that started and went.
 					await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toBeVisible();
@@ -141,7 +141,7 @@ for ( const target of TARGETS ) {
 					// wizard's own build, which has taken from 9 to over 13 minutes on
 					// the macOS runner.
 					await ui.startBuildWatchButton( page ).click();
-					await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible( { timeout: 30 * 60_000 } );
+					await expect( ui.processState( page, 'Build watching' ) ).toBeVisible( { timeout: 30 * 60_000 } );
 				}
 				await ui.stopBuildWatchButton( page ).click();
 				await ui.stopDevServerButton( page ).click();

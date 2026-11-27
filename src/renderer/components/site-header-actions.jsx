@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import { createSlotFill } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { Icon, chevronDown, drawerRight, moreVertical } from '@wordpress/icons';
+import { Icon, cancelCircleFilled, drawerRight, moreVertical, pending, published } from '@wordpress/icons';
 import { Button, IconButton, Menu } from '@wordpress/ui';
 import { openInItems, siteMenuItems } from '../site-menu.cjs';
+import { processTip } from '../site-processes.cjs';
 
 // The page's header belongs to the window, and what goes in it belongs to the
 // site that is open (#556). The window leaves a slot in the header, and the
@@ -139,52 +140,55 @@ export function SiteContextMenu({ position, menu, onMenuOpen, onAction, onClose 
   );
 }
 
+// A stopped process: the ring the other three are drawn in, empty. The icon
+// library has no plain circle, and "not allowed" would put a warning on every
+// site that is simply not running.
+const STOPPED = (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style={{ fill: 'none' }} stroke="currentColor" strokeWidth="1.5">
+    <path d="M12 19.25C16.0041 19.25 19.25 16.0041 19.25 12C19.25 7.99594 16.0041 4.75 12 4.75C7.99594 4.75 4.75 7.99594 4.75 12C4.75 16.0041 7.99594 19.25 12 19.25Z" vectorEffect="non-scaling-stroke" />
+  </svg>
+);
+
+// One shape for each state, so that the state can be told without its colour
+// (#776): a tick for running, a ring part filled for busy, a cross for
+// failed, and the ring alone for stopped.
+const STATUS_ICONS = { online: published, busy: pending, failed: cancelCircleFilled, offline: STOPPED };
+
 /**
- * A process's dot: what it is doing, as a colour. The words beside it say the
- * same, so the dot is for the eye only.
+ * A process's status: what it is doing, as a shape and a colour. The words
+ * beside it say the same, so it is for the eye only.
  *
  * @param {Object} props
  * @param {string} props.status  'online', 'busy', 'failed' or 'offline'.
- * @param {string} [props.title] What the dot stands for, for a pointer over it; the words beside it say it everywhere else.
+ * @param {string} [props.title] What it stands for, for a pointer over it; the words beside it say it everywhere else.
  */
 export function ProcessStatus({ status, title }) {
-  return <span className={`process-status is-${status}`} title={title} aria-hidden="true" />;
+  return (
+    <span className={`process-status is-${status}`} title={title} aria-hidden="true">
+      <Icon icon={STATUS_ICONS[status] || STOPPED} size={16} />
+    </span>
+  );
 }
 
-// One of the site's two processes, in the header (#557): what it is doing, and
-// under it what can be done about that. For the server that is also where
-// the running site can be gone to, since the details, which say the same and
-// more, can be put away. What it says is decided in site-processes.cjs.
-function ProcessMenu({ process, onToggle, links = [], onOpenLink = null }) {
+// One of the site's two processes, in the header (#557): a button that says
+// what pressing it does, with the status icon beside the words saying what the
+// process is doing, and both in words for a pointer over it. One press
+// starts or stops it (#741); where the running site can be gone to is in the
+// details. What it says is decided in site-processes.cjs.
+function ProcessToggle({ process, onToggle }) {
   return (
-    <Menu.Root>
-      <Menu.Trigger
-        render={
-          <Button className="process-menu-trigger" variant="minimal" tone="neutral" size="compact" title={process.label}>
-            {/* The dot and the words are one line, so that the dot can sit
-                on the words' x-height (shell.css). The words give way to
-                the dot when the header is short of room; they are still the
-                button's name. */}
-            <span className="process-menu-state">
-              <ProcessStatus status={process.status} />
-              <span className="header-wide-only">{process.label}</span>
-            </span>
-            <Icon icon={chevronDown} size={16} />
-          </Button>
-        }
-      />
-      <Menu.Popup>
-        {links.map((link) => (
-          <Menu.Item key={link.id} onClick={() => onOpenLink(link.href)}>
-            <Menu.ItemLabel>{link.label}</Menu.ItemLabel>
-          </Menu.Item>
-        ))}
-        {links.length ? <Menu.Separator /> : null}
-        <Menu.Item disabled={process.disabled} onClick={onToggle}>
-          <Menu.ItemLabel>{process.action}</Menu.ItemLabel>
-        </Menu.Item>
-      </Menu.Popup>
-    </Menu.Root>
+    <Button className="process-toggle" variant="minimal" tone="neutral" size="compact" title={processTip(process)} disabled={process.disabled} onClick={onToggle} aria-label={process.toggle}>
+      {/* The icon and the words are one line, so that the icon can sit on
+          the words' x-height (shell.css). When the header is short of room
+          the words give way to the process's name, so that the two buttons
+          can still be told apart, and the tooltip says what the process is
+          doing and what a press does. */}
+      <span className="process-toggle-state">
+        <ProcessStatus status={process.status} />
+        <span className="header-narrow-only" aria-hidden="true">{process.name}</span>
+        <span className="header-wide-only" aria-hidden="true">{process.toggle}</span>
+      </span>
+    </Button>
   );
 }
 
@@ -193,7 +197,7 @@ function ProcessMenu({ process, onToggle, links = [], onOpenLink = null }) {
  * its setup is done; the button that shows and hides its details; and its
  * menu. Rendered by the site's view, and only by the one that is open.
  *
- * The next-action cue (#252) can point at the server's menu or at the review
+ * The next-action cue (#252) can point at the server's button or at the review
  * button. Each takes the props the site's view makes for the step it is, which
  * put the glow on it when it is the next one.
  *
@@ -204,7 +208,7 @@ function ProcessMenu({ process, onToggle, links = [], onOpenLink = null }) {
  * @param {Object}   props.menu            What `siteMenuItems` takes.
  * @param {Function} props.onMenuOpen      Called as the menu opens, to look for applications.
  * @param {Function} props.onAction        Called with the chosen item.
- * @param {Object}   [props.work]          The processes and the review, or null while the site's setup is not done: `{ server, watch, onToggleServer, onToggleWatch, serverLinks, onOpenLink, onReview, reviewDisabled, serverCue, reviewCue }`.
+ * @param {Object}   [props.work]          The processes and the review, or null while the site's setup is not done: `{ server, watch, onToggleServer, onToggleWatch, onReview, reviewDisabled, serverCue, reviewCue }`.
  */
 export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, menu, onMenuOpen, onAction, work = null }) {
   return (
@@ -212,9 +216,9 @@ export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, men
       {work ? (
         <>
           <span {...work.serverCue}>
-            <ProcessMenu process={work.server} onToggle={work.onToggleServer} links={work.serverLinks} onOpenLink={work.onOpenLink} />
+            <ProcessToggle process={work.server} onToggle={work.onToggleServer} />
           </span>
-          <ProcessMenu process={work.watch} onToggle={work.onToggleWatch} />
+          <ProcessToggle process={work.watch} onToggle={work.onToggleWatch} />
           <span {...work.reviewCue}>
             {/* One name, of which the header shows the first word when it is
                 short of room. */}

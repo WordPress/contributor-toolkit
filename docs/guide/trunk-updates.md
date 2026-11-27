@@ -40,18 +40,18 @@ What an update does not move is the snapshot your work-item branch was created o
 
 After the update, the work-item card may say **Trunk has moved since this ticket started** or **…since this issue started**. That is not an incomplete update: trunk is current and the linked branch is still safely on its original base. To move the work forward, use the update action in that notice, or save a patch, unlink the item, delete its branch, link it again and apply the saved patch. The app never changes a work item's base without one of those explicit actions. See [When trunk has moved since the work item started](./ticket-branches#when-trunk-has-moved-since-the-work-item-started).
 
-## Staleness dots and notices
+## Staleness icons and notices
 
-The app flags sites that have fallen behind with a coloured dot next to the site name in the sidebar, after the grey or green dot that shows the site's development server:
+The app flags sites that have fallen behind with an icon next to the site name in the sidebar, after the icon that shows the site's development server:
 
-- **Amber** — the snapshot is more than 14 days old. The site view also shows a notice recommending an update before you prepare changes against old code, with an **Update to latest trunk** button.
-- **Red** — a previous update moved the code but never finished installing or rebuilding, so the built assets no longer match the source. Run the update again.
+- **Clock** (amber): the snapshot is more than 14 days old. The site view also shows a notice recommending an update before you prepare changes against old code, with an **Update to latest trunk** button.
+- **Warning triangle** (red): a previous update moved the code but never finished installing or rebuilding, so the built assets no longer match the source. Run the update again.
 
 ![The stale-site notice with its Update to latest trunk button](/screenshots/stale-site-notice.png)
 
 ## When an update does not finish
 
-If the fetch succeeds but install or build fails, the site view shows a red banner: **Update incomplete** — the code is new but the built assets are old, and the site may not run correctly until install and build succeed. Click **Retry install & build** to run only the missing steps; the fetch is not repeated. The sidebar dot stays red until this succeeds.
+If the fetch succeeds but install or build fails, the site view shows a red banner: **Update incomplete** — the code is new but the built assets are old, and the site may not run correctly until install and build succeed. Click **Retry install & build** to run only the missing steps; the fetch is not repeated. The sidebar's warning triangle stays until this succeeds.
 
 Every branch of a site shares one install and one build, so the banner shows on trunk and on every ticket until the retry succeeds, including after you link a ticket and take your edits into it. One successful retry clears it everywhere.
 

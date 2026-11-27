@@ -181,6 +181,10 @@ test( 'a site with something to report says so in the list before it is opened',
 	await expect( page.getByRole( 'button', { name: 'unfinished (Update incomplete — code is new, built assets are old)', exact: true } ) ).toBeVisible();
 	await expect( page.getByRole( 'button', { name: 'old-trunk (WordPress code is 30 days old — update to latest trunk)', exact: true } ) ).toBeVisible();
 	await expect( ui.sidebarEntry( page, 'up-to-date' ) ).toBeVisible();
+	// INVARIANT — the two are told apart by shape, not only by colour (#776).
+	const incomplete = await page.locator( '.sites-sidebar-dot.is-incomplete svg' ).innerHTML();
+	const stale = await page.locator( '.sites-sidebar-dot.is-stale svg' ).innerHTML();
+	expect( incomplete ).not.toBe( stale );
 } );
 
 test( 'the sites list can be put away and brought back, and while it is away it cannot be reached at all', async ( { session } ) => {
