@@ -72,6 +72,8 @@ test( 'the sites list opens a site without closing the others, and the open site
 	// one the app opens on.
 	await expect( ui.siteHeading( page, 'newer-site' ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByRole( 'grid' ).getByRole( 'row' ) ).toHaveText( [ /newer-site/, /older-site/ ] );
+	// INVARIANT — a launch with sites does not open the create dialog (#730).
+	await expect( ui.createSiteDialog( page ) ).toHaveCount( 0 );
 	// INVARIANT — the list says which site is open, and the page's header says
 	// its name and its project.
 	await expect( newer ).toHaveAttribute( 'aria-pressed', 'true' );
@@ -221,7 +223,7 @@ test( 'the sites list can be put away and brought back, and while it is away it 
 	await expect( ui.createSiteButton( page ) ).toBeFocused();
 } );
 
-test( 'a window with no site in it has no list, says what to do, and keeps the footer', async ( { session } ) => {
+test( 'a window with no site in it opens the create dialog, says what to do once it is closed, and keeps the footer', async ( { session } ) => {
 	const { app, page } = await session.start();
 	const opened = async () => app.evaluate( () => global.__e2eOpened );
 	await app.evaluate( ( { ipcMain } ) => {
@@ -233,16 +235,25 @@ test( 'a window with no site in it has no list, says what to do, and keeps the f
 		} );
 	} );
 
-	// INVARIANT — there is nothing to list, so there is no list and no button
-	// to hide one: the window says there are no sites and offers the one thing
-	// to do about it.
-	await expect( ui.noSitesTitle( page ) ).toBeVisible( { timeout: 30_000 } );
+	// INVARIANT — a launch with nothing in it opens the one thing to do
+	// (#730), on the name.
+	const dialog = ui.createSiteDialog( page );
+	await expect( dialog ).toBeVisible( { timeout: 30_000 } );
+	await expect( dialog.getByLabel( 'Site name', { exact: true } ) ).toBeFocused();
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
+
+	// INVARIANT — closed, it stays closed. There is nothing to list, so there
+	// is no list and no button to hide one: the window says there are no sites
+	// and offers the one thing to do about it.
+	await expect( ui.noSitesTitle( page ) ).toBeVisible();
+	await expect( dialog ).toHaveCount( 0 );
 	await expect( page.getByRole( 'region', { name: 'My sites' } ) ).toHaveCount( 0 );
 	await expect( hideSitesListButton( page ) ).toHaveCount( 0 );
 	await ui.createFirstSiteButton( page ).click();
-	await expect( ui.createSiteDialog( page ) ).toBeVisible();
+	await expect( dialog ).toBeVisible();
 	await page.keyboard.press( 'Escape' );
-	await expect( ui.createSiteDialog( page ) ).toHaveCount( 0 );
+	await expect( dialog ).toHaveCount( 0 );
 
 	// INVARIANT — giving feedback is about the app, so it is there with no
 	// site. It says where the form is and who reads it before anything is
@@ -258,6 +269,17 @@ test( 'a window with no site in it has no list, says what to do, and keeps the f
 	await openForm.click();
 	await expect.poll( opened ).toEqual( [ FEEDBACK_FORM ] );
 	await expect( openForm ).toHaveCount( 0 );
+} );
+
+test( 'the dialog an empty launch opens starts in the folder the settings say new sites go in', async ( { session } ) => {
+	const parent = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-parent-' ) ) );
+	const { page } = await session.start( { sites: [], siteMeta: {}, preferences: { newSiteLocation: parent } } );
+
+	// INVARIANT — opened before the settings were read, the dialog would have
+	// started with no folder (#559, #730).
+	const dialog = ui.createSiteDialog( page );
+	await expect( dialog ).toBeVisible( { timeout: 30_000 } );
+	await expect( dialog.getByText( parent, { exact: true } ) ).toBeVisible();
 } );
 
 test( 'the window opens at the size the shell is designed for, or the screen\'s if that is smaller, and cannot be made smaller than its page', async ( { session } ) => {

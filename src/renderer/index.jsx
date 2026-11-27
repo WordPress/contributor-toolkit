@@ -114,7 +114,7 @@ const SILENT = '';
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
 function App({ settingsState }) {
-  const { sites, siteMeta, refresh, setSiteMeta, applySetup } = useSites();
+  const { sites, siteMeta, loaded: sitesLoaded, refresh, setSiteMeta, applySetup } = useSites();
   // The confirmation queue for the whole window. It lives here, above every
   // SiteRow, because only one row is visible at a time and a per-row toast would
   // be hidden along with its inactive row. See ConfirmationContext in hooks/use-confirmation.jsx.
@@ -377,6 +377,19 @@ function App({ settingsState }) {
     if (createSubmitting) return;
     setCreateModalOpen(true);
   }, [createSubmitting]);
+
+  // A window that opens with no site in it opens the dialog that makes one
+  // (#730): an empty window with a button nobody knew the meaning of was where
+  // newcomers stopped. Once per window, and only once both reads have
+  // answered: the list, since it is empty until then for everyone, and the
+  // settings, since the dialog takes its folder from them as it opens (#559).
+  // Closing it, or deleting the last site later, leaves the empty state.
+  const offeredCreateRef = useRef(false);
+  useEffect(() => {
+    if (offeredCreateRef.current || !sitesLoaded || !settings) return;
+    offeredCreateRef.current = true;
+    if (!sites.length) setCreateModalOpen(true);
+  }, [sitesLoaded, settings, sites]);
 
   // What the create-site dialog hands over once it has every answer: the name,
   // trimmed, the parent folder and the project. The dialog closes here, and the
